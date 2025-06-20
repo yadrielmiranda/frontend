@@ -25,6 +25,16 @@ export async function createProduct(productData: any) {
     console.log(data)
 }
 
+export async function updateProduct(id: any, productData: any) {
+    const res = await fetch(`http://localhost:4000/api/products/${id}`,{
+        method: "PATCH",
+        headers: {
+           'Content-Type': 'application/json',
+        },
+         body: JSON.stringify(productData)
+    })  
+}
+
 export async function deleteProduct(id: any) {
     const res = await fetch(`http://localhost:4000/api/products/${id}`, {
         method: 'DELETE',

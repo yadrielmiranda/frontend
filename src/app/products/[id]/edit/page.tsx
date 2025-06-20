@@ -10,18 +10,26 @@ import {
 import { ProductForm } from "../../new/product-form";
 import { getProduct } from "@/queries/products.api";
 
-interface Props {
-  params: {
+/*
+
+//de esta forma tambien se puede hacer, pero necesitaba Promise en esta funcion para usar el await
+
+interface Props{
+  params: { 
     id: string;
   }
+
+  
 }
+*/
 
-//const product = await getProduct(params.id);
-
-export default async function EditProduct({params}: Props) {
-  const {id} = params;
+export default async function EditProduct({params}: { params: Promise<{ id: string }> }) {
+  const {id} = await params; //si es necesario el await
   const product =  await getProduct(id);
+  console.log("este es el producto desde edit");
+  
   console.log(product);
+  console.log("arribaaaaaaa");
   
   
   return (
