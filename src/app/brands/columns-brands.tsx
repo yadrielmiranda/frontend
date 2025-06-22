@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "./delete-brand-dialog";
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,

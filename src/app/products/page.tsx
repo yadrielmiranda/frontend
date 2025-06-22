@@ -1,7 +1,7 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { getProducts } from "../../queries/products.api";
-import { DataTable } from "./data-table";
+import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
 import {
   Table,
@@ -33,7 +33,8 @@ export default async function ProductPage() {
        
       </div>
       <div className="container mx-auto py-10">
-        <DataTable columns={columns} data={products} />
+        <DataTable columns={columns} data={products} filterColumnId="name" 
+        filterPlaceholder="Filter products..."/>
       </div>
     </div>
   );

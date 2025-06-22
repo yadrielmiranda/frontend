@@ -21,14 +21,19 @@ import {
 
 import { Input } from "@/components/ui/input";
 
+// La interfaz ya estaba bien definida
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  filterColumnId?: string; // La columna por la que quieres filtrar
+  filterPlaceholder?: string; // El texto que aparecerá en el campo de búsqueda
 }
 
-export function DataTableBrands<TData, TValue>({
+export function DataTable<TData, TValue>({
   columns,
   data,
+  filterColumnId,         // CAMBIO: Recibimos la prop filterColumnId
+  filterPlaceholder,      // CAMBIO: Recibimos la prop filterPlaceholder
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -47,16 +52,22 @@ export function DataTableBrands<TData, TValue>({
 
   return (
     <div>
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Filter brands..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
-      </div>
+      {/* CAMBIO: Se envuelve el Input en una condición para que solo aparezca si se necesita */}
+      {filterColumnId && (
+        <div className="flex items-center py-4">
+          <Input
+            // CAMBIO: Se usa el placeholder dinámico. Si no se provee, se usa un valor por defecto.
+            placeholder={filterPlaceholder ?? "Filtrar..."}
+            // CAMBIO: Se usa el filterColumnId para obtener la columna correcta
+            value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              // CAMBIO: Y se usa aquí también para aplicar el filtro
+              table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+        </div>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -91,8 +102,9 @@ export function DataTableBrands<TData, TValue>({
                         cell.getContext()
                       )}
                     </TableCell>
-                  ))}
-                </TableRow>
+                  
+                ))}
+              </TableRow>
               ))
             ) : (
               <TableRow>
@@ -100,7 +112,7 @@ export function DataTableBrands<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No hay resultados.
                 </TableCell>
               </TableRow>
             )}

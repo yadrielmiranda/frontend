@@ -2,9 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { deleteProduct, getProduct } from "../../queries/products.api";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,27 +12,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-//import { useRouter } from "next/navigation"
 import Link from "next/link";
 import { useState } from "react";
+import { deleteFColor } from "@/queries/framecolors.api";
 import { useRouter } from "next/navigation";
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
-export type Product = {
+export type Fcolor = {
   id: number;
-  name: string;
+  color: string;
 };
 
-export const columns: ColumnDef<Product>[] = [
+export const columns: ColumnDef<Fcolor>[] = [
   {
-    accessorKey: "name",
-    header: "Name",
+    accessorKey: "color",
+    header: "Color",
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const product = row.original;
+      const fcolor = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para el AlertDialog
       const router = useRouter();
 
@@ -50,16 +50,7 @@ export const columns: ColumnDef<Product>[] = [
       const handleDelete = async () => {
         // Lógica para enviar la solicitud DELETE a tu API de Next.js
         // Ejemplo con una API Route o Server Action
-        await deleteProduct(product.id);
-
-        setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
-        router.refresh();
-      };
-
-      const handleEdit = async () => {
-        // Lógica para enviar la solicitud DELETE a tu API de Next.js
-        // Ejemplo con una API Route o Server Action
-        await getProduct(product.id);
+        await deleteFColor(fcolor.id);
 
         setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
         router.refresh();
@@ -81,7 +72,7 @@ export const columns: ColumnDef<Product>[] = [
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/products/${product.id}/edit`}
+                  href={`/framecolors/${fcolor.id}/edit`}
                 >
                   Edit
                 </Link>

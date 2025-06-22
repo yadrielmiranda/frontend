@@ -1,21 +1,8 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { getBrands } from "@/queries/brands.api";
-import { DataTableBrands } from "./data-table-brands";
+import { DataTable } from "@/components/data-table";
 import { columns } from "./columns-brands";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-
-
 
 export default async function ProductPage() {
   const brands = await getBrands();
@@ -27,15 +14,16 @@ export default async function ProductPage() {
         <h1 className="text-4xl font-bold">Brands</h1>
 
         <Button variant="green" asChild>
-          <Link href="/brands/new" >
-          + New
-        </Link>
+          <Link href="/brands/new">+ New</Link>
         </Button>
-        
-       
       </div>
       <div className="container mx-auto py-10">
-        <DataTableBrands columns={columns} data={brands} />
+        <DataTable
+          columns={columns}
+          data={brands}
+          filterColumnId="name"
+          filterPlaceholder="Filter brands..."
+        />
       </div>
     </div>
   );

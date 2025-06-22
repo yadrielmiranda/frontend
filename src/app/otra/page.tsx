@@ -21,6 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 
 function TopBar() {
   return (
@@ -82,7 +83,7 @@ function TopBar() {
               <Link href="/products">Systems</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/products">Frame Colors</Link>
+              <Link href="/framecolors">Frame Colors</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/products">Coating</Link>
@@ -107,9 +108,9 @@ function TopBar() {
         {/* Botón de Notificaciones */}
         <Button variant="ghost" size="icon" className="relative">
           {/* Icono de campana (ej. de Lucide React o similar) */}
-          🔔
+          <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-            3
+            0
           </span>
         </Button>
 
@@ -188,7 +189,7 @@ function TopBar() {
                       <Link href="/products">Systems</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/products">Frame Colors</Link>
+                      <Link href="/framecolors">Frame Colors</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/products">Coating</Link>

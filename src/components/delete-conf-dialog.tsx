@@ -1,5 +1,5 @@
 "use client";
-
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,29 +17,32 @@ interface DeleteConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  
 }
 
 export function DeleteConfirmationDialog({
   isOpen,
   onClose,
-  onConfirm
-  
+  onConfirm,
 }: DeleteConfirmationDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás seguro de eliminar este producto?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Are you sure you want to delete this product?
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción no se puede deshacer. Esto eliminará de forma permanente
-            el elemento seleccionado.
+            This action cannot be undone. It will permanently delete the
+            selected item.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-red-600 hover:bg-red-700">
-            Eliminar
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Confirm
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
