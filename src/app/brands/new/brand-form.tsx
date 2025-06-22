@@ -4,31 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
-import { createProduct, updateProduct } from "../../../queries/products.api";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { createBrand, updateBrand } from "@/queries/brands.api";
 
-export function ProductForm({ product }: any) {
+export function BrandForm({ brand }: any) {
   const { register, handleSubmit } = useForm({
     defaultValues: {
-      name: product?.name,
+      name: brand?.name,
     },
   });
   const router = useRouter();
   const params = useParams<{ id: string }>();
 
   const onSubmit = handleSubmit(async (data) => {
-    if (productName.trim() === "") {
-      console.log("El nombre del producto no puede estar vacío.");
+    if (brandName.trim() === "") {
+      console.log("El nombre de brand no puede estar vacío.");
       return;
     } else {
       if (params.id) {
-        await updateProduct(params.id, data);
+        await updateBrand(params.id, data);
       } else {
-        await createProduct(data);
+        await createBrand(data);
       }
     }
-    router.push("/products");
+    router.push("/brands");
   });
   const handleCancel = () => {
     router.back();
@@ -38,20 +38,20 @@ export function ProductForm({ product }: any) {
 
   const dfolor = params.id ? "blue" : "green";
 
-  const [productName, setProductName] = useState(product?.name || "");
+  const [brandName, setBrandName] = useState(brand?.name || "");
 
   const isButtonDisabled =
-    productName.trim() === "" || productName.trim() === product?.name;
+    brandName.trim() === "" || brandName.trim() === brand?.name;
 
   return (
     <form onSubmit={onSubmit}>
        <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
-          <Label>Product Name</Label>
+          <Label>Brand Name</Label>
           <Input
-            placeholder="Enter product name"
+            placeholder="Enter brand name"
             {...register("name")}
-            onChange={(e) => setProductName(e.target.value)}
+            onChange={(e) => setBrandName(e.target.value)}
           />
         </div>
         <div className="flex justify-end gap-2">

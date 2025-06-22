@@ -2,9 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { deleteProduct, getProduct } from "../../queries/products.api";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "./delete-conf-dialog";
+import { DeleteConfirmationDialog } from "./delete-brand-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,19 +12,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-//import { useRouter } from "next/navigation"
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { deleteBrand } from "@/queries/brands.api";
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
-export type Product = {
+export type Brand = {
   id: number;
   name: string;
 };
 
-export const columns: ColumnDef<Product>[] = [
+export const columns: ColumnDef<Brand>[] = [
   {
     accessorKey: "name",
     header: "Name",
@@ -33,7 +32,7 @@ export const columns: ColumnDef<Product>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
-      const product = row.original;
+      const brand = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para el AlertDialog
       const router = useRouter();
 
@@ -50,16 +49,7 @@ export const columns: ColumnDef<Product>[] = [
       const handleDelete = async () => {
         // Lógica para enviar la solicitud DELETE a tu API de Next.js
         // Ejemplo con una API Route o Server Action
-        await deleteProduct(product.id);
-
-        setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
-        router.refresh();
-      };
-
-      const handleEdit = async () => {
-        // Lógica para enviar la solicitud DELETE a tu API de Next.js
-        // Ejemplo con una API Route o Server Action
-        await getProduct(product.id);
+        await deleteBrand(brand.id);
 
         setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
         router.refresh();
@@ -81,7 +71,7 @@ export const columns: ColumnDef<Product>[] = [
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/products/${product.id}/edit`}
+                  href={`/brands/${brand.id}/edit`}
                 >
                   Edit
                 </Link>
