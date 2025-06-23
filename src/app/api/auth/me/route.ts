@@ -5,9 +5,10 @@ import { jwtVerify } from 'jose'; // Asegúrate de tener 'jose' instalado: npm i
 // Define tu constante secreta para verificar el JWT.
 // ¡Esta DEBE ser EXACTAMENTE la misma que usas en tu backend de NestJS para firmar los JWTs!
 // Se recomienda cargarla desde una variable de entorno.
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET_KEY || 'tu_secreto_jwt_muy_seguro_y_largo_aqui');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET_KEY );
 
 export async function GET(request: NextRequest) {
+  
   try {
     console.log("[/api/auth/me] Solicitud GET recibida.");
 
