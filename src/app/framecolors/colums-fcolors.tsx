@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { deleteFColor } from "@/queries/framecolors.api";
+import { deleteFColor } from "@/app/api/framecolors.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 

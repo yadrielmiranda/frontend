@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteBrand } from "@/queries/brands.api";
+import { deleteBrand } from "@/app/api/brands.api";
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.

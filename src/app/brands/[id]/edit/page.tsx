@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getBrand } from "@/queries/brands.api";
+import { getBrand } from "@/app/api/brands.api";
 import { BrandForm } from "../../new/brand-form";
 
 export default async function EditBrand({

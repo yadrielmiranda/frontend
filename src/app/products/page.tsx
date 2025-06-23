@@ -1,6 +1,6 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { getProducts } from "../../queries/products.api";
+import { getProducts } from "../api/products.api";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
 import {

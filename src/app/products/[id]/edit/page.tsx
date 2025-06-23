@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProductForm } from "../../new/product-form";
-import { getProduct } from "@/queries/products.api";
+import { getProduct } from "@/app/api/products.api";
 
 /*
 

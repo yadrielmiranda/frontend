@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { createBrand, updateBrand } from "@/queries/brands.api";
+import { createBrand, updateBrand } from "@/app/api/brands.api";
 
 export function BrandForm({ brand }: any) {
   const { register, handleSubmit } = useForm({

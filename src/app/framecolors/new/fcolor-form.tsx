@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { createFColor, updateFColor } from "@/queries/framecolors.api";
+import { createFColor, updateFColor } from "@/app/api/framecolors.api";
 
 export function FcolorForm({ fcolor }: any) {
   const { register, handleSubmit } = useForm({

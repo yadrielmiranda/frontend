@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 
 import { FcolorForm } from "../../new/fcolor-form";
-import { getFColor } from "@/queries/framecolors.api";
+import { getFColor } from "@/app/api/framecolors.api";
 
 
 

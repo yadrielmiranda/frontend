@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { deleteProduct, getProduct } from "../../queries/products.api";
+import { deleteProduct, getProduct } from "../api/products.api";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {

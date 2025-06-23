@@ -1,6 +1,6 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { getFColors } from "@/queries/framecolors.api";
+import { getFColors } from "@/app/api/framecolors.api";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./colums-fcolors";
 import { ArrowLeftIcon } from "lucide-react";
