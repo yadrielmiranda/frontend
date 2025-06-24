@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { deleteProduct, getProduct } from "../api/products.api";
+import { deleteProduct, getProduct } from "@/app/api/products.api";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
@@ -81,7 +82,7 @@ export const columns: ColumnDef<Product>[] = [
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/products/${product.id}/edit`}
+                  href={`/settings/products/${product.id}/edit`}
                 >
                   Edit
                 </Link>

@@ -7,25 +7,28 @@ interface LoginData {
 interface LoginResponse {
   message?: string; // Opcional, si tu backend devuelve un mensaje de éxito (ej. { message: 'Login exitoso' })
 
- 
-
 }
 
+interface LogoutResponse {
+  message?: string;
+}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'; // Default para desarrollo
+
 export async function getUsers() {
-  const data = await fetch('http://localhost:4000/api/users', {
+  const data = await fetch(`${API_BASE_URL}/api/users`, {
     cache: "no-store"
   });
   return await data.json()
 }
 
 export async function getUser(id: any) {
-  const data = await fetch(`http://localhost:4000/api/users/${id}`);
+  const data = await fetch(`${API_BASE_URL}/api/users/${id}`);
   return await data.json()
 }
 
 export async function createUser(userData: any) {
 
-  const res = await fetch('http://localhost:4000/api/users', {
+  const res = await fetch(`${API_BASE_URL}/api/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +40,7 @@ export async function createUser(userData: any) {
 }
 
 export async function updateUser(id: any, userData: any) {
-  const res = await fetch(`http://localhost:4000/api/users/${id}`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/${id}`, {
     method: "PATCH",
     headers: {
       'Content-Type': 'application/json',
@@ -47,7 +50,7 @@ export async function updateUser(id: any, userData: any) {
 }
 
 export async function deleteUser(id: any) {
-  const res = await fetch(`http://localhost:4000/api/users/${id}`, {
+  const res = await fetch(`${API_BASE_URL}/api/users/${id}`, {
     method: 'DELETE',
   });
   const data = await res.json()
@@ -56,7 +59,7 @@ export async function deleteUser(id: any) {
 
 export async function loginUser(userData: LoginData): Promise<LoginResponse> {
   try {
-    const response = await fetch('http://localhost:4000/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,8 +71,8 @@ export async function loginUser(userData: LoginData): Promise<LoginResponse> {
     const data: LoginResponse = await response.json();
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Error desconocido al iniciar sesión.');
+      
+      throw new Error(data.message || 'Error desconocido al iniciar sesión.');
     }
 
     console.log("Respuesta de login (sin token en el cuerpo):", data);
@@ -78,6 +81,28 @@ export async function loginUser(userData: LoginData): Promise<LoginResponse> {
 
   } catch (error) {
     console.error('Error en la llamada a la API de login:', error);
+    throw error;
+  }
+}
+
+export async function logoutUser(): Promise<LogoutResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // Asegúrate de enviar las cookies con la solicitud de logout
+    });
+
+    const data: LogoutResponse = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Error desconocido al cerrar sesión.');
+    }
+
+    console.log("Logout exitoso:", data);
+    return data;
+
+  } catch (error: any) {
+    console.error('Error en la llamada a la API de logout:', error);
     throw error;
   }
 }

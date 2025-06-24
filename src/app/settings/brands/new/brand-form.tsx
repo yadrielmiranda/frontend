@@ -28,7 +28,7 @@ export function BrandForm({ brand }: any) {
         await createBrand(data);
       }
     }
-    router.push("/brands");
+    router.push("/settings/brands");
   });
   const handleCancel = () => {
     router.back();

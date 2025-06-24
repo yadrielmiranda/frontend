@@ -32,7 +32,7 @@ export function FcolorForm({ fcolor }: any) {
         await createFColor(data);
       }
     }
-    router.push("/framecolors");
+    router.push("/settings/framecolors");
   });
   const handleCancel = () => {
     router.back();

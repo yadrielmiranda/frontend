@@ -23,7 +23,7 @@ export default async function ProductPage() {
           </Link>
         </Button>
         <Button variant="green" asChild>
-          <Link href="/framecolors/new">+ New</Link>
+          <Link href="/settings/framecolors/new">+ New</Link>
         </Button>
       </div>
       <div className="container mx-auto py-10">

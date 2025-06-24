@@ -1,8 +1,8 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { getProducts } from "../api/products.api";
+import { getProducts } from "@/app/api/products.api";
 import { DataTable } from "@/components/data-table";
-import { columns } from "./columns";
+import { columns } from "./columns-products";
 import {
   Table,
   TableBody,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 
 
+
+
 export default async function ProductPage() {
   const products = await getProducts();
   console.log(products);
@@ -25,7 +27,7 @@ export default async function ProductPage() {
         <h1 className="text-4xl font-bold">Products</h1>
 
         <Button variant="green" asChild>
-          <Link href="/products/new" >
+          <Link href="/settings/products/new" >
           + New
         </Link>
         </Button>

@@ -71,7 +71,7 @@ export const columns: ColumnDef<Brand>[] = [
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/brands/${brand.id}/edit`}
+                  href={`/settings/brands/${brand.id}/edit`}
                 >
                   Edit
                 </Link>

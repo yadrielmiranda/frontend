@@ -1,4 +1,5 @@
-"use client";
+// CardLogin.tsx
+'use client';
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, UserRoundPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/app/api/users.api"; // Asumo que aquí está tu función
+import { loginUser } from "@/app/api/users.api";
 import { useAuth } from '@/contexts/AuthContext';
 
-export function CardLogin() {
+// Define las props que CardLogin aceptará
+interface CardLoginProps {
+  onLoginSuccess?: () => void; // Función opcional para llamar al éxito del login
+}
+
+// Actualiza la declaración de la función para aceptar las props
+export function CardLogin({ onLoginSuccess }: CardLoginProps) {
   const router = useRouter();
-  // Solo necesitamos 'revalidate' del contexto para este componente
-  const { revalidate } = useAuth(); 
+  const { revalidate } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -39,19 +45,18 @@ export function CardLogin() {
         password,
       };
 
-      // 1. Llama a la API de login. La cookie HttpOnly se establecerá si tiene éxito.
       await loginUser(userData);
-
-      // --- ¡LÓGICA CLAVE CORREGIDA! ---
-      // 2. Ya no llamamos a setUser() aquí. En su lugar, le decimos al AuthProvider
-      // que revalide su estado. AuthProvider llamará a /api/auth/me, verá la nueva
-      // cookie, y actualizará tanto 'user' como 'isAuthenticated' a true.
       await revalidate();
-      
-      console.log("Login exitoso. Revalidación solicitada. Redirigiendo...");
 
-      // 3. Redirige al usuario.
-      router.push('/otra'); // O cualquier otra ruta protegida
+      console.log("Login exitoso. Revalidación solicitada.");
+
+      // Si se proporcionó onLoginSuccess, llamarlo para cerrar el modal
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      } else {
+        // Si no está en un modal (ej. en una página dedicada de login), redirige normalmente
+        router.push('/otra'); // O cualquier otra ruta protegida
+      }
 
     } catch (err: any) {
       console.error("Error al iniciar sesión:", err);
@@ -67,7 +72,8 @@ export function CardLogin() {
 
   return (
     <Card className="w-full max-w-sm">
-      <CardHeader>
+      {/* ... (el resto de tu CardLogin.tsx permanece igual) ... */}
+   { /* <CardHeader>
         <CardTitle>Login to your account</CardTitle>
         <CardDescription>
           Enter your username and password below to login to your account
@@ -75,7 +81,7 @@ export function CardLogin() {
         <CardAction>
           <Button variant="link" onClick={handleSignUpClick}>Sign Up</Button>
         </CardAction>
-      </CardHeader>
+      </CardHeader> */}
       <CardContent>
         <form onSubmit={handleLogin}>
           <div className="flex flex-col gap-6">

@@ -7,21 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ProductForm } from "../../new/product-form";
+
 import { getProduct } from "@/app/api/products.api";
-
-/*
-
-//de esta forma tambien se puede hacer, pero necesitaba Promise en esta funcion para usar el await
-
-interface Props{
-  params: { 
-    id: string;
-  }
-
-  
-}
-*/
+import { ProductForm } from "../../new/product-form";
 
 export default async function EditProduct({
   params,

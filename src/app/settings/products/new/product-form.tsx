@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
-import { createProduct, updateProduct } from "../../api/products.api";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { createProduct, updateProduct } from "@/app/api/products.api";
 
 export function ProductForm({ product }: any) {
   const { register, handleSubmit } = useForm({
@@ -28,7 +28,7 @@ export function ProductForm({ product }: any) {
         await createProduct(data);
       }
     }
-    router.push("/products");
+    router.push("/settings/products");
   });
   const handleCancel = () => {
     router.back();

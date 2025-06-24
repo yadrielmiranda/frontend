@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Link from "next/link";
-import { Bell, User } from "lucide-react";
+import { Bell} from "lucide-react";
 import { UserDropdown } from "@/components/user-dropdown";
 
 function TopBar() {
@@ -75,16 +74,16 @@ function TopBar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/brands">Brands</Link>
+              <Link href="/settings/brands">Brands</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/products">Products</Link>
+              <Link href="/settings/products">Products</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/products">Systems</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/framecolors">Frame Colors</Link>
+              <Link href="/settings/framecolors">Frame Colors</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/products">Coating</Link>
@@ -115,10 +114,10 @@ function TopBar() {
           </span>
         </Button>
 
-        {/* Dropdown del Perfil de Usuario (ya estaba como DropdownMenu) */}
+        {/*este es el button del login*/}
         <UserDropdown />
 
-        {/* Menú Hamburguesa para Responsive */}
+        
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -159,14 +158,17 @@ function TopBar() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
+                     <DropdownMenuItem asChild>
+                      <Link href="/settings/brands">Brands</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/products">Products</Link>
+                      <Link href="/settings/products">Products</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/products">Systems</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/framecolors">Frame Colors</Link>
+                      <Link href="/settings/framecolors">Frame Colors</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/products">Coating</Link>

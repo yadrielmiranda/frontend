@@ -37,16 +37,6 @@ export const columns: ColumnDef<Fcolor>[] = [
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para el AlertDialog
       const router = useRouter();
 
-      /*
-        const router = useRouter();
-
-        const handleEditClick = (event: React.MouseEvent) => {
-        event.stopPropagation(); // Previene la propagación del evento, útil si la fila es clickeable
-        router.push('/products/new');
-      };
-
-      */
-
       const handleDelete = async () => {
         // Lógica para enviar la solicitud DELETE a tu API de Next.js
         // Ejemplo con una API Route o Server Action
@@ -72,7 +62,7 @@ export const columns: ColumnDef<Fcolor>[] = [
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/framecolors/${fcolor.id}/edit`}
+                  href={`/settings/framecolors/${fcolor.id}/edit`}
                 >
                   Edit
                 </Link>

@@ -14,7 +14,7 @@ export default async function ProductPage() {
         <h1 className="text-4xl font-bold">Brands</h1>
 
         <Button variant="green" asChild>
-          <Link href="/brands/new">+ New</Link>
+          <Link href="/settings/brands/new">+ New</Link>
         </Button>
       </div>
       <div className="container mx-auto py-10">

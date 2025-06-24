@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
 
     console.log("[/api/auth/me] 'access_token' encontrado. Intentando verificar JWT...");
 
+    console.log(`[Next.js Server] Hora actual de antes de verificar: ${new Date().toISOString()}`);
+
     // Verifica el token JWT. Si es inválido (expirado, modificado), jwtVerify lanzará un error.
     const { payload } = await jwtVerify(accessToken, JWT_SECRET);
     
