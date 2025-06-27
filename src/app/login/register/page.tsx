@@ -16,11 +16,6 @@ import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createUser } from "@/app/api/users.api";
 
-// Asume que tu archivo users.api.ts está en una ruta como:
-// - lib/api/users.api.ts
-// - services/users.api.ts
-// Ajusta esta ruta según la ubicación real de tu archivo.
- // <-- Importa tu función createUser
 
 export default function CardRegister() {
   const router = useRouter();
@@ -62,7 +57,7 @@ export default function CardRegister() {
       alert("¡Registration successful! Redirecting to login..."); // Puedes usar un Toast de Shadcn en lugar de alert
 
       // Redirige al usuario a la página de login o a un dashboard
-      router.push("/"); // <-- Cambia '/login' a la ruta deseada después del registro
+      router.push("/"); 
 
     } catch (err: any) { // Captura y maneja errores de la API
       console.error("Error al registrar el usuario:", err);
