@@ -1,6 +1,6 @@
-'use client'; // Este componente necesita ser un Client Component
+"use client"; // Este componente necesita ser un Client Component
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,46 +25,14 @@ import {
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { UserDropdown } from "@/components/user-dropdown"; // UserDropdown es "inteligente" internamente
-
-// (Opcional) Puedes reutilizar la interfaz de usuario si la tienes en otro archivo
-interface User {
-  id: string;
-  username: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-}
+import { useAuth } from "@/contexts/AuthContext";
 
 function TopBar() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null: cargando, true: autenticado, false: no autenticado
-  const [user, setUser] = useState<User | null>(null); // Datos del usuario
-
-  // Función para verificar el estado de autenticación
-  useEffect(() => {
-    async function checkAuthStatus() {
-      try {
-        const response = await fetch('/api/auth/me'); // Llama a tu ruta de API de autenticación
-        if (response.ok) {
-          const data = await response.json();
-          setIsAuthenticated(true);
-          setUser(data.user); // Guarda los datos del usuario
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Error al verificar la autenticación en TopBar:", error);
-        setIsAuthenticated(false);
-        setUser(null);
-      }
-    }
-
-    checkAuthStatus();
-  }, []); // Se ejecuta solo una vez al montar
+  const { isAuthenticated, isLoading } = useAuth(); // Usamos 'isLoading' del contexto
 
   // --- Estado de Carga ---
   // Muestra un estado de carga mientras se verifica la autenticación.
-  if (isAuthenticated === null) {
+  if (isLoading) {
     return (
       <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
         {/* Logo siempre visible */}
@@ -73,13 +41,16 @@ function TopBar() {
             Impact +
           </h1>
         </div>
-        {/* Placeholder para el resto de elementos si no están logueados */}
+        {/* Placeholders de carga */}
         <div className="flex items-center gap-4">
-          {/* El UserDropdown no se oculta durante la carga, pero el resto sí */}
-          <div className="w-24 h-8 bg-gray-200 animate-pulse rounded hidden md:block"></div> {/* Input */}
-          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div> {/* Bell */}
-          {/* Aquí NO debería ir un placeholder de UserDropdown si va a ser siempre visible */}
-          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse md:hidden"></div> {/* Hamburger for mobile */}
+          <div className="w-24 h-8 bg-gray-200 animate-pulse rounded hidden md:block"></div>{" "}
+          {/* Input */}
+          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>{" "}
+          {/* Bell */}
+          {/* El UserDropdown tiene su propio estado de carga, por lo que podemos incluirlo */}
+          <UserDropdown />
+          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse md:hidden"></div>{" "}
+          {/* Hamburger */}
         </div>
       </header>
     );
@@ -162,7 +133,7 @@ function TopBar() {
         </>
       )}
 
-      {/* Acciones y Perfil de Usuario (este div contiene elementos que pueden o no ser visibles) */}
+      {/* Acciones y Perfil de Usuario */}
       <div className="flex items-center gap-4">
         {isAuthenticated && (
           // --- Elementos VISIBLES SÓLO si está autenticado ---
@@ -182,7 +153,7 @@ function TopBar() {
 
         {/* UserDropdown: SIEMPRE VISIBLE */}
         {/* Este componente gestiona si muestra el botón de Login o el menú de perfil */}
-        <UserDropdown /> 
+        <UserDropdown />
 
         {isAuthenticated && (
           // --- Menú móvil (Sheet) VISIBLE SÓLO si está autenticado ---

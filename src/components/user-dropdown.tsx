@@ -46,7 +46,7 @@ export function UserDropdown() {
   const handleLoginSuccess = async () => {
     setIsLoginDialogOpen(false); // Cierra el modal de login
     await revalidate(); // Revalida el estado de autenticación
-    router.push('/otra'); // Redirige a la página deseada después del login
+    //router.push('/otra'); // Redirige a la página deseada después del login
   };
 
   if (isLoading) {
