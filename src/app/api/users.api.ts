@@ -1,6 +1,6 @@
 
 interface LoginData {
-  username: string;
+  identifier: string; 
   password: string;
 }
 
@@ -66,23 +66,21 @@ export async function loginUser(userData: LoginData): Promise<LoginResponse> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      body: JSON.stringify(userData), // Ahora envía { identifier, password }
       credentials: 'include',
     });
 
     const data: LoginResponse = await response.json();
 
     if (!response.ok) {
-      
-      throw new Error(data.message || 'Error desconocido al iniciar sesión.');
+      throw new Error(data.message || 'Invalid credentials or server error.');
     }
 
     console.log("Respuesta de login (sin token en el cuerpo):", data);
-
     return data;
 
   } catch (error) {
-    console.error('Error en la llamada a la API de login:', error);
+    console.error('Error in the login API call:', error);
     throw error;
   }
 }
@@ -91,20 +89,20 @@ export async function logoutUser(): Promise<LogoutResponse> {
   try {
     const response = await fetch(`${API_URL}/api/auth/logout`, {
       method: 'POST',
-      credentials: 'include', // Asegúrate de enviar las cookies con la solicitud de logout
+      credentials: 'include', 
     });
 
     const data: LogoutResponse = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Error desconocido al cerrar sesión.');
+      throw new Error(data.message || 'Unknown error when logging out.');
     }
 
-    console.log("Logout exitoso:", data);
+    console.log("Successful logout:", data);
     return data;
 
   } catch (error: any) {
-    console.error('Error en la llamada a la API de logout:', error);
+    console.error('Error in call to logout API:', error);
     throw error;
   }
 }

@@ -37,16 +37,16 @@ export function BrandProductsClient({
   const handleRemoveProduct = (productId: number) => {
     handleAction(
       removeProductFromBrand(brandId, productId),
-      "Producto desvinculado con éxito",
-      "Error al desvincular el producto."
+      "Product successfully unlinked",
+      "Error unlinking product"
     );
   };
   
   const handleAddProduct = (productId: number) => {
     handleAction(
       addProductToBrand(brandId, productId),
-      "Producto vinculado con éxito",
-      "Error al vincular el producto."
+      "Product successfully linked",
+      "Error linking product"
     );
   };
   
@@ -71,25 +71,25 @@ export function BrandProductsClient({
             <DialogHeader>
               <DialogTitle>Add Product</DialogTitle>
               <DialogDescription>
-                Busca y selecciona un producto de la lista para vincularlo a esta marca.
+                Search and select a product from the list to link it to this brand,
               </DialogDescription>
             </DialogHeader>
             <DataTable
               columns={availableColumns}
               data={availableProducts}
               filterColumnId="name"
-              filterPlaceholder="Buscar producto para añadir..."
+              filterPlaceholder="Find for a product to add..."
             />
           </DialogContent>
         </Dialog>
       </div>
 
-      <h2 className="text-2xl font-semibold mb-4">Productos Asociados</h2>
+      <h2 className="text-2xl font-semibold mb-4">Associated products</h2>
       <DataTable
         columns={associatedColumns}
         data={initialAssociatedProducts}
         filterColumnId="product_name"
-        filterPlaceholder="Filtrar productos asociados..."
+        filterPlaceholder="Filter associated products..."
       />
     </div>
   );

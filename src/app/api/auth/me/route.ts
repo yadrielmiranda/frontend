@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'; // Para acceder a las cookies en el serv
 import { jwtVerify } from 'jose'; // Asegúrate de tener 'jose' instalado: npm install jose
 
 // Define tu constante secreta para verificar el JWT.
-// ¡Esta DEBE ser EXACTAMENTE la misma que usas en tu backend de NestJS para firmar los JWTs!
+// ¡Esta DEBE ser EXACTAMENTE la misma que usamos en el backend de NestJS para firmar los JWTs!
 // Se recomienda cargarla desde una variable de entorno.
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET_KEY );
 
@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       isAuthenticated: true,
       user: {
-        id: payload.userID,       // Ejemplo: el ID del usuario
-        username: payload.userName, // Ejemplo: el nombre de usuario
-        firstname: payload.userFirstName,
-        lastname: payload.userLastName,
-        email: payload.userEmail, // Si incluiste el email en el payload
+        id: payload.sub,                 // Leemos 'sub'
+        username: payload.username,      // Leemos 'username'
+        firstName: payload.firstName,    // Leemos 'firstName'
+        lastName: payload.lastName,      // Leemos 'lastName'
+        email: payload.email,            // Leemos 'email'
       }
     }, { status: 200 }); // Devolver 200 OK si todo está bien
 

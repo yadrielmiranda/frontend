@@ -17,7 +17,7 @@ export default async function BrandProductsPage({
   const allProducts = await getProducts();
 
   if (!brandData) {
-    return <div>Marca no encontrada.</div>;
+    return <div>Brand not found.</div>;
   }
 
   return (

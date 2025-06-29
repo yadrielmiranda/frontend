@@ -29,7 +29,7 @@ export const getAssociatedColumns = (
           size="sm"
           onClick={() => handleRemove(productId)}
         >
-          Desvincular
+          Remove
         </Button>
       );
     },
@@ -42,7 +42,7 @@ export const getAvailableColumns = (
 ): ColumnDef<Product>[] => [
   {
     accessorKey: "name",
-    header: "Nombre del Producto",
+    header: "Products",
   },
   {
     id: "actions",
