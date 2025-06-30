@@ -111,7 +111,10 @@ function TopBar() {
                   <Link href="/settings/products">Products</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/products">Systems</Link>
+                  <Link href="/settings/systems">Systems</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings/configs">Configs</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/settings/framecolors">Frame Colors</Link>
@@ -204,7 +207,10 @@ function TopBar() {
                         <Link href="/settings/products">Products</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/products">Systems</Link>
+                        <Link href="/settings/systems">Systems</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings/configs">Configs</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/settings/framecolors">Frame Colors</Link>

@@ -23,7 +23,7 @@ export function BrandForm({ brand }: any) {
       return;
     } else {
       if (params.id) {
-        await updateBrand(params.id, data);
+        await updateBrand(Number(params.id), data);
       } else {
         await createBrand(data);
       }

@@ -7,7 +7,7 @@ export async function getProducts() {
     return await data.json()
 }
 
-export async function getProduct(id: any) {
+export async function getProduct(id: number) {
     const data = await fetch(`${API_URL}/api/products/${id}`, {
         cache: "no-store"
     });
@@ -27,7 +27,7 @@ export async function createProduct(productData: any) {
     console.log(data)
 }
 
-export async function updateProduct(id: any, productData: any) {
+export async function updateProduct(id: number, productData: any) {
     const res = await fetch(`${API_URL}/api/products/${id}`, {
         method: "PATCH",
         headers: {
@@ -37,7 +37,7 @@ export async function updateProduct(id: any, productData: any) {
     })
 }
 
-export async function deleteProduct(id: any) {
+export async function deleteProduct(id: number) {
     const res = await fetch(`${API_URL}/api/products/${id}`, {
         method: 'DELETE',
     });

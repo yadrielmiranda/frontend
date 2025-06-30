@@ -23,7 +23,7 @@ export function ProductForm({ product }: any) {
       return;
     } else {
       if (params.id) {
-        await updateProduct(params.id, data);
+        await updateProduct(Number(params.id), data);
       } else {
         await createProduct(data);
       }

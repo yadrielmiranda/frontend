@@ -1,59 +1,68 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// --- Funciones para Brands y Productos ---
 
 export async function getBrands() {
-    const data = await fetch(`${API_URL}/api/brands`,{
+    const response = await fetch(`${API_URL}/api/brands`,{
         cache: "no-store"
     });
-    return await data.json()
+    if (!response.ok) throw new Error("Error al obtener las marcas");
+    return await response.json();
 }
 
-export async function getBrand(id : any) {
-    const data = await fetch(`${API_URL}/api/brands/${id}`, {
+// Obtiene solo los datos básicos de la marca (para edición, etc.)
+export async function getBrand(id: number) {
+    const response = await fetch(`${API_URL}/api/brands/${id}`, {
        cache: "no-store" 
     });
-    return await data.json()
+    if (!response.ok) throw new Error("Error al obtener la marca");
+    return await response.json();
 }
 
-export async function createBrand(productData: any) {
-
-    const res = await fetch(`${API_URL}/api/brands`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData)
-    });
-    const data = await res.json()
-    console.log(data)
-}
-
-export async function updateBrand(id: any, productData: any) {
-    const res = await fetch(`${API_URL}/api/brands/${id}`,{
-        method: "PATCH",
-        headers: {
-           'Content-Type': 'application/json',
-        },
-         body: JSON.stringify(productData)
-    })  
-}
-
-export async function deleteBrand(id: any) {
-    const res = await fetch(`${API_URL}/api/brands/${id}`, {
-        method: 'DELETE',
-    });
-   const data = await res.json()
-}
 
 export const getBrandWithProducts = async (id: number) => {
   const res = await fetch(`${API_URL}/api/brands/${id}/products`,{
     cache: "no-store"
   });
   if (!res.ok) {
-    // Puedes manejar el error como prefieras
-    return null;
+    const errorData = await res.json().catch(() => ({ message: "Error al obtener la marca con sus productos" }));
+    throw new Error(errorData.message);
   }
   return res.json();
 };
+
+// --- Funciones de mutación (create, update, delete) ---
+
+export async function createBrand(brandData: { name: string }) {
+    const res = await fetch(`${API_URL}/api/brands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandData)
+    });
+    if (!res.ok) throw new Error("Error al crear la marca");
+    return await res.json();
+}
+
+export async function updateBrand(id: number, brandData: { name: string }) {
+    const res = await fetch(`${API_URL}/api/brands/${id}`,{
+        method: "PATCH",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandData)
+    });
+    if (!res.ok) throw new Error("Error al actualizar la marca");
+    return await res.json();
+}
+
+export async function deleteBrand(id: number) {
+    const res = await fetch(`${API_URL}/api/brands/${id}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error("Error al eliminar la marca");
+    // DELETE a menudo no devuelve cuerpo, así que podemos retornar un estado de éxito
+    return { success: true };}
+
+
+
 
 export const addProductToBrand = async (brandId: number, productId: number) => {
   const res = await fetch(`${API_URL}/api/brands/${brandId}/products/${productId}`, {
