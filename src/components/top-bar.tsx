@@ -126,7 +126,7 @@ function TopBar() {
                   <Link href="/settings/crystals">Crystals</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/products">Tints</Link>
+                  <Link href="/settings/tints">Tints</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
                 <DropdownMenuItem>Cargas de Trabajo</DropdownMenuItem>
@@ -222,7 +222,7 @@ function TopBar() {
                         <Link href="/settings/crystals">Crystals</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/settings/cristals">Tints</Link>
+                        <Link href="/settings/tints">Tints</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
                       <DropdownMenuItem>Cargas de Trabajo</DropdownMenuItem>
