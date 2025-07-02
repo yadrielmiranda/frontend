@@ -2,19 +2,19 @@
 
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
-import { createCoating, updateCoating } from "@/app/api/coatings.api"; // CAMBIO
+import { createCrystal, updateCrystal } from "@/app/api/cristals.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
+
 type FormData = {
-  name: string;
+  glass: string;
 };
 
-// CAMBIO: Nombre del componente y props
-export function CoatingForm({ coating }: { coating?: FormData & { id: number } }) {
+export function CrystalForm({ crystal }: { crystal?: FormData & { id: number } }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -25,19 +25,19 @@ export function CoatingForm({ coating }: { coating?: FormData & { id: number } }
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
-      name: coating?.name || "", 
+      glass: crystal?.glass || "",
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (params.id) {
-        await updateCoating(Number(params.id), data); 
+        await updateCrystal(Number(params.id), data);
       } else {
-        await createCoating(data); 
+        await createCrystal(data);
       }
       setIsSuccess(true);
-      router.push("/settings/coatings"); 
+      router.push("/settings/crystals");
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -51,15 +51,15 @@ export function CoatingForm({ coating }: { coating?: FormData & { id: number } }
     <form onSubmit={onSubmit}>
       <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
-          <Label htmlFor="name">Name</Label> 
+          <Label htmlFor="glass">Glass</Label>
           <Input
-            id="name" 
-            placeholder="Enter coating name" 
-            {...register("name", { 
-              required: "El nombre del coating es obligatorio", 
+            id="glass"
+            placeholder="Enter glass type"
+            {...register("glass", {
+              required: "The glass type is required",
             })}
           />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>} 
+          {errors.glass && <p className="text-red-500 text-sm mt-1">{errors.glass.message}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -70,9 +70,7 @@ export function CoatingForm({ coating }: { coating?: FormData & { id: number } }
             variant={params.id ? "blue" : "green"}
             disabled={!isDirty || showLoadingState}
           >
-            {showLoadingState && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
+            {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {showLoadingState ? "Saving..." : (params.id ? "Update" : "Create")}
           </Button>
         </div>

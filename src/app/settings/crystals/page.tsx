@@ -1,0 +1,27 @@
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { getCrystals } from "@/app/api/cristals.api";
+import { DataTable } from "@/components/data-table";
+import { columns } from "./columns-crystals";
+
+export default async function CrystalsPage() {
+  const crystals = await getCrystals();
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-bold">Crystals</h1>
+        <Button variant="green" asChild>
+          <Link href="/settings/crystals/new">+ New</Link>
+        </Button>
+      </div>
+      <div className="container mx-auto py-10">
+        <DataTable
+          columns={columns}
+          data={crystals}
+          filterColumnId="glass"
+          filterPlaceholder="Filter glasses..."
+        />
+      </div>
+    </div>
+  );
+}
