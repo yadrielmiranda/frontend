@@ -3,7 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,15 +13,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { deleteBrand } from "@/app/api/brands.api";
-
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type Brand = {
-  id: number;
-  name: string;
-};
+import { useRouter } from "next/navigation";
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import { Brand } from "@/app/api/brands.api";
 
 export const columns: ColumnDef<Brand>[] = [
   {
@@ -33,16 +27,12 @@ export const columns: ColumnDef<Brand>[] = [
     id: "actions",
     cell: ({ row }) => {
       const brand = row.original;
-      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para el AlertDialog
+      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
-   
 
       const handleDelete = async () => {
-        // Lógica para enviar la solicitud DELETE a tu API de Next.js
-        // Ejemplo con una API Route o Server Action
         await deleteBrand(brand.id);
-
-        setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
+        setShowDeleteConfirm(false);
         router.refresh();
       };
 
@@ -58,34 +48,21 @@ export const columns: ColumnDef<Brand>[] = [
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-
               <DropdownMenuItem asChild>
-                <Link
-                  className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/settings/brands/${brand.id}/edit`}
-                >
-                  Edit
-                </Link>
+                <Link href={`/settings/brands/${brand.id}/edit`}>Edit Name</Link>
               </DropdownMenuItem>
-
-               <DropdownMenuItem asChild>
-                <Link
-                  className="text-green-900 focus:bg-red-50 focus:text-red-600"
-                   href={`/settings/brands/${brand.id}/products`}
-                >
-                  Products
-                </Link>
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/brands/${brand.id}/products`}>Manage Products</Link>
               </DropdownMenuItem>
-
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)} // Evita que el DropdownMenuItem se cierre
+                onSelect={() => setShowDeleteConfirm(true)}
               >
-                Delete
+                Delete Brand
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

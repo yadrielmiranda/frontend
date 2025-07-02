@@ -10,10 +10,6 @@ import {
 import { BrandForm } from "./brand-form";
 
 
-
-
-//const product = await getProduct(params.id);
-
 export default function NewBrand() {
   
   

@@ -1,6 +1,13 @@
 import { getBrandWithProducts } from "@/app/api/brands.api";
 import { getProducts } from "@/app/api/products.api";
 import { BrandProductsClient } from "./brand-products-client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default async function BrandProductsPage({
   params,
@@ -10,29 +17,25 @@ export default async function BrandProductsPage({
   const { id } = await params;
   const brandId = Number(id);
 
-  // Obtenemos la marca y sus productos asociados
   const brandData = await getBrandWithProducts(brandId);
-
-  // Obtenemos TODOS los productos para poder añadirlos
   const allProducts = await getProducts();
 
-  if (!brandData) {
-    return <div>Brand not found.</div>;
-  }
-
   return (
-    <div>
-      <h1 className="text-4xl font-bold">       
-        <span className="text-blue-600">{brandData.name}</span>
-      </h1>
-      <div className="container mx-auto py-10">
-        {/* Pasamos los datos al componente cliente */}
-        <BrandProductsClient
-          brandId={brandId}
-          initialAssociatedProducts={brandData.brandProducts || []}
-          allProducts={allProducts}
-        />
-      </div>
+    <div className="container mx-auto py-10">
+      <Card className="max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle>Manage Products for: {brandData.name}</CardTitle>
+          <CardDescription>
+            Add or remove products associated with this brand.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandProductsClient
+            brand={brandData}
+            allProducts={allProducts}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

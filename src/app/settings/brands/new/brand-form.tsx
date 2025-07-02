@@ -1,66 +1,90 @@
 "use client";
 
+import { useForm } from "react-hook-form";
+import { useParams, useRouter } from "next/navigation";
+import { createBrand, updateBrand } from "@/app/api/brands.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useForm } from "react-hook-form";
-import { useParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { createBrand, updateBrand } from "@/app/api/brands.api";
+import { Brand, CreateBrandData } from "@/app/api/brands.api";
+import { toast } from "sonner";
 
-export function BrandForm({ brand }: any) {
-  const { register, handleSubmit } = useForm({
-    defaultValues: {
-      name: brand?.name,
-    },
-  });
+export function BrandForm({ brand }: { brand?: Brand }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<CreateBrandData>({
+    defaultValues: {
+      name: brand?.name || "",
+    },
+  });
 
   const onSubmit = handleSubmit(async (data) => {
-    if (brandName.trim() === "") {
-      console.log("El nombre de brand no puede estar vacío.");
-      return;
-    } else {
+    try {
       if (params.id) {
         await updateBrand(Number(params.id), data);
       } else {
         await createBrand(data);
       }
+      setIsSuccess(true); // Activa el estado de éxito para mostrar "Saving..."
+      toast.success(`Brand ${params.id ? "updated" : "created"} successfully!`);
+      router.push("/settings/brands");
+      router.refresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+      console.error(error);
     }
-    router.push("/settings/brands");
   });
-  const handleCancel = () => {
-    router.back();
 
-    console.log("Operación cancelada.");
-  };
-
-  const dfolor = params.id ? "blue" : "green";
-
-  const [brandName, setBrandName] = useState(brand?.name || "");
-
-  const isButtonDisabled =
-    brandName.trim() === "" || brandName.trim() === brand?.name;
+  // Variable para controlar el estado de carga del botón
+  const showLoadingState = isSubmitting || isSuccess;
 
   return (
     <form onSubmit={onSubmit}>
-       <div className="grid w-full items-center gap-4">
+      <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
-          <Label>Brand Name</Label>
+          <Label htmlFor="name">Brand Name</Label>
           <Input
+            id="name"
             placeholder="Enter brand name"
-            {...register("name")}
-            onChange={(e) => setBrandName(e.target.value)}
+            {...register("name", {
+              required: "The brand name is required",
+            })}
           />
+          {errors.name && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.name.message}
+            </p>
+          )}
         </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={handleCancel}>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
             Cancel
           </Button>
-          <Button type="submit" variant={dfolor} disabled={isButtonDisabled}>
-            {" "}
-            {params.id ? "Update" : "Create"}
+          <Button
+            type="submit"
+            variant={params.id ? "blue" : "green"}
+            disabled={!isDirty || showLoadingState}
+          >
+            {showLoadingState && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {showLoadingState
+              ? "Saving..."
+              : params.id
+              ? "Update"
+              : "Create"}
           </Button>
         </div>
       </div>
