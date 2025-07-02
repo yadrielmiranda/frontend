@@ -1,50 +1,93 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function getProducts() {
-    const data = await fetch(`${API_URL}/api/products`, {
-        cache: "no-store"
-    });
-    return await data.json()
+// Definición del tipo para un Producto
+export type Product = {
+  id: number;
+  name: string;
+  // Puedes añadir más campos aquí si los necesitas en el frontend
+};
+
+// Tipo para la creación de un producto, omitiendo el 'id'
+export type CreateProductData = Omit<Product, 'id'>;
+
+/**
+ * Obtiene todos los productos desde la API.
+ */
+export async function getProducts(): Promise<Product[]> {
+  const res = await fetch(`${API_URL}/api/products`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch products");
+  }
+  return res.json();
 }
 
-export async function getProduct(id: number) {
-    const data = await fetch(`${API_URL}/api/products/${id}`, {
-        cache: "no-store"
-    });
-    return await data.json()
+/**
+ * Obtiene un único producto por su ID.
+ * @param id - El ID del producto a obtener.
+ */
+export async function getProduct(id: number): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || "Failed to fetch product");
+  }
+  return res.json();
 }
 
-export async function createProduct(productData: any) {
-
-    const res = await fetch(`${API_URL}/api/products`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData)
-    });
-    const data = await res.json()
-    console.log(data)
+/**
+ * Crea un nuevo producto.
+ * @param productData - Los datos del producto a crear.
+ */
+export async function createProduct(productData: CreateProductData): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(productData),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to create product');
+  }
+  return res.json();
 }
 
-export async function updateProduct(id: number, productData: any) {
-    const res = await fetch(`${API_URL}/api/products/${id}`, {
-        method: "PATCH",
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData)
-    })
+/**
+ * Actualiza un producto existente.
+ * @param id - El ID del producto a actualizar.
+ * @param productData - Los nuevos datos para el producto.
+ */
+export async function updateProduct(id: number, productData: CreateProductData): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products/${id}`, {
+    method: "PATCH",
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(productData),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to update product');
+  }
+  return res.json();
 }
 
-export async function deleteProduct(id: number) {
-    const res = await fetch(`${API_URL}/api/products/${id}`, {
-        method: 'DELETE',
-    });
-
-    // 1. Comprobar si la petición falló
-    if (!res.ok) {
-        // Si hay un error en el servidor, lo lanzamos para que el cliente lo sepa
-        throw new Error("Error al eliminar el producto");
-    }
+/**
+ * Elimina un producto por su ID.
+ * @param id - El ID del producto a eliminar.
+ */
+export async function deleteProduct(id: number): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to delete product');
+  }
+  return res.json();
 }

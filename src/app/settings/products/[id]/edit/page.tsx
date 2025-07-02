@@ -1,23 +1,19 @@
 import {
   Card,
-  CardAction,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-import { getProduct } from "@/app/api/products.api";
 import { ProductForm } from "../../new/product-form";
+import { getProduct } from "@/app/api/products.api";
 
-export default async function EditProduct({
+export default async function EditProductPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params; //si es necesario el await
-  const product = await getProduct(id);
+  const { id } = await params;
+  const product = await getProduct(Number(id));
 
   return (
     <div className="h-screen flex justify-center items-center">
