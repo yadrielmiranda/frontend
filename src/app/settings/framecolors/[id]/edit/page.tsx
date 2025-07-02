@@ -19,7 +19,7 @@ export default async function EditFcolor({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params; //si es necesario el await
-  const fcolor = await getFColor(id);
+  const fcolor = await getFColor(Number(id));
 
   return (
     <div className="h-screen flex justify-center items-center">

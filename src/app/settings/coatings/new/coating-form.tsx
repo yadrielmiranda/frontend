@@ -2,18 +2,20 @@
 
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
-import { createFColor, updateFColor } from "@/app/api/framecolors.api";
+import { createCoating, updateCoating } from "@/app/api/coatings.api"; // CAMBIO
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
+// CAMBIO: Tipo de datos del formulario
 type FormData = {
-  color: string;
+  name: string;
 };
 
-export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
+// CAMBIO: Nombre del componente y props
+export function CoatingForm({ coating }: { coating?: FormData & { id: number } }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -24,19 +26,19 @@ export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
-      color: fcolor?.color || "",
+      name: coating?.name || "", // CAMBIO
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (params.id) {
-        await updateFColor(Number(params.id), data);
+        await updateCoating(Number(params.id), data); // CAMBIO
       } else {
-        await createFColor(data);
+        await createCoating(data); // CAMBIO
       }
       setIsSuccess(true);
-      router.push("/settings/framecolors");
+      router.push("/settings/coatings"); // CAMBIO
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -50,15 +52,15 @@ export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
     <form onSubmit={onSubmit}>
       <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
-          <Label htmlFor="color">Color</Label>
+          <Label htmlFor="name">Name</Label> {/* CAMBIO */}
           <Input
-            id="color"
-            placeholder="Enter color name"
-            {...register("color", {
-              required: "The color name is required", // CAMBIO
+            id="name" // CAMBIO
+            placeholder="Enter coating name" // CAMBIO
+            {...register("name", { // CAMBIO
+              required: "El nombre del coating es obligatorio", // CAMBIO
             })}
           />
-          {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color.message}</p>}
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>} {/* CAMBIO */}
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -71,8 +73,7 @@ export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
           >
             {showLoadingState && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}            
-            
+            )}
             {showLoadingState ? "Saving..." : (params.id ? "Update" : "Create")}
           </Button>
         </div>

@@ -120,7 +120,7 @@ function TopBar() {
                   <Link href="/settings/framecolors">Frame Colors</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/products">Coating</Link>
+                  <Link href="/settings/coatings">Coatings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/products">Cristals</Link>
@@ -216,7 +216,7 @@ function TopBar() {
                         <Link href="/settings/framecolors">Frame Colors</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/products">Coating</Link>
+                        <Link href="/settings/coatings">Coatings</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/products">Cristals</Link>
