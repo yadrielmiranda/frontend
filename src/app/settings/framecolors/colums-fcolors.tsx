@@ -18,8 +18,6 @@ import { deleteFColor } from "@/app/api/framecolors.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
 export type Fcolor = {
   id: number;
   color: string;

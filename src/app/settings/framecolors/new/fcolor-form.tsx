@@ -36,8 +36,7 @@ export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
         await createFColor(data);
       }
       setIsSuccess(true);
-      router.push("/settings/framecolors");
-      router.refresh();
+      router.push("/settings/framecolors");      
     } catch (error) {
       console.error(error);
       alert((error as Error).message);

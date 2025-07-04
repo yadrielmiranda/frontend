@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner"; // <-- 1. Importa toast
 import { DataTable } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
 import { addConfigToSystem, removeConfigFromSystem } from "@/app/api/systems.api";
-import { getAssociatedConfigsColumns, getAvailableConfigsColumns } from "./columns-system-configs"; // Columnas que crearemos
+import { getAssociatedConfigsColumns, getAvailableConfigsColumns } from "./columns-system-configs";
 
 type Config = { id: number; conf: string; };
 
@@ -25,10 +24,11 @@ export function SystemConfigsClient({
     const handleAdd = async (configId: number) => {
         try {
             await addConfigToSystem(systemId, configId);
-            router.refresh(); // Recarga los datos del servidor para actualizar ambas tablas
+            router.refresh(); // Recarga los datos del servidor
+            toast.success("Configuration added successfully."); // <-- 2. Notificación de éxito
         } catch (error) {
             console.error("Error al añadir configuración:", error);
-            alert("Error al añadir configuración.");
+            toast.error("Error adding configuration."); // <-- 3. Notificación de error
         }
     };
 
@@ -36,9 +36,10 @@ export function SystemConfigsClient({
         try {
             await removeConfigFromSystem(systemId, configId);
             router.refresh();
+            toast.success("Configuration successfully removed."); // <-- 2. Notificación de éxito
         } catch (error) {
             console.error("Error al quitar configuración:", error);
-            alert("Error al quitar configuración.");
+            toast.error("Error removing configuration."); // <-- 3. Notificación de error
         }
     };
 

@@ -36,8 +36,7 @@ export function TintForm({ tint }: { tint?: FormData & { id: number } }) {
         await createTint(data);
       }
       setIsSuccess(true);
-      router.push("/settings/tints");
-      router.refresh();
+      router.push("/settings/tints");      
     } catch (error) {
       console.error(error);
       alert((error as Error).message);

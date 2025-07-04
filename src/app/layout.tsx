@@ -1,3 +1,4 @@
+import { Toaster } from "sonner";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -31,6 +32,7 @@ export default function RootLayout({
         <AuthProvider>
           <main className="container mx-auto pt-5">{children}</main>
         </AuthProvider>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
