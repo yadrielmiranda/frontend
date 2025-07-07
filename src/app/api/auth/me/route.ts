@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     // Si la verificación es exitosa, payload contiene los datos que pusiste al firmar el token en NestJS.
     // Asegúrate de que los nombres de las propiedades (userID, userName, etc.) coincidan con tu payload real.
     console.log("[/api/auth/me] Token verificado exitosamente. Payload:", payload);
+    console.log("este es el payload", payload);
 
     return NextResponse.json({
       isAuthenticated: true,
@@ -38,7 +39,8 @@ export async function GET(request: NextRequest) {
         username: payload.username,      // Leemos 'username'
         firstName: payload.firstName,    // Leemos 'firstName'
         lastName: payload.lastName,      // Leemos 'lastName'
-        email: payload.email,            // Leemos 'email'
+        email: payload.email,
+        role: payload.role                  
       }
     }, { status: 200 }); // Devolver 200 OK si todo está bien
 
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
     console.error("[/api/auth/me] ERROR al verificar el token o procesar la solicitud:");
     console.error("Tipo de error:", error.name);
     console.error("Mensaje de error:", error.message);
-    if (error.code) { // Algunos errores de 'jose' tienen un código
+    if (error.code) { 
         console.error("Código de error (JOSE):", error.code);
     }
     // console.error("Stack Trace:", error.stack); // Descomenta para depuración profunda
