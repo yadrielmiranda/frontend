@@ -34,6 +34,15 @@ export async function getBrands(): Promise<Brand[]> {
   return res.json();
 }
 
+export async function getBrandsWithProducts(): Promise<BrandWithProducts[]> {
+  const res = await fetch(`${API_URL}/api/brands/with-products`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to fetch brands with their products");
+  }
+  return res.json();
+}
+
+
 export async function getBrand(id: number): Promise<Brand> {
   const res = await fetch(`${API_URL}/api/brands/${id}`, { cache: "no-store" });
   if (!res.ok) {

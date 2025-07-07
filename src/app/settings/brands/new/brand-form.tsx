@@ -8,8 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Brand, CreateBrandData } from "@/app/api/brands.api";
 import { toast } from "sonner";
+import { Brand } from "@/app/api/types";
+
+type FormData = {
+  name: string;
+};
 
 export function BrandForm({ brand }: { brand?: Brand }) {
   const router = useRouter();
@@ -20,7 +24,7 @@ export function BrandForm({ brand }: { brand?: Brand }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
-  } = useForm<CreateBrandData>({
+  } = useForm<FormData>({
     defaultValues: {
       name: brand?.name || "",
     },
@@ -30,20 +34,19 @@ export function BrandForm({ brand }: { brand?: Brand }) {
     try {
       if (params.id) {
         await updateBrand(Number(params.id), data);
+        toast.success("Brand updated successfully!");
       } else {
         await createBrand(data);
+        toast.success("Brand created successfully!");
       }
-      setIsSuccess(true); // Activa el estado de éxito para mostrar "Saving..."
-      toast.success(`Brand ${params.id ? "updated" : "created"} successfully!`);
+      setIsSuccess(true);
       router.push("/settings/brands");
-      router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
       console.error(error);
     }
   });
 
-  // Variable para controlar el estado de carga del botón
   const showLoadingState = isSubmitting || isSuccess;
 
   return (

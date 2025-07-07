@@ -129,6 +129,9 @@ function TopBar() {
                   <Link href="/settings/tints">Tints</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/settings/users">Users</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/estimates">Estimates</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
@@ -226,6 +229,9 @@ function TopBar() {
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/settings/tints">Tints</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings/users">Users</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/estimates">Estimates</Link>

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getCrystals } from "@/app/api/cristals.api";
+import { getCrystals } from "@/app/api/crystals.api";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns-crystals";
 

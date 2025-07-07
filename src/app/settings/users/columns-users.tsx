@@ -13,36 +13,67 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { deleteCrystal } from "@/app/api/crystals.api";
+import { toast } from "sonner";
+import { deleteUser } from "@/app/api/users.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import { User } from "@/app/api/types";
 
-
-export type Crystal = {
-  id: number;
-  glass: string;
-};
-
-export const columns: ColumnDef<Crystal>[] = [
+export const columns: ColumnDef<User>[] = [
   {
-    accessorKey: "glass",
-    header: "Glass",
+    accessorKey: "username",
+    header: "Username",
+  },
+  {
+    accessorKey: "firstName",
+    header: "First Name",
+  },
+  {
+    accessorKey: "lastName",
+    header: "Last Name",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+  },
+  {
+    accessorKey: "role.name",
+    header: "Role",
+    cell: ({ row }) => {
+      const roleName = row.original.role.name;
+      return (
+        <span
+          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${
+            roleName === 'admin'
+              ? "bg-blue-100 text-blue-800"
+              : "bg-gray-100 text-gray-800"
+          }`}
+        >
+          {roleName}
+        </span>
+      );
+    },
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const crystal = row.original;
+      const user = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
       const handleDelete = async () => {
-        await deleteCrystal(crystal.id);
-        setShowDeleteConfirm(false);
-        router.refresh();
+        try {
+          await deleteUser(user.id);
+          setShowDeleteConfirm(false);
+          toast.success("User deleted successfully.");
+          router.refresh();
+        } catch (error) {
+          toast.error((error as Error).message);
+        }
       };
 
       return (
-        <div>
+        <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -54,25 +85,21 @@ export const columns: ColumnDef<Crystal>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link
-                  className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
-                  href={`/settings/crystals/${crystal.id}/edit`}
-                >
-                  Edit
-                </Link>
+                <Link href={`/settings/users/${user.id}/edit`}>Edit User</Link>
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-800 focus:bg-red-50 focus:text-red-600"
+                className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
               >
-                Delete
+                Delete User
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
-            onConfirm={handleDelete}
+            onConfirm={handleDelete}            
           />
         </div>
       );

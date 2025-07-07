@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
-import { createFColor, updateFColor } from "@/app/api/framecolors.api";
+import { createFColor, updateFColor } from "@/app/api/fcolors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

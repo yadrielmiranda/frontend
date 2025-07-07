@@ -1,17 +1,27 @@
+import {
+  Product,
+  CreateProductData,
+  ProductWithBrands, // Importamos el nuevo tipo
+} from "./types";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Definición del tipo para un Producto
-export type Product = {
-  id: number;
-  name: string;
-  // Puedes añadir más campos aquí si los necesitas en el frontend
-};
-
-// Tipo para la creación de un producto, omitiendo el 'id'
-export type CreateProductData = Omit<Product, 'id'>;
+/**
+ * ✅ NUEVA FUNCIÓN
+ * Obtiene todos los productos y precarga las marcas asociadas a cada uno.
+ */
+export async function getProductsWithBrands(): Promise<ProductWithBrands[]> {
+  const res = await fetch(`${API_URL}/api/products/with-brands`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch products with their brands");
+  }
+  return res.json();
+}
 
 /**
- * Obtiene todos los productos desde la API.
+ * Obtiene todos los productos (sin relaciones).
  */
 export async function getProducts(): Promise<Product[]> {
   const res = await fetch(`${API_URL}/api/products`, {
@@ -25,7 +35,6 @@ export async function getProducts(): Promise<Product[]> {
 
 /**
  * Obtiene un único producto por su ID.
- * @param id - El ID del producto a obtener.
  */
 export async function getProduct(id: number): Promise<Product> {
   const res = await fetch(`${API_URL}/api/products/${id}`, {
@@ -40,7 +49,6 @@ export async function getProduct(id: number): Promise<Product> {
 
 /**
  * Crea un nuevo producto.
- * @param productData - Los datos del producto a crear.
  */
 export async function createProduct(productData: CreateProductData): Promise<Product> {
   const res = await fetch(`${API_URL}/api/products`, {
@@ -59,8 +67,6 @@ export async function createProduct(productData: CreateProductData): Promise<Pro
 
 /**
  * Actualiza un producto existente.
- * @param id - El ID del producto a actualizar.
- * @param productData - Los nuevos datos para el producto.
  */
 export async function updateProduct(id: number, productData: CreateProductData): Promise<Product> {
   const res = await fetch(`${API_URL}/api/products/${id}`, {
@@ -79,7 +85,6 @@ export async function updateProduct(id: number, productData: CreateProductData):
 
 /**
  * Elimina un producto por su ID.
- * @param id - El ID del producto a eliminar.
  */
 export async function deleteProduct(id: number): Promise<Product> {
   const res = await fetch(`${API_URL}/api/products/${id}`, {

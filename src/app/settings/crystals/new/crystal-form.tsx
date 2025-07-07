@@ -2,19 +2,20 @@
 
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
-import { createCrystal, updateCrystal } from "@/app/api/cristals.api";
+import { createCrystal, updateCrystal } from "@/app/api/crystals.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-
+import { toast } from "sonner";
+import { Crystal } from "@/app/api/types";
 
 type FormData = {
   glass: string;
 };
 
-export function CrystalForm({ crystal }: { crystal?: FormData & { id: number } }) {
+export function CrystalForm({ crystal }: { crystal?: Crystal }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -33,15 +34,16 @@ export function CrystalForm({ crystal }: { crystal?: FormData & { id: number } }
     try {
       if (params.id) {
         await updateCrystal(Number(params.id), data);
+        toast.success("Crystal updated successfully!");
       } else {
         await createCrystal(data);
+        toast.success("Crystal created successfully!");
       }
       setIsSuccess(true);
       router.push("/settings/crystals");
-      router.refresh();
     } catch (error) {
+      toast.error((error as Error).message);
       console.error(error);
-      alert((error as Error).message);
     }
   });
 

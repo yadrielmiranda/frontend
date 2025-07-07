@@ -2,19 +2,20 @@
 
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
-import { createCoating, updateCoating } from "@/app/api/coatings.api"; // CAMBIO
+import { createCoating, updateCoating } from "@/app/api/coatings.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Coating } from "@/app/api/types";
 
 type FormData = {
   name: string;
 };
 
-// CAMBIO: Nombre del componente y props
-export function CoatingForm({ coating }: { coating?: FormData & { id: number } }) {
+export function CoatingForm({ coating }: { coating?: Coating }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -25,23 +26,24 @@ export function CoatingForm({ coating }: { coating?: FormData & { id: number } }
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
-      name: coating?.name || "", 
+      name: coating?.name || "",
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (params.id) {
-        await updateCoating(Number(params.id), data); 
+        await updateCoating(Number(params.id), data);
+        toast.success("Coating updated successfully!");
       } else {
-        await createCoating(data); 
+        await createCoating(data);
+        toast.success("Coating created successfully!");
       }
       setIsSuccess(true);
-      router.push("/settings/coatings"); 
-      router.refresh();
+      router.push("/settings/coatings");
     } catch (error) {
+      toast.error((error as Error).message);
       console.error(error);
-      alert((error as Error).message);
     }
   });
 
@@ -51,15 +53,15 @@ export function CoatingForm({ coating }: { coating?: FormData & { id: number } }
     <form onSubmit={onSubmit}>
       <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
-          <Label htmlFor="name">Name</Label> 
+          <Label htmlFor="name">Name</Label>
           <Input
-            id="name" 
-            placeholder="Enter coating name" 
-            {...register("name", { 
-              required: "El nombre del coating es obligatorio", 
+            id="name"
+            placeholder="Enter coating name"
+            {...register("name", {
+              required: "The coating name is required",
             })}
           />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>} 
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>

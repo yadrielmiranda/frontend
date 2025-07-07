@@ -14,23 +14,24 @@ import {
 } from "@/components/ui/select";
 import { createConfig, updateConfig } from "@/app/api/configs.api";
 import { Loader2 } from "lucide-react";
+import { Product } from "@/app/api/types";
+import { useState } from "react";
+import { toast } from "sonner";
 
-type Product = { id: number; name: string };
-
-// Nuevo tipo para los valores del formulario
 type FormValues = {
   conf: string;
   idProduct: string;
 };
 
 interface ConfigFormProps {
-  config?: FormValues & { id: number }; // Para el modo de edición
+  config?: FormValues & { id: number };
   products: Product[];
 }
 
 export function ConfigForm({ config, products }: ConfigFormProps) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const {
     register,
@@ -53,26 +54,30 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
 
       if (params.id) {
         await updateConfig(Number(params.id), configData);
+        toast.success("Configuration updated successfully!");
       } else {
         await createConfig(configData);
+        toast.success("Configuration created successfully!");
       }
+      setIsSuccess(true);
       router.push("/settings/configs");
     } catch (err: any) {
-      console.error("Error al guardar la configuración:", err);
-      // Aquí podrías usar toast.error() como vimos antes
-      alert("Error al guardar la configuración.");
+      toast.error(err.message || "Failed to save configuration.");
+      console.error("Error saving configuration:", err);
     }
   };
+
+  const showLoadingState = isSubmitting || isSuccess;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="conf">Nombre de la Configuración</Label>
+        <Label htmlFor="conf">Configuration Name</Label>
         <Input
           id="conf"
-          placeholder="Ej: Standard, Premium, etc."
+          placeholder="e.g., Standard, Premium, etc."
           {...register("conf", {
-            required: "El nombre de la configuración es obligatorio",
+            required: "The configuration name is required",
           })}
         />
         {errors.conf && (
@@ -81,15 +86,15 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="product">Producto</Label>
+        <Label htmlFor="product">Product</Label>
         <Controller
           name="idProduct"
           control={control}
-          rules={{ required: "Debes seleccionar un producto" }}
+          rules={{ required: "You must select a product" }}
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="product">
-                <SelectValue placeholder="Selecciona un producto" />
+                <SelectValue placeholder="Select a product" />
               </SelectTrigger>
               <SelectContent>
                 {products.map((product) => (
@@ -113,17 +118,17 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
           type="button"
           variant="outline"
           onClick={() => router.back()}
-          disabled={isSubmitting}
+          disabled={showLoadingState}
         >
-          Cancelar
+          Cancel
         </Button>
         <Button
           type="submit"
           variant={params.id ? "blue" : "green"}
-          disabled={!isDirty || isSubmitting}
+          disabled={!isDirty || showLoadingState}
         >
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? "Guardando..." : params.id ? "Actualizar" : "Crear"}
+          {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {showLoadingState ? "Saving..." : params.id ? "Update" : "Create"}
         </Button>
       </div>
     </form>

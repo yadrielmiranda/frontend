@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getFColors } from "@/app/api/framecolors.api";
+import { getFColors } from "@/app/api/fcolors.api";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./colums-fcolors";
 

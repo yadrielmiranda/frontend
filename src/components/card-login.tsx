@@ -1,4 +1,3 @@
-// CardLogin.tsx
 'use client';
 
 import { useState } from "react";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, UserRoundPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/app/api/users.api"; // Asegúrate que esta es la ruta correcta
+import { loginUser } from "@/app/api/users.api"; 
 import { useAuth } from '@/contexts/AuthContext';
 
 // Define las props que CardLogin aceptará
@@ -16,7 +15,6 @@ interface CardLoginProps {
   onLoginSuccess?: () => void; // Función opcional para llamar al éxito del login
 }
 
-// Actualiza la declaración de la función para aceptar las props
 export function CardLogin({ onLoginSuccess }: CardLoginProps) {
   const router = useRouter();
   const { revalidate } = useAuth();

@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Product } from "@/app/api/products.api";
+import { toast } from "sonner";
+import { Product } from "@/app/api/types";
 
-type FormData = Omit<Product, 'id'>;
+type FormData = {
+  name: string;
+};
 
 export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
@@ -31,15 +34,16 @@ export function ProductForm({ product }: { product?: Product }) {
     try {
       if (params.id) {
         await updateProduct(Number(params.id), data);
+        toast.success("Product updated successfully!");
       } else {
         await createProduct(data);
+        toast.success("Product created successfully!");
       }
       setIsSuccess(true);
       router.push("/settings/products");
-      router.refresh();
     } catch (error) {
+      toast.error((error as Error).message);
       console.error(error);
-      alert((error as Error).message);
     }
   });
 

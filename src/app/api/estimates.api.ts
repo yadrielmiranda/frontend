@@ -1,120 +1,97 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// La importación de 'cookies' se ha eliminado para que este archivo sea compatible con el cliente.
+import {
+  EstimateWithRelations,
+  CreateEstimateData,
+  UpdateEstimateData,
+} from "./types";
 
-// --- Definición de Tipos para el Frontend ---
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Datos para crear una nueva pieza (lo que manda el frontend)
-export type CreatePieceData = {
-    mark: string;
-    idProd: number;
-    idBrand: number;
-    idSyst: number;
-    idConf: number;
-    idFC: number;
-    width: string;
-    height: string;
-    idCryst: number;
-    idTint: number;
-    privacy: boolean;
-    idCoat: number;
-    screen: boolean;
-    muntin: boolean;
-    qty: number;
-};
-
-// Datos para crear un nuevo presupuesto
-export type CreateEstimateData = {
-    number: string;
-    name: string;
-    project: string;
-    idUser: number;
-    pieces: CreatePieceData[];
-};
-
-// Datos para actualizar la cabecera de un presupuesto
-export type UpdateEstimateData = {
-    number?: string;
-    name?: string;
-    project?: string;
-};
-
-// --- Funciones de API para Presupuestos (Estimates) ---
-
-/** Obtiene una lista de todos los presupuestos. */
-export async function getEstimates() {
-    const response = await fetch(`${API_URL}/api/estimates`, { cache: "no-store" });
-    if (!response.ok) throw new Error('Failed to fetch estimates');
-    return await response.json();
+/**
+ * Obtiene un único presupuesto por su ID.
+ * Acepta un token opcional para ser llamado desde el servidor.
+ */
+export async function getEstimate(id: number, token?: string): Promise<EstimateWithRelations> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Cookie'] = `access_token=${token}`;
+  }
+  const res = await fetch(`${API_URL}/api/estimates/${id}`, {
+    cache: "no-store",
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch estimate");
+  }
+  return res.json();
 }
 
-/** Obtiene un único presupuesto por su ID, incluyendo sus piezas. */
-export async function getEstimate(id: number) {
-    const response = await fetch(`${API_URL}/api/estimates/${id}`, { cache: "no-store" });
-    if (!response.ok) throw new Error('Failed to fetch estimate');
-    return await response.json();
-}
-
-/** Crea un nuevo presupuesto con su lista de piezas. */
-export async function createEstimate(data: CreateEstimateData) {
+/**
+ * Obtiene todos los presupuestos. También acepta un token para llamadas desde el servidor.
+ */
+export async function getEstimates(token?: string): Promise<EstimateWithRelations[]> {
+  try {
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Cookie'] = `access_token=${token}`;
+    }
     const response = await fetch(`${API_URL}/api/estimates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      cache: 'no-store',
+      headers,
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create estimate');
-    }
-    return await response.json();
+    if (!response.ok) throw new Error(`Failed to fetch estimates. Status: ${response.status}`);
+    return response.json();
+  } catch (error) {
+    console.error("Error in getEstimates function:", error);
+    return [];
+  }
 }
 
-/** Actualiza los datos de la cabecera de un presupuesto (nombre, proyecto, etc.). */
-export async function updateEstimate(id: number, data: UpdateEstimateData) {
+/**
+ * Crea un nuevo presupuesto. Se llama desde el cliente.
+ */
+export async function createEstimate(data: CreateEstimateData): Promise<EstimateWithRelations> {
+  const response = await fetch(`${API_URL}/api/estimates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include', // El navegador se encarga de enviar la cookie
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to create estimate');
+  }
+  return response.json();
+}
+
+/**
+ * Actualiza un presupuesto. Se llama desde el cliente.
+ */
+export async function updateEstimate(id: number, data: UpdateEstimateData): Promise<EstimateWithRelations> {
+  const res = await fetch(`${API_URL}/api/estimates/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include', // El navegador se encarga de enviar la cookie
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to update estimate');
+  }
+  return res.json();
+}
+
+/**
+ * Elimina un presupuesto por su ID. Se llama desde el cliente.
+ */
+export async function deleteEstimate(id: number): Promise<void> {
     const response = await fetch(`${API_URL}/api/estimates/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      method: 'DELETE',
+      credentials: 'include', // El navegador se encarga de enviar la cookie
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update estimate');
-    }
-    return await response.json();
-}
 
-/** Elimina un presupuesto y todas sus piezas asociadas. */
-export async function deleteEstimate(id: number) {
-    const response = await fetch(`${API_URL}/api/estimates/${id}`, { method: 'DELETE' });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete estimate');
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to delete estimate');
     }
-    return await response.json();
-}
-
-// --- Funciones de API para Piezas (anidadas en Presupuestos) ---
-
-/** Añade una nueva pieza a un presupuesto existente. */
-export async function addPieceToEstimate(estimateId: number, data: CreatePieceData) {
-    const response = await fetch(`${API_URL}/api/estimates/${estimateId}/pieces`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add piece');
-    }
-    return await response.json();
-}
-
-/** Elimina una pieza de un presupuesto existente. */
-export async function removePieceFromEstimate(estimateId: number, pieceId: number) {
-    const response = await fetch(`${API_URL}/api/estimates/${estimateId}/pieces/${pieceId}`, {
-        method: 'DELETE',
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to remove piece');
-    }
-    return await response.json();
 }

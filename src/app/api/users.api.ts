@@ -1,63 +1,92 @@
+import { User, Role, CreateUserDto, UpdateUserDto } from "@/app/api/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// Función auxiliar para generar las cabeceras de autenticación para llamadas desde el servidor.
+const getAuthHeaders = (token?: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Cookie'] = `access_token=${token}`;
+  }
+  return headers;
+};
+
+// --- Funciones CRUD para Usuarios (usadas en el panel de admin) ---
+
+export async function getUsers(token?: string): Promise<User[]> {
+  const res = await fetch(`${API_URL}/api/users`, {
+    cache: "no-store",
+    headers: getAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+}
+
+export async function getUser(id: number, token?: string): Promise<User> {
+  const res = await fetch(`${API_URL}/api/users/${id}`, {
+    cache: "no-store",
+    headers: getAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch user");
+  return res.json();
+}
+
+// Las llamadas desde el cliente usan 'credentials: include' para enviar la cookie automáticamente.
+export async function createUser(userData: CreateUserDto): Promise<User> {
+  const res = await fetch(`${API_URL}/api/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to create user');
+  }
+  return res.json();
+}
+
+export async function updateUser(id: number, userData: UpdateUserDto): Promise<User> {
+  const res = await fetch(`${API_URL}/api/users/${id}`, {
+    method: "PATCH",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to update user');
+  }
+  return res.json();
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/api/users/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to delete user');
+  }
+}
+
+// --- ✅ AÑADIDO: Funciones de Autenticación (usadas en UserDropdown y CardLogin) ---
 
 interface LoginData {
-  identifier: string; 
+  identifier: string;
   password: string;
 }
 
 interface LoginResponse {
-  message?: string; // Opcional, si tu backend devuelve un mensaje de éxito (ej. { message: 'Login exitoso' })
-
+  message?: string;
 }
 
 interface LogoutResponse {
   message?: string;
 }
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'; // Default para desarrollo
-
-export async function getUsers() {
-  const data = await fetch(`${API_URL}/api/users`, {
-    cache: "no-store"
-  });
-  return await data.json()
-}
-
-export async function getUser(id: any) {
-  const data = await fetch(`${API_URL}/api/users/${id}`, {
-    cache: "no-store"
-  });
-  return await data.json()
-}
-
-export async function createUser(userData: any) {
-
-  const res = await fetch(`${API_URL}/api/users`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData)
-  });
-  const data = await res.json()
-  console.log(data)
-}
-
-export async function updateUser(id: any, userData: any) {
-  const res = await fetch(`${API_URL}/api/users/${id}`, {
-    method: "PATCH",
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData)
-  })
-}
-
-export async function deleteUser(id: any) {
-  const res = await fetch(`${API_URL}/api/users/${id}`, {
-    method: 'DELETE',
-  });
-  const data = await res.json()
-}
-
 
 export async function loginUser(userData: LoginData): Promise<LoginResponse> {
   try {
@@ -66,7 +95,7 @@ export async function loginUser(userData: LoginData): Promise<LoginResponse> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData), // Ahora envía { identifier, password }
+      body: JSON.stringify(userData),
       credentials: 'include',
     });
 
@@ -75,10 +104,7 @@ export async function loginUser(userData: LoginData): Promise<LoginResponse> {
     if (!response.ok) {
       throw new Error(data.message || 'Invalid credentials or server error.');
     }
-
-    console.log("Respuesta de login (sin token en el cuerpo):", data);
     return data;
-
   } catch (error) {
     console.error('Error in the login API call:', error);
     throw error;
@@ -89,7 +115,7 @@ export async function logoutUser(): Promise<LogoutResponse> {
   try {
     const response = await fetch(`${API_URL}/api/auth/logout`, {
       method: 'POST',
-      credentials: 'include', 
+      credentials: 'include',
     });
 
     const data: LogoutResponse = await response.json();
@@ -97,10 +123,7 @@ export async function logoutUser(): Promise<LogoutResponse> {
     if (!response.ok) {
       throw new Error(data.message || 'Unknown error when logging out.');
     }
-
-    console.log("Successful logout:", data);
     return data;
-
   } catch (error: any) {
     console.error('Error in call to logout API:', error);
     throw error;

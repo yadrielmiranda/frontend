@@ -5,7 +5,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CrystalForm } from "../../new/crystal-form";
-import { getCrystal } from "@/app/api/cristals.api";
+import { getCrystal } from "@/app/api/crystals.api";
 
 
 export default async function EditCrystalPage({

@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Tint } from "@/app/api/types";
 
 type FormData = {
   color: string;
 };
 
-export function TintForm({ tint }: { tint?: FormData & { id: number } }) {
+export function TintForm({ tint }: { tint?: Tint }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -32,14 +34,16 @@ export function TintForm({ tint }: { tint?: FormData & { id: number } }) {
     try {
       if (params.id) {
         await updateTint(Number(params.id), data);
+        toast.success("Tint updated successfully!");
       } else {
         await createTint(data);
+        toast.success("Tint created successfully!");
       }
       setIsSuccess(true);
-      router.push("/settings/tints");      
+      router.push("/settings/tints");
     } catch (error) {
+      toast.error((error as Error).message);
       console.error(error);
-      alert((error as Error).message);
     }
   });
 
