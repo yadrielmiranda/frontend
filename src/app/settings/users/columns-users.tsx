@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { KeyRound, MoreHorizontal, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -85,7 +85,16 @@ export const columns: ColumnDef<User>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href={`/settings/users/${user.id}/edit`}>Edit User</Link>
+                <Link href={`/settings/users/${user.id}/edit`}>
+                  <UserCog className="mr-2 h-4 w-4" />
+                  <span>Change Role</span>
+                </Link>
+              </DropdownMenuItem>
+               <DropdownMenuItem asChild>
+                <Link href={`/settings/users/${user.id}/change-password`}>
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  <span>Change Password</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

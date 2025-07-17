@@ -24,28 +24,23 @@ import { useRouter } from 'next/navigation';
 import { logoutUser } from "@/app/api/users.api";
 import { CardLogin } from "@/components/card-login";
 
-
 export function UserDropdown() {
-  const { isAuthenticated, user, isLoading, revalidate } = useAuth(); // 'setUser' no es necesario aquí
+  const { isAuthenticated, user, isLoading, revalidate } = useAuth();
   const router = useRouter();
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
       await logoutUser();
-      await revalidate(); // Revalidate se encargará de limpiar el estado del usuario en el contexto
+      await revalidate();
       router.push('/');
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
-      // Es mejor usar un sistema de notificaciones (toast) en lugar de alert
     }
   };
 
   const handleLoginSuccess = () => {
     setIsLoginDialogOpen(false);
-    // 'revalidate' ya fue llamado dentro de CardLogin, así que aquí solo cerramos el modal.
-    // Si quieres, puedes añadir una redirección aquí.
-    // router.push('/dashboard');
   };
 
   if (isLoading) {
@@ -64,8 +59,6 @@ export function UserDropdown() {
           <Button variant="ghost">
             <User className="h-4 w-4" />
             <span className="ml-1">
-             
-              {/* Usamos user.username porque es más corto y siempre debería estar presente */}
               {isAuthenticated && user ? user.username : "Login"}
             </span>
           </Button>
@@ -76,12 +69,18 @@ export function UserDropdown() {
             <>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                 
-                  {/* Usamos 'firstName' y 'lastName' con la 'N' mayúscula */}
                   <p className="text-sm font-medium leading-none">{`${user.firstName} ${user.lastName}`}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
+                  {/* ✅ AÑADIDO: Muestra el rol como una insignia */}
+                  {user.role && (
+                    <p className="text-xs leading-none text-muted-foreground pt-2">
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                        {user.role.name}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -91,7 +90,6 @@ export function UserDropdown() {
               <DropdownMenuItem onClick={handleLogout}>Log Out</DropdownMenuItem>
             </>
           ) : (
-            // Este trigger abrirá el Dialog que envuelve todo el componente
             <DialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                 Log In
@@ -101,7 +99,6 @@ export function UserDropdown() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* El contenido del Dialog que se mostrará cuando se haga clic en 'Log In' */}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Inicia sesión</DialogTitle>

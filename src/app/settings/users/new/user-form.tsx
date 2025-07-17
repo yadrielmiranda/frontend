@@ -2,41 +2,43 @@
 
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-
-// Se importan los tipos desde el archivo central
 import { CreateUserDto, UpdateUserDto, Role, User } from "@/app/api/types";
-import { createUser, updateUser } from "@/app/api/users.api";
-
+import { createUser, updateUser, updateMyProfile } from "@/app/api/users.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// El formulario ahora espera recibir los roles disponibles y opcionalmente un usuario
 interface UserFormProps {
   user?: User;
   roles: Role[];
+  onProfileUpdate?: (updatedUser: User) => void;
 }
 
-// Se usa un tipo derivado para el formulario, para que la contraseña sea opcional
-type UserFormData = Omit<CreateUserDto, 'password'> & {
-  password?: string;
-};
+// ✅ Se añade 'password' como opcional para manejar la creación.
+type UserFormData = Omit<CreateUserDto, "password"> & { password?: string };
 
-export function UserForm({ user, roles }: UserFormProps) {
+export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
   const router = useRouter();
   const isEditMode = !!user;
-
-  const [isSuccess, setIsSuccess] = useState(false);
+  const isProfilePage = isEditMode && roles.length === 1;
+  // ✅ Nueva variable para saber si el admin está cambiando el rol.
+  const isRoleChangeMode = isEditMode && !isProfilePage;
 
   const {
     register,
     handleSubmit,
     control,
     formState: { errors, isDirty, isSubmitting },
+    reset,
   } = useForm<UserFormData>({
     defaultValues: {
       firstName: user?.firstName || "",
@@ -45,112 +47,122 @@ export function UserForm({ user, roles }: UserFormProps) {
       phone: user?.phone || "",
       address: user?.address || "",
       username: user?.username || "",
-      password: "",
-      // El valor por defecto ahora es el ID del rol
-      idRole: user?.idRole || roles.find(r => r.name === 'client')?.id,
+      idRole: user?.idRole || roles.find((r) => r.name === "client")?.id,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    // Aseguramos que idRole sea un número antes de enviarlo
-    const userData = {
-      ...data,
-      idRole: Number(data.idRole),
-    };
-
     try {
       if (isEditMode) {
-        const updateData: UpdateUserDto = userData;
-        if (!updateData.password) {
-          delete updateData.password;
+        if (isProfilePage) {
+          const updateData: Omit<UpdateUserDto, "password" | "idRole"> = data;
+          const updatedUser = await updateMyProfile(updateData);
+          toast.success("Perfil actualizado correctamente!");
+          reset(updatedUser);
+          if (onProfileUpdate) {
+            onProfileUpdate(updatedUser);
+          }
+        } else {
+          // Lógica para cuando el admin solo cambia el rol
+          const updateData: Partial<UpdateUserDto> = {
+            idRole: Number(data.idRole), // ✅ Se convierte el idRole a número
+          };
+          await updateUser(user.id, updateData);
+          toast.success("Rol de usuario actualizado correctamente!");
         }
-        await updateUser(user.id, updateData);
-        toast.success("User updated successfully!");
       } else {
-        if (!userData.password) {
-          throw new Error("Password is required for new users.");
+        // ✅ Lógica para crear un nuevo usuario (ahora funciona)
+        if (!data.password) {
+          throw new Error("La contraseña es requerida para crear un nuevo usuario.");
         }
-        await createUser(userData as CreateUserDto);
-        toast.success("User created successfully!");
+        await createUser(data as CreateUserDto);
+        toast.success("Usuario creado exitosamente!");
       }
-      setIsSuccess(true);
-      router.push("/settings/users");
-      
+
+      // Redirige solo si es un admin creando o editando
+      if (!isProfilePage) {
+        router.push("/settings/users");
+      }
     } catch (err: any) {
-      toast.error(err.message || "Failed to save user.");
+      toast.error(err.message || "Falló al guardar los cambios.");
     }
   });
 
-  const showLoadingState = isSubmitting || isSuccess;
+  const showLoadingState = isSubmitting;
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* ✅ Lógica de deshabilitado corregida */}
         <div>
-          <Label htmlFor="firstName">First Name</Label>
-          <Input id="firstName" {...register("firstName", { required: "First name is required" })} />
-          {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
+          <Label htmlFor="firstName">Nombre</Label>
+          <Input id="firstName" {...register("firstName")} disabled={isRoleChangeMode} />
         </div>
         <div>
-          <Label htmlFor="lastName">Last Name</Label>
-          <Input id="lastName" {...register("lastName", { required: "Last name is required" })} />
-          {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
+          <Label htmlFor="lastName">Apellido</Label>
+          <Input id="lastName" {...register("lastName")} disabled={isRoleChangeMode} />
         </div>
         <div>
-          <Label htmlFor="username">Username</Label>
-          <Input id="username" {...register("username", { required: "Username is required" })} />
-          {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>}
+          <Label htmlFor="username">Usuario</Label>
+          <Input id="username" {...register("username")} disabled={isRoleChangeMode} />
         </div>
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" {...register("email", { required: "Email is required" })} />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+          <Input id="email" type="email" {...register("email")} disabled={isRoleChangeMode} />
         </div>
         <div>
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" type="tel" {...register("phone", { required: "Phone number is required" })} />
-          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+          <Label htmlFor="phone">Teléfono</Label>
+          <Input id="phone" type="tel" {...register("phone")} disabled={isRoleChangeMode} />
         </div>
         <div>
-          <Label htmlFor="address">Address</Label>
-          <Input id="address" {...register("address", { required: "Address is required" })} />
-          {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
+          <Label htmlFor="address">Dirección</Label>
+          <Input id="address" {...register("address")} disabled={isRoleChangeMode} />
         </div>
-        <div>
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" {...register("password")} placeholder={isEditMode ? "Leave blank to keep current password" : "Enter password"} />
-          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
-        </div>
-        <div>
-            <Label htmlFor="idRole">Role</Label>
-            <Controller
-                name="idRole"
-                control={control}
-                render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
-                        <SelectTrigger id="idRole">
-                            <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {roles.map((role) => (
-                                <SelectItem key={role.id} value={String(role.id)}>
-                                    {role.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
-            />
-        </div>
-      </div>
+        
+        {/* ✅ El campo de contraseña aparece solo al crear un nuevo usuario */}
+        {!isEditMode && (
+          <div className="md:col-span-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input id="password" type="password" {...register("password", { required: "La contraseña es requerida" })} />
+            {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
+          </div>
+        )}
 
+        {/* El campo de Rol solo aparece si NO es la página de perfil */}
+        {!isProfilePage && (
+          <div>
+            <Label htmlFor="idRole">Rol</Label>
+            <Controller
+              name="idRole"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={String(field.value)}
+                >
+                  <SelectTrigger id="idRole">
+                    <SelectValue placeholder="Selecciona un rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={String(role.id)}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+        )}
+      </div>
       <div className="flex justify-end gap-4 mt-8">
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={showLoadingState}>
-          Cancel
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={showLoadingState} >
+          Cancelar
         </Button>
-        <Button type="submit" variant={isEditMode ? "blue" : "green"} disabled={!isDirty || showLoadingState}>
+        <Button type="submit" disabled={!isDirty || showLoadingState}>
           {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {showLoadingState ? "Saving..." : (isEditMode ? "Update User" : "Create User")}
+          {showLoadingState ? "Guardando..." : isProfilePage ? "Actualizar Perfil" : isEditMode ? "Cambiar Rol" : "Crear Usuario"}
         </Button>
       </div>
     </form>

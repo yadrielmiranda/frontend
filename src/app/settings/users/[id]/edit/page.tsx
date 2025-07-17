@@ -5,11 +5,8 @@ import { getUser } from "@/app/api/users.api";
 import { getRoles } from "@/app/api/roles.api";
 import { UserForm } from "../../new/user-form";
 
-
-
-// ✅ CORRECCIÓN: Se actualiza la firma para manejar los params como una promesa.
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
-  // ✅ Se añade 'await' para resolver la promesa de los params.
+   
   const { id } = await params;
   const userId = Number(id);
 
@@ -17,17 +14,14 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     notFound();
   }
   
-  // Se obtiene el token para las llamadas desde el servidor.
   const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = cookieStore.get("access_token")?.value; 
 
-  // Obtenemos los datos del usuario y la lista de roles en paralelo para mayor eficiencia
   const [user, roles] = await Promise.all([
-    getUser(userId, token), // Se pasa el token
-    getRoles(token)       // Se pasa el token
+    getUser(userId, token),
+    getRoles(token)
   ]);
 
-  // Si el usuario no existe, mostramos la página 404
   if (!user) {
     notFound();
   }
@@ -36,13 +30,12 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     <div className="flex justify-center items-start py-10 px-4 min-h-screen bg-gray-50">
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">Edit User: {user.username}</CardTitle>
+          <CardTitle className="text-2xl">Cambiar Rol para: {user.username}</CardTitle>
           <CardDescription>
-            Update the details for this user account.
+            Utiliza el siguiente campo para asignar un nuevo rol a este usuario. El resto de la información es solo de lectura.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Le pasamos el usuario y los roles al formulario para que entre en modo edición */}
           <UserForm user={user} roles={roles} />
         </CardContent>
       </Card>

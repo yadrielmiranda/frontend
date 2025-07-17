@@ -1,9 +1,12 @@
+import { Role } from "../api/types";
+
 export interface AuthUser {
-  id: string;
+  id: number; 
   username: string;
   firstName: string;
   lastName: string;
   email: string;
+  role: Role; 
 }
 
 export interface LoginResponse {

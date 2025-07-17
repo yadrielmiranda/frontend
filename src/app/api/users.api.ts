@@ -28,6 +28,7 @@ export async function getUser(id: number, token?: string): Promise<User> {
   const res = await fetch(`${API_URL}/api/users/${id}`, {
     cache: "no-store",
     headers: getAuthHeaders(token),
+    credentials: 'include',
   });
   if (!res.ok) throw new Error("Failed to fetch user");
   return res.json();
@@ -72,8 +73,6 @@ export async function deleteUser(id: number): Promise<void> {
     throw new Error(errorData.message || 'Failed to delete user');
   }
 }
-
-// --- ✅ AÑADIDO: Funciones de Autenticación (usadas en UserDropdown y CardLogin) ---
 
 interface LoginData {
   identifier: string;
@@ -127,5 +126,42 @@ export async function logoutUser(): Promise<LogoutResponse> {
   } catch (error: any) {
     console.error('Error in call to logout API:', error);
     throw error;
+  }    
+}
+
+export async function updateMyProfile(userData: Omit<UpdateUserDto, 'idRole'>): Promise<User> {
+  const res = await fetch(`${API_URL}/api/auth/profile`, { // Llama al nuevo endpoint
+    method: "PATCH",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+    credentials: 'include', // Envía la cookie de sesión
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || 'Failed to update profile');
   }
+  return res.json();
+}
+
+interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword(data: ChangePasswordData): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include',
+  });
+
+  const responseData = await res.json();
+
+  if (!res.ok) {
+    throw new Error(responseData.message || 'Error al cambiar la contraseña.');
+  }
+
+  return responseData;
 }

@@ -171,8 +171,7 @@ export type UpdateEstimateData = Partial<Omit<CreateEstimateData, 'pieces'>> & {
     pieces?: (CreatePieceData & { id?: number })[];
 };
 
-// ✅ CORRECCIÓN: Se utiliza Omit para derivar el DTO de la interfaz User, haciéndolo más conciso.
-// Se omiten 'id' y el objeto 'role', y se añade 'password'.
+
 export interface CreateUserDto {
   username: string;
   firstName: string;

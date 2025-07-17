@@ -1,58 +1,61 @@
 'use client';
 
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, UserRoundPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { loginUser } from "@/app/api/users.api"; 
+import { LogIn, UserRoundPlus, Loader2 } from "lucide-react";
+import { loginUser } from "@/app/api/users.api";
 import { useAuth } from '@/contexts/AuthContext';
 
-// Define las props que CardLogin aceptará
+// 1. Definimos el esquema de validación con Zod para el login
+const loginSchema = z.object({
+  identifier: z.string().min(1, { message: "El usuario o email es requerido." }),
+  password: z.string().min(8, { message: "La contraseña debe tener al menos 8 caracteres." }),
+});
+
+// Derivamos el tipo de los datos del formulario
+type LoginFormData = z.infer<typeof loginSchema>;
+
 interface CardLoginProps {
-  onLoginSuccess?: () => void; // Función opcional para llamar al éxito del login
+  onLoginSuccess?: () => void;
 }
 
 export function CardLogin({ onLoginSuccess }: CardLoginProps) {
   const router = useRouter();
   const { revalidate } = useAuth();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // 2. Configuramos react-hook-form
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
+  // 3. La función onSubmit ahora recibe los datos validados
+  const handleLogin = async (data: LoginFormData) => {
     try {
-        const userData = {
-        identifier,
-        password,
-      };
+      await loginUser(data);
+      await revalidate(); // Revalida el contexto para obtener los datos del usuario
 
-      await loginUser(userData);
-      await revalidate();
+      toast.success("¡Inicio de sesión exitoso!");
 
-      console.log("Login exitoso. Revalidación solicitada.");
-
-      // Si se proporcionó onLoginSuccess, llamarlo para cerrar el modal
       if (onLoginSuccess) {
         onLoginSuccess();
       } else {
-        // Si no está en un modal (ej. en una página dedicada de login), redirige normalmente
-        router.push('/'); // O cualquier otra ruta protegida
+        router.push('/');
       }
-
     } catch (err: any) {
-      console.error("Error al iniciar sesión:", err);
-      setError(err.message || "Credenciales inválidas o error en el servidor.");
-    } finally {
-      setIsLoading(false);
+      toast.error("Error al iniciar sesión", {
+        description: err.message || "Credenciales inválidas o error en el servidor.",
+      });
     }
   };
 
@@ -60,56 +63,45 @@ export function CardLogin({ onLoginSuccess }: CardLoginProps) {
     router.push('/login/register');
   };
 
- return (
+  return (
     <Card className="w-full max-w-sm">
       <CardContent>
-        <form onSubmit={handleLogin}>
+        {/* 4. Usamos el handleSubmit de react-hook-form */}
+        <form onSubmit={handleSubmit(handleLogin)}>
           <div className="flex flex-col gap-6 pt-6">
-            {/*  Actualizamos la UI para reflejar los cambios. */}
+            {/* 5. Conectamos los inputs y mostramos errores */}
             <div className="grid gap-2">
-              <Label htmlFor="identifier">Username or Email</Label>
+              <Label htmlFor="identifier">Usuario o Email</Label>
               <Input
                 id="identifier"
                 type="text"
-                placeholder="Enter your username or email"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Ingresa tu usuario o email"
+                {...register("identifier")}
               />
+              {errors.identifier && <p className="text-sm text-red-500 mt-1">{errors.identifier.message}</p>}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Contraseña</Label>
                 <a href="#" className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
-                  Forgot your password?
+                  ¿Olvidaste tu contraseña?
                 </a>
               </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Ingresa tu contraseña"
+                {...register("password")}
               />
+              {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
             </div>
           </div>
-
-          {error && <p className="text-sm text-red-500 mt-4 text-center">{error}</p>}
-
           <CardFooter className="flex-col gap-2 pt-6">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                // Tu spinner de carga es perfecto
-                <span className="flex items-center">...Loading</span>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </>
-              )}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+              {isSubmitting ? "Iniciando sesión..." : "Login"}
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleSignUpClick} disabled={isLoading}>
+            <Button variant="outline" className="w-full" onClick={handleSignUpClick} disabled={isSubmitting}>
               <UserRoundPlus className="mr-2 h-4 w-4" />
               Sign Up
             </Button>
