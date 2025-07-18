@@ -11,21 +11,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { changePassword } from "@/app/api/users.api";
+import { useState } from "react"; // ✅ 1. Importa useState
 
 // Esquema de validación con Zod
 const formSchema = z.object({
-  currentPassword: z.string().min(1, { message: "La contraseña actual es requerida." }),
-  newPassword: z.string().min(8, { message: "La nueva contraseña debe tener al menos 8 caracteres." }),
+  currentPassword: z.string().min(1, { message: "Current password is required." }),
+  newPassword: z.string().min(8, { message: "New password must be at least 8 characters." }),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Las contraseñas no coinciden.",
-  path: ["confirmPassword"], // Error se mostrará en el campo de confirmación
+  message: "Passwords do not match.",
+  path: ["confirmPassword"], // El error se muestra en el campo de confirmación
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 export function ChangePasswordForm() {
   const router = useRouter();
+  
+  // ✅ 2. Añade el estado local para controlar el éxito
+  const [isSuccess, setIsSuccess] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -42,46 +47,53 @@ export function ChangePasswordForm() {
         newPassword: data.newPassword,
       });
       toast.success(response.message);
-      reset(); // Limpia el formulario
-      router.push("/profile"); // Opcional: redirige de vuelta al perfil
+      
+      // ✅ 3. Marca como exitoso antes de navegar
+      setIsSuccess(true); 
+      reset(); 
+      router.push("/profile");
     } catch (error: any) {
-      toast.error(error.message || "Ocurrió un error.");
+      toast.error(error.message || "An error occurred.");
     }
   };
+
+  // ✅ 4. Combina los estados para un control de UI consistente
+  const showLoadingState = isSubmitting || isSuccess;
 
   return (
     <Card className="w-full max-w-lg">
       <CardHeader>
-        <CardTitle>Cambiar Contraseña</CardTitle>
+        <CardTitle>Change Password</CardTitle>
         <CardDescription>
-          Ingresa tu contraseña actual y la nueva contraseña.
+          Enter your current password and your new password.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="currentPassword">Contraseña Actual</Label>
+            <Label htmlFor="currentPassword">Current Password</Label>
             <Input id="currentPassword" type="password" {...register("currentPassword")} />
             {errors.currentPassword && <p className="text-sm text-red-500 mt-1">{errors.currentPassword.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="newPassword">Nueva Contraseña</Label>
+            <Label htmlFor="newPassword">New Password</Label>
             <Input id="newPassword" type="password" {...register("newPassword")} />
             {errors.newPassword && <p className="text-sm text-red-500 mt-1">{errors.newPassword.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar Nueva Contraseña</Label>
+            <Label htmlFor="confirmPassword">Confirm New Password</Label>
             <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
             {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>}
           </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
-            Cancelar
+          {/* ✅ 5. Usa showLoadingState para deshabilitar el botón */}
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={showLoadingState}>
+            Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+          <Button type="submit" disabled={showLoadingState}>
+            {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {showLoadingState ? "Saving..." : "Save Changes"}
           </Button>
         </CardFooter>
       </form>

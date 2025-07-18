@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound } from "lucide-react";
 import { getUser } from "@/app/api/users.api";
 import { User } from "@/app/api/types";
-import { AuthUser } from "../types/auth";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
@@ -26,16 +25,18 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (isAuthLoading) {
-      return; // Espera a que la autenticación inicial termine
+      return;
     }
+    
     if (authUser?.id) {
       const fetchUserProfile = async () => {
+        setIsLoading(true);
         try {
           const fullUserData = await getUser(Number(authUser.id));
           setProfileUser(fullUserData);
         } catch (error) {
           console.error("Error al cargar los datos del perfil:", error);
-          toast.error("No se pudieron cargar los datos del perfil.");
+          toast.error("Could not load profile data.");
         } finally {
           setIsLoading(false);
         }
@@ -46,26 +47,24 @@ export default function ProfilePage() {
     }
   }, [authUser, isAuthLoading]);
 
-  const handleProfileUpdate = (updatedUser: User) => {
-    // ✅ *** CORRECCIÓN APLICADA AQUÍ ***
-
-    // 1. Valida que tengamos el rol del usuario actual antes de continuar.
+  // ✅ Esta es TU lógica original, que es la correcta.
+  const handleProfileUpdate = (updatedUserFromApi: User) => {
+    // Valida que tengamos el rol del usuario actual antes de continuar.
     if (!profileUser?.role) {
-      console.error("No se puede actualizar el perfil: los datos del rol no están disponibles.");
-      toast.error("Ocurrió un error al actualizar. Por favor, recarga la página.");
+      toast.error("An error occurred while updating. Please reload the page.");
       return;
     }
 
-    // 2. Combina los datos actualizados de la API con el rol que ya teníamos.
+    // Combina los datos actualizados de la API con el rol que ya teníamos.
     const completeUpdatedUser: User = {
-      ...updatedUser,
+      ...updatedUserFromApi,
       role: profileUser.role, // Reutilizamos el rol del estado local.
     };
 
-    // 3. Actualiza el estado local de esta página con el objeto completo.
+    // Actualiza el estado local de esta página.
     setProfileUser(completeUpdatedUser);
 
-    // 4. Actualiza el contexto global con el objeto completo para que toda la app lo vea.
+    // Actualiza el contexto global con el objeto completo para que toda la app lo vea.
     setUser(completeUpdatedUser);
   };
 
@@ -77,23 +76,20 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileUser || !profileUser.role) {
+  if (!profileUser) {
     return (
       <p className="text-center pt-20">
-        No se pudieron cargar los datos del perfil. Por favor, intenta de nuevo.
+        Could not load profile data. Please log in and try again.
       </p>
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-8 py-10 px-4">
-      {/* Tarjeta para la Información del Perfil */}
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <CardTitle className="text-2xl">Mi Perfil</CardTitle>
-          <CardDescription>
-            Actualiza tu información personal.
-          </CardDescription>
+          <CardTitle className="text-2xl">My Profile</CardTitle>
+          <CardDescription>Update your personal information.</CardDescription>
         </CardHeader>
         <CardContent>
           <UserForm
@@ -104,28 +100,22 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Tarjeta para la Seguridad y Contraseña */}
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <CardTitle className="text-2xl">Seguridad</CardTitle>
-          <CardDescription>
-            Gestiona la seguridad de tu cuenta.
-          </CardDescription>
+          <CardTitle className="text-2xl">Security</CardTitle>
+          <CardDescription>Manage your account security.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
-              <p className="font-medium">Contraseña</p>
+              <p className="font-medium">Password</p>
               <p className="text-sm text-muted-foreground">
-                Se recomienda cambiar tu contraseña periódicamente.
+                It is recommended to change your password periodically.
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => router.push('/profile/change-password')}
-            >
+            <Button variant="outline" onClick={() => router.push('/profile/change-password')}>
               <KeyRound className="mr-2 h-4 w-4" />
-              Cambiar contraseña
+              Change Password
             </Button>
           </div>
         </CardContent>
