@@ -1,7 +1,13 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { KeyRound, MoreHorizontal, UserCog } from "lucide-react";
+import {
+  KeyRound,
+  MoreHorizontal,
+  Trash2,
+  TrashIcon,
+  UserCog,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,7 +50,7 @@ export const columns: ColumnDef<User>[] = [
       return (
         <span
           className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${
-            roleName === 'admin'
+            roleName === "admin"
               ? "bg-blue-100 text-blue-800"
               : "bg-gray-100 text-gray-800"
           }`}
@@ -90,7 +96,7 @@ export const columns: ColumnDef<User>[] = [
                   <span>Change Role</span>
                 </Link>
               </DropdownMenuItem>
-               <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild>
                 <Link href={`/settings/users/${user.id}/change-password`}>
                   <KeyRound className="mr-2 h-4 w-4" />
                   <span>Change Password</span>
@@ -98,9 +104,10 @@ export const columns: ColumnDef<User>[] = [
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                className="group text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
               >
+                <Trash2 className="mr-2 h-4 w-4 text-red-600 group-focus:text-red-700" />
                 Delete User
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -108,7 +115,7 @@ export const columns: ColumnDef<User>[] = [
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
-            onConfirm={handleDelete}            
+            onConfirm={handleDelete}
           />
         </div>
       );

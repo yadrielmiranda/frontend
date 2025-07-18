@@ -14,8 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound } from "lucide-react";
 import { getUser } from "@/app/api/users.api";
-import { User} from "@/app/api/types";
+import { User } from "@/app/api/types";
 import { AuthUser } from "../types/auth";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return; // Espera a que la autenticación inicial termine
+    }
     if (authUser?.id) {
       const fetchUserProfile = async () => {
         try {
@@ -31,6 +35,7 @@ export default function ProfilePage() {
           setProfileUser(fullUserData);
         } catch (error) {
           console.error("Error al cargar los datos del perfil:", error);
+          toast.error("No se pudieron cargar los datos del perfil.");
         } finally {
           setIsLoading(false);
         }
@@ -39,24 +44,29 @@ export default function ProfilePage() {
     } else {
       setIsLoading(false);
     }
-  }, [authUser]);
+  }, [authUser, isAuthLoading]);
 
   const handleProfileUpdate = (updatedUser: User) => {
-    // Actualiza el estado local de esta página
-    setProfileUser(updatedUser);
+    // ✅ *** CORRECCIÓN APLICADA AQUÍ ***
 
-    // Crea un objeto que coincida con el tipo AuthUser para el contexto
-    const userForContext: AuthUser = {
-      id: updatedUser.id,
-      username: updatedUser.username,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      email: updatedUser.email,
-      role: updatedUser.role,
+    // 1. Valida que tengamos el rol del usuario actual antes de continuar.
+    if (!profileUser?.role) {
+      console.error("No se puede actualizar el perfil: los datos del rol no están disponibles.");
+      toast.error("Ocurrió un error al actualizar. Por favor, recarga la página.");
+      return;
+    }
+
+    // 2. Combina los datos actualizados de la API con el rol que ya teníamos.
+    const completeUpdatedUser: User = {
+      ...updatedUser,
+      role: profileUser.role, // Reutilizamos el rol del estado local.
     };
 
-    // Actualiza el estado global para que toda la app vea el cambio
-    setUser(userForContext);
+    // 3. Actualiza el estado local de esta página con el objeto completo.
+    setProfileUser(completeUpdatedUser);
+
+    // 4. Actualiza el contexto global con el objeto completo para que toda la app lo vea.
+    setUser(completeUpdatedUser);
   };
 
   if (isAuthLoading || isLoading) {

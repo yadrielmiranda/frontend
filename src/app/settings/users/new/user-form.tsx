@@ -23,14 +23,12 @@ interface UserFormProps {
   onProfileUpdate?: (updatedUser: User) => void;
 }
 
-// ✅ Se añade 'password' como opcional para manejar la creación.
 type UserFormData = Omit<CreateUserDto, "password"> & { password?: string };
 
 export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
   const router = useRouter();
   const isEditMode = !!user;
   const isProfilePage = isEditMode && roles.length === 1;
-  // ✅ Nueva variable para saber si el admin está cambiando el rol.
   const isRoleChangeMode = isEditMode && !isProfilePage;
 
   const {
@@ -63,25 +61,33 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
             onProfileUpdate(updatedUser);
           }
         } else {
-          // Lógica para cuando el admin solo cambia el rol
           const updateData: Partial<UpdateUserDto> = {
-            idRole: Number(data.idRole), // ✅ Se convierte el idRole a número
+            idRole: Number(data.idRole),
           };
           await updateUser(user.id, updateData);
           toast.success("Rol de usuario actualizado correctamente!");
         }
       } else {
-        // ✅ Lógica para crear un nuevo usuario (ahora funciona)
+        // Lógica para crear un nuevo usuario
         if (!data.password) {
           throw new Error("La contraseña es requerida para crear un nuevo usuario.");
         }
-        await createUser(data as CreateUserDto);
+
+        // ✅ *** CORRECCIÓN APLICADA AQUÍ ***
+        // Se crea un nuevo payload para asegurar que idRole sea un número.
+        const payload = {
+          ...data,
+          idRole: Number(data.idRole),
+        };
+        
+        await createUser(payload as CreateUserDto);
         toast.success("Usuario creado exitosamente!");
       }
 
       // Redirige solo si es un admin creando o editando
       if (!isProfilePage) {
         router.push("/settings/users");
+        router.refresh();
       }
     } catch (err: any) {
       toast.error(err.message || "Falló al guardar los cambios.");
@@ -93,7 +99,6 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* ✅ Lógica de deshabilitado corregida */}
         <div>
           <Label htmlFor="firstName">Nombre</Label>
           <Input id="firstName" {...register("firstName")} disabled={isRoleChangeMode} />
@@ -119,7 +124,6 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
           <Input id="address" {...register("address")} disabled={isRoleChangeMode} />
         </div>
         
-        {/* ✅ El campo de contraseña aparece solo al crear un nuevo usuario */}
         {!isEditMode && (
           <div className="md:col-span-2">
             <Label htmlFor="password">Contraseña</Label>
@@ -128,7 +132,6 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
           </div>
         )}
 
-        {/* El campo de Rol solo aparece si NO es la página de perfil */}
         {!isProfilePage && (
           <div>
             <Label htmlFor="idRole">Rol</Label>

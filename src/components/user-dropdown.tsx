@@ -73,7 +73,7 @@ export function UserDropdown() {
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
-                  {/* ✅ AÑADIDO: Muestra el rol como una insignia */}
+                  {/* Muestra el rol como una insignia */}
                   {user.role && (
                     <p className="text-xs leading-none text-muted-foreground pt-2">
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
