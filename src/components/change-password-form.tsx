@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
+import { useState } from "react"; // Importamos useState
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react"; // Importamos Eye y EyeOff
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { changePassword } from "@/app/api/users.api";
-import { useState } from "react"; // ✅ 1. Importa useState
 
 // Esquema de validación con Zod
 const formSchema = z.object({
@@ -27,8 +27,13 @@ type FormData = z.infer<typeof formSchema>;
 
 export function ChangePasswordForm() {
   const router = useRouter();
-  
-  // ✅ 2. Añade el estado local para controlar el éxito
+
+  // Estados para controlar la visibilidad de cada campo de contraseña
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Estado local para controlar el éxito (ya estaba)
   const [isSuccess, setIsSuccess] = useState(false);
 
   const {
@@ -47,17 +52,15 @@ export function ChangePasswordForm() {
         newPassword: data.newPassword,
       });
       toast.success(response.message);
-      
-      // ✅ 3. Marca como exitoso antes de navegar
-      setIsSuccess(true); 
-      reset(); 
+
+      setIsSuccess(true);
+      reset();
       router.push("/profile");
     } catch (error: any) {
       toast.error(error.message || "An error occurred.");
     }
   };
 
-  // ✅ 4. Combina los estados para un control de UI consistente
   const showLoadingState = isSubmitting || isSuccess;
 
   return (
@@ -72,22 +75,71 @@ export function ChangePasswordForm() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Current Password</Label>
-            <Input id="currentPassword" type="password" {...register("currentPassword")} />
+            <div className="relative"> {/* Contenedor para el input y el icono */}
+              <Input
+                id="currentPassword"
+                type={showCurrentPassword ? "text" : "password"} // Tipo condicional
+                {...register("currentPassword")}
+                className="pr-10" // Añade padding a la derecha
+              />
+              <button
+                type="button" // Importante: para que no envíe el formulario
+                onClick={() => setShowCurrentPassword(prev => !prev)} // Alterna visibilidad
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
+                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+              >
+                {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {errors.currentPassword && <p className="text-sm text-red-500 mt-1">{errors.currentPassword.message}</p>}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
-            <Input id="newPassword" type="password" {...register("newPassword")} />
+            <div className="relative"> {/* Contenedor para el input y el icono */}
+              <Input
+                id="newPassword"
+                type={showNewPassword ? "text" : "password"} // Tipo condicional
+                {...register("newPassword")}
+                className="pr-10" // Añade padding a la derecha
+              />
+              <button
+                type="button" // Importante: para que no envíe el formulario
+                onClick={() => setShowNewPassword(prev => !prev)} // Alterna visibilidad
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
+                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+              >
+                {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {errors.newPassword && <p className="text-sm text-red-500 mt-1">{errors.newPassword.message}</p>}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+            <div className="relative"> {/* Contenedor para el input y el icono */}
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"} // Tipo condicional
+                {...register("confirmPassword")}
+                className="pr-10" // Añade padding a la derecha
+              />
+              <button
+                type="button" // Importante: para que no envíe el formulario
+                onClick={() => setShowConfirmPassword(prev => !prev)} // Alterna visibilidad
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"}
+                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>}
           </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-4">
-          {/* ✅ 5. Usa showLoadingState para deshabilitar el botón */}
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={showLoadingState}>
             Cancel
           </Button>

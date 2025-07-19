@@ -1,5 +1,6 @@
-"use client";
+'use client';
 
+import { useState } from "react"; // Importamos useState
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -9,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, Eye, EyeOff } from "lucide-react"; // Importamos Eye y EyeOff
 import { registerUser } from "@/app/api/auth/me/auth.api"; // Asegúrate que la ruta de importación sea correcta
+import { useLoginDialog } from '@/contexts/LoginDialogContext'; // Importar el hook del contexto
 
 // 1. Definimos el esquema de validación con Zod
 const registerSchema = z.object({
@@ -28,6 +30,8 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export function CardRegister() {
   const router = useRouter();
+  const { openLoginDialog } = useLoginDialog(); // Usamos la función para abrir el diálogo del contexto
+  const [showPassword, setShowPassword] = useState(false); // Nuevo estado para la visibilidad de la contraseña
 
   // 2. Configuramos react-hook-form para usar nuestro esquema de Zod
   const {
@@ -45,7 +49,10 @@ export function CardRegister() {
       toast.success("¡Registro exitoso!", {
         description: "Serás redirigido para iniciar sesión.",
       });
-      router.push("/"); // Redirige a la página de login o al home
+      // Abre el diálogo de login a través del contexto
+      openLoginDialog();
+      // Redirige a la página principal o donde se renderiza UserDropdown
+      router.push("/");
     } catch (err: any) {
       toast.error("Error en el registro", {
         description: err.message || "Por favor, verifica tus datos e inténtalo de nuevo.",
@@ -95,7 +102,23 @@ export function CardRegister() {
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" type="password" {...register("password")} />
+            <div className="relative"> {/* Contenedor para el input y el icono */}
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"} // Cambia el tipo según el estado
+                {...register("password")}
+                className="pr-10" // Añade padding a la derecha para el icono
+              />
+              <button
+                type="button" // Importante: para que no envíe el formulario
+                onClick={() => setShowPassword(prev => !prev)} // Alterna la visibilidad
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
           </div>
         </CardContent>

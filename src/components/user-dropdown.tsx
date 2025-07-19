@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,11 +23,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { logoutUser } from "@/app/api/users.api";
 import { CardLogin } from "@/components/card-login";
+import { useLoginDialog } from '@/contexts/LoginDialogContext'; // Importar el hook del contexto
 
 export function UserDropdown() {
   const { isAuthenticated, user, isLoading, revalidate } = useAuth();
   const router = useRouter();
-  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+  // Usamos el estado del diálogo del contexto
+  const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, openLoginDialog } = useLoginDialog();
+
+  // Nuevo estado para controlar la apertura del DropdownMenu
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -40,7 +45,14 @@ export function UserDropdown() {
   };
 
   const handleLoginSuccess = () => {
-    setIsLoginDialogOpen(false);
+    closeLoginDialog(); // Cierra el diálogo al iniciar sesión exitosamente usando la función del contexto
+    setIsDropdownOpen(false); // Asegurarse de que el dropdown también se cierre
+  };
+
+  // Esta función se llama cuando CardLogin solicita cerrarse (ej. al hacer clic en Sign Up)
+  const handleCloseLoginDialogAndDropdown = () => {
+    closeLoginDialog(); // Cierra el diálogo
+    setIsDropdownOpen(false); // Cierra el dropdown
   };
 
   if (isLoading) {
@@ -53,8 +65,10 @@ export function UserDropdown() {
   }
 
   return (
+    // El Dialog sigue controlando su propia apertura/cierre con isLoginDialogOpen
     <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
-      <DropdownMenu>
+      {/* Controlamos el DropdownMenu con el nuevo estado isDropdownOpen */}
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost">
             <User className="h-4 w-4" />
@@ -84,14 +98,19 @@ export function UserDropdown() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/profile')}>Mi Perfil</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/settings')}>Configuración</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setIsDropdownOpen(false); router.push('/profile'); }}>Mi Perfil</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setIsDropdownOpen(false); router.push('/settings'); }}>Configuración</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>Log Out</DropdownMenuItem>
             </>
           ) : (
             <DialogTrigger asChild>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+              {/* Al hacer clic en Log In, cerramos el dropdown y abrimos el diálogo */}
+              <DropdownMenuItem onSelect={(e) => {
+                e.preventDefault(); // Previene el comportamiento por defecto de Radix para que podamos controlar el cierre
+                setIsDropdownOpen(false); // Cierra el dropdown
+                openLoginDialog(); // Abre el diálogo de login a través del contexto
+              }}>
                 Log In
               </DropdownMenuItem>
             </DialogTrigger>
@@ -107,7 +126,10 @@ export function UserDropdown() {
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <CardLogin onLoginSuccess={handleLoginSuccess} />
+          <CardLogin
+            onLoginSuccess={handleLoginSuccess}
+            onClose={handleCloseLoginDialogAndDropdown} // Pasamos la nueva función para cerrar ambos
+          />
         </div>
       </DialogContent>
     </Dialog>
