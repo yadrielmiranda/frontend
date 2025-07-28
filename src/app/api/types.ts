@@ -1,9 +1,7 @@
-
 export interface Role {
   id: number;
   name: string;
 }
-
 
 export interface User {
   id: number;
@@ -82,20 +80,24 @@ export interface Piece {
   markup: number;
   subtotal: number;
   netProfit: number;
+  markupD: number;      
+  netProfitD: number;   
 }
 
 export interface Estimate {
   id: number;
   number: string;
-  name: string;
-  project: string;
+  name: string;  
   date: string;
   units: number;
   rateT: number;
   priceT: number;
   netProfit: number;
+  total: number;        
+  netProfitD: number;   
   idUser: number;
   active: boolean;
+  order?: Order | null;
 }
 
 
@@ -163,7 +165,37 @@ export interface CreatePieceData {
   qty: number;
 }
 
-export interface CreateEstimateData extends Omit<Estimate, 'id' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 'active' | 'idUser'> {
+export interface OrderStatus {
+  id: number;
+  name: string;
+}
+
+export interface Order {
+  id: number;
+  number: string;
+  date: string;
+  units: number;
+  amount: number;
+  idEst: number;
+  statusId: number;
+  userId: number;
+}
+
+// Tipo de orden con relaciones para mostrar datos completos
+export type OrderWithRelations = Order & {
+  estimate: Estimate; // La orden incluye los datos básicos del estimado
+  status: OrderStatus;
+  user: User;
+};
+
+// Tipo para el DTO de actualización
+export interface UpdateOrderData {
+  statusId: number;
+}
+
+
+// No es necesario cambiar los DTOs de creación, ya que los nuevos campos se calculan en el backend.
+export interface CreateEstimateData extends Omit<Estimate, 'id' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 'total' | 'netProfitD' | 'active' | 'idUser'> {
   pieces: CreatePieceData[];
 }
 
@@ -180,7 +212,7 @@ export interface CreateUserDto {
   phone: string;
   password: string;
   address: string;
-  idRole: number; // Requerido para la creación por admin, omitido para registro público
+  idRole: number;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto>;

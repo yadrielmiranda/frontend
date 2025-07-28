@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 
 export function SettingsMenuItems() {
-  return (   
+  return (
     <Fragment>
       <DropdownMenuLabel className="text-red-500">
         Ver si ponemos algo aqui
@@ -38,6 +38,9 @@ export function SettingsMenuItems() {
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/estimates">Estimates</Link>
+      </DropdownMenuItem>      
+      <DropdownMenuItem asChild>
+        <Link href="/orders">Orders</Link>
       </DropdownMenuItem>
       <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
       <DropdownMenuItem>Cargas de Trabajo</DropdownMenuItem>

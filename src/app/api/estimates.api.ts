@@ -55,7 +55,7 @@ export async function createEstimate(data: CreateEstimateData): Promise<Estimate
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-    credentials: 'include', // El navegador se encarga de enviar la cookie
+    credentials: 'include',
   });
   if (!response.ok) {
     const errorData = await response.json();

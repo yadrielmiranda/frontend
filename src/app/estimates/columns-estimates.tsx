@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner"; // ✅ AÑADIDO: Importación para las notificaciones
+import { toast } from "sonner";
 import { deleteEstimate } from "@/app/api/estimates.api";
-import { EstimateWithRelations } from "@/app/api/types"; // Importamos el tipo desde el archivo central
+import { createOrder } from "@/app/api/orders.api";
+import { EstimateWithRelations } from "@/app/api/types";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-// Función auxiliar para formatear la fecha a un formato legible
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString("es-ES", {
@@ -29,7 +29,6 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Función auxiliar para formatear números como moneda USD
 const formatCurrency = (amount: number | string) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -37,7 +36,6 @@ const formatCurrency = (amount: number | string) => {
   }).format(Number(amount));
 };
 
-// Definición de las columnas para la tabla de presupuestos
 export const columns: ColumnDef<EstimateWithRelations>[] = [
   {
     accessorKey: "number",
@@ -46,10 +44,6 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
   {
     accessorKey: "name",
     header: "Name",
-  },
-  {
-    accessorKey: "project",
-    header: "Project",
   },
   {
     accessorKey: "date",
@@ -62,23 +56,22 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
     cell: ({ row }) => <div className="text-center">{row.original.units}</div>,
   },
   {
-    accessorKey: "priceT",
-    header: "Total Price",
+    accessorKey: "total",
+    header: () => <div className="text-right">Total</div>,
     cell: ({ row }) => (
       <div className="text-right font-medium">
-        {formatCurrency(row.original.priceT)}
+        {formatCurrency(row.original.total)}
       </div>
     ),
   },
   {
-    accessorKey: "netProfit",
-    header: "Net Profit",
+    accessorKey: "netProfitD",
+    header: () => <div className="text-right">Net Profit ($)</div>,
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.original.netProfit)}</div>
+      <div className="text-right">{formatCurrency(row.original.netProfitD)}</div>
     ),
   },
   {
-    // Accedemos a la propiedad anidada a través de la relación 'user'
     accessorKey: "user.username",
     header: "Created By",
   },
@@ -87,15 +80,20 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
     header: "Status",
     cell: ({ row }) => {
       const isActive = row.original.active;
-      return (
-        <span
-          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
-            isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-          }`}
-        >
-          {isActive ? "Active" : "Inactive"}
-        </span>
-      );
+      
+      if (isActive) {
+        return (
+          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+            Active
+          </span>
+        );
+      } else {
+        return (
+          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+            Ordered
+          </span>
+        );
+      }
     },
   },
   {
@@ -103,6 +101,7 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
     cell: ({ row }) => {
       const estimate = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+      const [isCreatingOrder, setIsCreatingOrder] = useState(false);
       const router = useRouter();
 
       const handleDelete = async () => {
@@ -110,10 +109,22 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
           await deleteEstimate(estimate.id);
           setShowDeleteConfirm(false);
           toast.success("Estimate deleted successfully.");
-          router.refresh(); // Recarga los datos de la página para reflejar la eliminación
+          router.refresh();
         } catch (error) {
           toast.error((error as Error).message);
-          console.error("Failed to delete estimate", error);
+        }
+      };
+      
+      const handleCreateOrder = async () => {
+        setIsCreatingOrder(true);
+        try {
+          const newOrder = await createOrder(estimate.id);
+          toast.success(`Order #${newOrder.number} created successfully!`);
+          router.refresh(); 
+        } catch (error) {
+          toast.error((error as Error).message);
+        } finally {
+          setIsCreatingOrder(false);
         }
       };
 
@@ -128,25 +139,35 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/estimates/${estimate.id}/edit`}>
-                  Edit Estimate
-                </Link>
+
+              {/* ✅ CAMBIO: El enlace de edición ahora es un DropdownMenuItem para poder deshabilitarlo */}
+              <DropdownMenuItem asChild disabled={!estimate.active}>
+                <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
               </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={handleCreateOrder}
+                disabled={isCreatingOrder || !estimate.active}
+                className="text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {isCreatingOrder ? "Creating Order..." : (!estimate.active ? "Order Created" : "Create Order")}
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
+                disabled={!estimate.active}
               >
                 Delete Estimate
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* Componente de diálogo para confirmar la eliminación */}
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

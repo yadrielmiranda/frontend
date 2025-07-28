@@ -110,15 +110,20 @@ export function EstimateDetailsClient({ estimate }: { estimate: EstimateWithRela
             </div>
           </section>
 
+          {/* ✅ SECCIÓN DE TOTALES ACTUALIZADA */}
           <section className="flex justify-end mt-10">
-            <div className="w-full max-w-xs">
+            <div className="w-full max-w-sm space-y-2">
               <div className="flex justify-between py-2">
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium text-gray-800">{formatCurrency(estimate.priceT)}</span>
               </div>
+              <div className="flex justify-between py-2">
+                <span className="text-gray-600">Ganancia Neta ($):</span>
+                <span className="font-medium text-gray-800">{formatCurrency(estimate.netProfitD)}</span>
+              </div>
               <div className="flex justify-between py-3 border-t-2 mt-2">
                 <span className="text-lg font-bold text-gray-900">Total:</span>
-                <span className="text-lg font-bold text-gray-900">{formatCurrency(estimate.priceT)}</span>
+                <span className="text-lg font-bold text-gray-900">{formatCurrency(estimate.total)}</span>
               </div>
             </div>
           </section>
@@ -132,3 +137,5 @@ export function EstimateDetailsClient({ estimate }: { estimate: EstimateWithRela
     </div>
   );
 }
+
+
