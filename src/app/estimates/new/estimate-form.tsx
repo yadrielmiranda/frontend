@@ -30,12 +30,10 @@ import {
   EstimateWithRelations,
   ProductWithBrands,
   SystemWithConfigs,
-  Config,
   FrameColor,
   Crystal,
   Tint,
   Coating,
-  Brand,
 } from "@/app/api/types";
 
 type FormValues = Omit<CreateEstimateData, "idUser" | "number">;
