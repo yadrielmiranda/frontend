@@ -143,7 +143,7 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
-              {/* ✅ CAMBIO: El enlace de edición ahora es un DropdownMenuItem para poder deshabilitarlo */}
+              {/*El enlace de edición ahora es un DropdownMenuItem para poder deshabilitarlo */}
               <DropdownMenuItem asChild disabled={!estimate.active}>
                 <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
               </DropdownMenuItem>

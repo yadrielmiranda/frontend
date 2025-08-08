@@ -1,4 +1,4 @@
-import { cookies } from "next/headers"; // ✅ Importamos cookies aquí
+import { cookies } from "next/headers";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getEstimates } from "@/app/api/estimates.api";
@@ -6,11 +6,11 @@ import { DataTable } from "@/components/data-table";
 import { columns } from "./columns-estimates";
 
 export default async function EstimatesPage() {
-  // ✅ Obtenemos el token aquí, en el Server Component
-  const cookieStore = await cookies(); // ✅ CORRECCIÓN: Se añade 'await'
-  const token = cookieStore.get('access_token')?.value;
+  //Obtenemos el token aquí, en el Server Component
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
 
-  // ✅ Pasamos el token a la función de la API
+  //Pasamos el token a la función de la API
   const estimates = await getEstimates(token);
 
   return (
