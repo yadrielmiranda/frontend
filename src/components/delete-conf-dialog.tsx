@@ -1,5 +1,6 @@
+// Reemplaza el contenido de tu archivo con esto
 "use client";
-import { useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,31 +10,37 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // No importamos AlertDialogTrigger aquí si lo controlamos con 'open'
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
+// 1. AÑADIMOS 'itemName' A LAS PROPS DEL COMPONENTE
 interface DeleteConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  itemName?: string; // Hacemos que sea opcional para no romper otras partes
 }
 
 export function DeleteConfirmationDialog({
   isOpen,
   onClose,
   onConfirm,
+  itemName, // Recibimos la nueva prop
 }: DeleteConfirmationDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
+          {/* 2. HACEMOS EL TÍTULO MÁS GENÉRICO */}
           <AlertDialogTitle>
-            Are you sure you want to delete this product?
+            Are you absolutely sure?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. It will permanently delete the
-            selected item.
+            This action cannot be undone. This will permanently delete{' '}
+            {/* 3. USAMOS 'itemName' PARA UN MENSAJE ESPECÍFICO */}
+            <span className="font-bold text-red-600">
+              {itemName || 'the selected item'}
+            </span>
+            .
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

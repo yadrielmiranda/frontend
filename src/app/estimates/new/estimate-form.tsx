@@ -13,7 +13,8 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Trash2, Pencil, Calculator } from "lucide-react";
-import { createEstimate, updateEstimate } from "@/app/api/estimates.api";
+// --- 1. IMPORTAR LA NUEVA FUNCIÓN DE CÁLCULO ---
+import { createEstimate, updateEstimate, calculatePiece } from "@/app/api/estimates.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,8 +42,10 @@ import { PieceDiagram } from "@/components/piece-diagram";
 
 
 // --- Tipos para el Formulario ---
+// --- 2. AÑADIR 'rate' PARA GUARDAR EL COSTO CALCULADO ---
 interface PieceFormValues extends CreatePieceData {
   id?: number;
+  rate: number;
   price: number;
   subtotal: number;
 }
@@ -97,9 +100,10 @@ const PieceItem = React.memo(
     tints,
     coatings,
   }: PieceItemProps) => {
-    const pieceSubtotal = useWatch({
+    // --- 3. CAMBIAR A 'rate' PARA MOSTRAR EL COSTO REAL ---
+    const pieceRate = useWatch({
       control,
-      name: `pieces.${index}.subtotal`,
+      name: `pieces.${index}.rate`,
     });
 
     const [pieceWidth, pieceHeight, productId, brandId, systemId, configId] = useWatch({
@@ -203,9 +207,9 @@ const PieceItem = React.memo(
           <Controller name={`pieces.${index}.muntin`} control={control} render={({ field }) => (<div className="flex items-center space-x-2"><Checkbox id={`muntin-${index}`} checked={field.value} onCheckedChange={field.onChange} disabled={isLocked} /><Label htmlFor={`muntin-${index}`}>Muntin</Label></div>)} />
         </div>
         
-        {isLocked && pieceSubtotal > 0 && (
+        {isLocked && pieceRate > 0 && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-            <p>Calculated Cost: <strong className="font-mono">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(pieceSubtotal)}</strong></p>
+            <p>Calculated Cost (Rate): <strong className="font-mono">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(pieceRate)}</strong></p>
           </div>
         )}
       </div>
@@ -238,7 +242,7 @@ export function EstimateForm({
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EstimateFormValues>({
     defaultValues: isEditMode
-      ? { name: estimate.name, pieces: estimate.pieces.map((p) => ({ ...p, price: p.price || 0, subtotal: p.subtotal || 0 })) }
+      ? { name: estimate.name, pieces: estimate.pieces.map((p) => ({ ...p, rate: p.rate || 0, price: p.price || 0, subtotal: p.subtotal || 0 })) }
       : { name: "", pieces: [] },
   });
 
@@ -252,22 +256,33 @@ export function EstimateForm({
     }
   }, [isEditMode, fields]);
 
-  const handleCalculateAndLockPiece = (index: number) => {
-    const pieceValues = getValues(`pieces.${index}`);
-    let priceNumber = 100.0;
-    if (pieceValues.screen) priceNumber += 20;
-    if (pieceValues.muntin) priceNumber += 15;
-    const subtotalNumber = priceNumber * (pieceValues.qty || 1);
-    setValue(`pieces.${index}.price`, priceNumber, { shouldDirty: true });
-    setValue(`pieces.${index}.subtotal`, subtotalNumber, { shouldDirty: true });
-    const pieceId = fields[index].id;
-    setLockedPieceIds((prev) => new Set(prev).add(pieceId));
-    toast.success("Piece calculated and saved.");
+  // --- 4. LÓGICA DE CÁLCULO REAL ---
+  const handleCalculateAndLockPiece = async (index: number) => {
+    try {
+      const pieceValues = getValues(`pieces.${index}`);
+      
+      // Llamamos a la API del backend para que haga el cálculo real
+      const calculatedMetrics = await calculatePiece(pieceValues);
+
+      // Actualizamos el formulario con los valores recibidos del backend
+      setValue(`pieces.${index}.rate`, Number(calculatedMetrics.rate), { shouldDirty: true });
+      setValue(`pieces.${index}.price`, Number(calculatedMetrics.price), { shouldDirty: true });
+      // Según tu regla, subtotal es 0 por ahora
+      setValue(`pieces.${index}.subtotal`, 0, { shouldDirty: true });
+      
+      const pieceId = fields[index].id;
+      setLockedPieceIds((prev) => new Set(prev).add(pieceId));
+      toast.success("Piece calculated and saved.");
+
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
   const handleUnlockPiece = (index: number) => {
     const pieceId = fields[index].id;
     setLockedPieceIds((prev) => { const newSet = new Set(prev); newSet.delete(pieceId); return newSet; });
+    setValue(`pieces.${index}.rate`, 0);
     setValue(`pieces.${index}.price`, 0);
     setValue(`pieces.${index}.subtotal`, 0);
     toast.info("Piece unlocked for editing.");
@@ -281,7 +296,11 @@ export function EstimateForm({
   };
 
   const onSubmit = handleSubmit(async (data) => {
-    const dataToSend = { ...data, pieces: data.pieces.map(({ price, subtotal, ...piece }) => piece) };
+    // --- 5. FILTRAR CAMPOS DEL FORMULARIO ANTES DE ENVIAR ---
+    const dataToSend = { 
+      ...data, 
+      pieces: data.pieces.map(({ rate, price, subtotal, ...piece }) => piece) 
+    };
     try {
       if (isEditMode) {
         await updateEstimate(estimate.id, dataToSend);
@@ -302,7 +321,7 @@ export function EstimateForm({
     append({
       mark: "", idProd: 0, idBrand: 0, idSyst: 0, idConf: 0, idFC: 0, width: "", height: "",
       idCryst: 0, idTint: 0, privacy: false, idCoat: 0, screen: false, muntin: false, qty: 1,
-      price: 0, subtotal: 0,
+      rate: 0, price: 0, subtotal: 0, // Añadir nuevos campos al objeto por defecto
     });
   };
 

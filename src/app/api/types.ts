@@ -1,6 +1,9 @@
+// --- Tipos de Entidades Base ---
+
 export interface Role {
   id: number;
   name: string;
+  markup: number; // Campo 'markup' añadido para reflejar el schema del backend
 }
 
 export interface User {
@@ -11,6 +14,7 @@ export interface User {
   email: string;
   phone: string;
   address: string;
+  markupOverride?: number | null; // Campo opcional añadido
   idRole: number;
   role: Role;
 }
@@ -26,35 +30,35 @@ export interface Product {
 }
 
 export interface System {
-    id: number;
-    name: string;
-    idProduct: number;
-    idBrand: number;
+  id: number;
+  name: string;
+  idProduct: number;
+  idBrand: number;
 }
 
 export interface Config {
-    id: number;
-    conf: string;
+  id: number;
+  conf: string;
 }
 
 export interface FrameColor {
-    id: number;
-    color: string;
+  id: number;
+  color: string;
 }
 
 export interface Crystal {
-    id: number;
-    glass: string;
+  id: number;
+  glass: string;
 }
 
 export interface Tint {
-    id: number;
-    color: string;
+  id: number;
+  color: string;
 }
 
 export interface Coating {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
 }
 
 export interface Piece {
@@ -80,26 +84,61 @@ export interface Piece {
   markup: number;
   subtotal: number;
   netProfit: number;
-  markupD: number;      
-  netProfitD: number;   
+  markupD: number;
+  netProfitD: number;
 }
 
 export interface Estimate {
   id: number;
   number: string;
-  name: string;  
+  name: string;
   date: string;
   units: number;
   rateT: number;
   priceT: number;
   netProfit: number;
-  total: number;        
-  netProfitD: number;   
+  total: number;
+  netProfitD: number;
   idUser: number;
   active: boolean;
   order?: Order | null;
 }
 
+export interface OrderStatus {
+  id: number;
+  name: string;
+}
+
+export interface Order {
+  id: number;
+  number: string;
+  date: string;
+  units: number;
+  amount: number;
+  idEst: number;
+  statusId: number;
+  userId: number;
+}
+
+// --- NUEVOS TIPOS PARA REGLAS DE PRECIOS ---
+
+export interface PricingRule {
+  id: number;
+  idBrand: number;
+  idProduct: number;
+  idSystem: number;
+  idConfig: number;
+  idCrystal: number;
+  costoA: number;
+  costoB: number;
+  costoC: number;
+  // Propiedades de relación para mostrar en la tabla de datos
+  brand?: { name: string };
+  product?: { name: string };
+  system?: { name: string };
+  config?: { conf: string };
+  crystal?: { glass: string };
+}
 
 // --- Tipos con Relaciones (Para Obtener y Mostrar Datos) ---
 
@@ -142,8 +181,14 @@ export type EstimateWithRelations = Estimate & {
   user: User;
 };
 
+export type OrderWithRelations = Order & {
+  estimate: Estimate; // La orden incluye los datos básicos del estimado
+  status: OrderStatus;
+  user: User;
+};
 
-// --- Tipos para Creación y Actualización (DTOs) ---
+
+// --- Tipos para Creación y Actualización (DTOs del Frontend) ---
 
 export type CreateProductData = Omit<Product, 'id'>;
 
@@ -165,44 +210,13 @@ export interface CreatePieceData {
   qty: number;
 }
 
-export interface OrderStatus {
-  id: number;
-  name: string;
-}
-
-export interface Order {
-  id: number;
-  number: string;
-  date: string;
-  units: number;
-  amount: number;
-  idEst: number;
-  statusId: number;
-  userId: number;
-}
-
-// Tipo de orden con relaciones para mostrar datos completos
-export type OrderWithRelations = Order & {
-  estimate: Estimate; // La orden incluye los datos básicos del estimado
-  status: OrderStatus;
-  user: User;
-};
-
-// Tipo para el DTO de actualización
-export interface UpdateOrderData {
-  statusId: number;
-}
-
-
-// No es necesario cambiar los DTOs de creación, ya que los nuevos campos se calculan en el backend.
-export interface CreateEstimateData extends Omit<Estimate, 'id' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 'total' | 'netProfitD' | 'active' | 'idUser'> {
+export interface CreateEstimateData extends Omit<Estimate, 'id' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 'total' | 'netProfitD' | 'active' | 'idUser' | 'order'> {
   pieces: CreatePieceData[];
 }
 
 export type UpdateEstimateData = Partial<Omit<CreateEstimateData, 'pieces'>> & {
     pieces?: (CreatePieceData & { id?: number })[];
 };
-
 
 export interface CreateUserDto {
   username: string;
@@ -215,4 +229,13 @@ export interface CreateUserDto {
   idRole: number;
 }
 
-export type UpdateUserDto = Partial<CreateUserDto>;
+export type UpdateUserDto = Partial<CreateUserDto> & {
+  markupOverride?: number | null;
+};
+
+export type CreatePricingRuleData = Omit<PricingRule, 'id' | 'brand' | 'product' | 'system' | 'config' | 'crystal'>;
+export type UpdatePricingRuleData = Partial<CreatePricingRuleData>;
+
+export interface UpdateOrderData {
+  statusId: number;
+}

@@ -5,8 +5,8 @@ import {
   KeyRound,
   MoreHorizontal,
   Trash2,
-  TrashIcon,
   UserCog,
+  Star, // Importa el ícono de estrella
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +61,23 @@ export const columns: ColumnDef<User>[] = [
     },
   },
   {
+    accessorKey: "markupOverride",
+    header: "Custom Markup",
+    cell: ({ row }) => {
+      const user = row.original;
+      if (user.markupOverride !== null && user.markupOverride !== undefined) {
+        return (
+          <div className="flex items-center gap-1 font-semibold text-blue-600">
+            <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
+            {/* 👇👇 LA CORRECCIÓN ESTÁ AQUÍ 👇👇 */}
+            <span>{(user.markupOverride * 100).toFixed(2)}%</span>
+          </div>
+        );
+      }
+      return <span className="text-gray-400 italic">Default</span>;
+    },
+  },
+  {
     id: "actions",
     cell: ({ row }) => {
       const user = row.original;
@@ -93,7 +110,7 @@ export const columns: ColumnDef<User>[] = [
               <DropdownMenuItem asChild>
                 <Link href={`/settings/users/${user.id}/edit`}>
                   <UserCog className="mr-2 h-4 w-4" />
-                  <span>Change Role</span>
+                  <span>Edit Role & Markup</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -116,6 +133,7 @@ export const columns: ColumnDef<User>[] = [
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
             onConfirm={handleDelete}
+            itemName={`user ${user.username}`}
           />
         </div>
       );

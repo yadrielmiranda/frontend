@@ -42,6 +42,12 @@ export function SettingsMenuItems() {
       <DropdownMenuItem asChild>
         <Link href="/orders">Orders</Link>
       </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/roles">Roles & Markups</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/pricing-rules">Pricing Rules</Link>
+      </DropdownMenuItem>
       <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
       <DropdownMenuItem>Cargas de Trabajo</DropdownMenuItem>
     </Fragment>

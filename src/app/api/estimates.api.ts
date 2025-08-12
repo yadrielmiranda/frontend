@@ -3,9 +3,38 @@ import {
   EstimateWithRelations,
   CreateEstimateData,
   UpdateEstimateData,
+  CreatePieceData, // Importamos el tipo para los datos de la pieza
+  Piece,           // Importamos el tipo base de la pieza
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000' ;
+
+// --- NUEVO TIPO PARA LA RESPUESTA DEL CÁLCULO ---
+// Define la forma de los datos que devuelve el endpoint de cálculo.
+export interface CalculatedPiece extends Piece {
+  // La respuesta del backend ya incluye todos los campos de 'Piece',
+  // incluyendo los calculados como 'rate', 'price', etc.
+}
+
+/**
+ * Llama al backend para calcular las métricas de una pieza sin guardarla.
+ * @param data Los datos de la pieza a calcular.
+ * @returns La pieza con todos sus campos calculados.
+ */
+export async function calculatePiece(data: CreatePieceData): Promise<CalculatedPiece> {
+  const response = await fetch(`${API_URL}/api/estimates/calculate-piece`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include', // Envía la cookie de sesión
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to calculate piece');
+  }
+  return response.json();
+}
+
 
 /**
  * Obtiene un único presupuesto por su ID.
