@@ -18,11 +18,11 @@ import {
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
 import { Bell, Menu } from "lucide-react";
+import Link from "next/link"; // Importar Link
 
 function TopBar() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  // El estado de carga no cambia, está bien como está.
   if (isLoading) {
     return (
       <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
@@ -48,12 +48,14 @@ function TopBar() {
       {/* --- Contenido para Usuarios Autenticados (Desktop) --- */}
       {isAuthenticated && (
         <nav className="hidden md:flex items-center gap-6">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost">Proyectos</Button></DropdownMenuTrigger>
-            <DropdownMenuContent>{/* ...items de proyectos... */}</DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="ghost">Tareas</Button>
-          <Button variant="ghost">Equipos</Button>
+          {/* --- MODIFICADO: Enlaces directos para Estimates y Orders --- */}
+          <Button variant="ghost" asChild>
+            <Link href="/estimates">Estimates</Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/orders">Orders</Link>
+          </Button>
+          {/* -------------------------------------------------------- */}
 
           {user?.role.name === 'admin' && (
             <DropdownMenu>
@@ -80,11 +82,7 @@ function TopBar() {
 
         <UserDropdown />
 
-        {/* ======================= LA CORRECCIÓN ESTÁ AQUÍ ======================= */}
-        {/* El div para el menú móvil AHORA SIEMPRE EXISTE en el DOM */}
-        {/* Esto hace que el render del servidor y del cliente coincidan. */}
         <div className="md:hidden">
-          {/* PERO el contenido del menú (el Sheet) solo aparece si estás autenticado */}
           {isAuthenticated && (
             <Sheet>
               <SheetTrigger asChild>
@@ -93,9 +91,14 @@ function TopBar() {
               <SheetContent side="left">
                 <SheetHeader><SheetTitle>Navegación</SheetTitle></SheetHeader>
                 <div className="flex flex-col gap-4 mt-6">
-                  <Button variant="ghost" className="w-full justify-start">Proyectos</Button>
-                  <Button variant="ghost" className="w-full justify-start">Tareas</Button>
-                  <Button variant="ghost" className="w-full justify-start">Equipos</Button>
+                  {/* --- MODIFICADO: Enlaces directos para Estimates y Orders en menú móvil --- */}
+                  <Button variant="ghost" className="w-full justify-start" asChild>
+                    <Link href="/estimates">Estimates</Link>
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" asChild>
+                    <Link href="/orders">Orders</Link>
+                  </Button>
+                  {/* -------------------------------------------------------------------- */}
                   
                   {user?.role.name === 'admin' && (
                     <DropdownMenu>
@@ -112,7 +115,7 @@ function TopBar() {
             </Sheet>
           )}
         </div>
-       
+        
       </div>
     </header>
   );

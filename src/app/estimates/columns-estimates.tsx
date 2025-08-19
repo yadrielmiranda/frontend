@@ -56,11 +56,13 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
     cell: ({ row }) => <div className="text-center">{row.original.units}</div>,
   },
   {
-    accessorKey: "total",
-    header: () => <div className="text-right">Total</div>,
+    // --- MODIFICADO AQUÍ ---
+    accessorKey: "priceT",
+    header: () => <div className="text-right">Price</div>,
+    // --------------------
     cell: ({ row }) => (
       <div className="text-right font-medium">
-        {formatCurrency(row.original.total)}
+        {formatCurrency(row.original.priceT)}
       </div>
     ),
   },
@@ -143,7 +145,6 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
-              {/*El enlace de edición ahora es un DropdownMenuItem para poder deshabilitarlo */}
               <DropdownMenuItem asChild disabled={!estimate.active}>
                 <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
               </DropdownMenuItem>

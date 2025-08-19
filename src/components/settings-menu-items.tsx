@@ -6,7 +6,7 @@ export function SettingsMenuItems() {
   return (
     <Fragment>
       <DropdownMenuLabel className="text-red-500">
-        Ver si ponemos algo aqui
+        Admin Settings
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
@@ -37,19 +37,11 @@ export function SettingsMenuItems() {
         <Link href="/settings/users">Users</Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
-        <Link href="/estimates">Estimates</Link>
-      </DropdownMenuItem>      
-      <DropdownMenuItem asChild>
-        <Link href="/orders">Orders</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
         <Link href="/settings/roles">Roles & Markups</Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/settings/pricing-rules">Pricing Rules</Link>
       </DropdownMenuItem>
-      <DropdownMenuItem>Tiempo Registrado</DropdownMenuItem>
-      <DropdownMenuItem>Cargas de Trabajo</DropdownMenuItem>
     </Fragment>
   );
 }
