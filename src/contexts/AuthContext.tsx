@@ -1,20 +1,22 @@
-// src/contexts/AuthContext.tsx
 "use client";
 
 import { AuthUser } from '@/app/types/auth';
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-
+import { io, Socket } from 'socket.io-client';
+import { toast } from 'sonner';
+import { Notification } from '@/app/api/types';
+import { getNotifications } from '@/app/api/notifications.api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: AuthUser | null;
   isLoading: boolean;
   error: string | null;
-  // Función para establecer el usuario directamente después del login
-  // O cuando ya tienes los datos y quieres actualizar el contexto
   setUser: (user: AuthUser | null) => void;
-  // Función para forzar una revalidación (útil para logout o errores)
   revalidate: () => void;
+  notifications: Notification[];
+  unreadCount: number;
+  setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,72 +26,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fetchCount, setFetchCount] = useState(0); // Para forzar revalidación
+  const [fetchCount, setFetchCount] = useState(0);
 
-  // La lógica de fetching se encapsula aquí
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
   const fetchUser = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/auth/me'); // Llama a tu API Route
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Si no está autenticado, simplemente limpiamos el estado
-          setUser(null);
-          setIsAuthenticated(false);
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Error al obtener datos del usuario.');
-        }
-      } else {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
         const data = await response.json();
         setUser(data.user);
         setIsAuthenticated(data.isAuthenticated);
+        if (data.isAuthenticated) {
+          const initialNotifications = await getNotifications();
+          setNotifications(initialNotifications);
+        }
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (err: any) {
       console.error("Error en AuthProvider al obtener datos del usuario:", err);
       setUser(null);
       setIsAuthenticated(false);
-      setError(err.message || 'Error de conexión al verificar autenticación.');
+      setError(err.message || 'Error de conexión.');
     } finally {
       setIsLoading(false);
     }
-  }, [fetchCount]); // Dependencia en fetchCount para revalidar
+  }, [fetchCount]);
 
   useEffect(() => {
     fetchUser();
-  }, [fetchUser]); // Se ejecuta al montar el componente y cada vez que fetchUser cambia (por fetchCount)
+  }, [fetchUser]);
 
-  // Función para que los componentes puedan forzar una revalidación
-  const revalidate = () => {
-    setFetchCount(prev => prev + 1);
-  };
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', {
+        query: { userId: user.id },
+      });
+
+      socket.on('connect', () => console.log('[WS] Connected to server!'));
+
+      socket.on('new_notification', (newNotification: Notification) => {
+        toast.info(newNotification.message);
+        setNotifications(prev => [newNotification, ...prev]);
+      });
+
+      return () => {
+        socket.disconnect();
+        console.log('[WS] Disconnected from server.');
+      };
+    }
+  }, [isAuthenticated, user]);
+
+  const revalidate = () => setFetchCount(p => p + 1);
 
   const contextValue = {
     isAuthenticated,
     user,
     isLoading,
     error,
-    setUser, // Exponemos la función setUser
-    revalidate, // Exponemos la función revalidate
+    setUser,
+    revalidate,
+    notifications,
+    unreadCount,
+    setNotifications,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
-// Hook personalizado para consumir el contexto
-export const useAuth = () => { // Renombramos de useAuthContext a useAuth para consistencia
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  console.log("este es el contexto");
-  
-  console.log(context);
-  
   return context;
 };

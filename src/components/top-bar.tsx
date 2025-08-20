@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Bell, Menu } from "lucide-react";
-import Link from "next/link"; // Importar Link
+import { Menu } from "lucide-react";
+import Link from "next/link";
+import { NotificationBell } from "./notifications-bell";
+
 
 function TopBar() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -48,18 +50,17 @@ function TopBar() {
       {/* --- Contenido para Usuarios Autenticados (Desktop) --- */}
       {isAuthenticated && (
         <nav className="hidden md:flex items-center gap-6">
-          {/* --- MODIFICADO: Enlaces directos para Estimates y Orders --- */}
           <Button variant="ghost" asChild>
             <Link href="/estimates">Estimates</Link>
           </Button>
           <Button variant="ghost" asChild>
             <Link href="/orders">Orders</Link>
           </Button>
-          {/* -------------------------------------------------------- */}
-
           {user?.role.name === 'admin' && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost">Settings</Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost">Settings</Button>
+              </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <SettingsMenuItems />
               </DropdownMenuContent>
@@ -73,10 +74,7 @@ function TopBar() {
         {isAuthenticated && (
           <>
             <Input placeholder="Buscar..." className="hidden md:block w-48" />
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-            </Button>
+            <NotificationBell /> {/* Campana de notificaciones */}
           </>
         )}
 
@@ -86,20 +84,22 @@ function TopBar() {
           {isAuthenticated && (
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon"><Menu /></Button>
+                <Button variant="ghost" size="icon">
+                  <Menu />
+                </Button>
               </SheetTrigger>
               <SheetContent side="left">
-                <SheetHeader><SheetTitle>Navegación</SheetTitle></SheetHeader>
+                <SheetHeader>
+                  <SheetTitle>Navegación</SheetTitle>
+                </SheetHeader>
                 <div className="flex flex-col gap-4 mt-6">
-                  {/* --- MODIFICADO: Enlaces directos para Estimates y Orders en menú móvil --- */}
                   <Button variant="ghost" className="w-full justify-start" asChild>
                     <Link href="/estimates">Estimates</Link>
                   </Button>
                   <Button variant="ghost" className="w-full justify-start" asChild>
                     <Link href="/orders">Orders</Link>
                   </Button>
-                  {/* -------------------------------------------------------------------- */}
-                  
+
                   {user?.role.name === 'admin' && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -115,7 +115,6 @@ function TopBar() {
             </Sheet>
           )}
         </div>
-        
       </div>
     </header>
   );

@@ -239,3 +239,11 @@ export type UpdatePricingRuleData = Partial<CreatePricingRuleData>;
 export interface UpdateOrderData {
   statusId: number;
 }
+
+export interface Notification {
+  id: number;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  recipientId: number;
+}
