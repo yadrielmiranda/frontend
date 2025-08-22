@@ -1,3 +1,4 @@
+// src/app/estimates/[id]/edit/page.tsx
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import {
@@ -8,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EstimateForm } from "../../new/estimate-form"; 
+
 // API functions
 import { getEstimate } from "@/app/api/estimates.api";
 import { getProductsWithBrands } from "@/app/api/products.api";
@@ -16,6 +18,7 @@ import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
+import { getGlobalParameters } from "@/app/api/global-parameters.api";
 
 
 export default async function EditEstimatePage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,11 +26,9 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
   const { id } = await params; 
   const estimateId = Number(id);
 
-  // Obtenemos el token aquí, en el Server Component
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value;
 
-  // Obtenemos todos los datos necesarios en paralelo
   const [
     estimate,
     productsWithBrands,
@@ -36,20 +37,24 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     crystals,
     tints,
     coatings,
+    parameters,
   ] = await Promise.all([
-    getEstimate(estimateId, token), // Obtenemos el presupuesto específico
+    getEstimate(estimateId, token),
     getProductsWithBrands(),
     getSystemsWithConfigs(),
     getFColors(),
     getCrystals(),
     getTints(),
     getCoatings(),
+    getGlobalParameters(token),
   ]);
 
-  // Si el presupuesto no se encuentra, muestra una página 404
   if (!estimate) {
     notFound();
   }
+
+  const salesTaxParam = parameters.find(p => p.key === 'SALES_TAX');
+  const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
     <div className="flex justify-center items-start py-10 px-4 min-h-screen bg-gray-50">
@@ -61,9 +66,9 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Le pasamos el presupuesto obtenido al formulario para que entre en "modo edición" */}
           <EstimateForm
             estimate={estimate}
+            taxRate={taxRate}
             productsWithBrands={productsWithBrands}
             systemsWithConfigs={systemsWithConfigs}
             frameColors={frameColors}

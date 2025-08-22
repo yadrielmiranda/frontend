@@ -84,7 +84,7 @@ export interface Piece {
   markup: number;
   subtotal: number;
   netProfit: number;
-  markupD: number;
+  dealerMarkup: number;
   netProfitD: number;
 }
 
@@ -97,6 +97,9 @@ export interface Estimate {
   rateT: number;
   priceT: number;
   netProfit: number;
+  taxRate: number;
+  taxAmount: number;
+  totalPayable: number;
   total: number;
   netProfitD: number;
   idUser: number;
@@ -210,7 +213,11 @@ export interface CreatePieceData {
   qty: number;
 }
 
-export interface CreateEstimateData extends Omit<Estimate, 'id' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 'total' | 'netProfitD' | 'active' | 'idUser' | 'order'> {
+export interface CreateEstimateData extends Omit<Estimate, 
+  'id' | 'number' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 
+  'taxRate' | 'taxAmount' | 'totalPayable' | 'total' | 'netProfitD' | 
+  'active' | 'idUser' | 'order'
+> {
   pieces: CreatePieceData[];
 }
 
@@ -247,3 +254,18 @@ export interface Notification {
   createdAt: string;
   recipientId: number;
 }
+
+export interface GlobalParameter {
+  id: number;
+  key: string;
+  value: number;
+  description: string | null;
+  unit: string | null;
+  updatedAt: string;
+}
+
+export type UpdateGlobalParameterData = {
+  value: string;
+  description?: string;
+  unit?: string;
+};

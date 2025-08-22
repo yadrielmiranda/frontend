@@ -1,34 +1,54 @@
-import { cookies } from "next/headers";
+// src/app/estimates/[id]/page.tsx
+import { notFound, redirect } from "next/navigation";
 import { getEstimate } from "@/app/api/estimates.api";
-import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/session";
+import { EstimateDetailsClient, DealerPublicView } from "@/components/estimate-details-client";
+import { cookies } from 'next/headers';
 
-import { EstimateWithRelations } from "@/app/api/types";
-import { EstimateDetailsClient } from "@/components/estimate-details-client";
-
-// Esta página del servidor obtiene los datos y los pasa al componente del cliente.
 export default async function EstimateDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
-  const { id } = await params;
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
-
-  // Se usa el 'id' ya resuelto de la promesa.
-  const estimateId = Number(id);
+  const estimateId = Number(resolvedParams.id);
   if (isNaN(estimateId)) {
     notFound();
   }
 
-  // Se llama a la API para obtener el presupuesto con todos sus detalles.
+  const user = await getCurrentUser();
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value;
+  
   const estimate = await getEstimate(estimateId, token);
 
-  // Si no se encuentra el presupuesto, se muestra una página 404.
   if (!estimate) {
     notFound();
   }
 
-  return <EstimateDetailsClient estimate={estimate as EstimateWithRelations} />;
+  if (resolvedSearchParams.view === 'public') {
+    if (estimate.user.role.name === 'dealer') {
+      return <DealerPublicView estimate={estimate} />;
+    } else {
+      return redirect(`/estimates/${estimate.id}`);
+    }
+  }
+
+  if (!user) {
+    return redirect('/');
+  }
+
+  const isAdmin = user.role.name === 'admin';
+  const isOwner = user.sub === estimate.idUser;
+
+  if (!isAdmin && !isOwner) {
+    return notFound(); 
+  }
+
+  // Pasamos el rol del usuario al componente cliente
+  return <EstimateDetailsClient estimate={estimate} userRole={user.role.name} />;
 }

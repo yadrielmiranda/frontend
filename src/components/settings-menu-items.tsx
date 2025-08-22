@@ -42,6 +42,9 @@ export function SettingsMenuItems() {
       <DropdownMenuItem asChild>
         <Link href="/settings/pricing-rules">Pricing Rules</Link>
       </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/global-parameters">Global Parameters</Link>
+      </DropdownMenuItem>
     </Fragment>
   );
 }

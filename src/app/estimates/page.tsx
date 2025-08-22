@@ -1,17 +1,30 @@
+// src/app/estimates/page.tsx
 import { cookies } from "next/headers";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getEstimates } from "@/app/api/estimates.api";
-import { DataTable } from "@/components/data-table";
-import { columns } from "./columns-estimates";
+import { getCurrentUser } from "@/lib/session"; // Importamos el helper de servidor
+import { EstimatesClient } from "./estimateclient";
+
 
 export default async function EstimatesPage() {
-  //Obtenemos el token aquí, en el Server Component
+  // 1. Obtenemos el token y el usuario en el servidor
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
+  const user = await getCurrentUser();
 
-  //Pasamos el token a la función de la API
+  // 2. Obtenemos los estimados (la API ya sabe si devolver todos o solo los del usuario)
   const estimates = await getEstimates(token);
+
+  // Mapeamos el usuario del token a la estructura AuthUser que espera el componente cliente
+  const currentUserForClient = user ? {
+    id: user.sub,
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    role: user.role,
+  } : null;
 
   return (
     <div>
@@ -22,11 +35,10 @@ export default async function EstimatesPage() {
         </Button>
       </div>
       <div className="container mx-auto py-10">
-        <DataTable
-          columns={columns}
-          data={estimates}
-          filterColumnId="name"
-          filterPlaceholder="Filter by name..."
+        {/* 3. Renderizamos el Componente Cliente, pasándole los datos como props */}
+        <EstimatesClient 
+          initialEstimates={estimates} 
+          currentUser={currentUserForClient} 
         />
       </div>
     </div>

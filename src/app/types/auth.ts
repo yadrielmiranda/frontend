@@ -6,7 +6,10 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   email: string;
-  role: Role; 
+  role: {
+      id: number;
+      name: string;
+  }; 
 }
 
 export interface LoginResponse {

@@ -1,3 +1,4 @@
+// src/app/estimates/columns-estimates.tsx
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
@@ -19,6 +20,7 @@ import { createOrder } from "@/app/api/orders.api";
 import { EstimateWithRelations } from "@/app/api/types";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import { AuthUser } from "@/app/types/auth";
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -36,7 +38,9 @@ const formatCurrency = (amount: number | string) => {
   }).format(Number(amount));
 };
 
-export const columns: ColumnDef<EstimateWithRelations>[] = [
+// --- FUNCIÓN MODIFICADA ---
+// Ahora exportamos una función que genera las columnas
+export const getColumns = (currentUser: AuthUser | null): ColumnDef<EstimateWithRelations>[] => [
   {
     accessorKey: "number",
     header: "Number",
@@ -56,10 +60,8 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
     cell: ({ row }) => <div className="text-center">{row.original.units}</div>,
   },
   {
-    // --- MODIFICADO AQUÍ ---
     accessorKey: "priceT",
     header: () => <div className="text-right">Price</div>,
-    // --------------------
     cell: ({ row }) => (
       <div className="text-right font-medium">
         {formatCurrency(row.original.priceT)}
@@ -106,6 +108,9 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
       const [isCreatingOrder, setIsCreatingOrder] = useState(false);
       const router = useRouter();
 
+      // --- LÓGICA DE PERMISOS ---
+      const isOwner = currentUser?.id === estimate.idUser;
+
       const handleDelete = async () => {
         try {
           await deleteEstimate(estimate.id);
@@ -145,14 +150,16 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild disabled={!estimate.active}>
+              {/* Solo el dueño puede editar */}
+              <DropdownMenuItem asChild disabled={!estimate.active || !isOwner}>
                 <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
+              {/* Solo el dueño puede crear una orden */}
               <DropdownMenuItem
                 onSelect={handleCreateOrder}
-                disabled={isCreatingOrder || !estimate.active}
+                disabled={isCreatingOrder || !estimate.active || !isOwner}
                 className="text-blue-600 focus:bg-blue-50 focus:text-blue-700"
               >
                 <Send className="mr-2 h-4 w-4" />
@@ -160,10 +167,11 @@ export const columns: ColumnDef<EstimateWithRelations>[] = [
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
+              {/* Solo el dueño puede borrar */}
               <DropdownMenuItem
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
-                disabled={!estimate.active}
+                disabled={!estimate.active || !isOwner}
               >
                 Delete Estimate
               </DropdownMenuItem>
