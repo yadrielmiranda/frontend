@@ -12,7 +12,7 @@ import {
 } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Trash2, Pencil, Calculator, Eye } from "lucide-react";
+import { Loader2, Trash2, Pencil, Calculator, Eye, AlertTriangle, Copy } from "lucide-react";
 import { createEstimate, updateEstimate, calculatePiece } from "@/app/api/estimates.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   CreateEstimateData,
   CreatePieceData,
@@ -67,6 +77,7 @@ interface PieceFormValues extends CreatePieceData {
 interface EstimateFormValues {
   name: string;
   generalDealerMarkup: number;
+  defaultFrameColorId: number;
   pieces: PieceFormValues[];
 }
 
@@ -174,7 +185,6 @@ const PieceForm = ({ onSubmit, onCancel, initialData, index, ...props }: PieceFo
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-8 p-1">
-                {/* Columna Izquierda: Formulario */}
                 <div className="md:col-span-3">
                     <Accordion type="multiple" value={activeAccordionItems} onValueChange={setActiveAccordionItems} className="w-full">
                         <AccordionItem value="item-frame">
@@ -293,18 +303,68 @@ export function EstimateForm({
   
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
   const [editingPieceIndex, setEditingPieceIndex] = useState<number | null>(null);
+  const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
+  const [pendingColorId, setPendingColorId] = useState<number | null>(null);
+  const previousColorIdRef = useRef<number>(0);
 
   const {
-    register, control, handleSubmit, setValue, getValues,
+    register, control, handleSubmit, setValue, getValues, watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EstimateFormValues>({
     defaultValues: isEditMode
-      ? { name: estimate.name, generalDealerMarkup: 0, pieces: estimate.pieces.map((p: any) => ({ ...p, rate: p.rate || 0, price: p.price || 0, subtotal: p.subtotal || 0, dealerMarkup: (p.dealerMarkup || 0) * 100, total: 0, netProfitD: p.netProfitD || 0 })) }
-      : { name: "", generalDealerMarkup: 0, pieces: [] },
+      ? { 
+          name: estimate.name, 
+          generalDealerMarkup: 0, 
+          pieces: estimate.pieces.map((p: any) => ({ ...p, rate: p.rate || 0, price: p.price || 0, subtotal: p.subtotal || 0, dealerMarkup: (p.dealerMarkup || 0) * 100, total: 0, netProfitD: p.netProfitD || 0 })),
+          defaultFrameColorId: 0, 
+        }
+      : { name: "", generalDealerMarkup: 0, pieces: [], defaultFrameColorId: 0 },
   });
 
   const { fields, append, remove, update } = useFieldArray({ control, name: "pieces" });
   const watchedPieces = useWatch({ control, name: "pieces" });
+  
+  const handleDefaultColorChange = (colorIdStr: string) => {
+    const newColorId = Number(colorIdStr);
+    const currentColorId = getValues("defaultFrameColorId");
+
+    if (newColorId === 0) {
+      setValue("defaultFrameColorId", 0, { shouldDirty: true });
+      return;
+    }
+    
+    if (fields.length > 0 && newColorId !== currentColorId) {
+      previousColorIdRef.current = currentColorId;
+      setPendingColorId(newColorId);
+      setShowColorUpdateAlert(true);
+    } else {
+      setValue("defaultFrameColorId", newColorId, { shouldDirty: true });
+    }
+  };
+
+  const updateAllPiecesColor = () => {
+    if (pendingColorId === null) return;
+    fields.forEach((_, index) => {
+      setValue(`pieces.${index}.idFC`, pendingColorId, { shouldDirty: true });
+    });
+    setValue("defaultFrameColorId", pendingColorId, { shouldDirty: true });
+    setShowColorUpdateAlert(false);
+    setPendingColorId(null);
+    toast.success("All pieces have been updated to the new default color.");
+  };
+
+  const setNewColorForFuturePieces = () => {
+    if (pendingColorId === null) return;
+    setValue("defaultFrameColorId", pendingColorId, { shouldDirty: true });
+    setShowColorUpdateAlert(false);
+    setPendingColorId(null);
+  };
+
+  const handleCancelColorChange = () => {
+    setValue("defaultFrameColorId", previousColorIdRef.current);
+    setShowColorUpdateAlert(false);
+    setPendingColorId(null);
+  };
 
   const generalMarkupValue = useWatch({ control, name: "generalDealerMarkup" });
   const prevGeneralMarkupRef = useRef(generalMarkupValue);
@@ -330,7 +390,6 @@ export function EstimateForm({
       const qty = Number(piece.qty) || 0;
       acc.totalUnits += qty;
       acc.subtotal += (Number(piece.price) || 0) * qty;
-      // Recalcular total de dealer aquí para reflejar cambios
       const piecePrice = Number(piece.price) || 0;
       const markupPercent = Number(piece.dealerMarkup) / 100 || 0;
       const baseTotal = piecePrice * qty;
@@ -358,6 +417,24 @@ export function EstimateForm({
   const handleEditPiece = (index: number) => {
     setEditingPieceIndex(index);
     setIsPieceModalOpen(true);
+  };
+
+  const handleDuplicatePiece = (index: number) => {
+    const pieceToDuplicate = getValues(`pieces.${index}`);
+    const newPiece = {
+      ...pieceToDuplicate,
+      id: undefined, 
+      mark: "", 
+      rate: 0,
+      price: 0,
+      subtotal: 0,
+      total: 0,
+      netProfitD: 0,
+    };
+    append(newPiece);
+    setEditingPieceIndex(fields.length); 
+    setIsPieceModalOpen(true);
+    toast.info("Piece duplicated. Please enter a new mark and recalculate.");
   };
 
   const handleSavePiece = (data: PieceFormValues) => {
@@ -398,7 +475,9 @@ export function EstimateForm({
   const isSubmitDisabled = !isDirty || showLoadingState;
 
   const editingPieceData = editingPieceIndex !== null ? getValues(`pieces.${editingPieceIndex}`) : {
-    mark: "", idProd: 0, idBrand: 0, idSyst: 0, idConf: 0, idFC: 0, width: "", height: "",
+    mark: "", idProd: 0, idBrand: 0, idSyst: 0, idConf: 0, 
+    idFC: getValues("defaultFrameColorId") || 0, 
+    width: "", height: "",
     idCryst: 0, idTint: 0, privacy: false, idCoat: 0, screen: false, muntin: false, qty: 1,
     rate: 0, price: 0, subtotal: 0,
     dealerMarkup: getValues("generalDealerMarkup"),
@@ -418,6 +497,33 @@ export function EstimateForm({
                 <Input id="name" {...register("name", { required: "The name is required" })} />
                 {errors.name && (<p className="text-red-500 text-xs mt-1">{errors.name.message}</p>)}
               </div>
+              <Controller
+                name="defaultFrameColorId"
+                control={control}
+                render={({ field }) => (
+                  <div>
+                    <Label>Default Frame Color</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        handleDefaultColorChange(value);
+                      }}
+                      value={String(field.value || "0")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a default color..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">None</SelectItem>
+                        {frameColors.map((fc) => (
+                          <SelectItem key={fc.id} value={String(fc.id)}>
+                            {fc.color}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              />
               {isDealer && (
                 <div>
                   <Label htmlFor="generalDealerMarkup">General Dealer Markup (%)</Label>
@@ -449,15 +555,18 @@ export function EstimateForm({
           <div className="flex justify-between items-center"><h3 className="text-xl font-semibold">Pieces</h3><Button type="button" variant="green" onClick={handleAddNewPiece}>+ Add Piece</Button></div>
           <div className="border rounded-lg">
             {fields.map((field, index) => {
-              const product = productsWithBrands.find(p => p.id === Number(field.idProd));
+              const currentPieceData = watchedPieces[index];
+              const product = productsWithBrands.find(p => p.id === Number(currentPieceData.idProd));
+              const frameColor = frameColors.find(fc => fc.id === Number(currentPieceData.idFC));
               return (
                 <div key={field.id} className="flex items-center justify-between p-3 border-b last:border-b-0">
                   <div className="flex-1">
-                      <p className="font-medium">{field.mark || `Piece #${index + 1}`}</p>
-                      <p className="text-sm text-gray-500">{product?.name} - {field.width}" x {field.height}" (Qty: {field.qty})</p>
+                      <p className="font-medium">{currentPieceData.mark || `Piece #${index + 1}`}</p>
+                      <p className="text-sm text-gray-500">{product?.name} - {currentPieceData.width}" x {currentPieceData.height}" - {frameColor?.color} (Qty: {currentPieceData.qty})</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className="font-mono text-right text-sm w-28">{formatCurrency((field.price || 0) * (field.qty || 0))}</p>
+                    <p className="font-mono text-right text-sm w-28">{formatCurrency((currentPieceData.price || 0) * (currentPieceData.qty || 0))}</p>
+                    <Button type="button" variant="outline" size="icon" onClick={() => handleDuplicatePiece(index)}><Copy className="h-4 w-4" /></Button>
                     <Button type="button" variant="outline" size="icon" onClick={() => handleEditPiece(index)}><Pencil className="h-4 w-4" /></Button>
                     <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
@@ -478,12 +587,15 @@ export function EstimateForm({
       </form>
 
       <Dialog open={isPieceModalOpen} onOpenChange={setIsPieceModalOpen}>
-        <DialogContent className="max-w-[90vw] lg:max-w-screen-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-w-[90vw] lg:max-w-screen-xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editingPieceIndex !== null ? `Edit Piece #${editingPieceIndex + 1}` : 'Add New Piece'}</DialogTitle>
           </DialogHeader>
           <PieceForm
-            key={editingPieceIndex} // Re-monta el form para resetear el estado
+            key={editingPieceIndex} 
             initialData={editingPieceData}
             onSubmit={handleSavePiece}
             onCancel={() => setIsPieceModalOpen(false)}
@@ -498,6 +610,24 @@ export function EstimateForm({
           />
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={showColorUpdateAlert} onOpenChange={setShowColorUpdateAlert}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 text-yellow-500" />Update Frame Color?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      You have changed the default frame color. Do you want to apply this new color to all existing pieces in this estimate?
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={handleCancelColorChange}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <Button variant="outline" onClick={setNewColorForFuturePieces}>For New Pieces Only</Button>
+                  </AlertDialogAction>
+                  <AlertDialogAction onClick={updateAllPiecesColor}>Yes, Update All</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
