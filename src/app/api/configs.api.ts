@@ -1,66 +1,52 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { apiFetch } from './_base';
 
-// Tipos para los datos que se envían y reciben
-type CreateConfigData = {
-    conf: string;
-    idProduct: number;
-}
-type UpdateConfigData = Partial<CreateConfigData>; // Para actualizar, los campos son opcionales
+// --- Tipos ---
+export type CreateConfigData = {
+  conf: string;
+  idProduct: number;
+};
 
-// Obtiene todas las configuraciones (incluye el producto asociado)
-export async function getConfigs() {
-    const response = await fetch(`${API_URL}/api/configs`, {
-        cache: "no-store",
-    });
-    if (!response.ok) throw new Error('Error al obtener las configuraciones');
-    return await response.json();
-}
+export type UpdateConfigData = Partial<CreateConfigData>;
 
-// Obtiene una configuración específica (sin el producto, para edición)
-export async function getConfig(id: number) {
-    const response = await fetch(`${API_URL}/api/configs/${id}`, {
-        cache: "no-store",
-    });
-    if (!response.ok) throw new Error('Error al obtener la configuración');
-    return await response.json();
+/**
+ * Obtiene todas las configuraciones (incluye el producto asociado).
+ */
+export function getConfigs() {
+  return apiFetch<any[]>('/api/configs');
 }
 
-// Crea una nueva configuración
-export async function createConfig(data: CreateConfigData) {
-    const response = await fetch(`${API_URL}/api/configs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al crear la configuración');
-    }
-    return await response.json();
+/**
+ * Obtiene una configuración específica por ID.
+ */
+export function getConfig(id: number) {
+  return apiFetch<any>(`/api/configs/${id}`);
 }
 
-// Actualiza una configuración existente
-export async function updateConfig(id: number, data: UpdateConfigData) {
-    const response = await fetch(`${API_URL}/api/configs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al actualizar la configuración');
-    }
-    return await response.json();
+/**
+ * Crea una nueva configuración.
+ */
+export function createConfig(data: CreateConfigData) {
+  return apiFetch<any>('/api/configs', {
+    method: 'POST',
+    body: data,
+  });
 }
 
-// Elimina una configuración
-export async function deleteConfig(id: number) {
-    const response = await fetch(`${API_URL}/api/configs/${id}`, {
-        method: 'DELETE',
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al eliminar la configuración');
-    }
-    return { success: true }; 
+/**
+ * Actualiza una configuración existente.
+ */
+export function updateConfig(id: number, data: UpdateConfigData) {
+  return apiFetch<any>(`/api/configs/${id}`, {
+    method: 'PATCH',
+    body: data,
+  });
+}
+
+/**
+ * Elimina una configuración.
+ */
+export function deleteConfig(id: number) {
+  return apiFetch<{ success: boolean }>(`/api/configs/${id}`, {
+    method: 'DELETE',
+  });
 }

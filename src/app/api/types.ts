@@ -39,6 +39,12 @@ export interface System {
 export interface Config {
   id: number;
   conf: string;
+  requiresWidth?: boolean;
+  requiresHeight?: boolean;
+  requiresHeightLeft?: boolean;
+  requiresHeightRight?: boolean;
+  requiresLegHeight?: boolean;
+  prod?: Product;
 }
 
 export interface FrameColor {
@@ -202,8 +208,11 @@ export interface CreatePieceData {
   idSyst: number;
   idConf: number;
   idFC: number;
-  width: string;
-  height: string;
+  width?: string | null;
+  height?: string | null;
+  heightLeft?: string | null;
+  heightRight?: string | null;
+  legHeight?: string | null;
   idCryst: number;
   idTint: number;
   privacy: boolean;
@@ -211,6 +220,9 @@ export interface CreatePieceData {
   screen: boolean;
   muntin: boolean;
   qty: number;
+}
+export interface CalculatePiecePayload extends CreatePieceData {
+    dealerMarkup?: number; // Opcional, como en el DTO del backend
 }
 
 export interface CreateEstimateData extends Omit<Estimate, 
@@ -269,3 +281,7 @@ export type UpdateGlobalParameterData = {
   description?: string;
   unit?: string;
 };
+
+
+
+

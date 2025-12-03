@@ -1,126 +1,113 @@
-// La importación de 'cookies' se ha eliminado para que este archivo sea compatible con el cliente.
-import {
+import { apiFetch } from './_base';
+import type {
   EstimateWithRelations,
   CreateEstimateData,
   UpdateEstimateData,
-  CreatePieceData, // Importamos el tipo para los datos de la pieza
-  Piece,           // Importamos el tipo base de la pieza
-} from "./types";
+  CreatePieceData,
+  Piece,
+} from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000' ;
+// --- Tipo de respuesta del cálculo ---
+export interface CalculatedPiece extends Piece {}
 
-// --- NUEVO TIPO PARA LA RESPUESTA DEL CÁLCULO ---
-// Define la forma de los datos que devuelve el endpoint de cálculo.
-export interface CalculatedPiece extends Piece {
-  // La respuesta del backend ya incluye todos los campos de 'Piece',
-  // incluyendo los calculados como 'rate', 'price', etc.
+// --- Tipos para validación de dimensiones ---
+export type ValidateReason = 'NOT_RATED' | 'OVERSIZE';
+
+export interface ValidatePieceResponse {
+  ok: boolean;
+  reason?: ValidateReason;
+  dpPos?: number;
+  dpNeg?: number;
+  screws?: number; // cantidad de tornillos
+  usedRange?: { w: [number, number]; h: [number, number] };
+  suggestion?: {
+    maxWidthIn?: number;
+    maxHeightIn?: number;
+    minWidthIn?: number;
+    minHeightIn?: number;
+  };
+  belowMinimum?: boolean;   // 👈 nuevo flag
+  note?: string;
 }
 
+export interface ValidatePieceRequest {
+  idSyst: number;
+  idConf: number;
+  idCryst: number;
+  width: number;
+  height: number;
+  heightLeft?: number;
+  heightRight?: number;
+  legHeight?: number;
+}
+
+
 /**
- * Llama al backend para calcular las métricas de una pieza sin guardarla.
- * @param data Los datos de la pieza a calcular.
- * @returns La pieza con todos sus campos calculados.
+ * Calcula las métricas de una pieza sin guardarla.
  */
-export async function calculatePiece(data: CreatePieceData): Promise<CalculatedPiece> {
-  const response = await fetch(`${API_URL}/api/estimates/calculate-piece`, {
+export function calculatePiece(data: CreatePieceData) {
+  return apiFetch<CalculatedPiece>('/api/estimates/calculate-piece', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    credentials: 'include', // Envía la cookie de sesión
+    body: data,
   });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Failed to calculate piece');
-  }
-  return response.json();
-}
-
-
-/**
- * Obtiene un único presupuesto por su ID.
- * Acepta un token opcional para ser llamado desde el servidor.
- */
-export async function getEstimate(id: number, token?: string): Promise<EstimateWithRelations> {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Cookie'] = `access_token=${token}`;
-  }
-  const res = await fetch(`${API_URL}/api/estimates/${id}`, {
-    cache: "no-store",
-    headers,
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch estimate");
-  }
-  return res.json();
 }
 
 /**
- * Obtiene todos los presupuestos. También acepta un token para llamadas desde el servidor.
+ * Valida dimensiones contra DimensionPolicy (pre-chequeo).
+ * El backend devuelve 200 con ok:true/false.
  */
-export async function getEstimates(token?: string): Promise<EstimateWithRelations[]> {
-  try {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Cookie'] = `access_token=${token}`;
+export function validatePiece(data: ValidatePieceRequest) {
+  return apiFetch<ValidatePieceResponse>('/api/estimates/preview-dimension', {
+    method: 'POST',
+    body: data,
+  });
+}
+
+/**
+ * Obtiene un estimado por ID (SSR opcional con token).
+ */
+export function getEstimate(id: number, token?: string) {
+  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`, { token });
+}
+
+/**
+ * Obtiene todos los estimados (SSR opcional con token).
+ */
+export function getEstimates(token?: string) {
+  return apiFetch<EstimateWithRelations[]>(`/api/estimates`, { token }).catch(
+    (err) => {
+      // Mantén tu tolerancia a fallos original
+      console.error('Error in getEstimates:', err);
+      return [] as EstimateWithRelations[];
     }
-    const response = await fetch(`${API_URL}/api/estimates`, {
-      cache: 'no-store',
-      headers,
-    });
-    if (!response.ok) throw new Error(`Failed to fetch estimates. Status: ${response.status}`);
-    return response.json();
-  } catch (error) {
-    console.error("Error in getEstimates function:", error);
-    return [];
-  }
+  );
 }
 
 /**
- * Crea un nuevo presupuesto. Se llama desde el cliente.
+ * Crea un nuevo estimado (cliente).
  */
-export async function createEstimate(data: CreateEstimateData): Promise<EstimateWithRelations> {
-  const response = await fetch(`${API_URL}/api/estimates`, {
+export function createEstimate(data: CreateEstimateData) {
+  return apiFetch<EstimateWithRelations>('/api/estimates', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    credentials: 'include',
+    body: data,
   });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Failed to create estimate');
-  }
-  return response.json();
 }
 
 /**
- * Actualiza un presupuesto. Se llama desde el cliente.
+ * Actualiza un estimado (cliente).
  */
-export async function updateEstimate(id: number, data: UpdateEstimateData): Promise<EstimateWithRelations> {
-  const res = await fetch(`${API_URL}/api/estimates/${id}`, {
+export function updateEstimate(id: number, data: UpdateEstimateData) {
+  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    credentials: 'include', // El navegador se encarga de enviar la cookie
+    body: data,
   });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to update estimate');
-  }
-  return res.json();
 }
 
 /**
- * Elimina un presupuesto por su ID. Se llama desde el cliente.
+ * Elimina un estimado (cliente).
  */
-export async function deleteEstimate(id: number): Promise<void> {
-    const response = await fetch(`${API_URL}/api/estimates/${id}`, {
-      method: 'DELETE',
-      credentials: 'include', // El navegador se encarga de enviar la cookie
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to delete estimate');
-    }
+export function deleteEstimate(id: number) {
+  return apiFetch<void>(`/api/estimates/${id}`, {
+    method: 'DELETE',
+  });
 }

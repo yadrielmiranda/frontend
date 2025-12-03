@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { apiFetch } from './_base';
 
 // --- Type Definitions ---
 export type Product = {
@@ -23,105 +23,58 @@ export type BrandWithProducts = Brand & {
 
 export type CreateBrandData = Omit<Brand, 'id'>;
 
-
 // --- Brand Fetching Functions ---
 
-export async function getBrands(): Promise<Brand[]> {
-  const res = await fetch(`${API_URL}/api/brands`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Failed to fetch brands");
-  }
-  return res.json();
+export function getBrands() {
+  return apiFetch<Brand[]>('/api/brands');
 }
 
-export async function getBrandsWithProducts(): Promise<BrandWithProducts[]> {
-  const res = await fetch(`${API_URL}/api/brands/with-products`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Failed to fetch brands with their products");
-  }
-  return res.json();
+export function getBrandsWithProducts() {
+  return apiFetch<BrandWithProducts[]>('/api/brands/with-products');
 }
 
-
-export async function getBrand(id: number): Promise<Brand> {
-  const res = await fetch(`${API_URL}/api/brands/${id}`, { cache: "no-store" });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to fetch brand");
-  }
-  return res.json();
+export function getBrand(id: number) {
+  return apiFetch<Brand>(`/api/brands/${id}`);
 }
 
-export async function getBrandWithProducts(id: number): Promise<BrandWithProducts> {
-  const res = await fetch(`${API_URL}/api/brands/${id}/products`, { cache: "no-store" });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to fetch brand with products");
-  }
-  return res.json();
+export function getBrandWithProducts(id: number) {
+  return apiFetch<BrandWithProducts>(`/api/brands/${id}/products`);
 }
-
 
 // --- Brand Mutation Functions ---
 
-export async function createBrand(data: CreateBrandData): Promise<Brand> {
-  const res = await fetch(`${API_URL}/api/brands`, {
+export function createBrand(data: CreateBrandData) {
+  return apiFetch<Brand>('/api/brands', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: data,
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to create brand');
-  }
-  return res.json();
 }
 
-export async function updateBrand(id: number, data: CreateBrandData): Promise<Brand> {
-  const res = await fetch(`${API_URL}/api/brands/${id}`, {
-    method: "PATCH",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+export function updateBrand(id: number, data: CreateBrandData) {
+  return apiFetch<Brand>(`/api/brands/${id}`, {
+    method: 'PATCH',
+    body: data,
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to update brand');
-  }
-  return res.json();
 }
 
-export async function deleteBrand(id: number): Promise<Brand> {
-  const res = await fetch(`${API_URL}/api/brands/${id}`, {
+export function deleteBrand(id: number) {
+  return apiFetch<Brand>(`/api/brands/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to delete brand');
-  }
-  return res.json();
 }
-
 
 // --- Brand-Product Relationship Functions ---
 
-export async function addProductToBrand(brandId: number, productId: number): Promise<BrandWithProducts> {
-  const res = await fetch(`${API_URL}/api/brands/${brandId}/products/${productId}`, {
-    method: "POST",
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to add product to brand");
-  }
-  return res.json();
-};
+export function addProductToBrand(brandId: number, productId: number) {
+  return apiFetch<BrandWithProducts>(
+    `/api/brands/${brandId}/products/${productId}`,
+    { method: 'POST' }
+  );
+}
 
-export async function removeProductFromBrand(brandId: number, productId: number): Promise<BrandWithProducts> {
-  const res = await fetch(`${API_URL}/api/brands/${brandId}/products/${productId}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to remove product from brand");
-  }
-  return res.json();
-};
+export function removeProductFromBrand(brandId: number, productId: number) {
+  return apiFetch<BrandWithProducts>(
+    `/api/brands/${brandId}/products/${productId}`,
+    { method: 'DELETE' }
+  );
+}

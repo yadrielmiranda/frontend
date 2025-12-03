@@ -1,20 +1,14 @@
-import { CreateUserDto, User } from "../../types";
-
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { apiFetch } from '../../_base';
+import type { CreateUserDto, User } from '../../types';
 
 type RegisterUserData = Omit<CreateUserDto, 'idRole'>;
 
-export async function registerUser(userData: RegisterUserData): Promise<User> {
-  const res = await fetch(`${API_URL}/api/auth/register`, {
+/**
+ * Registra un nuevo usuario (signup público).
+ */
+export function registerUser(userData: RegisterUserData) {
+  return apiFetch<User>('/api/auth/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
+    body: userData,
   });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Error al registrar el usuario');
-  }
-  return res.json();
 }

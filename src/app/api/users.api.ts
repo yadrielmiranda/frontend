@@ -1,167 +1,104 @@
-import { User, Role, CreateUserDto, UpdateUserDto } from "@/app/api/types";
+import { apiFetch } from './_base';
+import type { User, Role, CreateUserDto, UpdateUserDto } from '@/app/api/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
-// Función auxiliar para generar las cabeceras de autenticación para llamadas desde el servidor.
-const getAuthHeaders = (token?: string): HeadersInit => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Cookie'] = `access_token=${token}`;
-  }
-  return headers;
-};
-
-// --- Funciones CRUD para Usuarios (usadas en el panel de admin) ---
-
-export async function getUsers(token?: string): Promise<User[]> {
-  const res = await fetch(`${API_URL}/api/users`, {
-    cache: "no-store",
-    headers: getAuthHeaders(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch users");
-  return res.json();
-}
-
-export async function getUser(id: number, token?: string): Promise<User> {
-  const res = await fetch(`${API_URL}/api/users/${id}`, {
-    cache: "no-store",
-    headers: getAuthHeaders(token),
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error("Failed to fetch user");
-  return res.json();
-}
-
-// Las llamadas desde el cliente usan 'credentials: include' para enviar la cookie automáticamente.
-export async function createUser(userData: CreateUserDto): Promise<User> {
-  const res = await fetch(`${API_URL}/api/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to create user');
-  }
-  return res.json();
-}
-
-export async function updateUser(id: number, userData: UpdateUserDto): Promise<User> {
-  const res = await fetch(`${API_URL}/api/users/${id}`, {
-    method: "PATCH",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to update user');
-  }
-  return res.json();
-}
-
-export async function deleteUser(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/users/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to delete user');
-  }
-}
-
-interface LoginData {
+// --- Tipos auxiliares de auth ---
+export interface LoginData {
   identifier: string;
   password: string;
 }
-
-interface LoginResponse {
+export interface LoginResponse {
   message?: string;
 }
-
-interface LogoutResponse {
+export interface LogoutResponse {
   message?: string;
 }
-
-export async function loginUser(userData: LoginData): Promise<LoginResponse> {
-  try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-      credentials: 'include',
-    });
-
-    const data: LoginResponse = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Invalid credentials or server error.');
-    }
-    return data;
-  } catch (error) {
-    console.error('Error in the login API call:', error);
-    throw error;
-  }
-}
-
-export async function logoutUser(): Promise<LogoutResponse> {
-  try {
-    const response = await fetch(`${API_URL}/api/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    const data: LogoutResponse = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Unknown error when logging out.');
-    }
-    return data;
-  } catch (error: any) {
-    console.error('Error in call to logout API:', error);
-    throw error;
-  }    
-}
-
-export async function updateMyProfile(userData: Omit<UpdateUserDto, 'idRole'>): Promise<User> {
-  const res = await fetch(`${API_URL}/api/auth/profile`, { // Llama al nuevo endpoint
-    method: "PATCH",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-    credentials: 'include', // Envía la cookie de sesión
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to update profile');
-  }
-  return res.json();
-}
-
-interface ChangePasswordData {
+export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
 }
 
-export async function changePassword(data: ChangePasswordData): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/api/auth/change-password`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    credentials: 'include',
+// --- CRUD de Usuarios (panel admin) ---
+
+/**
+ * Obtiene todos los usuarios (SSR opcional con token).
+ */
+export function getUsers(token?: string) {
+  return apiFetch<User[]>('/api/users', { token });
+}
+
+/**
+ * Obtiene un usuario por ID (SSR opcional con token).
+ */
+export function getUser(id: number, token?: string) {
+  return apiFetch<User>(`/api/users/${id}`, { token });
+}
+
+/**
+ * Crea un usuario (cliente: usa cookies con credentials incluido por defecto).
+ */
+export function createUser(userData: CreateUserDto) {
+  return apiFetch<User>('/api/users', {
+    method: 'POST',
+    body: userData,
   });
+}
 
-  const responseData = await res.json();
+/**
+ * Actualiza un usuario.
+ */
+export function updateUser(id: number, userData: UpdateUserDto) {
+  return apiFetch<User>(`/api/users/${id}`, {
+    method: 'PATCH',
+    body: userData,
+  });
+}
 
-  if (!res.ok) {
-    throw new Error(responseData.message || 'Error al cambiar la contraseña.');
-  }
+/**
+ * Elimina un usuario.
+ */
+export function deleteUser(id: number) {
+  return apiFetch<void>(`/api/users/${id}`, {
+    method: 'DELETE',
+  });
+}
 
-  return responseData;
+// --- Autenticación / Perfil ---
+
+/**
+ * Login (devuelve mensaje opcional). Las cookies de sesión quedan guardadas en el navegador.
+ */
+export function loginUser(userData: LoginData) {
+  return apiFetch<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: userData,
+  });
+}
+
+/**
+ * Logout (invalida la sesión del usuario actual).
+ */
+export function logoutUser() {
+  return apiFetch<LogoutResponse>('/api/auth/logout', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Actualiza el perfil del usuario autenticado (sin cambiar el rol).
+ */
+export function updateMyProfile(userData: Omit<UpdateUserDto, 'idRole'>) {
+  return apiFetch<User>('/api/auth/profile', {
+    method: 'PATCH',
+    body: userData,
+  });
+}
+
+/**
+ * Cambia la contraseña del usuario autenticado.
+ */
+export function changePassword(data: ChangePasswordData) {
+  return apiFetch<{ message: string }>('/api/auth/change-password', {
+    method: 'PATCH',
+    body: data,
+  });
 }

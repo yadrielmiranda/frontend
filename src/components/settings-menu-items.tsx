@@ -45,6 +45,9 @@ export function SettingsMenuItems() {
       <DropdownMenuItem asChild>
         <Link href="/settings/global-parameters">Global Parameters</Link>
       </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/dimension-policies">Dimension Policies</Link>
+      </DropdownMenuItem>
     </Fragment>
   );
 }

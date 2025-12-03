@@ -4,8 +4,10 @@ import { getProducts } from "@/app/api/products.api";
 import { ConfigForm } from "../../new/config-form";
 
 
-export default async function EditConfigPage({ params }: { params: { id: string } }) {
-    const id = Number(params.id);
+export default async function EditConfigPage({ params }: { params: Promise<{ id: string }> }) {
+   
+    const { id: idString } = await params;
+    const id = Number(idString);
 
     if (isNaN(id)) {
         return <p className="text-red-500">Error: ID de configuración no válido.</p>;

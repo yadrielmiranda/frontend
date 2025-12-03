@@ -1,62 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers'; // Para acceder a las cookies en el servidor de Next.js
-import { jwtVerify } from 'jose'; // Asegúrate de tener 'jose' instalado: npm install jose
+import { cookies } from 'next/headers';
+import { jwtVerify, JWTPayload } from 'jose';
 
-// Define tu constante secreta para verificar el JWT.
-// ¡Esta DEBE ser EXACTAMENTE la misma que usamos en el backend de NestJS para firmar los JWTs!
-// Se recomienda cargarla desde una variable de entorno.
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET_KEY );
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET_KEY;
+  if (!secret) throw new Error('JWT_SECRET_KEY is not set');
+  return new TextEncoder().encode(secret);
+}
 
-export async function GET(request: NextRequest) {
-  
+interface AuthPayload extends JWTPayload {
+  sub?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: { name: string } | string;
+}
+
+export async function GET(_req: NextRequest) {
   try {
-    console.log("[/api/auth/me] Solicitud GET recibida.");
-
-    const cookieStore = await cookies();
+    const cookieStore = await cookies();                 // ✅ Next 15: async
     const accessToken = cookieStore.get('access_token')?.value;
 
     if (!accessToken) {
-      console.log("[/api/auth/me] No se encontró 'access_token' en las cookies. Devolviendo 401.");
-      return NextResponse.json({ message: 'No autenticado' }, { status: 401 });
+      return NextResponse.json(
+        { message: 'No autenticado' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } }
+      );
     }
 
-    console.log("[/api/auth/me] 'access_token' encontrado. Intentando verificar JWT...");
+    const { payload } = await jwtVerify(accessToken, getJwtSecret(), {
+      clockTolerance: 5, // tolerancia reloj
+    });
 
-    console.log(`[Next.js Server] Hora actual de antes de verificar: ${new Date().toISOString()}`);
+    const p = payload as AuthPayload;
+    const id =
+      typeof p.sub === 'string' && /^\d+$/.test(p.sub) ? Number(p.sub) : p.sub;
 
-    // Verifica el token JWT. Si es inválido (expirado, modificado), jwtVerify lanzará un error.
-    const { payload } = await jwtVerify(accessToken, JWT_SECRET);
-    
-    // Si la verificación es exitosa, payload contiene los datos que pusiste al firmar el token en NestJS.
-    // Asegúrate de que los nombres de las propiedades (userID, userName, etc.) coincidan con tu payload real.
-    console.log("[/api/auth/me] Token verificado exitosamente. Payload:", payload);
-    console.log("este es el payload", payload);
-
-    return NextResponse.json({
-      isAuthenticated: true,
-      user: {
-        id: payload.sub,                 // Leemos 'sub'
-        username: payload.username,      // Leemos 'username'
-        firstName: payload.firstName,    // Leemos 'firstName'
-        lastName: payload.lastName,      // Leemos 'lastName'
-        email: payload.email,
-        role: payload.role                  
-      }
-    }, { status: 200 }); // Devolver 200 OK si todo está bien
-
-  } catch (error: any) { // Captura cualquier error que ocurra en el bloque try
-    console.error("[/api/auth/me] ERROR al verificar el token o procesar la solicitud:");
-    console.error("Tipo de error:", error.name);
-    console.error("Mensaje de error:", error.message);
-    if (error.code) { 
-        console.error("Código de error (JOSE):", error.code);
-    }
-    // console.error("Stack Trace:", error.stack); // Descomenta para depuración profunda
-
-    // Devuelve una respuesta JSON de error con un estado 401
-    return NextResponse.json({
-      message: 'Token inválido o expirado',
-      details: error.message || 'Error desconocido en la verificación del token'
-    }, { status: 401 });
+    return NextResponse.json(
+      {
+        isAuthenticated: true,
+        user: {
+          id,
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email,
+          role: p.role,
+        },
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error: any) {
+    const message =
+      error?.message || error?.code || 'Token inválido, expirado o error de verificación';
+    return NextResponse.json(
+      { message: 'Token inválido o expirado', details: message },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }
