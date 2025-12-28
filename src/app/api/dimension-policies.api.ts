@@ -91,7 +91,7 @@ export function deletePolicy(id: number) {
 // ========================================
 export function bulkUpsertRules(idPolicy: number, rows: RuleRow[]) {
   return apiFetch<{ ok: boolean; count: number }>(
-    `/api/dimension-policies/${idPolicy}/rules:bulk-upsert`,
+    `/api/dimension-policies/${idPolicy}/rules/bulk-upsert`,
     {
       method: 'POST',
       body: { rows },
