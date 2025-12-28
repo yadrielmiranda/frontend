@@ -1,4 +1,3 @@
-import { Role } from "../api/types";
 
 export interface AuthUser {
   id: number; 

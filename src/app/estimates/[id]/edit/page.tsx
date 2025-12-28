@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EstimateForm } from "../../new/estimate-form"; 
+
 
 // API functions
 import { getEstimate } from "@/app/api/estimates.api";
@@ -19,6 +19,7 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
+import { EstimateForm } from "@/components/estimates/EstimateForm";
 
 
 export default async function EditEstimatePage({ params }: { params: Promise<{ id: string }> }) {

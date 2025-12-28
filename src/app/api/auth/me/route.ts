@@ -1,62 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify, JWTPayload } from 'jose';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET_KEY;
-  if (!secret) throw new Error('JWT_SECRET_KEY is not set');
-  return new TextEncoder().encode(secret);
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-interface AuthPayload extends JWTPayload {
-  sub?: string;
-  username?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  role?: { name: string } | string;
-}
+export async function GET() {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token")?.value;
 
-export async function GET(_req: NextRequest) {
-  try {
-    const cookieStore = await cookies();                 // ✅ Next 15: async
-    const accessToken = cookieStore.get('access_token')?.value;
-
-    if (!accessToken) {
-      return NextResponse.json(
-        { message: 'No autenticado' },
-        { status: 401, headers: { 'Cache-Control': 'no-store' } }
-      );
-    }
-
-    const { payload } = await jwtVerify(accessToken, getJwtSecret(), {
-      clockTolerance: 5, // tolerancia reloj
-    });
-
-    const p = payload as AuthPayload;
-    const id =
-      typeof p.sub === 'string' && /^\d+$/.test(p.sub) ? Number(p.sub) : p.sub;
-
+  if (!accessToken) {
     return NextResponse.json(
-      {
-        isAuthenticated: true,
-        user: {
-          id,
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          email: p.email,
-          role: p.role,
-        },
-      },
-      { status: 200, headers: { 'Cache-Control': 'no-store' } }
-    );
-  } catch (error: any) {
-    const message =
-      error?.message || error?.code || 'Token inválido, expirado o error de verificación';
-    return NextResponse.json(
-      { message: 'Token inválido o expirado', details: message },
-      { status: 401, headers: { 'Cache-Control': 'no-store' } }
+      { isAuthenticated: false, user: null, message: "No autenticado" },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
     );
   }
+
+  // ✅ Proxy a Nest (ya valida el JWT con su secret)
+  const res = await fetch(`${API_URL}/api/auth/profile`, {
+    method: "GET",
+    headers: {
+      Cookie: `access_token=${accessToken}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    return NextResponse.json(
+      { isAuthenticated: false, user: null, message: "No autenticado" },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const user = await res.json();
+
+  return NextResponse.json(
+    { isAuthenticated: true, user },
+    { status: 200, headers: { "Cache-Control": "no-store" } }
+  );
 }

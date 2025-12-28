@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EstimateForm } from "./estimate-form";
 import { cookies } from "next/headers";
 
 // API Calls
@@ -17,6 +16,7 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
+import { EstimateForm } from "@/components/estimates/EstimateForm";
 
 export default async function NewEstimatePage() {
   // CORRECCIÓN: Añadido 'await' a la llamada de cookies()

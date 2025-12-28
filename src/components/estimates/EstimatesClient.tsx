@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
-import { getColumns } from "./columns-estimates";
-import { EstimateWithRelations } from "@/app/api/types";
-import { AuthUser } from "@/app/types/auth";
+import { getEstimateColumns } from "./estimates-columns";
+import type { EstimateWithRelations } from "@/app/api/types";
+import type { AuthUser } from "@/app/types/auth";
 
 interface EstimatesClientProps {
   initialEstimates: EstimateWithRelations[];
@@ -12,9 +12,7 @@ interface EstimatesClientProps {
 }
 
 export function EstimatesClient({ initialEstimates, currentUser }: EstimatesClientProps) {
-  // Usamos useMemo para generar las columnas dinámicamente basadas en el usuario.
-  // Esto asegura que las columnas no se recalculen en cada renderizado.
-  const columns = useMemo(() => getColumns(currentUser), [currentUser]);
+  const columns = useMemo(() => getEstimateColumns(currentUser), [currentUser]);
 
   return (
     <DataTable
@@ -25,3 +23,4 @@ export function EstimatesClient({ initialEstimates, currentUser }: EstimatesClie
     />
   );
 }
+

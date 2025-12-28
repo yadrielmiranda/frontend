@@ -13,11 +13,18 @@ export interface User {
   lastName: string;
   email: string;
   phone: string;
-  address: string;
-  markupOverride?: number | null; // Campo opcional añadido
+
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+
+  markupOverride?: number | null;
+  isTaxExempt: boolean;
   idRole: number;
   role: Role;
 }
+
 
 export interface Brand {
   id: number;
@@ -76,8 +83,13 @@ export interface Piece {
   idSyst: number;
   idConf: number;
   idFC: number;
-  width: string;
-  height: string;
+
+  width: string | null;
+  height: string | null;
+  heightLeft?: string | null;
+  heightRight?: string | null;
+  legHeight?: string | null;
+
   idCryst: number;
   idTint: number;
   privacy: boolean;
@@ -85,20 +97,35 @@ export interface Piece {
   screen: boolean;
   muntin: boolean;
   qty: number;
+
   rate: number;
   price: number;
   markup: number;
   subtotal: number;
   netProfit: number;
   dealerMarkup: number;
+  customerPrice: number;
+  customerSubtotal: number;
   netProfitD: number;
+  dpPosPsf?: number | null;
+  dpNegPsf?: number | null;
+
 }
+
 
 export interface Estimate {
   id: number;
   number: string;
   name: string;
   date: string;
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  customerStreet?: string | null;
+  customerCity?: string | null;
+  customerState?: string | null;
+  customerPostalCode?: string | null;
   units: number;
   rateT: number;
   priceT: number;
@@ -106,7 +133,10 @@ export interface Estimate {
   taxRate: number;
   taxAmount: number;
   totalPayable: number;
-  total: number;
+  customerPriceT: number;
+  customerTaxRate: number;
+  customerTaxAmount: number;
+  customerTotalPayable: number;
   netProfitD: number;
   idUser: number;
   active: boolean;
@@ -220,21 +250,38 @@ export interface CreatePieceData {
   screen: boolean;
   muntin: boolean;
   qty: number;
-}
-export interface CalculatePiecePayload extends CreatePieceData {
-    dealerMarkup?: number; // Opcional, como en el DTO del backend
+  dealerMarkup?: number; // porcentaje (10 = 10%)
 }
 
-export interface CreateEstimateData extends Omit<Estimate, 
-  'id' | 'number' | 'date' | 'units' | 'rateT' | 'priceT' | 'netProfit' | 
-  'taxRate' | 'taxAmount' | 'totalPayable' | 'total' | 'netProfitD' | 
-  'active' | 'idUser' | 'order'
+export type CalculatePiecePayload = CreatePieceData;
+
+export interface CreateEstimateData extends Omit<Estimate,
+  | 'id'
+  | 'number'
+  | 'date'
+  | 'units'
+  | 'rateT'
+  | 'priceT'
+  | 'netProfit'
+  | 'taxRate'
+  | 'taxAmount'
+  | 'totalPayable'
+  | 'customerPriceT'
+  | 'customerTaxRate'
+  | 'customerTaxAmount'
+  | 'customerTotalPayable'
+  | 'netProfitD'
+  | 'active'
+  | 'idUser'
+  | 'order'
 > {
   pieces: CreatePieceData[];
+  customerTaxRate?: number;
 }
 
+
 export type UpdateEstimateData = Partial<Omit<CreateEstimateData, 'pieces'>> & {
-    pieces?: (CreatePieceData & { id?: number })[];
+  pieces?: (CreatePieceData & { id?: number })[];
 };
 
 export interface CreateUserDto {
@@ -243,9 +290,15 @@ export interface CreateUserDto {
   lastName: string;
   email: string;
   phone: string;
+
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+
   password: string;
-  address: string;
   idRole: number;
+  isTaxExempt?: boolean;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {

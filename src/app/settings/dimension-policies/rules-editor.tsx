@@ -1,10 +1,15 @@
-// src/app/settings/dimension-policies/rules-editor.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import Papa from "papaparse";
 import { bulkUpsertRules, RuleRow } from "@/app/api/dimension-policies.api";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+// Ajusta la ruta a donde tengas este helper en el FRONT
+import {
+  normalizeInchesToEighthStep,
+  DimensionParseError,
+} from "@/lib/dimensions";
 
 type Props = {
   idPolicy: number;
@@ -12,11 +17,9 @@ type Props = {
 };
 
 export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
-  // 👇 arrancamos el estado con las filas iniciales
   const [rows, setRows] = useState<RuleRow[]>(initialRows);
   const [busy, setBusy] = useState(false);
 
-  // 👇 si cambian las initialRows (cuando se carga la página), sincronizamos
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
@@ -34,38 +37,103 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
       },
     ]);
 
-  const onCSV = (file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        try {
-          const parsed = (res.data as any[]).map((r) => ({
-            widthIn: Number(r.widthIn),
-            heightIn: Number(r.heightIn),
-            dpPosPsf: Number(r.dpPosPsf),
-            dpNegPsf: Number(r.dpNegPsf),
-            screws:
-              r.screws !== undefined && r.screws !== ""
-                ? Number(r.screws)
-                : undefined,
-            note: r.note ?? undefined,
-          })) as RuleRow[];
+  // -------- Importar desde Excel (.xlsx / .xls) --------
+  const onExcel = async (file: File) => {
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      if (ext !== "xlsx" && ext !== "xls") {
+        toast.error("Solo se permiten archivos Excel (.xlsx, .xls)");
+        return;
+      }
 
-          setRows(parsed);
-          toast.success(`Importadas ${parsed.length} filas`);
-        } catch {
-          toast.error("CSV inválido");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      // defval: "" -> si la celda está vacía, queda "" en vez de undefined
+      const json = XLSX.utils.sheet_to_json<any>(sheet, { defval: "" });
+
+      const parsed: RuleRow[] = json.map((r, idx) => {
+        const rowLabel = `fila ${idx + 1}`;
+
+        // Excel puede devolver números o strings -> tu helper soporta ambos
+        const widthIn = normalizeInchesToEighthStep(
+          r.widthIn,
+          `${rowLabel} - widthIn`,
+          1
+        );
+
+        const heightIn = normalizeInchesToEighthStep(
+          r.heightIn,
+          `${rowLabel} - heightIn`,
+          1
+        );
+
+        const dpPosPsf = Number(r.dpPosPsf);
+        const dpNegPsf = Number(r.dpNegPsf);
+
+        if (!isFinite(dpPosPsf) || !isFinite(dpNegPsf)) {
+          throw new Error(
+            `${rowLabel}: dpPosPsf/dpNegPsf inválidos ("${r.dpPosPsf}", "${r.dpNegPsf}")`
+          );
         }
-      },
-      error: () => toast.error("No se pudo leer el CSV"),
-    });
+
+        // screws: entero >= 0, opcional
+        let screws: number | undefined = undefined;
+
+        if (
+          r.screws !== undefined &&
+          r.screws !== null &&
+          String(r.screws).trim() !== ""
+        ) {
+          const n = Number(r.screws);
+
+          if (!Number.isFinite(n)) {
+            throw new Error(`${rowLabel}: screws inválido ("${r.screws}")`);
+          }
+
+          if (!Number.isInteger(n)) {
+            throw new Error(
+              `${rowLabel}: screws debe ser un número entero (no decimales).`
+            );
+          }
+
+          if (n < 0) {
+            throw new Error(
+              `${rowLabel}: screws no puede ser negativo.`
+            );
+          }
+
+          screws = n;
+        }
+
+        return {
+          widthIn,
+          heightIn,
+          dpPosPsf,
+          dpNegPsf,
+          screws,
+          note: r.note ?? undefined,
+        };
+      });
+
+      setRows(parsed);
+      toast.success(`Importadas ${parsed.length} filas desde Excel`);
+    } catch (err: any) {
+      if (err instanceof DimensionParseError) {
+        toast.error(err.message);
+      } else {
+        console.error(err);
+        toast.error(err?.message ?? "No se pudo importar el archivo Excel");
+      }
+    }
   };
 
   const save = async () => {
     setBusy(true);
     try {
-      // Validación básica
+      // Validación básica final antes de enviar al backend
       for (const [i, r] of rows.entries()) {
         if (!isFinite(r.widthIn) || r.widthIn <= 0) {
           toast.error(`Fila ${i + 1}: widthIn inválido`);
@@ -87,7 +155,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
       await bulkUpsertRules(idPolicy, rows);
       toast.success("Reglas guardadas");
     } catch (e: any) {
-      toast.error(e.message ?? "Error guardando reglas");
+      toast.error(e?.message ?? "Error guardando reglas");
     } finally {
       setBusy(false);
     }
@@ -101,24 +169,14 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
         </button>
 
         <label className="btn-secondary">
-          Import CSV
+          Import Excel
           <input
             type="file"
-            accept=".csv"
+            accept=".xlsx,.xls"
             hidden
-            onChange={(e) => e.target.files && onCSV(e.target.files[0])}
+            onChange={(e) => e.target.files && onExcel(e.target.files[0])}
           />
         </label>
-
-        <a
-          className="underline text-sm"
-          href={`data:text/csv,${encodeURIComponent(
-            "widthIn,heightIn,dpPosPsf,dpNegPsf,screws,note\n"
-          )}`}
-          download="dimension-rules-template.csv"
-        >
-          Descargar template CSV
-        </a>
       </div>
 
       <div className="overflow-auto">
@@ -135,7 +193,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
           <tbody>
             {rows.map((r, idx) => (
               <tr key={idx}>
-                {/* widthIn */}
+                {/* Width */}
                 <td className="px-2 py-1">
                   <input
                     type="number"
@@ -152,7 +210,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
                   />
                 </td>
 
-                {/* heightIn */}
+                {/* Height */}
                 <td className="px-2 py-1">
                   <input
                     type="number"
@@ -169,7 +227,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
                   />
                 </td>
 
-                {/* dpPosPsf */}
+                {/* +DP */}
                 <td className="px-2 py-1">
                   <input
                     type="number"
@@ -186,7 +244,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
                   />
                 </td>
 
-                {/* dpNegPsf */}
+                {/* -DP */}
                 <td className="px-2 py-1">
                   <input
                     type="number"
@@ -203,15 +261,17 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
                   />
                 </td>
 
-                {/* screws */}
+                {/* Screws */}
                 <td className="px-2 py-1">
                   <input
                     type="number"
                     step="1"
+                    min="0"
                     value={r.screws ?? ""}
                     onChange={(e) => {
                       const v =
                         e.target.value === "" ? undefined : Number(e.target.value);
+
                       setRows((rows) =>
                         rows.map((row, i) =>
                           i === idx ? { ...row, screws: v } : row
@@ -221,7 +281,7 @@ export default function RulesEditor({ idPolicy, initialRows = [] }: Props) {
                   />
                 </td>
 
-                {/* note */}
+                {/* Note */}
                 <td className="px-2 py-1">
                   <input
                     value={r.note ?? ""}

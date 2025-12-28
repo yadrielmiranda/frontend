@@ -1,6 +1,22 @@
+// src/lib/dimensions.ts
 
 export class DimensionParseError extends Error {}
 
+/**
+ * Normaliza una dimensión en pulgadas a múltiplos de 1/8".
+ * Acepta:
+ *   - "36"
+ *   - "36.375"
+ *   - "36 3/8"
+ *   - "3/8"
+ *   - número directo (36.375)
+ *
+ * Reglas:
+ *   - Solo fracciones con denominador 2, 4 u 8.
+ *   - Solo incrementos de 1/8".
+ *   - No permite valores negativos.
+ *   - Aplica mínimo `minInches`.
+ */
 export function normalizeInchesToEighthStep(
   raw: string | number | null | undefined,
   fieldLabel: string = "dimension",
@@ -99,3 +115,70 @@ function enforceEighthStep(
   const normalized = whole + eighthsFloat / 8;
   return Number(normalized.toFixed(3)); // 36.375, 47.125, etc.
 }
+
+// ======================================================
+// 🔽 SOLO FRONTEND: formatear a fracción bonita (70 1/8)
+// ======================================================
+
+function gcd(a: number, b: number): number {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a || 1;
+}
+
+/**
+ * Formatea un valor (ya normalizado a pasos de 1/8")
+ * a una notación tipo "70 1/8", "56 3/4", "36".
+ *
+ * Ejemplos:
+ *   70.125  -> "70 1/8"
+ *   56.75   -> "56 3/4"
+ *   36      -> "36"
+ */
+export function formatInchesFromEighthStep(
+  val: number | string | null | undefined
+): string {
+  if (val === null || val === undefined || val === "") return "";
+  const n = typeof val === "number" ? val : Number(val);
+  if (!isFinite(n)) return "";
+
+  const whole = Math.floor(n);
+  const frac = n - whole;
+
+  let eighths = Math.round(frac * 8);
+
+  // si no hay fracción, solo devolvemos el entero
+  if (eighths === 0) {
+    return `${whole}`;
+  }
+
+  const divisor = gcd(eighths, 8);
+  const num = eighths / divisor;
+  const den = 8 / divisor;
+
+  return `${whole} ${num}/${den}`;
+}
+
+// ======================================================
+// 🔽 SOLO FRONTEND: formatear presiones (+70.0 / -80.0)
+// ======================================================
+
+
+export function formatPsf(
+  value: number | string | null | undefined,
+  decimals: 1 | 2 = 1
+): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  const n = typeof value === "number" ? value : Number(value);
+  if (!isFinite(n)) return "";
+
+  const sign = n >= 0 ? "+" : "-";
+  return `${sign}${Math.abs(n).toFixed(decimals)}`;
+}
+

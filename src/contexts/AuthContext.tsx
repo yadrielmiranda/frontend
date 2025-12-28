@@ -1,11 +1,18 @@
 "use client";
 
-import { AuthUser } from '@/app/types/auth';
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { toast } from 'sonner';
-import { Notification } from '@/app/api/types';
-import { getNotifications } from '@/app/api/notifications.api';
+import { AuthUser } from "@/app/types/auth";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
+import { Notification } from "@/app/api/types";
+import { getNotifications } from "@/app/api/notifications.api";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -29,13 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [fetchCount, setFetchCount] = useState(0);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const fetchUser = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch("/api/auth/me");
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -52,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Error en AuthProvider al obtener datos del usuario:", err);
       setUser(null);
       setIsAuthenticated(false);
-      setError(err.message || 'Error de conexión.');
+      setError(err.message || "Error de conexión.");
     } finally {
       setIsLoading(false);
     }
@@ -64,25 +71,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', {
-        query: { userId: user.id },
+      const socket: Socket = io(
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000",
+        {
+          withCredentials: true, // ✅ manda la cookie access_token
+          transports: ["websocket"], // ✅ opcional pero más estable
+        }
+      );
+
+      socket.on("connect", () =>
+        console.log("[WS] Connected to server!", socket.id)
+      );
+
+      socket.on("connect_error", (err) => {
+        console.error("[WS] connect_error:", err?.message || err);
       });
 
-      socket.on('connect', () => console.log('[WS] Connected to server!'));
-
-      socket.on('new_notification', (newNotification: Notification) => {
+      socket.on("new_notification", (newNotification: Notification) => {
         toast.info(newNotification.message);
-        setNotifications(prev => [newNotification, ...prev]);
+        setNotifications((prev) => [newNotification, ...prev]);
       });
 
       return () => {
         socket.disconnect();
-        console.log('[WS] Disconnected from server.');
+        console.log("[WS] Disconnected from server.");
       };
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
-  const revalidate = () => setFetchCount(p => p + 1);
+  const revalidate = () => setFetchCount((p) => p + 1);
 
   const contextValue = {
     isAuthenticated,
@@ -96,13 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNotifications,
   };
 
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
