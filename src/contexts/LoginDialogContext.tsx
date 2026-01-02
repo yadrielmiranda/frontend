@@ -9,20 +9,30 @@ import React, {
   ReactNode,
 } from 'react';
 
+type LoginReason = 'manual' | 'expired';
+
 interface LoginDialogContextType {
   isLoginDialogOpen: boolean;
   setIsLoginDialogOpen: (isOpen: boolean) => void;
-  openLoginDialog: () => void;
+
+  reason: LoginReason;
+  openLoginDialog: (reason?: LoginReason) => void;
   closeLoginDialog: () => void;
   toggleLoginDialog: () => void;
+
+  requestRetry: () => void;
+  consumeRetryRequested: () => boolean;
 }
 
-const LoginDialogContext = createContext<LoginDialogContextType | undefined>(undefined);
+const LoginDialogContext = createContext<LoginDialogContextType | undefined>(
+  undefined
+);
 LoginDialogContext.displayName = 'LoginDialogContext';
 
 export function useLoginDialog() {
   const ctx = useContext(LoginDialogContext);
-  if (!ctx) throw new Error('useLoginDialog must be used within a LoginDialogProvider');
+  if (!ctx)
+    throw new Error('useLoginDialog must be used within a LoginDialogProvider');
   return ctx;
 }
 
@@ -31,25 +41,50 @@ interface LoginDialogProviderProps {
   initialOpen?: boolean;
 }
 
-export function LoginDialogProvider({ children, initialOpen = false }: LoginDialogProviderProps) {
+export function LoginDialogProvider({
+  children,
+  initialOpen = false,
+}: LoginDialogProviderProps) {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(initialOpen);
+  const [reason, setReason] = useState<LoginReason>('manual');
 
-  const openLoginDialog = useCallback(() => setIsLoginDialogOpen(true), []);
+  const [retryRequested, setRetryRequested] = useState(false);
+
+  const openLoginDialog = useCallback((r: LoginReason = 'manual') => {
+    setReason(r);
+    setIsLoginDialogOpen(true);
+  }, []);
+
   const closeLoginDialog = useCallback(() => setIsLoginDialogOpen(false), []);
-  const toggleLoginDialog = useCallback(
-    () => setIsLoginDialogOpen((v) => !v),
-    []
-  );
+  const toggleLoginDialog = useCallback(() => setIsLoginDialogOpen((v) => !v), []);
+
+  const requestRetry = useCallback(() => setRetryRequested(true), []);
+  const consumeRetryRequested = useCallback(() => {
+    const v = retryRequested;
+    if (v) setRetryRequested(false);
+    return v;
+  }, [retryRequested]);
 
   const value = useMemo(
     () => ({
       isLoginDialogOpen,
       setIsLoginDialogOpen,
+      reason,
       openLoginDialog,
       closeLoginDialog,
       toggleLoginDialog,
+      requestRetry,
+      consumeRetryRequested,
     }),
-    [isLoginDialogOpen, openLoginDialog, closeLoginDialog, toggleLoginDialog]
+    [
+      isLoginDialogOpen,
+      reason,
+      openLoginDialog,
+      closeLoginDialog,
+      toggleLoginDialog,
+      requestRetry,
+      consumeRetryRequested,
+    ]
   );
 
   return (

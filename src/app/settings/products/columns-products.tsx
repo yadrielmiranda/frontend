@@ -13,10 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { deleteProduct } from "@/app/api/products.api";
+import { deleteProduct} from "@/app/api/products.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
-import { Product } from "@/app/api/products.api";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
+import { toast } from "sonner";
+import { Product } from "@/app/api/types";
 
 export const columns: ColumnDef<Product>[] = [
   {
@@ -30,10 +33,21 @@ export const columns: ColumnDef<Product>[] = [
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+      const canEdit = isAdmin(role);
+
+      if (!canEdit) return <div className="text-right text-muted-foreground">—</div>;
+
       const handleDelete = async () => {
-        await deleteProduct(product.id);
-        setShowDeleteConfirm(false);
-        router.refresh();
+        try {
+          await deleteProduct(product.id);
+          toast.success("Product deleted.");
+          setShowDeleteConfirm(false);
+          router.refresh();
+        } catch (e: any) {
+          toast.error(e?.message || "Delete failed");
+        }
       };
 
       return (
@@ -45,9 +59,11 @@ export const columns: ColumnDef<Product>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
@@ -56,14 +72,19 @@ export const columns: ColumnDef<Product>[] = [
                   Edit
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
               >
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

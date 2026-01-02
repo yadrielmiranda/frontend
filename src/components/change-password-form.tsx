@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { changePassword } from "@/app/api/users.api";
+import { changePassword } from "@/app/api/auth/me/auth.api";
 
 // Esquema de validación con Zod
 const formSchema = z.object({

@@ -4,17 +4,25 @@ import { getTints } from "@/app/api/tints.api";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns-tints";
 
+import { getCurrentUser } from "@/lib/session";
+import { isAdmin } from "@/lib/rbac";
 
 export default async function TintsPage() {
-  const tints = await getTints();
+  const [tints, user] = await Promise.all([getTints(), getCurrentUser()]);
+  const role = user?.role?.name ?? null;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold">Tints</h1>
-        <Button variant="green" asChild>
-          <Link href="/settings/tints/new">+ New</Link>
-        </Button>
+
+        {isAdmin(role) && (
+          <Button variant="green" asChild>
+            <Link href="/settings/tints/new">+ New</Link>
+          </Button>
+        )}
       </div>
+
       <div className="container mx-auto py-10">
         <DataTable
           columns={columns}

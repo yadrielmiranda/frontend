@@ -16,7 +16,9 @@ import { useState } from "react";
 import { deleteBrand } from "@/app/api/brands.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
-import { Brand } from "@/app/api/brands.api";
+import { useAuth } from "@/contexts/AuthContext";
+import { canEditSettings } from "@/lib/rbac";
+import { Brand } from "@/app/api/types";
 
 export const columns: ColumnDef<Brand>[] = [
   {
@@ -29,6 +31,13 @@ export const columns: ColumnDef<Brand>[] = [
       const brand = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
+
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+      const canEdit = canEditSettings(role);
+
+      // ✅ Operator: no mostramos ni el botón de menú
+      if (!canEdit) return null;
 
       const handleDelete = async () => {
         await deleteBrand(brand.id);
@@ -45,16 +54,23 @@ export const columns: ColumnDef<Brand>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link href={`/settings/brands/${brand.id}/edit`}>Edit Name</Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem asChild>
-                <Link href={`/settings/brands/${brand.id}/products`}>Manage Products</Link>
+                <Link href={`/settings/brands/${brand.id}/products`}>
+                  Manage Products
+                </Link>
               </DropdownMenuItem>
+
               <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
                 onSelect={() => setShowDeleteConfirm(true)}
@@ -63,6 +79,7 @@ export const columns: ColumnDef<Brand>[] = [
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

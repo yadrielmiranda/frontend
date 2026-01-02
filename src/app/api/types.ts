@@ -29,18 +29,26 @@ export interface User {
 export interface Brand {
   id: number;
   name: string;
-}
+} 
 
-export interface Product {
+export interface Product  {
   id: number;
   name: string;
+}
+
+export interface BrandProduct {
+  idBrand: number;
+  idProduct: number;
+  brand: Brand;
+  product: Product;
 }
 
 export interface System {
   id: number;
   name: string;
   idProduct: number;
-  idBrand: number;
+  idBrand: number; 
+  brandProduct: BrandProduct;
 }
 
 export interface Config {
@@ -192,12 +200,7 @@ export interface PieceWithRelations extends Piece {
   coat: Coating;
 }
 
-export interface BrandProduct {
-  idBrand: number;
-  idProduct: number;
-  product?: Product;
-  brand?: Brand;
-}
+
 
 export interface SysConf {
   idSystem: number;

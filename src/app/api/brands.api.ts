@@ -1,21 +1,8 @@
 import { apiFetch } from './_base';
+import { Brand, BrandProduct } from './types';
 
-// --- Type Definitions ---
-export type Product = {
-  id: number;
-  name: string;
-};
 
-export type BrandProduct = {
-  idBrand: number;
-  idProduct: number;
-  product: Product;
-};
 
-export type Brand = {
-  id: number;
-  name: string;
-};
 
 export type BrandWithProducts = Brand & {
   brandProducts: BrandProduct[];

@@ -20,6 +20,7 @@ import { SettingsMenuItems } from "./settings-menu-items";
 import { Menu } from "lucide-react";
 import Link from "next/link";
 import { NotificationBell } from "./notifications-bell";
+import { canAccessSettings } from "@/lib/rbac";
 
 
 function TopBar() {
@@ -56,13 +57,13 @@ function TopBar() {
           <Button variant="ghost" asChild>
             <Link href="/orders">Orders</Link>
           </Button>
-          {user?.role.name === 'admin' && (
+          {canAccessSettings(user?.role.name) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost">Settings</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <SettingsMenuItems />
+                <SettingsMenuItems role={user?.role?.name} />
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -100,13 +101,13 @@ function TopBar() {
                     <Link href="/orders">Orders</Link>
                   </Button>
 
-                  {user?.role.name === 'admin' && (
+                  {canAccessSettings(user?.role.name) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="w-full justify-start">Settings</Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56">
-                        <SettingsMenuItems />
+                        <SettingsMenuItems role={user?.role?.name} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

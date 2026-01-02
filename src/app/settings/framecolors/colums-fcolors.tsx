@@ -3,7 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +16,9 @@ import { useState } from "react";
 import { deleteFColor } from "@/app/api/fcolors.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
+import { toast } from "sonner";
 
 export type Fcolor = {
   id: number;
@@ -24,24 +26,31 @@ export type Fcolor = {
 };
 
 export const columns: ColumnDef<Fcolor>[] = [
-  {
-    accessorKey: "color",
-    header: "Color",
-  },
+  { accessorKey: "color", header: "Color" },
   {
     id: "actions",
     cell: ({ row }) => {
       const fcolor = row.original;
-      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Estado para el AlertDialog
+      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
-      const handleDelete = async () => {
-        // Lógica para enviar la solicitud DELETE a tu API de Next.js
-        // Ejemplo con una API Route o Server Action
-        await deleteFColor(fcolor.id);
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+      const canEdit = isAdmin(role);
 
-        setShowDeleteConfirm(false); // Cierra el diálogo de confirmación
-        router.refresh();
+      if (!canEdit) {
+        return <div className="text-right text-muted-foreground">—</div>;
+      }
+
+      const handleDelete = async () => {
+        try {
+          await deleteFColor(fcolor.id);
+          toast.success("Color deleted.");
+          setShowDeleteConfirm(false);
+          router.refresh();
+        } catch (e: any) {
+          toast.error(e?.message || "Delete failed");
+        }
       };
 
       return (
@@ -53,22 +62,21 @@ export const columns: ColumnDef<Fcolor>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link
-                  className="text-blue-900 focus:bg-red-50 focus:text-red-600"
-                  href={`/settings/framecolors/${fcolor.id}/edit`}
-                >
-                  Edit
-                </Link>
+                <Link href={`/settings/framecolors/${fcolor.id}/edit`}>Edit</Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)} // Evita que el DropdownMenuItem se cierre
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
               >
                 Delete
               </DropdownMenuItem>

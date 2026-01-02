@@ -1,174 +1,256 @@
 // src/app/api/_base.ts
 /**
- * apiFetch: wrapper unificado para llamar a tu backend desde el frontend (Next 15).
- * - En servidor: lee la cookie con `await cookies()` y la reenvía en el header `Cookie`.
- * - En cliente: usa `credentials: 'include'` para que el navegador envíe la cookie.
- * - Permite override del token (SSR) vía `options.token`.
- * - Serializa body a JSON automáticamente y maneja query params.
- * - Lanza Error con mensaje del backend cuando !res.ok
+ * apiFetch: wrapper unificado para llamar al backend desde Next (App Router).
+ * - En servidor (RSC): reenvía cookies al backend y si hay 401 intenta /auth/refresh y reintenta.
+ * - En cliente: credentials: 'include' y auto-refresh 1 vez si hay 401.
  */
 
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 type ApiFetchInit = {
   method?: HttpMethod;
   headers?: HeadersInit;
-  /**
-   * Cuerpo del request. Si no es FormData, se serializa a JSON y se setea Content-Type.
-   */
   body?: unknown;
-  /**
-   * Query params en el URL (?a=1&b=2)
-   */
   query?: Record<string, string | number | boolean | undefined | null>;
-  /**
-   * Cuando llamas desde el servidor (SSR) puedes pasar un token manualmente.
-   * Si no lo pasas, intentará leer la cookie 'access_token' con await cookies().
-   */
-  token?: string;
-  /**
-   * Opciones nativas de fetch para Next:
-   * - cache / next (revalidate / tags), etc.
-   */
   cache?: RequestCache;
   next?: { revalidate?: number; tags?: string[] };
-  /**
-   * Tiempo máximo (ms) antes de abortar el fetch.
-   */
   timeoutMs?: number;
+
+  /**
+   * ✅ Si true: NO dispara el evento auth:login-required en 401.
+   * Útil para el fetch inicial en "/" (landing) para no abrir el modal.
+   */
+  suppressAuthEvent?: boolean;
 };
 
-const isServer = typeof window === 'undefined';
-
-/**
- * Lee el token de acceso:
- * - Server: await cookies() (Next 15).
- * - Client: parsea document.cookie (best-effort).
- */
-export async function getAccessToken(): Promise<string | undefined> {
-  if (isServer) {
-    // Import dinámico para no romper el bundle del cliente
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    return cookieStore.get('access_token')?.value;
-  }
-  // Cliente
-  const m = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : undefined;
-}
+const isServer = typeof window === "undefined";
 
 /**
  * Construye una URL con query params.
  */
-function buildUrl(path: string, query?: ApiFetchInit['query']) {
-  const base = path.startsWith('http') ? path : `${API_URL}${path}`;
+function buildUrl(path: string, query?: ApiFetchInit["query"]) {
+  const base = path.startsWith("http") ? path : `${API_URL}${path}`;
   if (!query) return base;
+
   const q = new URLSearchParams();
   Object.entries(query).forEach(([k, v]) => {
     if (v !== undefined && v !== null) q.append(k, String(v));
   });
-  const sep = base.includes('?') ? '&' : '?';
+
+  const sep = base.includes("?") ? "&" : "?";
   return q.toString() ? `${base}${sep}${q.toString()}` : base;
 }
 
 /**
- * Normaliza cabeceras y body.
+ * Normaliza headers y body.
  */
 function normalizeRequest(init: ApiFetchInit): {
   headers: HeadersInit;
   body?: BodyInit;
-  contentTypeSet: boolean;
 } {
   const headers: HeadersInit = { ...(init.headers || {}) };
 
-  // Si el body es FormData, no forzamos Content-Type (el navegador pone boundary)
   if (init.body instanceof FormData) {
-    return { headers, body: init.body as BodyInit, contentTypeSet: false };
+    return { headers, body: init.body as BodyInit };
   }
 
-  // Si hay body (objeto), lo serializamos como JSON
   if (init.body !== undefined && init.body !== null) {
-    if (!('Content-Type' in (headers as any))) {
-      (headers as Record<string, string>)['Content-Type'] = 'application/json';
+    if (!("Content-Type" in (headers as any))) {
+      (headers as Record<string, string>)["Content-Type"] = "application/json";
     }
-    return {
-      headers,
-      body: JSON.stringify(init.body),
-      contentTypeSet: true,
-    };
+    return { headers, body: JSON.stringify(init.body) };
   }
 
-  return { headers, contentTypeSet: false };
+  return { headers };
 }
 
 /**
- * Intenta parsear JSON de respuesta. Si falla, devuelve texto plano.
+ * Intenta parsear JSON; si falla, devuelve texto.
  */
 async function parseResponse(res: Response) {
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) {
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
     try {
       return await res.json();
-    } catch {
-      // cae a texto
-    }
+    } catch {}
   }
   return await res.text();
 }
 
 /**
- * Wrapper principal.
- * @param path Ruta absoluta del backend (ej: '/api/orders')
- * @param init Opciones de la llamada
+ * Helper: detecta endpoints auth para evitar loops.
  */
-export async function apiFetch<T = unknown>(path: string, init: ApiFetchInit = {}): Promise<T> {
-  const method: HttpMethod = init.method ?? 'GET';
-  const url = buildUrl(path, init.query);
+function isAuthUrl(url: string) {
+  return (
+    url.includes("/api/auth/refresh") ||
+    url.includes("/api/auth/login") ||
+    url.includes("/api/auth/register")
+  );
+}
 
-  const { headers, body } = normalizeRequest(init);
+/**
+ * Lee todos los Set-Cookie del response en Node runtime.
+ */
+function getSetCookies(refreshRes: Response): string[] {
+  const anyHeaders = refreshRes.headers as any;
 
-  // Autenticación
-  if (isServer) {
-    const token = init.token ?? (await getAccessToken());
-    if (token) {
-      // En servidor le pasamos el token vía cookie header
-      // (equivalente a que el navegador envíe la cookie)
-      (headers as Record<string, string>)['Cookie'] = `access_token=${token}`;
-    }
+  // Node/undici (a veces) expone getSetCookie()
+  if (typeof anyHeaders.getSetCookie === "function") {
+    const arr = anyHeaders.getSetCookie();
+    return Array.isArray(arr) ? arr : [];
   }
 
-  // Control de timeout
+  // fallback: puede venir uno solo
+  const sc = refreshRes.headers.get("set-cookie");
+  return sc ? [sc] : [];
+}
+
+/**
+ * Extrae el valor de una cookie desde un header Set-Cookie (string).
+ * Ej: "access_token=XYZ; Path=/; HttpOnly" => XYZ
+ */
+function pickCookieValueFromSetCookie(setCookie: string, name: string): string | undefined {
+  const m = setCookie.match(new RegExp(`(?:^|;)\\s*${name}=([^;]+)`));
+  return m?.[1];
+}
+
+/**
+ * Construye Cookie header limpio SOLO con name=value.
+ */
+function buildCookieHeader(pairs: Array<[string, string | undefined]>) {
+  return pairs
+    .filter(([, v]) => !!v)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+}
+
+/**
+ * Wrapper principal.
+ */
+export async function apiFetch<T = unknown>(
+  path: string,
+  init: ApiFetchInit = {}
+): Promise<T> {
+  const method: HttpMethod = init.method ?? "GET";
+  const url = buildUrl(path, init.query);
+  const { headers, body } = normalizeRequest(init);
+
+  // Timeout
   let controller: AbortController | undefined;
   let timeoutId: NodeJS.Timeout | undefined;
-  if (init.timeoutMs && typeof AbortController !== 'undefined') {
+  if (init.timeoutMs && typeof AbortController !== "undefined") {
     controller = new AbortController();
     timeoutId = setTimeout(() => controller?.abort(), init.timeoutMs);
   }
 
-  // Llamada
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-    cache: init.cache,
-    next: init.next,
-    // En cliente, aseguramos enviar cookies
-    ...(isServer ? {} : { credentials: 'include' as const }),
-    signal: controller?.signal,
-  }).finally(() => {
+  // ✅ SERVER: reenviar cookies completas al backend
+  let cookieHeaderForServer: string | undefined;
+
+  if (isServer) {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+
+    const all = cookieStore.getAll();
+    cookieHeaderForServer = all.map((c) => `${c.name}=${c.value}`).join("; ");
+
+    if (cookieHeaderForServer) {
+      (headers as Record<string, string>)["Cookie"] = cookieHeaderForServer;
+    }
+  }
+
+  const doFetch = (extraHeaders?: HeadersInit) =>
+    fetch(url, {
+      method,
+      headers: { ...(headers as any), ...(extraHeaders as any) },
+      body,
+      cache: init.cache,
+      next: init.next,
+      ...(isServer ? {} : { credentials: "include" as const }),
+      signal: controller?.signal,
+    });
+
+  let res = await doFetch().finally(() => {
     if (timeoutId) clearTimeout(timeoutId);
   });
 
+  /**
+   * ✅ CLIENT: auto-refresh 1 vez si 401
+   */
+  if (!isServer && res.status === 401 && !isAuthUrl(url)) {
+    const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+
+    if (refreshRes.ok) {
+      res = await doFetch();
+    } else {
+      // ✅ si suppressAuthEvent, NO abrimos modal
+      if (!init.suppressAuthEvent) {
+        window.dispatchEvent(new CustomEvent("auth:login-required"));
+      }
+    }
+  }
+
+  /**
+   * ✅ SERVER: auto-refresh 1 vez si 401
+   * - refresh reenviando cookies
+   * - leer set-cookie(s)
+   * - reintentar con Cookie header limpio (access_token + refresh_token)
+   */
+  if (isServer && res.status === 401 && !isAuthUrl(url)) {
+    const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: cookieHeaderForServer ? { Cookie: cookieHeaderForServer } : undefined,
+      cache: "no-store",
+    });
+
+    if (refreshRes.ok) {
+      const setCookies = getSetCookies(refreshRes);
+
+      // Extraer nuevos valores si vinieron
+      let newAccess: string | undefined;
+      let newRefresh: string | undefined;
+
+      for (const sc of setCookies) {
+        newAccess = newAccess ?? pickCookieValueFromSetCookie(sc, "access_token");
+        newRefresh = newRefresh ?? pickCookieValueFromSetCookie(sc, "refresh_token");
+      }
+
+      // Si no pudimos extraerlos, igual reintentamos con las cookies originales
+      const retryCookieHeader =
+        buildCookieHeader([
+          ["access_token", newAccess],
+          ["refresh_token", newRefresh],
+        ]) || cookieHeaderForServer;
+
+      res = await doFetch(
+        retryCookieHeader ? { Cookie: retryCookieHeader } : undefined
+      );
+    }
+    // si refresh falla, dejamos caer al handler de error
+  }
+
   // Manejo de errores
   if (!res.ok) {
+    // ✅ CLIENT: dispara modal SOLO si no está suprimido
+    if (
+      !isServer &&
+      res.status === 401 &&
+      !isAuthUrl(url) &&
+      !init.suppressAuthEvent
+    ) {
+      window.dispatchEvent(new CustomEvent("auth:login-required"));
+    }
+
     const payload = await parseResponse(res);
-    // Intentamos extraer message estándar del backend Nest
     const message =
       (payload && (payload as any).message) ||
-      (typeof payload === 'string' ? payload : 'Request failed');
+      (typeof payload === "string" ? payload : "Request failed");
+
     const err = new Error(message) as Error & { status?: number; data?: unknown };
     err.status = res.status;
     err.data = payload;
@@ -178,45 +260,33 @@ export async function apiFetch<T = unknown>(path: string, init: ApiFetchInit = {
   return (await parseResponse(res)) as T;
 }
 
-/**
- * Azúcar para GET con query params.
- */
 export function apiGet<T = unknown>(
   path: string,
-  query?: ApiFetchInit['query'],
-  init?: Omit<ApiFetchInit, 'method' | 'query'>
+  query?: ApiFetchInit["query"],
+  init?: Omit<ApiFetchInit, "method" | "query">
 ) {
-  return apiFetch<T>(path, { ...init, method: 'GET', query });
+  return apiFetch<T>(path, { ...init, method: "GET", query });
 }
 
-/**
- * Azúcar para POST JSON.
- */
 export function apiPost<T = unknown>(
   path: string,
   body?: unknown,
-  init?: Omit<ApiFetchInit, 'method' | 'body'>
+  init?: Omit<ApiFetchInit, "method" | "body">
 ) {
-  return apiFetch<T>(path, { ...init, method: 'POST', body });
+  return apiFetch<T>(path, { ...init, method: "POST", body });
 }
 
-/**
- * Azúcar para PATCH JSON.
- */
 export function apiPatch<T = unknown>(
   path: string,
   body?: unknown,
-  init?: Omit<ApiFetchInit, 'method' | 'body'>
+  init?: Omit<ApiFetchInit, "method" | "body">
 ) {
-  return apiFetch<T>(path, { ...init, method: 'PATCH', body });
+  return apiFetch<T>(path, { ...init, method: "PATCH", body });
 }
 
-/**
- * Azúcar para DELETE.
- */
 export function apiDelete<T = unknown>(
   path: string,
-  init?: Omit<ApiFetchInit, 'method'>
+  init?: Omit<ApiFetchInit, "method">
 ) {
-  return apiFetch<T>(path, { ...init, method: 'DELETE' });
+  return apiFetch<T>(path, { ...init, method: "DELETE" });
 }

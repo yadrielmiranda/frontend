@@ -17,6 +17,9 @@ import { deleteTint } from "@/app/api/tints.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
+
 export type Tint = {
   id: number;
   color: string;
@@ -34,6 +37,12 @@ export const columns: ColumnDef<Tint>[] = [
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+
+      // ✅ operator: sin acciones (solo lectura)
+      if (!isAdmin(role)) return null;
+
       const handleDelete = async () => {
         await deleteTint(tint.id);
         setShowDeleteConfirm(false);
@@ -49,9 +58,11 @@ export const columns: ColumnDef<Tint>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
@@ -60,6 +71,7 @@ export const columns: ColumnDef<Tint>[] = [
                   Edit
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
                 onSelect={() => setShowDeleteConfirm(true)}
@@ -68,6 +80,7 @@ export const columns: ColumnDef<Tint>[] = [
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

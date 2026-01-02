@@ -1,14 +1,18 @@
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { Fragment } from "react";
+import { isAdmin, type RoleName } from "@/lib/rbac";
 
-export function SettingsMenuItems() {
+export function SettingsMenuItems({ role }: { role?: RoleName | string | null }) {
   return (
     <Fragment>
-      <DropdownMenuLabel className="text-red-500">
-        Admin Settings
-      </DropdownMenuLabel>
+      <DropdownMenuLabel className="text-red-500">Admin Settings</DropdownMenuLabel>
       <DropdownMenuSeparator />
+
       <DropdownMenuItem asChild>
         <Link href="/settings/brands">Brands</Link>
       </DropdownMenuItem>
@@ -33,9 +37,14 @@ export function SettingsMenuItems() {
       <DropdownMenuItem asChild>
         <Link href="/settings/tints">Tints</Link>
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/settings/users">Users</Link>
-      </DropdownMenuItem>
+
+      {/* ✅ Solo admin ve Users */}
+      {isAdmin(role) && (
+        <DropdownMenuItem asChild>
+          <Link href="/settings/users">Users</Link>
+        </DropdownMenuItem>
+      )}
+
       <DropdownMenuItem asChild>
         <Link href="/settings/roles">Roles & Markups</Link>
       </DropdownMenuItem>

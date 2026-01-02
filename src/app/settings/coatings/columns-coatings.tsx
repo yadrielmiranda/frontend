@@ -13,30 +13,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useState } from "react";
-import { deleteCoating } from "@/app/api/coatings.api"; 
+import { deleteCoating } from "@/app/api/coatings.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-// CAMBIO: Definición del tipo para Coating
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
+
 export type Coating = {
   id: number;
-  name: string; 
+  name: string;
 };
 
-export const columns: ColumnDef<Coating>[] = [ // CAMBIO
+export const columns: ColumnDef<Coating>[] = [
   {
-    accessorKey: "name", // CAMBIO
-    header: "Name", // CAMBIO
+    accessorKey: "name",
+    header: "Name",
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const coating = row.original; // CAMBIO
+      const coating = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+
+      // ✅ Operator: no mostramos el menú de acciones
+      if (!isAdmin(role)) return null;
+
       const handleDelete = async () => {
-        await deleteCoating(coating.id); // CAMBIO
+        await deleteCoating(coating.id);
         setShowDeleteConfirm(false);
         router.refresh();
       };
@@ -50,17 +58,20 @@ export const columns: ColumnDef<Coating>[] = [ // CAMBIO
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
-                  href={`/settings/coatings/${coating.id}/edit`} // CAMBIO
+                  href={`/settings/coatings/${coating.id}/edit`}
                 >
                   Edit
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
                 onSelect={() => setShowDeleteConfirm(true)}

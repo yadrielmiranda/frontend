@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
@@ -15,18 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { deleteSystem } from "@/app/api/systems.api";
 
-// Definimos el tipo de dato que espera la tabla.
-// Debe coincidir con la respuesta de la API (incluyendo las relaciones anidadas).
-export type System = {
-  id: number;
-  name: string;
-  brandProduct: {
-    brand: { name: string };
-    product: { name: string };
-  };
-};
+import { deleteSystem} from "@/app/api/systems.api";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
+import { toast } from "sonner";
+import { System } from "@/app/api/types";
 
 export const columns: ColumnDef<System>[] = [
   {
@@ -48,13 +43,21 @@ export const columns: ColumnDef<System>[] = [
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+      const canEdit = isAdmin(role);
+
+      // Si no es admin, no mostramos acciones (como Products)
+      if (!canEdit) return <div className="text-right text-muted-foreground">—</div>;
+
       const handleDelete = async () => {
         try {
           await deleteSystem(system.id);
+          toast.success("System deleted.");
           setShowDeleteConfirm(false);
           router.refresh();
-        } catch (error) {
-          console.error("Error al eliminar el sistema", error);
+        } catch (e: any) {
+          toast.error(e?.message || "Delete failed");
         }
       };
 
@@ -67,25 +70,35 @@ export const columns: ColumnDef<System>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link href={`/settings/systems/${system.id}/edit`}>Editar</Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem asChild>
                 <Link href={`/settings/systems/${system.id}/configs`}>
                   Gestionar Configs
                 </Link>
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
               >
                 Eliminar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

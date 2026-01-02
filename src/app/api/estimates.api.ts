@@ -67,14 +67,14 @@ export function validatePiece(data: ValidatePieceRequest) {
  * Obtiene un estimado por ID (SSR opcional con token).
  */
 export function getEstimate(id: number, token?: string) {
-  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`, { token });
+  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`);
 }
 
 /**
  * Obtiene todos los estimados (SSR opcional con token).
  */
 export function getEstimates(token?: string) {
-  return apiFetch<EstimateWithRelations[]>(`/api/estimates`, { token }).catch(
+  return apiFetch<EstimateWithRelations[]>(`/api/estimates`).catch(
     (err) => {
       // Mantén tu tolerancia a fallos original
       console.error('Error in getEstimates:', err);

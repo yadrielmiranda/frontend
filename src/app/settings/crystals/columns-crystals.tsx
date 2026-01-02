@@ -17,6 +17,8 @@ import { deleteCrystal } from "@/app/api/crystals.api";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/rbac";
 
 export type Crystal = {
   id: number;
@@ -35,6 +37,12 @@ export const columns: ColumnDef<Crystal>[] = [
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
+      const { user } = useAuth();
+      const role = user?.role?.name ?? null;
+
+      // ✅ Operator: sin acciones (solo lectura)
+      if (!isAdmin(role)) return null;
+
       const handleDelete = async () => {
         await deleteCrystal(crystal.id);
         setShowDeleteConfirm(false);
@@ -50,9 +58,11 @@ export const columns: ColumnDef<Crystal>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link
                   className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
@@ -61,6 +71,7 @@ export const columns: ColumnDef<Crystal>[] = [
                   Edit
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
                 onSelect={() => setShowDeleteConfirm(true)}
@@ -69,6 +80,7 @@ export const columns: ColumnDef<Crystal>[] = [
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DeleteConfirmationDialog
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}

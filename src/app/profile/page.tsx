@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserForm } from "@/app/settings/users/new/user-form";
+import { UserForm } from "@/app/settings/(write)/users/new/user-form";
 import {
   Card,
   CardContent,
@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound } from "lucide-react";
-import { getUser } from "@/app/api/users.api";
 import { User } from "@/app/api/types";
 import { toast } from "sonner";
+import { getProfile } from "@/app/api/auth/me/auth.api";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export default function ProfilePage() {
       const fetchUserProfile = async () => {
         setIsLoading(true);
         try {
-          const fullUserData = await getUser(Number(authUser.id));
+          const fullUserData = await getProfile();
           setProfileUser(fullUserData);
         } catch (error) {
           console.error("Error al cargar los datos del perfil:", error);
