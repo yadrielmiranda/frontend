@@ -43,9 +43,6 @@ const IDLE_MS = IDLE_MINUTES * 60 * 1000;
 // ✅ Probe periódico: detecta expiración del backend aunque idle UI no se haya cumplido todavía
 const PROBE_EVERY_MS = 30 * 1000; // 30s (recomendado 20–30s)
 
-// ✅ Refresh access cerca de 15m, pero solo si hubo actividad reciente
-const ACCESS_REFRESH_EVERY_MS = 14 * 60 * 1000;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { openLoginDialog, closeLoginDialog } = useLoginDialog();
@@ -74,9 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Usuario anterior para detectar “login con usuario diferente”
   const lastUserIdRef = useRef<number | null>(null);
-
-  // Interval refresh
-  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Interval probe periódico
   const periodicProbeRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -175,9 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     events.forEach((e) => window.addEventListener(e, onAny, { passive: true }));
 
     return () => {
-      events.forEach((e) =>
-        window.removeEventListener(e, onAny as any)
-      );
+      events.forEach((e) => window.removeEventListener(e, onAny as any));
       if (idleProbeTimerRef.current) clearTimeout(idleProbeTimerRef.current);
     };
   }, [scheduleIdleProbe]);
@@ -280,40 +272,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
-
-  // ---------------------------------------
-  // ✅ Refresh silencioso SOLO con interacción reciente
-  // ---------------------------------------
-  useEffect(() => {
-    if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-
-    if (!isAuthenticated) return;
-
-    refreshTimerRef.current = setInterval(async () => {
-      const now = Date.now();
-      const idleFor = now - lastInteractionRef.current;
-
-      // ✅ Si está idle, NO refrescar tokens (deja que el backend expire real)
-      if (idleFor >= IDLE_MS) return;
-
-      try {
-        await fetch(`${API_URL}/api/auth/refresh`, {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch {
-        // Si falla, el probe o apiFetch resolverá
-      }
-    }, ACCESS_REFRESH_EVERY_MS);
-
-    return () => {
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    };
-  }, [isAuthenticated, IDLE_MS]);
 
   // ---------------------------------------
   // ✅ Socket notifications

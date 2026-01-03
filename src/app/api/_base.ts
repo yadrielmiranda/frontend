@@ -3,6 +3,8 @@
  * apiFetch: wrapper unificado para llamar al backend desde Next (App Router).
  * - En servidor (RSC): reenvía cookies al backend y si hay 401 intenta /auth/refresh y reintenta.
  * - En cliente: credentials: 'include' y auto-refresh 1 vez si hay 401.
+ *
+ * ✅ FIX: Evitar disparar auth:login-required DOS VECES (solo lo disparamos en el handler final).
  */
 
 export const API_URL =
@@ -112,7 +114,10 @@ function getSetCookies(refreshRes: Response): string[] {
  * Extrae el valor de una cookie desde un header Set-Cookie (string).
  * Ej: "access_token=XYZ; Path=/; HttpOnly" => XYZ
  */
-function pickCookieValueFromSetCookie(setCookie: string, name: string): string | undefined {
+function pickCookieValueFromSetCookie(
+  setCookie: string,
+  name: string
+): string | undefined {
   const m = setCookie.match(new RegExp(`(?:^|;)\\s*${name}=([^;]+)`));
   return m?.[1];
 }
@@ -178,6 +183,7 @@ export async function apiFetch<T = unknown>(
 
   /**
    * ✅ CLIENT: auto-refresh 1 vez si 401
+   * ✅ FIX: aquí NO disparamos el evento; lo dejamos para el handler final (para evitar doble-dispatch)
    */
   if (!isServer && res.status === 401 && !isAuthUrl(url)) {
     const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
@@ -188,10 +194,7 @@ export async function apiFetch<T = unknown>(
     if (refreshRes.ok) {
       res = await doFetch();
     } else {
-      // ✅ si suppressAuthEvent, NO abrimos modal
-      if (!init.suppressAuthEvent) {
-        window.dispatchEvent(new CustomEvent("auth:login-required"));
-      }
+      // ✅ no disparamos aquí; caerá al handler final y disparará 1 sola vez (si no está suprimido)
     }
   }
 
@@ -204,7 +207,9 @@ export async function apiFetch<T = unknown>(
   if (isServer && res.status === 401 && !isAuthUrl(url)) {
     const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
       method: "POST",
-      headers: cookieHeaderForServer ? { Cookie: cookieHeaderForServer } : undefined,
+      headers: cookieHeaderForServer
+        ? { Cookie: cookieHeaderForServer }
+        : undefined,
       cache: "no-store",
     });
 
@@ -216,8 +221,10 @@ export async function apiFetch<T = unknown>(
       let newRefresh: string | undefined;
 
       for (const sc of setCookies) {
-        newAccess = newAccess ?? pickCookieValueFromSetCookie(sc, "access_token");
-        newRefresh = newRefresh ?? pickCookieValueFromSetCookie(sc, "refresh_token");
+        newAccess =
+          newAccess ?? pickCookieValueFromSetCookie(sc, "access_token");
+        newRefresh =
+          newRefresh ?? pickCookieValueFromSetCookie(sc, "refresh_token");
       }
 
       // Si no pudimos extraerlos, igual reintentamos con las cookies originales
