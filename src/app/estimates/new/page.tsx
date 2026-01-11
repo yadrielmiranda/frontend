@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cookies } from "next/headers";
 
 // API Calls
 import { getProductsWithBrands } from "@/app/api/products.api";
@@ -16,12 +15,14 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
-import { EstimateForm } from "@/components/estimates/EstimateForm";
+import { EstimateForm } from "@/components/estimates/estimate-form";
+import { getCurrentUser } from "@/lib/session";
+import { notFound } from "next/navigation";
+import { BackLink } from "@/components/navigation/back-link";
 
 export default async function NewEstimatePage() {
-  // CORRECCIÓN: Añadido 'await' a la llamada de cookies()
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const user = await getCurrentUser();
+  if (!user) notFound();
 
   const [
     productsWithBrands,
@@ -38,21 +39,29 @@ export default async function NewEstimatePage() {
     getCrystals(),
     getTints(),
     getCoatings(),
-    getGlobalParameters(token),
+    getGlobalParameters(),
   ]);
 
-  const salesTaxParam = parameters.find(p => p.key === 'SALES_TAX');
+  const salesTaxParam = parameters.find((p) => p.key === "SALES_TAX");
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-    <div className="flex justify-center items-start py-10 px-4 min-h-screen bg-gray-50">
-      <Card className="w-full max-w-6xl shadow-lg">
+  <div className="min-h-screen bg-gray-50 py-10 px-4">
+    {/* Contenedor con el MISMO ancho de la Card */}
+    <div className="mx-auto w-full max-w-6xl">
+      {/* Header row */}
+      <div className="mb-4 flex items-center justify-between">
+        <BackLink href="/estimates" label="Back to Estimates" />
+      </div>
+
+      <Card className="w-full shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">New Estimate</CardTitle>
           <CardDescription>
             Fill in the details below to create a new estimate.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <EstimateForm
             taxRate={taxRate}
@@ -66,5 +75,7 @@ export default async function NewEstimatePage() {
         </CardContent>
       </Card>
     </div>
-  );
+  </div>
+);
+
 }

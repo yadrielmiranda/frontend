@@ -2,36 +2,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { EstimateWithRelations } from "@/app/api/types";
+import { EstimateWithRelations } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Printer, ArrowLeft, Eye } from "lucide-react";
 import { useState } from "react";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
+import { formatDateEn, formatMoney } from "@/lib/formatters";
+import { BackLink } from "../navigation/back-link";
 
-// ─────────────────────────────────────────────
-// Helpers genéricos
-// ─────────────────────────────────────────────
-
-const formatDate = (dateString: string) => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
-
-const formatCurrency = (amount: number | string | null) => {
-  const numberAmount = Number(amount);
-  if (isNaN(numberAmount)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(numberAmount);
-};
-
-// Tipo comodín para no repetir
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
 /**
@@ -143,7 +121,7 @@ const ClientContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
           <tbody>
             {estimate.pieces.map((piece) => {
               const unitPrice = Number(piece.price) || 0;
-              const subtotal = unitPrice * (piece.qty || 0);
+              const subtotal = Number(piece.subtotal) || 0;
               return (
                 <tr key={piece.id} className="border-b last:border-b-0">
                   <td className="px-4 py-4 font-medium">{piece.mark}</td>
@@ -152,10 +130,10 @@ const ClientContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
                   </td>
                   <td className="px-4 py-4 text-center">{piece.qty}</td>
                   <td className="px-4 py-4 text-right">
-                    {formatCurrency(unitPrice)}
+                    {formatMoney(unitPrice)}
                   </td>
                   <td className="px-4 py-4 text-right font-medium">
-                    {formatCurrency(subtotal)}
+                    {formatMoney(subtotal)}
                   </td>
                 </tr>
               );
@@ -170,7 +148,7 @@ const ClientContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
         <div className="flex justify-between py-2">
           <span className="text-gray-600">Subtotal:</span>
           <span className="font-medium text-gray-800">
-            {formatCurrency(estimate.priceT)}
+            {formatMoney(estimate.priceT)}
           </span>
         </div>
         <div className="flex justify-between py-2">
@@ -178,7 +156,7 @@ const ClientContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
             Sales Tax ({(Number(estimate.taxRate) * 100).toFixed(2)}%)
           </span>
           <span className="font-medium text-gray-800">
-            {formatCurrency(estimate.taxAmount)}
+            {formatMoney(estimate.taxAmount)}
           </span>
         </div>
         <div className="flex justify-between py-3 border-t-2 mt-2">
@@ -186,7 +164,7 @@ const ClientContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
             Total a Pagar:
           </span>
           <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(estimate.totalPayable)}
+            {formatMoney(estimate.totalPayable)}
           </span>
         </div>
       </div>
@@ -210,16 +188,18 @@ const DealerInternalContent = ({
         <div className="flex justify-between">
           <span className="text-gray-600">Total a Pagar a Impact Plus:</span>
           <span className="font-medium">
-            {formatCurrency(estimate.totalPayable)}
+            {formatMoney(estimate.totalPayable)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Precio Final para tu Cliente:</span>
-          <span className="font-medium">{formatCurrency(estimate.total)}</span>
+          <span className="font-medium">
+            {formatMoney(estimate.customerPriceT)}
+          </span>
         </div>
         <div className="flex justify-between text-base font-bold text-green-700 pt-2 border-t">
           <span>Tu Ganancia (Net Profit):</span>
-          <span>{formatCurrency(estimate.netProfitD)}</span>
+          <span>{formatMoney(estimate.netProfitD)}</span>
         </div>
       </div>
     </section>
@@ -239,17 +219,17 @@ const AdminContent = ({ estimate }: { estimate: EstimateWithRelations }) => (
           <span className="text-gray-600">
             Costo Total de Producción (Rate):
           </span>
-          <span className="font-medium">{formatCurrency(estimate.rateT)}</span>
+          <span className="font-medium">{formatMoney(estimate.rateT)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">
             Precio de Venta (Sin Impuestos):
           </span>
-          <span className="font-medium">{formatCurrency(estimate.priceT)}</span>
+          <span className="font-medium">{formatMoney(estimate.priceT)}</span>
         </div>
         <div className="flex justify-between text-base font-bold text-red-700 pt-2 border-t">
           <span>Ganancia de Impact Plus (Net Profit):</span>
-          <span>{formatCurrency(estimate.netProfit)}</span>
+          <span>{formatMoney(estimate.netProfit)}</span>
         </div>
       </div>
     </section>
@@ -287,7 +267,7 @@ export const DealerPublicView = ({
       </div>
       <div className="md:text-right">
         <p className="text-sm text-gray-500 mt-1">
-          Fecha: {formatDate(estimate.date)}
+          Fecha: {formatDateEn(estimate.date)}
         </p>
       </div>
     </section>
@@ -322,18 +302,18 @@ export const DealerPublicView = ({
                     </p>
                     <p className="text-gray-600 text-xs mt-1">
                       {piece.syst.name}, {piece.conf.conf}, {piece.width}x
-                      {piece.height}, Color: {piece.fColor.color}
+                      {piece.height}, Coldsdor: {piece.fColor.color}
                     </p>
                   </td>
 
                   <td className="px-4 py-4 text-center">{piece.qty}</td>
 
                   <td className="px-4 py-4 text-right">
-                    {formatCurrency(unitPrice)}
+                    {formatMoney(unitPrice)}
                   </td>
 
                   <td className="px-4 py-4 text-right font-medium">
-                    {formatCurrency(subtotal)}
+                    {formatMoney(subtotal)}
                   </td>
                 </tr>
               );
@@ -348,7 +328,7 @@ export const DealerPublicView = ({
         <div className="flex justify-between py-3 border-t-2 mt-2">
           <span className="text-lg font-bold text-gray-900">Total:</span>
           <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(estimate.total)}
+            {formatMoney(estimate.priceT)}
           </span>
         </div>
       </div>
@@ -397,24 +377,26 @@ export function EstimateDetailsClient({
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8 print:hidden">
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-          </Button>
+        <div className="mb-8 flex items-center justify-between print:hidden">
+          {/* Izquierda: Back */}
+          <BackLink href="/estimates" label="Back to Estimates" />
 
-          {isDealer && (
-            <Button
-              variant="ghost"
-              onClick={() => setIsPublicView(!isPublicView)}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              {isPublicView ? "Ver mi reporte" : "Vista para mi cliente"}
+          {/* Derecha: acciones */}
+          <div className="flex items-center gap-2">
+            {isDealer && (
+              <Button
+                variant="ghost"
+                onClick={() => setIsPublicView(!isPublicView)}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                {isPublicView ? "Ver mi reporte" : "Vista para mi cliente"}
+              </Button>
+            )}
+
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" /> Print / PDF
             </Button>
-          )}
-
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" /> Imprimir / PDF
-          </Button>
+          </div>
         </div>
 
         {isDealer && isPublicView && (
@@ -465,7 +447,7 @@ export function EstimateDetailsClient({
             </div>
             <div className="md:text-right">
               <p className="text-sm text-gray-500 mt-1">
-                Fecha: {formatDate(estimate.date)}
+                Fecha: {formatDateEn(estimate.date)}
               </p>
             </div>
           </section>

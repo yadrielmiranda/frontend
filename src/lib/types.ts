@@ -120,6 +120,10 @@ export interface Piece {
 
 }
 
+export interface EstimateStatus {
+  id: number;
+  name: string;
+}
 
 export interface Estimate {
   id: number;
@@ -147,7 +151,8 @@ export interface Estimate {
   customerTotalPayable: number;
   netProfitD: number;
   idUser: number;
-  active: boolean;
+  statusId: number;
+  status?: EstimateStatus;
   order?: Order | null;
 }
 
@@ -160,12 +165,32 @@ export interface Order {
   id: number;
   number: string;
   date: string;
+
   units: number;
+
+  // amount = total con taxes incluidos (lo que paga el usuario)
   amount: number;
+
+  // snapshot financiero (sin taxes)
+  price: number;     // precio total (sin taxes)
+  rate: number;      // costo estimado total (fábrica estimada)
+  netProfit: number; // price - rate (ganancia estimada)
+
+  // datos reales (después)
+  poNumber?: string | null;
+  rateReal?: number | null;
+  netProfitReal?: number | null;
+
+  updateStatus: string;
+
   idEst: number;
   statusId: number;
   userId: number;
+
+  createdAt?: string;
+  updatedAt?: string;
 }
+
 
 // --- NUEVOS TIPOS PARA REGLAS DE PRECIOS ---
 
@@ -274,7 +299,7 @@ export interface CreateEstimateData extends Omit<Estimate,
   | 'customerTaxAmount'
   | 'customerTotalPayable'
   | 'netProfitD'
-  | 'active'
+  | 'statusId'
   | 'idUser'
   | 'order'
 > {
@@ -312,8 +337,11 @@ export type CreatePricingRuleData = Omit<PricingRule, 'id' | 'brand' | 'product'
 export type UpdatePricingRuleData = Partial<CreatePricingRuleData>;
 
 export interface UpdateOrderData {
-  statusId: number;
+  statusId?: number;
+  poNumber?: string | null;
+  rateReal?: number | null;
 }
+
 
 export interface Notification {
   id: number;

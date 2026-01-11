@@ -7,7 +7,7 @@ import type {
   Crystal,
   Tint,
   Coating,
-} from "@/app/api/types";
+} from "@/lib/types";
 
 // --- Tipos para el Formulario ---
 export interface PieceFormValues extends CreatePieceData {

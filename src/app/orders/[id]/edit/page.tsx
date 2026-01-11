@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+// src/app/orders/[id]/edit/page.tsx
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -7,25 +7,44 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { getOrder, getOrderStatuses } from "@/app/api/orders.api";
 import { OrderForm } from "./order-form";
+import { isApiError } from "@/app/api/_base";
+import { getCurrentUser } from "@/lib/session";
+import { canEditOrders } from "@/lib/rbac";
 
 export default async function EditOrderPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) notFound(); //si no existe usuario auntenticado, 404
+
   const { id: idString } = await params;
   const id = Number(idString);
-  if (isNaN(id)) notFound();
+  if (Number.isNaN(id)) notFound();
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  // 🔒 SOLO admin/operator pueden editar órdenes
+  const role = user.role?.name ?? null;
+  const canEdit = canEditOrders(role);
 
-  const [order, statuses] = await Promise.all([
-    getOrder(id, token),
-    getOrderStatuses(token),
-  ]);
+  if (!canEdit) notFound();
+
+  let order;
+  let statuses;
+
+  try {
+    [order, statuses] = await Promise.all([getOrder(id), getOrderStatuses()]);
+  } catch (e) {
+    if (isApiError(e)) {
+      if (e.status === 403 || e.status === 404) {
+        notFound(); // cliente NO debe saber que existe
+      }
+    }
+    throw e; // 500, etc.
+  }
 
   if (!order) notFound();
 

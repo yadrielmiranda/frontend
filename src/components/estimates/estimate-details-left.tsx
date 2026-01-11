@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { FrameColor } from "@/app/api/types";
+import type { FrameColor } from "@/lib/types";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 interface EstimateDetailsLeftProps {

@@ -1,35 +1,46 @@
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getCoatings } from "@/app/api/coatings.api";
-import { DataTable } from "@/components/data-table";
-import { columns } from "./columns-coatings";
+import { Plus } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
+import { getCoatings } from "@/app/api/coatings.api";
 import { getCurrentUser } from "@/lib/session";
-import { isAdmin } from "@/lib/rbac";
+import { canEditSettings } from "@/lib/rbac";
+
+import { CoatingsClient } from "./coatings-client";
 
 export default async function CoatingsPage() {
   const [coatings, user] = await Promise.all([getCoatings(), getCurrentUser()]);
   const role = user?.role?.name ?? null;
+  const canEdit = canEditSettings(role);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Coatings</h1>
+    <div className="container mx-auto py-10 max-w-6xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-4xl font-bold">Coatings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage the coatings available in the system.
+          </p>
+        </div>
 
-        {isAdmin(role) && (
-          <Button variant="green" asChild>
-            <Link href="/settings/coatings/new">+ New</Link>
+        {canEdit && (
+          <Button asChild>
+            <Link
+              href="/settings/coatings/new"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              New Coating
+            </Link>
           </Button>
         )}
       </div>
 
-      <div className="container mx-auto py-10">
-        <DataTable
-          columns={columns}
-          data={coatings}
-          filterColumnId="name"
-          filterPlaceholder="Filter coatings..."
-        />
+      {/* Table container */}
+      <div className="rounded-xl border bg-white shadow-sm p-4">
+        <CoatingsClient initialCoatings={coatings} canEdit={canEdit} />
       </div>
     </div>
   );

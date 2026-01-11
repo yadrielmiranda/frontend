@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { updateUser } from "@/app/api/users.api";
-import { User } from "@/app/api/types";
+import { User } from "@/lib/types";
 
 
 // Esquema de validación con Zod para asegurar que las contraseñas coincidan
@@ -54,8 +54,7 @@ export function AdminChangePasswordForm({ user }: AdminChangePasswordFormProps) 
       toast.success(`Password for ${user.username} updated successfully.`);
 
       setIsSuccess(true);
-      router.push("/settings/users");
-      router.refresh();
+      router.push("/settings/users");     
 
     } catch (error: any) {
       toast.error(error.message || "An error occurred while changing the password.");

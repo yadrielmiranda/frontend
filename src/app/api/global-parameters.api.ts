@@ -1,12 +1,12 @@
 import { apiFetch } from './_base';
-import type { GlobalParameter, UpdateGlobalParameterData } from './types';
+import type { GlobalParameter, UpdateGlobalParameterData } from '../../lib/types';
 
 /**
  * Obtiene todos los parámetros globales.
  * Requiere token de admin (para SSR o llamadas protegidas).
  */
-export function getGlobalParameters(token?: string) {
-  return apiFetch<GlobalParameter[]>('/api/global-parameters', { token });
+export function getGlobalParameters() { 
+  return apiFetch<GlobalParameter[]>('/api/global-parameters');
 }
 
 /**

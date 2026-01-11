@@ -1,6 +1,5 @@
 // src/app/estimates/[id]/edit/page.tsx
-import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -8,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
 
 // API functions
 import { getEstimate } from "@/app/api/estimates.api";
@@ -19,19 +17,39 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
-import { EstimateForm } from "@/components/estimates/EstimateForm";
+import { EstimateForm } from "@/components/estimates/estimate-form";
+import { isApiError } from "@/app/api/_base";
+import { getCurrentUser } from "@/lib/session";
+import { BackLink } from "@/components/navigation/back-link";
 
+export default async function EditEstimatePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
 
-export default async function EditEstimatePage({ params }: { params: Promise<{ id: string }> }) {
-  
-  const { id } = await params; 
+  const user = await getCurrentUser();
+  if (!user) notFound();
+
+  const { id } = await params;
   const estimateId = Number(id);
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
+  if (Number.isNaN(estimateId)) notFound();
+
+  
+
+  let estimate;
+
+  try {
+    estimate = await getEstimate(estimateId);
+  } catch (e) {
+    if (isApiError(e) && (e.status === 404 || e.status === 403)) {
+      notFound(); // 👈 URL pegada sin permiso → 404 bonito
+    }
+    throw e; // otros errores reales
+  }
 
   const [
-    estimate,
     productsWithBrands,
     systemsWithConfigs,
     frameColors,
@@ -40,32 +58,46 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     coatings,
     parameters,
   ] = await Promise.all([
-    getEstimate(estimateId, token),
     getProductsWithBrands(),
     getSystemsWithConfigs(),
     getFColors(),
     getCrystals(),
     getTints(),
     getCoatings(),
-    getGlobalParameters(token),
+    getGlobalParameters(),
   ]);
 
-  if (!estimate) {
-    notFound();
-  }
+  if (!estimate) notFound();
 
-  const salesTaxParam = parameters.find(p => p.key === 'SALES_TAX');
+  // 🔒 CANDADO: si ya está ordenado / inactivo, NO se puede editar aunque entren por URL
+  const isActive = estimate.status?.name === "Active";
+  const canEdit = isActive && !estimate.order;
+  if (!canEdit) notFound();
+
+  const salesTaxParam = parameters.find((p) => p.key === "SALES_TAX");
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-    <div className="flex justify-center items-start py-10 px-4 min-h-screen bg-gray-50">
-      <Card className="w-full max-w-6xl shadow-lg">
+  <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="mx-auto w-full max-w-6xl">
+      {/* Header row */}
+      <div className="mb-4 flex items-center justify-between">
+        <BackLink
+          href={"/estimates"}
+          label="Back to Estimate"
+        />
+      </div>
+
+      <Card className="w-full shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">Edit Estimate #{estimate.number}</CardTitle>
+          <CardTitle className="text-2xl">
+            Edit Estimate #{estimate.number}
+          </CardTitle>
           <CardDescription>
             Update the details for this estimate.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <EstimateForm
             estimate={estimate}
@@ -80,5 +112,7 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
         </CardContent>
       </Card>
     </div>
-  );
+  </div>
+);
+
 }

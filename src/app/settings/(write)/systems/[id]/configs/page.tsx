@@ -1,5 +1,16 @@
+import Link from "next/link";
+
 import { getSystemWithConfigs, getAvailableConfigs } from "@/app/api/systems.api";
 import { SystemConfigsClient } from "./system-configs-client";
+
+import { BackLink } from "@/components/navigation/back-link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default async function ManageSystemConfigsPage({
   params,
@@ -14,23 +25,46 @@ export default async function ManageSystemConfigsPage({
     getAvailableConfigs(systemId),
   ]);
 
-  const associatedConfigs = systemData.sysconfs.map((sc) => sc.config);
+  const associatedConfigs = systemData.sysconfs.map((sc: any) => sc.config);
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-2">
-        Gestionar Configuraciones para: {systemData.name}
-      </h1>
+      <div className="max-w-4xl mx-auto mb-4">
+        <BackLink href="/settings/systems" label="Back to Systems" />
 
-      <p className="text-muted-foreground mb-6">
-        Producto: {systemData.brandProduct.product.name}
-      </p>
+        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Settings</span>
+          <span>/</span>
 
-      <SystemConfigsClient
-        systemId={systemId}
-        initialAssociatedConfigs={associatedConfigs}
-        initialAvailableConfigs={availableConfigs}
-      />
+          <Link href="/settings/systems" className="hover:text-foreground">
+            Systems
+          </Link>
+
+          <span>/</span>
+          <span className="text-foreground">{systemData.name}</span>
+        </div>
+      </div>
+
+      <Card className="max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle>{systemData.name}</CardTitle>
+          <CardDescription>
+            Manage the configs available for this system. Product:{" "}
+            <span className="font-medium">
+              {systemData.brandProduct.product.name}
+            </span>
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <SystemConfigsClient
+            systemId={systemId}
+            systemName={systemData.name}
+            initialAssociatedConfigs={associatedConfigs}
+            initialAvailableConfigs={availableConfigs}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

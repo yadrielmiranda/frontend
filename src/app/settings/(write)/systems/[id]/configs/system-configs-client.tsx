@@ -1,70 +1,190 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Plus, PackageOpen } from "lucide-react";
 
 import { DataTable } from "@/components/data-table";
-import { addConfigToSystem, removeConfigFromSystem } from "@/app/api/systems.api";
+import { Button } from "@/components/ui/button";
 import {
-  getAssociatedConfigsColumns,
-  getAvailableConfigsColumns,
-} from "./columns-system-configs";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import { addConfigToSystem, removeConfigFromSystem } from "@/app/api/systems.api";
+import { getAssociatedConfigsColumns, getAvailableConfigsColumns } from "./columns-system-configs";
 
 type Config = { id: number; conf: string };
 
 interface SystemConfigsClientProps {
   systemId: number;
+  systemName: string;
   initialAssociatedConfigs: Config[];
   initialAvailableConfigs: Config[];
 }
 
 export function SystemConfigsClient({
   systemId,
+  systemName,
   initialAssociatedConfigs,
   initialAvailableConfigs,
 }: SystemConfigsClientProps) {
   const router = useRouter();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const runAction = async (
+    action: () => Promise<unknown>,
+    successMsg: string,
+    errorMsg: string
+  ) => {
+    try {
+      await action();
+      toast.success(successMsg);
+      router.refresh();
+      return true;
+    } catch (error) {
+      toast.error((error as Error).message || errorMsg);
+      console.error(errorMsg, error);
+      return false;
+    }
+  };
 
   const handleAdd = async (configId: number) => {
-    try {
-      await addConfigToSystem(systemId, configId);
-      router.refresh();
-      toast.success("Configuration added successfully.");
-    } catch (error) {
-      console.error("Error al añadir configuración:", error);
-      toast.error("Error adding configuration.");
-    }
+    const ok = await runAction(
+      () => addConfigToSystem(systemId, configId),
+      "Config linked successfully.",
+      "Error linking config."
+    );
+
+    if (ok) setIsAddDialogOpen(false);
   };
 
   const handleRemove = async (configId: number) => {
-    try {
-      await removeConfigFromSystem(systemId, configId);
-      router.refresh();
-      toast.success("Configuration successfully removed.");
-    } catch (error) {
-      console.error("Error al quitar configuración:", error);
-      toast.error("Error removing configuration.");
-    }
+    await runAction(
+      () => removeConfigFromSystem(systemId, configId),
+      "Config unlinked successfully.",
+      "Error unlinking config."
+    );
   };
 
-  const associatedColumns = getAssociatedConfigsColumns(handleRemove);
-  const availableColumns = getAvailableConfigsColumns(handleAdd);
+  const availableConfigs = useMemo(() => initialAvailableConfigs, [initialAvailableConfigs]);
+
+  const associatedColumns = useMemo(
+    () => getAssociatedConfigsColumns(handleRemove),
+    []
+  );
+
+  const availableColumns = useMemo(
+    () => getAvailableConfigsColumns(handleAdd),
+    []
+  );
+
+  const hasAssociated = initialAssociatedConfigs.length > 0;
+  const hasAvailable = availableConfigs.length > 0;
 
   return (
-    <div className="grid md:grid-cols-2 gap-8">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Configuraciones Asociadas</h2>
-        <DataTable columns={associatedColumns} data={initialAssociatedConfigs} />
+    <div className="space-y-6">
+      {/* Header action */}
+      <div className="flex justify-end">
+        <TooltipProvider>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* span necesario porque Button disabled no dispara hover */}
+                <span>
+                  <DialogTrigger asChild>
+                    <Button
+                      disabled={!hasAvailable}
+                      className="inline-flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Config
+                    </Button>
+                  </DialogTrigger>
+                </span>
+              </TooltipTrigger>
+
+              {!hasAvailable && (
+                <TooltipContent side="bottom" align="end">
+                  No available configs to add.
+                </TooltipContent>
+              )}
+            </Tooltip>
+
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  Add Config to{" "}
+                  <span className="font-semibold">{systemName}</span>
+                </DialogTitle>
+                <DialogDescription>
+                  Select a config from the list to associate it with this system.
+                </DialogDescription>
+              </DialogHeader>
+
+              {hasAvailable ? (
+                <DataTable
+                  columns={availableColumns}
+                  data={availableConfigs}
+                  filterColumnId="conf"
+                  filterPlaceholder="Search configs..."
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-10 text-center">
+                  <PackageOpen className="h-8 w-8 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">No configs available</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    All configs are already linked to this system.
+                  </p>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </TooltipProvider>
       </div>
 
+      {/* Associated list */}
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Configuraciones Disponibles</h2>
-        <DataTable
-          columns={availableColumns}
-          data={initialAvailableConfigs}
-          filterColumnId="conf"
-          filterPlaceholder="Buscar configuración..."
-        />
+        <h3 className="text-lg font-medium">Associated Configs</h3>
+
+        {!hasAssociated ? (
+          <div className="mt-2 flex flex-col items-center justify-center rounded-md border border-dashed p-10 text-center">
+            <PackageOpen className="h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No associated configs</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add configs to make them available under this system.
+            </p>
+
+            <Button
+              className="mt-4 inline-flex items-center gap-2"
+              onClick={() => setIsAddDialogOpen(true)}
+              disabled={!hasAvailable}
+            >
+              <Plus className="h-4 w-4" />
+              Add Config
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-2 rounded-md border">
+            <DataTable
+              columns={associatedColumns}
+              data={initialAssociatedConfigs}
+              filterColumnId="conf"
+              filterPlaceholder="Filter associated configs..."
+            />
+          </div>
+        )}
       </div>
     </div>
   );

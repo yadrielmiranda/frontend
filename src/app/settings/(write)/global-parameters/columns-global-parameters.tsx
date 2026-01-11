@@ -1,21 +1,21 @@
+// src/app/settings/(write)/global-parameters/columns.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ColumnDef } from "@tanstack/react-table";
-import { GlobalParameter } from "@/app/api/types";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { GlobalParameter } from "@/lib/types";
 import { updateGlobalParameter } from "@/app/api/global-parameters.api";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
 
-const EditableValueCell = ({ row }: { row: any }) => {
-  const parameter = row.original as GlobalParameter;
+function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
   const router = useRouter();
 
   const initialDisplayValue =
-    parameter.unit === '%'
+    parameter.unit === "%"
       ? (parameter.value * 100).toFixed(2)
       : String(parameter.value);
 
@@ -24,27 +24,25 @@ const EditableValueCell = ({ row }: { row: any }) => {
 
   const handleSave = async () => {
     setIsLoading(true);
+
     let numericValue = parseFloat(value);
 
-    if (isNaN(numericValue)) {
+    if (Number.isNaN(numericValue)) {
       toast.error("Invalid value. Please enter a number.");
       setIsLoading(false);
       return;
     }
 
-    //Actualizamos el estado visual a dos decimales justo antes de guardar
-    if (parameter.unit === '%') {
-        setValue(numericValue.toFixed(2));
-    }
-
-    if (parameter.unit === '%') {
+    // Normaliza visualmente antes de guardar
+    if (parameter.unit === "%") {
+      setValue(numericValue.toFixed(2));
       numericValue = numericValue / 100;
     }
 
     try {
       await updateGlobalParameter(parameter.key, { value: String(numericValue) });
       toast.success(`Parameter '${parameter.key}' updated successfully.`);
-      router.refresh(); 
+      router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -53,10 +51,10 @@ const EditableValueCell = ({ row }: { row: any }) => {
   };
 
   return (
-    <div className="flex items-center gap-2 max-w-[250px]">
+    <div className="flex items-center gap-2 max-w-[280px]">
       <Input
         type="number"
-        step="0.01" 
+        step="0.01"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         className="w-32"
@@ -67,7 +65,9 @@ const EditableValueCell = ({ row }: { row: any }) => {
           }
         }}
       />
+
       {parameter.unit && <span className="text-gray-500">{parameter.unit}</span>}
+
       <Button
         size="icon"
         variant="ghost"
@@ -79,14 +79,13 @@ const EditableValueCell = ({ row }: { row: any }) => {
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Check className="h-4 w-4 text-green-600" />
+          <Check className="h-4 w-4" />
         )}
       </Button>
     </div>
   );
-};
+}
 
-// --- Definición Principal de las Columnas ---
 export const columns: ColumnDef<GlobalParameter>[] = [
   {
     accessorKey: "key",
@@ -104,11 +103,11 @@ export const columns: ColumnDef<GlobalParameter>[] = [
   {
     accessorKey: "value",
     header: "Value",
-    cell: EditableValueCell, 
+    cell: ({ row }) => <EditableValueCell parameter={row.original} />,
   },
   {
     accessorKey: "updatedAt",
     header: "Last Updated",
-    cell: ({ row }) => new Date(row.original.updatedAt).toLocaleString('es-ES'),
+    cell: ({ row }) => new Date(row.original.updatedAt).toLocaleString("en-US"),
   },
 ];

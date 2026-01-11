@@ -1,9 +1,7 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+// src/app/settings/brands/[id]/edit/page.tsx
+import { notFound } from "next/navigation";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandForm } from "../../new/brand-form";
 import { getBrand } from "@/app/api/brands.api";
 
@@ -13,18 +11,30 @@ export default async function EditBrandPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const brand = await getBrand(Number(id));
+  const brandId = Number(id);
+
+  // Validación simple del parámetro
+  if (Number.isNaN(brandId)) notFound();
+
+  const brand = await getBrand(brandId);
+
+  // Si no existe, 404 limpio
+  if (!brand) notFound();
 
   return (
-    <div className="h-screen flex justify-center items-center">
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit Brand Name</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BrandForm brand={brand} />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto py-10">
+      <div className="max-w-xl mx-auto">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Edit Brand</CardTitle>
+            <CardDescription>Update the brand name.</CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <BrandForm brand={brand} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

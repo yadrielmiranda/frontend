@@ -1,6 +1,6 @@
 // src/app/api/users.api.ts
 import { apiFetch } from "./_base";
-import type { User, CreateUserDto, UpdateUserDto } from "./types";
+import type { User, CreateUserDto, UpdateUserDto } from "../../lib/types";
 
 /**
  * Obtiene todos los usuarios (SSR opcional con token).

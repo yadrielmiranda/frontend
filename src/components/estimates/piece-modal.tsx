@@ -15,10 +15,10 @@ import type {
   Crystal,
   Tint,
   Coating,
-} from "@/app/api/types";
+} from "@/lib/types";
 
 import type { PieceFormValues } from "./types";
-import { PieceForm } from "./PieceForm";
+import { PieceForm } from "./piece-form";
 
 interface PieceModalProps {
   open: boolean;

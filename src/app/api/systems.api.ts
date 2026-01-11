@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { System, SystemWithConfigs } from './types';
+import type { System, SystemWithConfigs } from '../../lib/types';
 
 export type SystemData = {
   name: string;

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
@@ -15,73 +16,86 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 import { deleteConfig } from "@/app/api/configs.api";
+import type { Config } from "@/lib/types";
 
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
+export function getConfigColumns({
+  canEdit,
+}: {
+  canEdit: boolean;
+}): ColumnDef<Config>[] {
+  const cols: ColumnDef<Config>[] = [
+    {
+      accessorKey: "conf",
+      header: "Config",
+    },
+    {
+      accessorKey: "prod.name",
+      header: "Product",
+    },
+  ];
 
-export type Config = {
-  id: number;
-  conf: string;
-  prod: {
-    id: number;
-    name: string;
-  };
-};
+  // ✅ si no puede editar, no mostramos actions
+  if (!canEdit) return cols;
 
-export const columns: ColumnDef<Config>[] = [
-  {
-    accessorKey: "conf",
-    header: "Nombre de la Configuración",
-  },
-  {
-    accessorKey: "prod.name",
-    header: "Producto Asociado",
-  },
-  {
+  cols.push({
     id: "actions",
     cell: ({ row }) => {
       const config = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
-      const { user } = useAuth();
-      const role = user?.role?.name ?? null;
-
-      // ✅ Operator: sin acciones
-      if (!isAdmin(role)) return null;
-
       const handleDelete = async () => {
-        try {
-          await deleteConfig(config.id);
-          setShowDeleteConfirm(false);
-          router.refresh();
-        } catch (error) {
-          console.error("Error al eliminar la configuración", error);
-        }
+        await deleteConfig(config.id);
+        setShowDeleteConfirm(false);
+        router.refresh();
       };
 
       return (
         <div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Abrir menú</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      aria-label="Actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Actions</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
-                <Link href={`/settings/configs/${config.id}/edit`}>Editar</Link>
+                <Link href={`/settings/configs/${config.id}/edit`}>Edit</Link>
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuItem
-                className="text-red-600 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)}
+                className="text-red-800 focus:bg-red-50 focus:text-red-600"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
               >
-                Eliminar
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -90,9 +104,12 @@ export const columns: ColumnDef<Config>[] = [
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
             onConfirm={handleDelete}
+            itemName={`config "${config.conf}"`}
           />
         </div>
       );
     },
-  },
-];
+  });
+
+  return cols;
+}

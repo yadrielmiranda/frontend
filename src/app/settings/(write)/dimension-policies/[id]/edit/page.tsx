@@ -1,10 +1,12 @@
+// src/app/settings/dimension-policies/[id]/edit/page.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getPolicy } from "@/app/api/dimension-policies.api";
-import PolicyForm from "../../new/policy-form";
-import RulesEditor from "@/app/settings/dimension-policies/rules-editor";
 
+import { PolicyForm } from "../../new/policy-form";
+import { RulesEditor } from "../../rules-editor";
 
 export default async function EditPolicyPage({
   params,
@@ -40,12 +42,9 @@ export default async function EditPolicyPage({
         </CardContent>
       </Card>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-3">Rules</h2>
-        <RulesEditor
-          idPolicy={policy.id}
-          initialRows={policy.rules ?? []}   
-        />
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Rules</h2>
+        <RulesEditor idPolicy={policy.id} initialRows={policy.rules ?? []} />
       </section>
     </div>
   );

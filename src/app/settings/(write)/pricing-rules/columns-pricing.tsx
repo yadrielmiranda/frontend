@@ -18,9 +18,7 @@ import {
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 import { deletePricingRule } from "@/app/api/pricing-rules.api";
-import type { PricingRule } from "@/app/api/types";
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
+import type { PricingRule } from "@/lib/types";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -56,7 +54,6 @@ export const columns: ColumnDef<PricingRule>[] = [
     header: "Crystal",
     accessorFn: (row) => row.crystal?.glass ?? "",
   },
-
   {
     accessorKey: "costoA",
     header: () => <div className="text-right">Area Cost</div>,
@@ -78,19 +75,12 @@ export const columns: ColumnDef<PricingRule>[] = [
       <div className="text-right">{formatCurrency(row.original.costoC)}</div>
     ),
   },
-
   {
     id: "actions",
     cell: ({ row }) => {
       const rule = row.original;
       const router = useRouter();
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-      const { user } = useAuth();
-      const role = user?.role?.name ?? null;
-      const canEdit = isAdmin(role);
-
-      if (!canEdit) return <div className="text-right text-muted-foreground">—</div>;
 
       const handleDelete = async () => {
         try {
@@ -108,8 +98,11 @@ export const columns: ColumnDef<PricingRule>[] = [
         <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                aria-label="Actions"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

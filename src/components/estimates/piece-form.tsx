@@ -40,7 +40,7 @@ import type {
   Coating,
   Config,
   CalculatePiecePayload,
-} from "@/app/api/types";
+} from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
 import {
@@ -50,7 +50,7 @@ import {
   // formatear
   formatPsf,
 } from "@/lib/dimensions";
-import { roundMoney } from "@/lib/money";
+import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
 

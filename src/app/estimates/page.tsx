@@ -1,17 +1,18 @@
 // src/app/estimates/page.tsx
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getEstimates } from "@/app/api/estimates.api";
 import { getCurrentUser } from "@/lib/session";
-import { EstimatesClient } from "@/components/estimates/EstimatesClient";
+import { EstimatesClient } from "@/components/estimates/estimates-client";
+import { notFound} from "next/navigation";
 
-export default async function EstimatesPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+export default async function EstimatesPage() {  
+  
 
   const user = await getCurrentUser();
-  const estimates = await getEstimates(token);
+  if (!user) notFound();
+  const estimates = await getEstimates(); 
+  
 
   return (
     <div>

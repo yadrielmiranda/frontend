@@ -21,7 +21,7 @@ import {
   ProductWithBrands,
   SystemWithConfigs,
   Crystal,
-} from "@/app/api/types"; // Asegúrate de que tu /api/types tenga PricingRule
+} from "@/lib/types"; // Asegúrate de que tu /api/types tenga PricingRule
 import {
   createPricingRule,
   updatePricingRule,
@@ -109,9 +109,9 @@ export function PricingRuleForm({
   const onSubmit = handleSubmit(async (data) => {
     const dataToSend = {
       ...data,
-      costoA: parseFloat(data.costoA),
-      costoB: parseFloat(data.costoB),
-      costoC: parseFloat(data.costoC),
+      costoA: Number.parseFloat(data.costoA || "0"),
+      costoB: Number.parseFloat(data.costoB || "0"),
+      costoC: Number.parseFloat(data.costoC || "0"),
     };
 
     try {
@@ -122,8 +122,7 @@ export function PricingRuleForm({
         await createPricingRule(dataToSend);
         toast.success("Pricing rule created successfully!");
       }
-      router.push("/settings/pricing-rules");
-      router.refresh();
+      router.push("/settings/pricing-rules");      
     } catch (error) {
       toast.error((error as Error).message);
     }

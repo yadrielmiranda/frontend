@@ -3,7 +3,7 @@ import type {
   PricingRule,
   CreatePricingRuleData,
   UpdatePricingRuleData,
-} from "./types";
+} from "../../lib/types";
 
 export function getPricingRules() {
   return apiFetch<PricingRule[]>("/api/pricing-rules");

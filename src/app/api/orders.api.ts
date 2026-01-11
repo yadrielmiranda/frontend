@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { Order, OrderWithRelations, UpdateOrderData, OrderStatus } from './types';
+import type { Order, OrderWithRelations, UpdateOrderData, OrderStatus } from '../../lib/types';
 
 /**
  * Crea una orden a partir de un estimateId.
@@ -14,15 +14,15 @@ export function createOrder(estimateId: number) {
 /**
  * Obtiene todas las órdenes (SSR opcional con token).
  */
-export function getOrders(token?: string) {
-  return apiFetch<OrderWithRelations[]>('/api/orders', { token });
+export function getOrders() {
+  return apiFetch<OrderWithRelations[]>('/api/orders');
 }
 
 /**
  * Obtiene una sola orden por su ID (SSR opcional con token).
  */
-export function getOrder(id: number, token?: string) {
-  return apiFetch<OrderWithRelations>(`/api/orders/${id}`, { token });
+export function getOrder(id: number) {
+  return apiFetch<OrderWithRelations>(`/api/orders/${id}`);
 }
 
 /**
@@ -38,6 +38,6 @@ export function updateOrder(id: number, data: UpdateOrderData) {
 /**
  * Obtiene los posibles estados de una orden (SSR opcional con token).
  */
-export function getOrderStatuses(token?: string) {
-  return apiFetch<OrderStatus[]>('/api/orders/statuses', { token });
+export function getOrderStatuses() {
+  return apiFetch<OrderStatus[]>('/api/orders/statuses');
 }

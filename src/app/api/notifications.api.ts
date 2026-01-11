@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { Notification } from './types';
+import type { Notification } from '../../lib/types';
 
 /**
  * Obtiene todas las notificaciones del usuario autenticado.

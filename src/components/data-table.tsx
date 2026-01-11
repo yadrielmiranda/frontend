@@ -21,19 +21,21 @@ import {
 
 import { Input } from "@/components/ui/input";
 
-// La interfaz ya estaba bien definida
+// ✅ Props genéricas para reutilizar la tabla en cualquier módulo
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  filterColumnId?: string; // La columna por la que quieres filtrar
-  filterPlaceholder?: string; // El texto que aparecerá en el campo de búsqueda
+  filterColumnId?: string; // Columna por la que quieres filtrar
+  filterPlaceholder?: string; // Texto del input de búsqueda
+  maxHeightClassName?: string; // Altura máxima del área scroll (opcional)
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
-  filterColumnId,         // CAMBIO: Recibimos la prop filterColumnId
-  filterPlaceholder,      // CAMBIO: Recibimos la prop filterPlaceholder
+  filterColumnId,
+  filterPlaceholder,
+  maxHeightClassName = "max-h-[520px]", // ✅ Default: buen tamaño “pro”
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -52,30 +54,42 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      {/* CAMBIO: Se envuelve el Input en una condición para que solo aparezca si se necesita */}
+      {/* ✅ Input solo si se necesita filtro */}
       {filterColumnId && (
         <div className="flex items-center py-4">
           <Input
-            // CAMBIO: Se usa el placeholder dinámico. Si no se provee, se usa un valor por defecto.
-            placeholder={filterPlaceholder ?? "Filtrar..."}
-            // CAMBIO: Se usa el filterColumnId para obtener la columna correcta
-            value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
+            placeholder={filterPlaceholder ?? "Filter..."}
+            value={
+              (table.getColumn(filterColumnId)?.getFilterValue() as string) ??
+              ""
+            }
             onChange={(event) =>
-              // CAMBIO: Y se usa aquí también para aplicar el filtro
-              table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
+              table
+                .getColumn(filterColumnId)
+                ?.setFilterValue(event.target.value)
             }
             className="max-w-sm"
           />
         </div>
       )}
+
+      {/* ✅ Contenedor con borde + esquinas redondeadas */}
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
+        {/* ✅ Scroll container para que el header sticky tenga efecto */}
+        <div className={`${maxHeightClassName} overflow-auto`}>
+          <Table>
+            {/* ✅ Header sticky: se queda fijo mientras haces scroll */}
+            <TableHeader className="sticky top-0 z-10 bg-muted/40">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow
+                  key={headerGroup.id}
+                  className="hover:bg-transparent"
+                >
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className="text-xs font-semibold uppercase tracking-wide text-foreground/80"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -83,41 +97,42 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                     </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  
-                ))}
-              </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No hay resultados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className="hover:bg-muted/30"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center text-sm text-muted-foreground"
+                  >
+                    No results found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

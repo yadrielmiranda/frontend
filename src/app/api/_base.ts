@@ -31,6 +31,30 @@ type ApiFetchInit = {
 const isServer = typeof window === "undefined";
 
 /**
+ * Tipos de error para NO usar `any` y poder hacer notFound() por status, etc.
+ */
+export type ApiErrorData =
+  | { message?: string; error?: string }
+  | string
+  | unknown;
+
+export class ApiError extends Error {
+  status: number;
+  data?: ApiErrorData;
+
+  constructor(message: string, status: number, data?: ApiErrorData) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
+export const isApiError = (err: unknown): err is ApiError => {
+  return err instanceof ApiError;
+};
+
+/**
  * Construye una URL con query params.
  */
 function buildUrl(path: string, query?: ApiFetchInit["query"]) {
@@ -60,10 +84,17 @@ function normalizeRequest(init: ApiFetchInit): {
   }
 
   if (init.body !== undefined && init.body !== null) {
-    if (!("Content-Type" in (headers as any))) {
-      (headers as Record<string, string>)["Content-Type"] = "application/json";
+    // ✅ evitar `any`: chequeo case-insensitive de Content-Type
+    const headersObj = headers as Record<string, string>;
+    const hasContentType = Object.keys(headersObj).some(
+      (k) => k.toLowerCase() === "content-type"
+    );
+
+    if (!hasContentType) {
+      headersObj["Content-Type"] = "application/json";
     }
-    return { headers, body: JSON.stringify(init.body) };
+
+    return { headers: headersObj, body: JSON.stringify(init.body) };
   }
 
   return { headers };
@@ -97,12 +128,14 @@ function isAuthUrl(url: string) {
  * Lee todos los Set-Cookie del response en Node runtime.
  */
 function getSetCookies(refreshRes: Response): string[] {
-  const anyHeaders = refreshRes.headers as any;
+  const anyHeaders = refreshRes.headers as unknown as {
+    getSetCookie?: () => string[] | string;
+  };
 
   // Node/undici (a veces) expone getSetCookie()
   if (typeof anyHeaders.getSetCookie === "function") {
     const arr = anyHeaders.getSetCookie();
-    return Array.isArray(arr) ? arr : [];
+    return Array.isArray(arr) ? arr : [arr];
   }
 
   // fallback: puede venir uno solo
@@ -130,6 +163,31 @@ function buildCookieHeader(pairs: Array<[string, string | undefined]>) {
     .filter(([, v]) => !!v)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
+}
+
+/**
+ * Extrae un mensaje de error sin usar any.
+ */
+function extractErrorMessage(payload: unknown): string {
+  if (typeof payload === "string") return payload;
+
+  if (payload && typeof payload === "object") {
+    if (
+      "message" in payload &&
+      typeof (payload as { message?: unknown }).message === "string"
+    ) {
+      return (payload as { message: string }).message;
+    }
+
+    if (
+      "error" in payload &&
+      typeof (payload as { error?: unknown }).error === "string"
+    ) {
+      return (payload as { error: string }).error;
+    }
+  }
+
+  return "Request failed";
 }
 
 /**
@@ -169,7 +227,10 @@ export async function apiFetch<T = unknown>(
   const doFetch = (extraHeaders?: HeadersInit) =>
     fetch(url, {
       method,
-      headers: { ...(headers as any), ...(extraHeaders as any) },
+      headers: {
+        ...(headers as Record<string, string>),
+        ...(extraHeaders as Record<string, string>),
+      },
       body,
       cache: init.cache,
       next: init.next,
@@ -254,14 +315,9 @@ export async function apiFetch<T = unknown>(
     }
 
     const payload = await parseResponse(res);
-    const message =
-      (payload && (payload as any).message) ||
-      (typeof payload === "string" ? payload : "Request failed");
-
-    const err = new Error(message) as Error & { status?: number; data?: unknown };
-    err.status = res.status;
-    err.data = payload;
-    throw err;
+    const message = extractErrorMessage(payload);
+    
+    throw new ApiError(message, res.status, payload);
   }
 
   return (await parseResponse(res)) as T;

@@ -7,8 +7,8 @@ import TopBar from "@/components/top-bar";
 import { Providers } from "./providers";
 
 // ✅ Montamos el modal global + el bridge de eventos
-import { GlobalLoginDialog } from "@/components/auth/GlobalLoginDialog";
-import { LoginDialogBridge } from "@/components/auth/LoginDialogBridge";
+import { GlobalLoginDialog } from "@/components/auth/global-login-dialog";
+import { LoginDialogBridge } from "@/components/auth/login-dialog-bridge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

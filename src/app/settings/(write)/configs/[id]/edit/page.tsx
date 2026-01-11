@@ -1,31 +1,48 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { notFound } from "next/navigation";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
 import { getConfig } from "@/app/api/configs.api";
 import { getProducts } from "@/app/api/products.api";
 import { ConfigForm } from "../../new/config-form";
 
+export default async function EditConfigPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const configId = Number(id);
 
-export default async function EditConfigPage({ params }: { params: Promise<{ id: string }> }) {
-   
-    const { id: idString } = await params;
-    const id = Number(idString);
+  if (Number.isNaN(configId)) notFound();
 
-    if (isNaN(id)) {
-        return <p className="text-red-500">Error: ID de configuración no válido.</p>;
-    }
+  const [config, products] = await Promise.all([
+    getConfig(configId),
+    getProducts(),
+  ]);
 
-    const config = await getConfig(id);
-    const products = await getProducts();
-    
-    return (
-        <div className="h-screen flex justify-center items-center">
-            <Card className="w-full max-w-lg">
-                <CardHeader>
-                    <CardTitle>Editar Configuración</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ConfigForm config={config} products={products} />
-                </CardContent>
-            </Card>
-        </div>
-    );
+  if (!config) notFound();
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="max-w-xl mx-auto">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Edit Config</CardTitle>
+            <CardDescription>Update the configuration.</CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <ConfigForm config={config} products={products} />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }

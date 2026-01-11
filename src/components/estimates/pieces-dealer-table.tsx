@@ -3,7 +3,7 @@
 import React from "react";
 import { Trash2, Pencil, Copy } from "lucide-react";
 
-import type { ProductWithBrands, FrameColor } from "@/app/api/types";
+import type { ProductWithBrands, FrameColor } from "@/lib/types";
 import type { PieceFormValues } from "./types";
 
 import { Button } from "@/components/ui/button";

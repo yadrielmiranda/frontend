@@ -1,36 +1,46 @@
-// app/settings/products/page.tsx
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Plus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
 import { getProducts } from "@/app/api/products.api";
-import { DataTable } from "@/components/data-table";
-import { columns } from "./columns-products";
 import { getCurrentUser } from "@/lib/session";
-import { isAdmin } from "@/lib/rbac";
+import { canEditSettings } from "@/lib/rbac";
+
+import { ProductsClient } from "./products-client";
 
 export default async function ProductsPage() {
   const [products, user] = await Promise.all([getProducts(), getCurrentUser()]);
   const role = user?.role?.name ?? null;
-  const canEdit = isAdmin(role);
+  const canEdit = canEditSettings(role);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Products</h1>
+    <div className="container mx-auto py-10 max-w-6xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-4xl font-bold">Products</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage the products available in the system.
+          </p>
+        </div>
 
         {canEdit && (
-          <Button variant="green" asChild>
-            <Link href="/settings/products/new">+ New</Link>
+          <Button asChild>
+            <Link
+              href="/settings/products/new"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              New Product
+            </Link>
           </Button>
         )}
       </div>
 
-      <div className="container mx-auto py-10">
-        <DataTable
-          columns={columns}
-          data={products}
-          filterColumnId="name"
-          filterPlaceholder="Filter products..."
-        />
+      {/* Table container */}
+      <div className="rounded-xl border bg-white shadow-sm p-4">
+        <ProductsClient initialProducts={products} canEdit={canEdit} />
       </div>
     </div>
   );

@@ -1,15 +1,12 @@
+// src/app/settings/(write)/dimension-policies/new/policy-form.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  createPolicy,
-  updatePolicy,
-  type PolicyDetail,
-} from "@/app/api/dimension-policies.api";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -21,20 +18,21 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// ---- Tipos auxiliares ----
+import {
+  createPolicy,
+  updatePolicy,
+  type PolicyDetail,
+} from "@/app/api/dimension-policies.api";
+
 type Option = { value: number; label: string };
 
-// Mínimo necesario de SystemWithConfigs para este formulario
 type SystemWithConfigs = {
   id: number;
   name: string;
   sysconfs: {
     idSystem: number;
     idConfig: number;
-    config: {
-      id: number;
-      conf: string;
-    } | null;
+    config: { id: number; conf: string } | null;
   }[];
 };
 
@@ -52,57 +50,66 @@ const defaults: Partial<Policy> = {
   roundingRule: "ROUND_UP_TO_NEXT",
 };
 
-export default function PolicyForm(props: PolicyFormProps) {
+export function PolicyForm({
+  initial,
+  systemsWithConfigs,
+  crystals,
+}: PolicyFormProps) {
   const router = useRouter();
+  const [form, setForm] = useState<Partial<Policy>>(initial ?? defaults);
+  const [busy, setBusy] = useState(false);
 
-  const [form, setForm] = useState<Partial<Policy>>(props.initial ?? defaults);
-
-  // Rehidratar al cambiar la policy seleccionada
   useEffect(() => {
-    setForm(props.initial ?? defaults);
-  }, [props.initial]);
+    setForm(initial ?? defaults);
+  }, [initial]);
 
-  // ---- Opciones para System ----
   const systemOptions: Option[] = useMemo(
-    () =>
-      props.systemsWithConfigs.map((s) => ({
-        value: s.id,
-        label: s.name,
-      })),
-    [props.systemsWithConfigs]
+    () => systemsWithConfigs.map((s) => ({ value: s.id, label: s.name })),
+    [systemsWithConfigs]
   );
 
-  // ---- Opciones para Config (dependen del System seleccionado) ----
   const configOptions: Option[] = useMemo(() => {
     if (!form.idSystem) return [];
-    const sys = props.systemsWithConfigs.find((s) => s.id === form.idSystem);
+    const sys = systemsWithConfigs.find((s) => s.id === form.idSystem);
     if (!sys) return [];
-    return (
-      sys.sysconfs
-        .filter((sc) => !!sc.config)
-        .map((sc) => ({
-          value: sc.config!.id,
-          label: sc.config!.conf,
-        }))
-    );
-  }, [form.idSystem, props.systemsWithConfigs]);
+    return sys.sysconfs
+      .filter((sc) => !!sc.config)
+      .map((sc) => ({ value: sc.config!.id, label: sc.config!.conf }));
+  }, [form.idSystem, systemsWithConfigs]);
 
-  // Si cambias de system y la config actual ya no pertenece, la limpiamos
   useEffect(() => {
     if (!form.idSystem || !form.idConfig) return;
     const stillValid = configOptions.some((c) => c.value === form.idConfig);
-    if (!stillValid) {
-      setForm((f) => ({ ...f, idConfig: undefined }));
-    }
+    if (!stillValid) setForm((f) => ({ ...f, idConfig: undefined }));
   }, [configOptions, form.idSystem, form.idConfig]);
+
+  const isEdit = Boolean(form.id && form.id !== 0);
+
+  const isDirty = useMemo(() => {
+    const base = initial ?? (defaults as Partial<Policy>);
+    const pick = (p: Partial<Policy>) => ({
+      idSystem: p.idSystem ?? undefined,
+      idConfig: p.idConfig ?? undefined,
+      idCrystal: p.idCrystal ?? undefined,
+      sizeBasis: p.sizeBasis ?? "FRAME",
+      roundingRule: p.roundingRule ?? "ROUND_UP_TO_NEXT",
+      isActive: p.isActive ?? true,
+      notes: p.notes ?? "",
+    });
+    return JSON.stringify(pick(form)) !== JSON.stringify(pick(base));
+  }, [form, initial]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
+
     try {
       if (!form.idSystem || !form.idConfig || !form.idCrystal) {
-        toast.error("Selecciona System, Config y Crystal");
+        toast.error("Please select System, Config, and Crystal.");
         return;
       }
+
+      setBusy(true);
 
       const payload = {
         idSystem: form.idSystem,
@@ -114,35 +121,37 @@ export default function PolicyForm(props: PolicyFormProps) {
         isActive: form.isActive ?? true,
       };
 
-      const saved =
-        form.id && form.id !== 0
-          ? await updatePolicy(form.id, payload)
-          : await createPolicy(payload);
+      const saved = isEdit
+        ? await updatePolicy(form.id!, payload)
+        : await createPolicy(payload);
 
-      toast.success("Policy guardada");
+      toast.success("Policy saved.");
 
-      // Redirigir a la lista y refrescar
-     if (!form.id || form.id === 0) {
+      if (!isEdit) {
         router.push(`/settings/dimension-policies/${saved.id}/edit`);
       } else {
-        // si es edición, puedes quedarte aquí o volver a la lista
         router.push("/settings/dimension-policies");
       }
     } catch (err: any) {
       const msg = String(err?.message || "");
-      if (msg.toLowerCase().includes("unique") || msg.toLowerCase().includes("uq_")) {
-        toast.error("Ya existe una policy con ese System + Config + Crystal.");
+      if (
+        msg.toLowerCase().includes("unique") ||
+        msg.toLowerCase().includes("uq_")
+      ) {
+        toast.error(
+          "A policy already exists for this System + Config + Crystal."
+        );
       } else {
-        toast.error(err?.message ?? "Error guardando policy");
+        toast.error(err?.message ?? "Failed to save policy.");
       }
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      {/* FILA 1: System / Config / Crystal */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* System */}
         <div>
           <Label>System</Label>
           <Select
@@ -151,9 +160,10 @@ export default function PolicyForm(props: PolicyFormProps) {
               setForm((f) => ({
                 ...f,
                 idSystem: Number(v) || undefined,
-                idConfig: undefined, // reset config al cambiar system
+                idConfig: undefined,
               }))
             }
+            disabled={busy}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select system..." />
@@ -168,12 +178,11 @@ export default function PolicyForm(props: PolicyFormProps) {
           </Select>
         </div>
 
-        {/* Config (solo las asociadas al system) */}
         <div>
           <Label>Config</Label>
           <Select
             value={form.idConfig ? String(form.idConfig) : ""}
-            disabled={!form.idSystem}
+            disabled={!form.idSystem || busy}
             onValueChange={(v) =>
               setForm((f) => ({
                 ...f,
@@ -198,7 +207,6 @@ export default function PolicyForm(props: PolicyFormProps) {
           </Select>
         </div>
 
-        {/* Crystal */}
         <div>
           <Label>Crystal</Label>
           <Select
@@ -209,12 +217,13 @@ export default function PolicyForm(props: PolicyFormProps) {
                 idCrystal: Number(v) || undefined,
               }))
             }
+            disabled={busy}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select crystal..." />
             </SelectTrigger>
             <SelectContent>
-              {props.crystals.map((o) => (
+              {crystals.map((o) => (
                 <SelectItem key={o.value} value={String(o.value)}>
                   {o.label}
                 </SelectItem>
@@ -224,18 +233,15 @@ export default function PolicyForm(props: PolicyFormProps) {
         </div>
       </div>
 
-      {/* FILA 2: Size Basis / Rounding / Active */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <Label>Size Basis</Label>
           <Select
             value={form.sizeBasis ?? "FRAME"}
             onValueChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                sizeBasis: v as Policy["sizeBasis"],
-              }))
+              setForm((f) => ({ ...f, sizeBasis: v as Policy["sizeBasis"] }))
             }
+            disabled={busy}
           >
             <SelectTrigger>
               <SelectValue />
@@ -257,6 +263,7 @@ export default function PolicyForm(props: PolicyFormProps) {
                 roundingRule: v as Policy["roundingRule"],
               }))
             }
+            disabled={busy}
           >
             <SelectTrigger>
               <SelectValue />
@@ -274,35 +281,38 @@ export default function PolicyForm(props: PolicyFormProps) {
               id="isActive"
               checked={!!form.isActive}
               onCheckedChange={(checked) =>
-                setForm((f) => ({
-                  ...f,
-                  isActive: !!checked,
-                }))
+                setForm((f) => ({ ...f, isActive: !!checked }))
               }
+              disabled={busy}
             />
             <Label htmlFor="isActive">Active</Label>
           </div>
         </div>
       </div>
 
-      {/* Notes */}
       <div>
         <Label>Notes (optional)</Label>
         <Textarea
           value={form.notes ?? ""}
-          onChange={(e) =>
-            setForm((f) => ({
-              ...f,
-              notes: e.target.value,
-            }))
-          }
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
           placeholder="Enter notes..."
+          disabled={busy}
         />
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" variant={form.id ? "blue" : "green"}>
-          {form.id ? "Update" : "Create"}
+      <div className="flex justify-end gap-2 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.back()}
+          disabled={busy}
+        >
+          Cancel
+        </Button>
+
+        <Button type="submit" disabled={!isDirty || busy}>
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {busy ? "Saving..." : isEdit ? "Update" : "Create"}
         </Button>
       </div>
     </form>

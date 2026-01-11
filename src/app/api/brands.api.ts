@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import { Brand, BrandProduct } from './types';
+import { Brand, BrandProduct } from '../../lib/types';
 
 
 

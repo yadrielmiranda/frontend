@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { Product, CreateProductData, ProductWithBrands } from './types';
+import type { Product, CreateProductData, ProductWithBrands } from '../../lib/types';
 
 /**
  * ✅ Obtiene todos los productos y precarga las marcas asociadas a cada uno.

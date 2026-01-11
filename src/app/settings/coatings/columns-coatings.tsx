@@ -1,8 +1,13 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,37 +16,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 import { deleteCoating } from "@/app/api/coatings.api";
-import { useRouter } from "next/navigation";
-import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import type { Coating } from "@/lib/types";
 
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
+export function getCoatingColumns({
+  canEdit,
+}: {
+  canEdit: boolean;
+}): ColumnDef<Coating>[] {
+  const cols: ColumnDef<Coating>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+    },
+  ];
 
-export type Coating = {
-  id: number;
-  name: string;
-};
+  // ✅ Si no puede editar settings, NO mostramos la columna actions
+  if (!canEdit) return cols;
 
-export const columns: ColumnDef<Coating>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-  },
-  {
+  cols.push({
     id: "actions",
     cell: ({ row }) => {
       const coating = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
-
-      const { user } = useAuth();
-      const role = user?.role?.name ?? null;
-
-      // ✅ Operator: no mostramos el menú de acciones
-      if (!isAdmin(role)) return null;
 
       const handleDelete = async () => {
         await deleteCoating(coating.id);
@@ -52,29 +57,40 @@ export const columns: ColumnDef<Coating>[] = [
       return (
         <div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      aria-label="Actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Actions</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link
-                  className="text-blue-900 focus:bg-blue-50 focus:text-blue-600"
-                  href={`/settings/coatings/${coating.id}/edit`}
-                >
-                  Edit
-                </Link>
+                <Link href={`/settings/coatings/${coating.id}/edit`}>Edit</Link>
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={() => setShowDeleteConfirm(true)}
+                onSelect={(e) => {
+                  // ✅ Evita comportamiento default de Radix
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
               >
                 Delete
               </DropdownMenuItem>
@@ -85,9 +101,12 @@ export const columns: ColumnDef<Coating>[] = [
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
             onConfirm={handleDelete}
+            itemName={`coating "${coating.name}"`}
           />
         </div>
       );
     },
-  },
-];
+  });
+
+  return cols;
+}

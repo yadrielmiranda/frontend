@@ -1,11 +1,11 @@
 import { apiFetch } from './_base';
-import type { Role } from '@/app/api/types';
+import type { Role } from '@/lib/types';
 
 /**
  * Obtiene todos los roles desde el backend.
  */
-export function getRoles(token?: string) {
-  return apiFetch<Role[]>('/api/roles', { token });
+export function getRoles() {
+  return apiFetch<Role[]>('/api/roles');
 }
 
 /**

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 
-import { Notification } from "@/app/api/types";
+import { Notification } from "@/lib/types";
 import { getNotifications } from "@/app/api/notifications.api";
 import { getProfile, getProfileSilent } from "@/app/api/auth/me/auth.api";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ✅ Consideramos esto como “confirmación” → reinicia el reloj de interacción
       lastInteractionRef.current = Date.now();
     } catch (err: any) {
-      // ❌ Backend no autoriza (sesión expirada real o inválida)
+      // Backend no autoriza (sesión expirada real o inválida)
       setUser(null);
       setIsAuthenticated(false);
       setNotifications([]);

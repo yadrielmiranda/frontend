@@ -10,19 +10,34 @@ import {
 
 import { CardLogin } from '@/components/card-login';
 import { useLoginDialog } from '@/contexts/LoginDialogContext';
+import { useRouter } from 'next/navigation';
 
 export function GlobalLoginDialog() {
-  const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, reason } =
-    useLoginDialog();
+  const router = useRouter();
+
+  const {
+    isLoginDialogOpen,
+    setIsLoginDialogOpen,
+    closeLoginDialog,
+    reason,
+  } = useLoginDialog();
 
   const isExpired = reason === 'expired';
 
   const handleLoginSuccess = () => {
+    // ✅ Siempre cerramos el modal
     closeLoginDialog();
+
+    // ✅ Solo en login "manual" mandamos a "/"
+    if (!isExpired) {
+      router.push('/');
+    }
+
+    // ✅ En expired: NO hacemos nada más (sin refresh, sin navegación)
   };
 
   const handleClose = () => {
-    // Solo permitimos cerrar "por acción de CardLogin" en modo manual
+    // Solo permitimos cerrar manualmente en modo manual
     if (!isExpired) closeLoginDialog();
   };
 
@@ -38,15 +53,12 @@ export function GlobalLoginDialog() {
     >
       <DialogContent
         className="sm:max-w-[425px]"
-        // ✅ En expired: NO cerrar con ESC
         onEscapeKeyDown={(e) => {
           if (isExpired) e.preventDefault();
         }}
-        // ✅ En expired: NO cerrar clickeando afuera
         onPointerDownOutside={(e) => {
           if (isExpired) e.preventDefault();
         }}
-        // ✅ TU IMPLEMENTACIÓN: showCloseButton controla la X
         showCloseButton={!isExpired}
       >
         <DialogHeader>

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import { getEstimateColumns } from "./estimates-columns";
-import type { EstimateWithRelations } from "@/app/api/types";
+import type { EstimateWithRelations } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
 
 interface EstimatesClientProps {

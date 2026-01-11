@@ -1,33 +1,33 @@
 import {
   Card,
-  CardAction,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
+
 import { FcolorForm } from "./fcolor-form";
+import { BackLink } from "@/components/navigation/back-link";
 
-
-
-
-//const product = await getProduct(params.id);
-
-export default function NewFcolor() {
-  
-  
-  
+export default function NewFrameColorPage() {
   return (
-    <div className="h-screen flex justify-center items-center">
-      <Card>
+    <div className="container mx-auto py-10">
+      {/* Navigation */}
+      <div className="max-w-lg mx-auto mb-4">
+        <BackLink href="/settings/framecolors" label="Back to Frame Colors" />
+      </div>
+
+      {/* Main card */}
+      <Card className="max-w-lg mx-auto">
         <CardHeader>
-            <CardTitle>
-               New Color
-            </CardTitle>
+          <CardTitle>New Frame Color</CardTitle>
+          <CardDescription>
+            Create a new frame color option available in the system.
+          </CardDescription>
         </CardHeader>
+
         <CardContent>
-          <FcolorForm/>
+          <FcolorForm />
         </CardContent>
       </Card>
     </div>

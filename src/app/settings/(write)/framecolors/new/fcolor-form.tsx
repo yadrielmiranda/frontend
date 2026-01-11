@@ -1,84 +1,91 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { createFColor, updateFColor } from "@/app/api/fcolors.api";
+import type { FrameColor } from "@/lib/types";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
-import { toast } from "sonner";
 
-type FormData = { color: string };
+type FormData = {
+  color: string;
+};
 
-export function FcolorForm({ fcolor }: { fcolor?: FormData & { id: number } }) {
+export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const { user } = useAuth();
-  const role = user?.role?.name ?? null;
-  const canEdit = isAdmin(role);
+  const isEdit = Boolean(params.id);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
-    defaultValues: { color: fcolor?.color || "" },
+    defaultValues: {
+      color: fcolor?.color || "",
+    },
+  });
+
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      if (isEdit) {
+        await updateFColor(Number(params.id), data);
+        toast.success("Frame color updated successfully.");
+      } else {
+        await createFColor(data);
+        toast.success("Frame color created successfully.");
+      }
+
+      setIsSuccess(true);
+      router.push("/settings/framecolors");      
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong.";
+      toast.error(message);
+      console.error(error);
+    }
   });
 
   const showLoadingState = isSubmitting || isSuccess;
 
-  const onSubmit = handleSubmit(async (data) => {
-    if (!canEdit) return;
-
-    try {
-      if (params.id) {
-        await updateFColor(Number(params.id), data);
-        toast.success("Color updated!");
-      } else {
-        await createFColor(data);
-        toast.success("Color created!");
-      }
-      setIsSuccess(true);
-      router.push("/settings/framecolors");
-    } catch (error: any) {
-      toast.error(error?.message || "Save failed");
-    }
-  });
-
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid w-full items-center gap-4">
         <div className="flex flex-col space-y-1.5">
           <Label htmlFor="color">Color</Label>
           <Input
             id="color"
             placeholder="Enter color name"
-            disabled={!canEdit || showLoadingState}
-            {...register("color", { required: "The color name is required" })}
+            autoComplete="off"
+            {...register("color", { required: "Color is required." })}
           />
           {errors.color && (
-            <p className="text-red-500 text-sm mt-1">{errors.color.message}</p>
+            <p className="text-sm text-destructive">{errors.color.message}</p>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
 
-          <Button
-            type="submit"
-            variant={params.id ? "blue" : "green"}
-            disabled={!canEdit || !isDirty || showLoadingState}
-          >
-            {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {showLoadingState ? "Saving..." : params.id ? "Update" : "Create"}
+          <Button type="submit" disabled={!isDirty || showLoadingState}>
+            {showLoadingState && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {showLoadingState
+              ? "Saving..."
+              : isEdit
+              ? "Save Changes"
+              : "Create Color"}
           </Button>
         </div>
       </div>

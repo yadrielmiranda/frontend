@@ -22,13 +22,42 @@ export const roundMoney = (value: number, decimals: number = 2): number => {
  * @param value número a formatear
  * @returns string en formato $1,234.56
  */
-export const formatMoney = (value: number): string => {
-  if (!Number.isFinite(value)) return "$0.00";
+export const formatMoney = (value: number | string | null | undefined): string => {
+  const num = Number(value);
+
+  // ✅ Number(null) => 0, Number(undefined) => NaN, Number("26.81") => 26.81
+  if (!Number.isFinite(num)) return "$0.00";
 
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(num);
 };
+
+
+
+// ✅ Spanish
+export const formatDateEs = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("es-ES", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+
+
+// ✅ English
+export const formatDateEn = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+

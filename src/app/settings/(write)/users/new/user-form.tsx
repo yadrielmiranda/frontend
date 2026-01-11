@@ -4,7 +4,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Info } from "lucide-react";
-import { CreateUserDto, UpdateUserDto, Role, User } from "@/app/api/types";
+import { CreateUserDto, UpdateUserDto, Role, User } from "@/lib/types";
 import { createUser, updateUser} from "@/app/api/users.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,8 +184,7 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
       }
 
       if (!isProfilePage) {
-        router.push("/settings/users");
-        router.refresh();
+        router.push("/settings/users");        
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");

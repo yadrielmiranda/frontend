@@ -22,7 +22,6 @@ import Link from "next/link";
 import { NotificationBell } from "./notifications-bell";
 import { canAccessSettings } from "@/lib/rbac";
 
-
 function TopBar() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -30,7 +29,11 @@ function TopBar() {
     return (
       <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">Impact +</h1>
+          <Link href="/" className="flex items-center">
+            <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
+              Impact +
+            </h1>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <div className="w-24 h-8 bg-gray-200 animate-pulse rounded hidden md:block"></div>
@@ -45,8 +48,12 @@ function TopBar() {
   return (
     <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">Impact +</h1>
-      </div>
+          <Link href="/" className="flex items-center">
+            <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
+              Impact +
+            </h1>
+          </Link>
+        </div>
 
       {/* --- Contenido para Usuarios Autenticados (Desktop) --- */}
       {isAuthenticated && (
@@ -94,17 +101,30 @@ function TopBar() {
                   <SheetTitle>Navegación</SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-4 mt-6">
-                  <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    asChild
+                  >
                     <Link href="/estimates">Estimates</Link>
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start" asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    asChild
+                  >
                     <Link href="/orders">Orders</Link>
                   </Button>
 
                   {canAccessSettings(user?.role.name) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start">Settings</Button>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                        >
+                          Settings
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56">
                         <SettingsMenuItems role={user?.role?.name} />

@@ -5,7 +5,7 @@ import type {
   UpdateEstimateData,
   CreatePieceData,
   Piece,
-} from './types';
+} from '../../lib/types';
 
 // --- Tipo de respuesta del cálculo ---
 export interface CalculatedPiece extends Piece {}
@@ -66,14 +66,14 @@ export function validatePiece(data: ValidatePieceRequest) {
 /**
  * Obtiene un estimado por ID (SSR opcional con token).
  */
-export function getEstimate(id: number, token?: string) {
+export function getEstimate(id: number) {
   return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`);
 }
 
 /**
  * Obtiene todos los estimados (SSR opcional con token).
  */
-export function getEstimates(token?: string) {
+export function getEstimates() {
   return apiFetch<EstimateWithRelations[]>(`/api/estimates`).catch(
     (err) => {
       // Mantén tu tolerancia a fallos original

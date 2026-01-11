@@ -1,27 +1,32 @@
-import { cookies } from "next/headers";
 import { getOrders } from "@/app/api/orders.api";
-import { DataTable } from "@/components/data-table";
-import { columns } from "./columns-orders";
-
+import { getCurrentUser } from "@/lib/session";
+import { OrdersClient } from "./orders-client";
+import { canEditOrders } from "@/lib/rbac";
+import { notFound } from "next/navigation";
 
 export default async function OrdersPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
-  const orders = await getOrders(token);
+
+  const user = await getCurrentUser();
+  if (!user) notFound();
+  
+  
+  const role = user.role?.name ?? null;  
+  const canEdit = canEditOrders(role);
+  const orders = await getOrders();
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Orders</h1>
-        {/* No hay botón de "New" ya que se crean desde los estimados */}
+    <div className="container mx-auto py-10 max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-4xl font-bold">Orders</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            View and manage orders.
+          </p>
+        </div>
       </div>
-      <div className="container mx-auto py-10">
-        <DataTable
-          columns={columns}
-          data={orders}
-          filterColumnId="number"
-          filterPlaceholder="Filter by order number..."
-        />
+
+      <div className="rounded-xl border bg-white shadow-sm p-4">
+        <OrdersClient initialOrders={orders} canEdit={canEdit} />
       </div>
     </div>
   );

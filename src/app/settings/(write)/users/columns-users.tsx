@@ -1,3 +1,4 @@
+// src/app/settings/(write)/users/columns-users.tsx
 "use client";
 
 import Link from "next/link";
@@ -18,10 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-import type { User } from "@/app/api/types";
+import type { User } from "@/lib/types";
 import { deleteUser } from "@/app/api/users.api";
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
 
 export const columns: ColumnDef<User>[] = [
   { accessorKey: "username", header: "Username" },
@@ -68,12 +67,6 @@ export const columns: ColumnDef<User>[] = [
       const u = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
-
-      const { user } = useAuth();
-      const role = user?.role?.name ?? null;
-      const canEdit = isAdmin(role);
-
-      if (!canEdit) return <div className="text-right text-muted-foreground">—</div>;
 
       const handleDelete = async () => {
         try {

@@ -1,4 +1,3 @@
-// Reemplaza el contenido de tu archivo con esto
 "use client";
 
 import {

@@ -1,5 +1,5 @@
 import { apiFetch } from "../../_base";
-import type { CreateUserDto, User, UpdateUserDto } from "../../types";
+import type { CreateUserDto, User, UpdateUserDto } from "../../../../lib/types";
 
 // --- Tipos auxiliares de auth ---
 export interface LoginData {

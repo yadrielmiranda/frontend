@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useForm, Controller, SubmitHandler } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { createSystem, updateSystem } from "@/app/api/systems.api";
+import { getBrandWithProducts } from "@/app/api/brands.api";
+import type { Brand, Product, System } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,35 +21,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { createSystem, updateSystem } from "@/app/api/systems.api";
-import { getBrandWithProducts } from "@/app/api/brands.api";
-import { Brand, Product } from "@/app/api/types";
-
-import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/lib/rbac";
-
 type FormValues = {
   name: string;
-  idBrand: string;
+  idBrand: string; // Comentario en español: Select trabaja cómodo con string
   idProduct: string;
 };
 
 interface SystemFormProps {
-  system?: (FormValues & { id: number }) & { idBrand?: number; idProduct?: number };
   brands: Brand[];
+  system?: System; // Comentario en español: Para editar
 }
 
-export function SystemForm({ system, brands }: SystemFormProps) {
+export function SystemForm({ brands, system }: SystemFormProps) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-
-  const { user } = useAuth();
-  const role = user?.role?.name ?? null;
-  const canEdit = isAdmin(role);
 
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const isEdit = Boolean(params?.id);
 
   const {
     register,
@@ -56,13 +51,20 @@ export function SystemForm({ system, brands }: SystemFormProps) {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     defaultValues: {
-      name: system?.name || "",
+      name: system?.name ?? "",
       idBrand: system?.idBrand ? String(system.idBrand) : "",
       idProduct: system?.idProduct ? String(system.idProduct) : "",
     },
   });
 
   const watchedBrandId = watch("idBrand");
+  const showLoadingState = isSubmitting || isSuccess;
+
+  // Comentario en español: cacheamos el brand inicial para decidir cuándo resetear product
+  const initialBrandId = useMemo(
+    () => (system?.idBrand ? String(system.idBrand) : ""),
+    [system?.idBrand]
+  );
 
   useEffect(() => {
     const fetchProductsForBrand = async () => {
@@ -70,9 +72,13 @@ export function SystemForm({ system, brands }: SystemFormProps) {
         setAvailableProducts([]);
         return;
       }
+
       setIsProductLoading(true);
       try {
-        const brandWithProducts = await getBrandWithProducts(Number(watchedBrandId));
+        const brandWithProducts = await getBrandWithProducts(
+          Number(watchedBrandId)
+        );
+
         const products = brandWithProducts.brandProducts.map((bp: any) => bp.product);
         setAvailableProducts(products);
       } catch (err) {
@@ -85,66 +91,69 @@ export function SystemForm({ system, brands }: SystemFormProps) {
 
     fetchProductsForBrand();
 
-    // si cambio de brand, reseteo product
-    if (!system || String(system?.idBrand ?? "") !== watchedBrandId) {
+    // Comentario en español: si cambió la marca (respecto a la inicial), reseteamos el producto
+    if (watchedBrandId && watchedBrandId !== initialBrandId) {
       setValue("idProduct", "", { shouldDirty: true });
     }
-  }, [watchedBrandId, setValue, system]);
 
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    if (!canEdit) return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedBrandId]);
 
-    const systemData = {
-      name: data.name,
+  const onSubmit = handleSubmit(async (data) => {
+    const payload = {
+      name: data.name.trim(),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
     };
 
     try {
-      if (params.id) {
-        await updateSystem(Number(params.id), systemData);
+      if (isEdit) {
+        await updateSystem(Number(params.id), payload);
         toast.success("System updated successfully.");
       } else {
-        await createSystem(systemData);
+        await createSystem(payload);
         toast.success("System created successfully.");
       }
-      setIsSuccess(true);
-      router.push("/settings/systems");
-      router.refresh();
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Failed to save the system.");
-    }
-  };
 
-  const showLoadingState = isSubmitting || isSuccess;
+      setIsSuccess(true);
+      router.push("/settings/systems");      
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong.";
+      toast.error(message);
+      console.error(error);
+    }
+  });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
+    <form onSubmit={onSubmit} className="space-y-4">
+      {/* Name */}
+      <div className="flex flex-col space-y-1.5">
         <Label htmlFor="name">System Name</Label>
         <Input
           id="name"
-          placeholder="e.g., Sliding Series 100"
-          {...register("name", { required: "The system name is required" })}
-          disabled={!canEdit || showLoadingState}
+          placeholder="e.g. Sliding Series 100"
+          autoComplete="off"
+          disabled={showLoadingState}
+          {...register("name", { required: "System name is required." })}
         />
         {errors.name && (
-          <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+          <p className="text-sm text-destructive">{errors.name.message}</p>
         )}
       </div>
 
-      <div className="space-y-2">
+      {/* Brand */}
+      <div className="flex flex-col space-y-1.5">
         <Label htmlFor="brand">Brand</Label>
         <Controller
           name="idBrand"
           control={control}
-          rules={{ required: "You must select a brand" }}
+          rules={{ required: "Brand is required." }}
           render={({ field }) => (
             <Select
               value={field.value}
               onValueChange={field.onChange}
-              disabled={!canEdit || showLoadingState}
+              disabled={showLoadingState}
             >
               <SelectTrigger id="brand">
                 <SelectValue placeholder="Select a brand" />
@@ -160,21 +169,24 @@ export function SystemForm({ system, brands }: SystemFormProps) {
           )}
         />
         {errors.idBrand && (
-          <p className="text-sm text-red-500 mt-1">{errors.idBrand.message}</p>
+          <p className="text-sm text-destructive">{errors.idBrand.message}</p>
         )}
       </div>
 
-      <div className="space-y-2">
+      {/* Product */}
+      <div className="flex flex-col space-y-1.5">
         <Label htmlFor="product">Product</Label>
         <Controller
           name="idProduct"
           control={control}
-          rules={{ required: "You must select a product" }}
+          rules={{ required: "Product is required." }}
           render={({ field }) => (
             <Select
               value={field.value}
               onValueChange={field.onChange}
-              disabled={!canEdit || !watchedBrandId || isProductLoading || showLoadingState}
+              disabled={
+                showLoadingState || !watchedBrandId || isProductLoading
+              }
             >
               <SelectTrigger id="product">
                 <SelectValue
@@ -198,37 +210,30 @@ export function SystemForm({ system, brands }: SystemFormProps) {
           )}
         />
         {errors.idProduct && (
-          <p className="text-sm text-red-500 mt-1">{errors.idProduct.message}</p>
+          <p className="text-sm text-destructive">{errors.idProduct.message}</p>
         )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={showLoadingState || isProductLoading}
-        >
+      {/* Footer */}
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
 
         <Button
           type="submit"
-          variant={params.id ? "blue" : "green"}
-          disabled={!canEdit || !isDirty || showLoadingState || isProductLoading}
+          disabled={!isDirty || showLoadingState || isProductLoading}
         >
           {(showLoadingState || isProductLoading) && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           )}
-          {showLoadingState ? "Saving..." : params.id ? "Update" : "Create"}
+          {showLoadingState
+            ? "Saving..."
+            : isEdit
+            ? "Save Changes"
+            : "Create System"}
         </Button>
       </div>
-
-      {!canEdit && (
-        <p className="text-sm text-muted-foreground">
-          Tu rol es <b>operator</b>, tienes acceso de solo lectura.
-        </p>
-      )}
     </form>
   );
 }

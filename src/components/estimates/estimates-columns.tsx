@@ -21,9 +21,54 @@ import { deleteEstimate } from "@/app/api/estimates.api";
 import { createOrder } from "@/app/api/orders.api";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-import type { EstimateWithRelations } from "@/app/api/types";
+import type { EstimateWithRelations } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
-import { formatDateEs, formatUsd } from "./estimates-formatters";
+import { formatDateEn, formatMoney } from "@/lib/formatters";
+
+const getEstimateStatusName = (estimate: EstimateWithRelations): string => {
+  // Preferimos status.name si viene incluido desde el backend
+  if (estimate.status?.name) return estimate.status.name;
+
+  // Fallback defensivo: si existe order, entonces está ordenado
+  if (estimate.order) return "Ordered";
+
+  // Si no viene status y tampoco order, dejamos Unknown
+  return "Unknown";
+};
+
+const getStatusBadge = (statusName: string) => {
+  const name = statusName.trim().toLowerCase();
+
+  if (name === "active") {
+    return (
+      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+        Active
+      </span>
+    );
+  }
+
+  if (name === "ordered") {
+    return (
+      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+        Ordered
+      </span>
+    );
+  }
+
+  if (name === "expired") {
+    return (
+      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+        Expired
+      </span>
+    );
+  }
+
+  return (
+    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+      {statusName || "Unknown"}
+    </span>
+  );
+};
 
 export const getEstimateColumns = (
   currentUser: AuthUser | null
@@ -39,7 +84,7 @@ export const getEstimateColumns = (
   {
     accessorKey: "date",
     header: "Date",
-    cell: ({ row }) => formatDateEs(row.original.date),
+    cell: ({ row }) => formatDateEn(row.original.date),
   },
   {
     accessorKey: "units",
@@ -50,33 +95,28 @@ export const getEstimateColumns = (
     accessorKey: "priceT",
     header: () => <div className="text-right">Price</div>,
     cell: ({ row }) => (
-      <div className="text-right font-medium">{formatUsd(row.original.priceT)}</div>
+      <div className="text-right font-medium">
+        {formatMoney(row.original.priceT)}
+      </div>
     ),
   },
   {
     accessorKey: "netProfitD",
     header: () => <div className="text-right">Net Profit ($)</div>,
-    cell: ({ row }) => <div className="text-right">{formatUsd(row.original.netProfitD)}</div>,
+    cell: ({ row }) => (
+      <div className="text-right">{formatMoney(row.original.netProfitD)}</div>
+    ),
   },
   {
     accessorKey: "user.username",
     header: "Created By",
   },
   {
-    accessorKey: "active",
+    id: "status",
     header: "Status",
     cell: ({ row }) => {
-      const isActive = row.original.active;
-
-      return isActive ? (
-        <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-          Active
-        </span>
-      ) : (
-        <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-          Ordered
-        </span>
-      );
+      const statusName = getEstimateStatusName(row.original);
+      return getStatusBadge(statusName);
     },
   },
   {
@@ -89,6 +129,12 @@ export const getEstimateColumns = (
       const router = useRouter();
 
       const isOwner = currentUser?.id === estimate.idUser;
+
+      const statusName = getEstimateStatusName(estimate);
+      const isActive = statusName.trim().toLowerCase() === "active";
+
+      // Editable SOLO si está Active y no tiene order
+      const isEditable = isActive && !estimate.order;
 
       const handleDelete = async () => {
         try {
@@ -114,6 +160,12 @@ export const getEstimateColumns = (
         }
       };
 
+      const createOrderLabel = () => {
+        if (isCreatingOrder) return "Creating Order...";
+        if (!isEditable) return "Not Available";
+        return "Create Order";
+      };
+
       return (
         <div className="text-right">
           <DropdownMenu>
@@ -131,7 +183,7 @@ export const getEstimateColumns = (
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild disabled={!estimate.active || !isOwner}>
+              <DropdownMenuItem asChild disabled={!isEditable || !isOwner}>
                 <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
               </DropdownMenuItem>
 
@@ -139,15 +191,11 @@ export const getEstimateColumns = (
 
               <DropdownMenuItem
                 onSelect={handleCreateOrder}
-                disabled={isCreatingOrder || !estimate.active || !isOwner}
+                disabled={isCreatingOrder || !isEditable || !isOwner}
                 className="text-blue-600 focus:bg-blue-50 focus:text-blue-700"
               >
                 <Send className="mr-2 h-4 w-4" />
-                {isCreatingOrder
-                  ? "Creating Order..."
-                  : !estimate.active
-                    ? "Order Created"
-                    : "Create Order"}
+                {createOrderLabel()}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
@@ -155,7 +203,7 @@ export const getEstimateColumns = (
               <DropdownMenuItem
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
-                disabled={!estimate.active || !isOwner}
+                disabled={!isEditable || !isOwner}
               >
                 Delete Estimate
               </DropdownMenuItem>

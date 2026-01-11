@@ -4,17 +4,17 @@ import React, { useMemo, useRef, useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { createEstimate, updateEstimate } from "@/app/api/estimates.api";
 import type {
   CreateEstimateData,
   CreatePieceData,
   UpdateEstimateData,
-} from "@/app/api/types";
+} from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
-import { roundMoney } from "@/lib/money";
+import { roundMoney } from "@/lib/formatters";
 import { useAuth } from "@/contexts/AuthContext";
 
 import type {
@@ -23,14 +23,14 @@ import type {
   PieceFormValues,
 } from "./types";
 
-import { ColorUpdateAlertDialog } from "./ColorUpdateAlertDialog";
-import { EstimateDetailsLeft } from "./EstimateDetailsLeft";
-import { EstimateTotalsCard } from "./EstimateTotalsCard";
-import { PiecesBreakdownBar } from "./PiecesBreakdownBar";
-import { PiecesDealerTable } from "./PiecesDealerTable";
-import { PiecesClientList } from "./PiecesClientList";
-import { PieceModal } from "./PieceModal";
-import { CustomerDetailsCard } from "./CustomerDetailsCard";
+import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
+import { EstimateDetailsLeft } from "./estimate-details-left";
+import { EstimateTotalsCard } from "./estimate-totals-card";
+import { PiecesBreakdownBar } from "./pieces-breakdown-bar";
+import { PiecesDealerTable } from "./pieces-dealer-table";
+import { PiecesClientList } from "./pieces-client-list";
+import { PieceModal } from "./piece-modal";
+import { CustomerDetailsCard } from "./customer-details-card";
 import { useEffect } from "react";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
@@ -443,8 +443,7 @@ export function EstimateForm({
         toast.success("Estimate created successfully!");
       }
 
-      router.push("/estimates");
-      router.refresh();
+      router.push("/estimates");      
     } catch (error) {
       if (error instanceof Error)
         toast.error(error.message || "An unexpected error occurred.");
