@@ -246,6 +246,7 @@ export interface SystemWithConfigs extends System {
 export type EstimateWithRelations = Estimate & {
   pieces: PieceWithRelations[];
   user: User;
+  branding?: Branding | null;
 };
 
 export type OrderWithRelations = Order & {
@@ -365,6 +366,30 @@ export type UpdateGlobalParameterData = {
   description?: string;
   unit?: string;
 };
+
+export type BrandingType = "COMPANY" | "DEALER";
+
+export interface Branding {
+  id: number;
+  type: BrandingType;
+  userId: number | null;
+
+  name: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+
+  logoUrl: string | null;
+
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 
 

@@ -34,6 +34,7 @@ import { CustomerDetailsCard } from "./customer-details-card";
 import { useEffect } from "react";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
+import { canSetCustomerOnEstimate, isDealerRole } from "@/lib/rbac";
 
 export function EstimateForm({
   estimate,
@@ -47,8 +48,13 @@ export function EstimateForm({
 }: EstimateFormProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const role = user?.role?.name ?? null;
 
-  const isDealer = user?.role?.name === "dealer";
+  //  UI permission for customer section
+  const showCustomerSection = canSetCustomerOnEstimate(role);
+  
+  const isDealer = isDealerRole(role);
+
   const isEditMode = !!estimate;
 
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
@@ -278,9 +284,7 @@ export function EstimateForm({
         acc.dealerTotal = roundMoney(acc.dealerTotal + lineDealerTotal);
 
         const productIdNumber = Number(piece.idProd);
-        const product = productsWithBrands.find(
-          (p) => p.id === productIdNumber
-        );
+        const product = productsWithBrands.find((p) => p.id === productIdNumber);
         if (product)
           breakdown[product.name] = (breakdown[product.name] || 0) + qty;
 
@@ -397,7 +401,8 @@ export function EstimateForm({
         };
       };
 
-      const customerHeader: Pick<
+      // customer header is ONLY included when role can set customer
+      type CustomerFields = Pick<
         CreateEstimateData,
         | "customerFirstName"
         | "customerLastName"
@@ -407,43 +412,49 @@ export function EstimateForm({
         | "customerCity"
         | "customerState"
         | "customerPostalCode"
-      > = {
-        customerFirstName: data.customerFirstName?.trim() || null,
-        customerLastName: data.customerLastName?.trim() || null,
-        customerEmail: data.customerEmail?.trim() || null,
-        customerPhone: data.customerPhone?.trim() || null,
-        customerStreet: data.customerStreet?.trim() || null,
-        customerCity: data.customerCity?.trim() || null,
-        customerState: data.customerState?.trim() || null,
-        customerPostalCode: data.customerPostalCode?.trim() || null,
-      };
+      >;
+
+      const customerHeader: Partial<CustomerFields> = showCustomerSection
+        ? {
+            customerFirstName: data.customerFirstName?.trim() || null,
+            customerLastName: data.customerLastName?.trim() || null,
+            customerEmail: data.customerEmail?.trim() || null,
+            customerPhone: data.customerPhone?.trim() || null,
+            customerStreet: data.customerStreet?.trim() || null,
+            customerCity: data.customerCity?.trim() || null,
+            customerState: data.customerState?.trim() || null,
+            customerPostalCode: data.customerPostalCode?.trim() || null,
+          }
+        : {};
 
       if (isEditMode && estimate?.id) {
         const updateData: UpdateEstimateData = {
           name: data.name,
           customerTaxRate: customerTaxRateDec,
-          ...customerHeader,
+          ...customerHeader, //  only adds when allowed
           pieces: data.pieces.map(mapPiecesForApi),
         };
+
         await updateEstimate(estimate.id, updateData);
         toast.success("Estimate updated successfully!");
       } else {
         const createData: CreateEstimateData = {
           name: data.name,
           customerTaxRate: customerTaxRateDec,
-          ...customerHeader,
+          ...customerHeader, //  only adds when allowed
           pieces: data.pieces.map((p) => {
             const { id, ...rest } = mapPiecesForApi(p);
             return rest;
           }),
         };
+
         console.log("CREATE DATA =>", createData);
 
         await createEstimate(createData);
         toast.success("Estimate created successfully!");
       }
 
-      router.push("/estimates");      
+      router.push("/estimates");
     } catch (error) {
       if (error instanceof Error)
         toast.error(error.message || "An unexpected error occurred.");
@@ -551,13 +562,15 @@ export function EstimateForm({
             />
           </div>
 
-          <div className="mt-6">
-            <CustomerDetailsCard
-              register={register}
-              control={control}
-              errors={errors}
-            />
-          </div>
+          {showCustomerSection && (
+            <div className="mt-6">
+              <CustomerDetailsCard
+                register={register}
+                control={control}
+                errors={errors}
+              />
+            </div>
+          )}
 
           <PiecesBreakdownBar
             totalUnits={summary.totalUnits}

@@ -6,7 +6,6 @@ import "./globals.css";
 import TopBar from "@/components/top-bar";
 import { Providers } from "./providers";
 
-// ✅ Montamos el modal global + el bridge de eventos
 import { GlobalLoginDialog } from "@/components/auth/global-login-dialog";
 import { LoginDialogBridge } from "@/components/auth/login-dialog-bridge";
 
@@ -34,17 +33,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          {/* ✅ Listener global: si apiFetch dispara auth:login-required, abre el login */}
           <LoginDialogBridge />
-
-          {/* ✅ Modal global: vive siempre montado para que pueda abrirse desde cualquier lugar */}
           <GlobalLoginDialog />
 
           <TopBar />
-          <main className="container mx-auto p-4 md:p-8">{children}</main>
+
+          {/* ✅ un poco de padding arriba para que respire bajo la barra */}
+          <main className="container mx-auto p-4 md:p-8 pt-6">{children}</main>
         </Providers>
 
-        <Toaster richColors position="top-right" />
+        {/* ✅ Toaster abajo para que no tape dropdowns */}
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   );

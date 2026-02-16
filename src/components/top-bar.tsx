@@ -27,8 +27,8 @@ function TopBar() {
 
   if (isLoading) {
     return (
-      <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
-        <div className="flex items-center gap-4">
+      <header className=" sticky top-0 z-50 flex items-center justify-between p-4 bg-white  border-b-2 border-red-700 shadow-sm">
+        <div className="flex items-center gap-4"> 
           <Link href="/" className="flex items-center">
             <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
               Impact +
@@ -46,14 +46,14 @@ function TopBar() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-950 dark:border-gray-800 shadow-sm">
+    <header className=" sticky top-0 z-50 flex items-center justify-between p-4 bg-white  border-b-2 border-red-700 shadow-sm">
       <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center">
-            <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
-              Impact +
-            </h1>
-          </Link>
-        </div>
+        <Link href="/" className="flex items-center">
+          <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
+            Impact +
+          </h1>
+        </Link>
+      </div>
 
       {/* --- Contenido para Usuarios Autenticados (Desktop) --- */}
       {isAuthenticated && (
@@ -64,6 +64,7 @@ function TopBar() {
           <Button variant="ghost" asChild>
             <Link href="/orders">Orders</Link>
           </Button>
+
           {canAccessSettings(user?.role.name) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -80,9 +81,8 @@ function TopBar() {
       {/* --- Acciones y Perfil de Usuario --- */}
       <div className="flex items-center gap-4">
         {isAuthenticated && (
-          <>
-            <Input placeholder="Buscar..." className="hidden md:block w-48" />
-            <NotificationBell /> {/* Campana de notificaciones */}
+          <>            
+            <NotificationBell />
           </>
         )}
 
@@ -96,10 +96,12 @@ function TopBar() {
                   <Menu />
                 </Button>
               </SheetTrigger>
+
               <SheetContent side="left">
                 <SheetHeader>
                   <SheetTitle>Navegación</SheetTitle>
                 </SheetHeader>
+
                 <div className="flex flex-col gap-4 mt-6">
                   <Button
                     variant="ghost"
@@ -108,6 +110,7 @@ function TopBar() {
                   >
                     <Link href="/estimates">Estimates</Link>
                   </Button>
+
                   <Button
                     variant="ghost"
                     className="w-full justify-start"

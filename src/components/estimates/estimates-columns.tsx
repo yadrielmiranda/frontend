@@ -18,21 +18,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { deleteEstimate } from "@/app/api/estimates.api";
-import { createOrder } from "@/app/api/orders.api";
+import { createCheckoutSession } from "@/app/api/payments.api";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 import type { EstimateWithRelations } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 
+// =============================
+// Helpers
+// =============================
+
 const getEstimateStatusName = (estimate: EstimateWithRelations): string => {
-  // Preferimos status.name si viene incluido desde el backend
   if (estimate.status?.name) return estimate.status.name;
-
-  // Fallback defensivo: si existe order, entonces está ordenado
   if (estimate.order) return "Ordered";
-
-  // Si no viene status y tampoco order, dejamos Unknown
   return "Unknown";
 };
 
@@ -70,6 +69,10 @@ const getStatusBadge = (statusName: string) => {
   );
 };
 
+// =============================
+// Columns
+// =============================
+
 export const getEstimateColumns = (
   currentUser: AuthUser | null
 ): ColumnDef<EstimateWithRelations>[] => [
@@ -89,7 +92,9 @@ export const getEstimateColumns = (
   {
     accessorKey: "units",
     header: "Units",
-    cell: ({ row }) => <div className="text-center">{row.original.units}</div>,
+    cell: ({ row }) => (
+      <div className="text-center">{row.original.units}</div>
+    ),
   },
   {
     accessorKey: "priceT",
@@ -104,7 +109,9 @@ export const getEstimateColumns = (
     accessorKey: "netProfitD",
     header: () => <div className="text-right">Net Profit ($)</div>,
     cell: ({ row }) => (
-      <div className="text-right">{formatMoney(row.original.netProfitD)}</div>
+      <div className="text-right">
+        {formatMoney(row.original.netProfitD)}
+      </div>
     ),
   },
   {
@@ -125,7 +132,7 @@ export const getEstimateColumns = (
       const estimate = row.original;
 
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-      const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+      const [isPaying, setIsPaying] = useState(false);
       const router = useRouter();
 
       const isOwner = currentUser?.id === estimate.idUser;
@@ -133,8 +140,8 @@ export const getEstimateColumns = (
       const statusName = getEstimateStatusName(estimate);
       const isActive = statusName.trim().toLowerCase() === "active";
 
-      // Editable SOLO si está Active y no tiene order
-      const isEditable = isActive && !estimate.order;
+      // Solo se puede pagar si está Active y no tiene order
+      const isPayable = isActive && !estimate.order;
 
       const handleDelete = async () => {
         try {
@@ -147,23 +154,21 @@ export const getEstimateColumns = (
         }
       };
 
-      const handleCreateOrder = async () => {
-        setIsCreatingOrder(true);
+      const handlePay = async () => {
+        setIsPaying(true);
         try {
-          const newOrder = await createOrder(estimate.id);
-          toast.success(`Order #${newOrder.number} created successfully!`);
-          router.refresh();
+          const { url } = await createCheckoutSession(estimate.id);
+          window.location.href = url; // Stripe Checkout
         } catch (error) {
           toast.error((error as Error).message);
-        } finally {
-          setIsCreatingOrder(false);
+          setIsPaying(false);
         }
       };
 
-      const createOrderLabel = () => {
-        if (isCreatingOrder) return "Creating Order...";
-        if (!isEditable) return "Not Available";
-        return "Create Order";
+      const payLabel = () => {
+        if (isPaying) return "Redirecting to payment...";
+        if (!isPayable) return "Not Available";
+        return "Pay & Create Order";
       };
 
       return (
@@ -180,22 +185,26 @@ export const getEstimateColumns = (
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
               <DropdownMenuItem asChild>
-                <Link href={`/estimates/${estimate.id}`}>View Details</Link>
+                <Link href={`/estimates/${estimate.id}`}>
+                  View Details
+                </Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild disabled={!isEditable || !isOwner}>
-                <Link href={`/estimates/${estimate.id}/edit`}>Edit Estimate</Link>
+              <DropdownMenuItem asChild disabled={!isPayable || !isOwner}>
+                <Link href={`/estimates/${estimate.id}/edit`}>
+                  Edit Estimate
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onSelect={handleCreateOrder}
-                disabled={isCreatingOrder || !isEditable || !isOwner}
-                className="text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+                onSelect={handlePay}
+                disabled={isPaying || !isPayable || !isOwner}
+                className="text-green-700 focus:bg-green-50 focus:text-green-800"
               >
                 <Send className="mr-2 h-4 w-4" />
-                {createOrderLabel()}
+                {payLabel()}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
@@ -203,7 +212,7 @@ export const getEstimateColumns = (
               <DropdownMenuItem
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
-                disabled={!isEditable || !isOwner}
+                disabled={!isPayable || !isOwner}
               >
                 Delete Estimate
               </DropdownMenuItem>

@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { Fragment } from "react";
-import { isAdmin, type RoleName } from "@/lib/rbac";
+import { isAdminRole, type RoleName } from "@/lib/rbac";
 
 export function SettingsMenuItems({ role }: { role?: RoleName | string | null }) {
   return (
@@ -39,9 +39,9 @@ export function SettingsMenuItems({ role }: { role?: RoleName | string | null })
       </DropdownMenuItem>
 
       {/* ✅ Solo admin ve Users */}
-      {isAdmin(role) && (
+      {isAdminRole(role) && (
         <DropdownMenuItem asChild>
-          <Link href="/settings/users">Users</Link>
+          <Link href="/settings/users">Users</Link> 
         </DropdownMenuItem>
       )}
 
@@ -56,6 +56,9 @@ export function SettingsMenuItems({ role }: { role?: RoleName | string | null })
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/settings/dimension-policies">Dimension Policies</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/company-branding">Company</Link>
       </DropdownMenuItem>
     </Fragment>
   );

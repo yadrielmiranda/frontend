@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { getEstimate } from "@/app/api/estimates.api";
 import { getCurrentUser } from "@/lib/session";
 import {
-  EstimateDetailsClient,
-  DealerPublicView,
-} from "@/components/estimates/estimate-details-client";
-import { isApiError } from "@/app/api/_base";
+  EstimateDetails,
+  DealerPublicContent ,
+} from "@/components/estimates/estimate-details";
+import { isApiError } from "@/app/api/_base"; 
 
 export default async function EstimateDetailPage({
   params,
@@ -42,9 +42,9 @@ export default async function EstimateDetailPage({
 
   if (resolvedSearchParams.view === "public") {
     if (estimate.user.role.name === "dealer") {
-      return <DealerPublicView estimate={estimate} />;
+      return <DealerPublicContent  estimate={estimate} />;
     } else {
-      return redirect(`/estimates/${estimate.id}`);
+      return redirect(`/estimates/${estimate.id}`);  // redirige a la vista normal si no es dealer
     }
   }
 
@@ -63,6 +63,6 @@ export default async function EstimateDetailPage({
 
   // Pasamos el rol del usuario al componente cliente
   return (
-    <EstimateDetailsClient estimate={estimate} userRole={user.role.name} />
+    <EstimateDetails estimate={estimate} userRole={user.role.name} />
   );
 }

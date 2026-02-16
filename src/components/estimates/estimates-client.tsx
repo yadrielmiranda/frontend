@@ -18,7 +18,7 @@ export function EstimatesClient({ initialEstimates, currentUser }: EstimatesClie
     <DataTable
       columns={columns}
       data={initialEstimates}
-      filterColumnId="name"
+      filterColumnId="number"
       filterPlaceholder="Filter by name..."
     />
   );

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { User } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { User } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -12,11 +12,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
-import { useAuth } from '@/contexts/AuthContext';
-import { useLoginDialog } from '@/contexts/LoginDialogContext';
-import { logoutUser } from '@/app/api/auth/me/auth.api';
+import { useAuth } from "@/contexts/AuthContext";
+import { useLoginDialog } from "@/contexts/LoginDialogContext";
+import { logoutUser } from "@/app/api/auth/me/auth.api";
+import { isDealerRole } from "@/lib/rbac";
 
 export function UserDropdown() {
   const { isAuthenticated, user, isLoading, revalidate } = useAuth();
@@ -31,10 +32,10 @@ export function UserDropdown() {
       await logoutUser();
       await revalidate();
       setIsDropdownOpen(false);
-      router.push('/');
+      router.push("/");
     } catch (error) {
       // ⚠️ Log simple
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
   };
 
@@ -53,7 +54,7 @@ export function UserDropdown() {
         <Button variant="ghost">
           <User className="h-4 w-4" />
           <span className="ml-1">
-            {isAuthenticated && user ? user.username : 'Sign in'}
+            {isAuthenticated && user ? user.username : "Sign in"}
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -86,20 +87,22 @@ export function UserDropdown() {
             <DropdownMenuItem
               onClick={() => {
                 setIsDropdownOpen(false);
-                router.push('/profile');
+                router.push("/profile");
               }}
             >
-              My Profile
+              Profile
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={() => {
-                setIsDropdownOpen(false);
-                router.push('/settings');
-              }}
-            >
-              Settings
-            </DropdownMenuItem>
+            {isDealerRole(user.role?.name) && (
+              <DropdownMenuItem
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  router.push("/profile/branding");
+                }}
+              >
+                My Branding
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuSeparator />
 
@@ -116,7 +119,7 @@ export function UserDropdown() {
 
                 // ✅ Cerramos dropdown y abrimos el modal global
                 setIsDropdownOpen(false);
-                openLoginDialog('manual');
+                openLoginDialog("manual");
               }}
             >
               Sign in

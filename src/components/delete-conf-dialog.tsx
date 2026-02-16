@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AlertTriangle } from "lucide-react";
 
 // 1. AÑADIMOS 'itemName' A LAS PROPS DEL COMPONENTE
 interface DeleteConfirmationDialogProps {
@@ -26,17 +27,18 @@ export function DeleteConfirmationDialog({
   itemName, // Recibimos la nueva prop
 }: DeleteConfirmationDialogProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
+    <AlertDialog open={isOpen} onOpenChange={onClose}> 
       <AlertDialogContent>
         <AlertDialogHeader>
           {/* 2. HACEMOS EL TÍTULO MÁS GENÉRICO */}
-          <AlertDialogTitle>
+          <AlertDialogTitle className="flex items-center gap-2"> 
+            <AlertTriangle className="h-5 w-5 text-red-500" />
             Are you absolutely sure?
           </AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete{' '}
             {/* 3. USAMOS 'itemName' PARA UN MENSAJE ESPECÍFICO */}
-            <span className="font-bold text-red-600">
+            <span className="font-bold text-black-600">
               {itemName || 'the selected item'}
             </span>
             .

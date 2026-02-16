@@ -1,15 +1,8 @@
 import { apiFetch } from './_base';
 import type { Order, OrderWithRelations, UpdateOrderData, OrderStatus } from '../../lib/types';
 
-/**
- * Crea una orden a partir de un estimateId.
- */
-export function createOrder(estimateId: number) {
-  return apiFetch<Order>('/api/orders', {
-    method: 'POST',
-    body: { estimateId },
-  });
-}
+
+
 
 /**
  * Obtiene todas las órdenes (SSR opcional con token).

@@ -35,7 +35,7 @@ export function DataTable<TData, TValue>({
   data,
   filterColumnId,
   filterPlaceholder,
-  maxHeightClassName = "max-h-[520px]", // ✅ Default: buen tamaño “pro”
+  maxHeightClassName = "max-h-[520px]", // Default: buen tamaño “pro”
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -54,7 +54,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      {/* ✅ Input solo si se necesita filtro */}
+      {/* Input solo si se necesita filtro */}
       {filterColumnId && (
         <div className="flex items-center py-4">
           <Input

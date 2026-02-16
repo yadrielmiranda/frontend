@@ -3,12 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import {
-  Loader2,
-  Pencil,
-  Calculator,
-  AlertTriangle,
-} from "lucide-react";
+import { Loader2, Pencil, Calculator, AlertTriangle } from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
 
@@ -209,7 +204,11 @@ export function PieceForm({
         : undefined;
 
       const heightLeftNorm = selectedConfig.requiresHeightLeft
-        ? normalizeInchesToEighthStep(currentValues.heightLeft, "Height Left", 1)
+        ? normalizeInchesToEighthStep(
+            currentValues.heightLeft,
+            "Height Left",
+            1
+          )
         : undefined;
 
       const heightRightNorm = selectedConfig.requiresHeightRight
@@ -321,7 +320,9 @@ export function PieceForm({
       const customerSubtotalLine = roundMoney(
         Number(calculated.customerSubtotal) || 0
       );
-      const customerUnitPrice = roundMoney(Number(calculated.customerPrice) || 0);
+      const customerUnitPrice = roundMoney(
+        Number(calculated.customerPrice) || 0
+      );
 
       setValue("price", unitPrice);
       setValue("subtotal", lineSubtotal);
@@ -371,28 +372,27 @@ export function PieceForm({
   };
 
   const recalcDealerTotals = () => {
-  if (!props.isDealer) return;
+    if (!props.isDealer) return;
 
-  const v = getValues();
-  const qtyN = Number(v.qty) || 0;
-  const markupPercent = (Number(v.dealerMarkup) || 0) / 100;
+    const v = getValues();
+    const qtyN = Number(v.qty) || 0;
+    const markupPercent = (Number(v.dealerMarkup) || 0) / 100;
 
-  // ✅ usa tu line subtotal actual como base (backend truth)
-  const baseLine = roundMoney(Number(v.subtotal) || 0);
+    // ✅ usa tu line subtotal actual como base (backend truth)
+    const baseLine = roundMoney(Number(v.subtotal) || 0);
 
-  const dealerProfitLine = roundMoney(baseLine * markupPercent);
-  const customerLine = roundMoney(baseLine + dealerProfitLine);
+    const dealerProfitLine = roundMoney(baseLine * markupPercent);
+    const customerLine = roundMoney(baseLine + dealerProfitLine);
 
-  const customerUnit = qtyN > 0 ? roundMoney(customerLine / qtyN) : 0;
+    const customerUnit = qtyN > 0 ? roundMoney(customerLine / qtyN) : 0;
 
-  setValue("netProfitD", dealerProfitLine, { shouldDirty: true });
-  setValue("total", customerLine, { shouldDirty: true });
-  setValue("customerSubtotal", customerLine, { shouldDirty: true });
-  setValue("customerPrice", customerUnit, { shouldDirty: true });
+    setValue("netProfitD", dealerProfitLine, { shouldDirty: true });
+    setValue("total", customerLine, { shouldDirty: true });
+    setValue("customerSubtotal", customerLine, { shouldDirty: true });
+    setValue("customerPrice", customerUnit, { shouldDirty: true });
 
-  setHasPendingDealerMarkup(false);
-};
-
+    setHasPendingDealerMarkup(false);
+  };
 
   const dpPlusText =
     pieceValues.dpPosPsf == null ? "—" : formatPsf(pieceValues.dpPosPsf, 1);
@@ -613,7 +613,9 @@ export function PieceForm({
                         autoComplete="off"
                         type="text"
                         disabled={isLocked}
-                        {...register("width", { required: "Width is required" })}
+                        {...register("width", {
+                          required: "Width is required",
+                        })}
                         onBlur={(e) => {
                           const raw = e.target.value;
                           if (!raw) return;
@@ -918,14 +920,20 @@ export function PieceForm({
                       name="privacy"
                       control={control}
                       render={({ field }) => (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-3">
                           <Checkbox
                             id={`privacy-${index}`}
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                            checked={!!field.value}
+                            onCheckedChange={(v) => field.onChange(Boolean(v))}
                             disabled={isLocked}
+                            className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                           />
-                          <Label htmlFor={`privacy-${index}`}>Privacy</Label>
+                          <Label
+                            htmlFor={`privacy-${index}`}
+                            className="cursor-pointer select-none text-sm"
+                          >
+                            Privacy
+                          </Label>
                         </div>
                       )}
                     />
@@ -949,29 +957,42 @@ export function PieceForm({
                     name="screen"
                     control={control}
                     render={({ field }) => (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-3">
                         <Checkbox
                           id={`screen-${index}`}
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                          checked={!!field.value}
+                          onCheckedChange={(v) => field.onChange(Boolean(v))}
                           disabled={isLocked}
+                          className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                         />
-                        <Label htmlFor={`screen-${index}`}>Screen</Label>
+                        <Label
+                          htmlFor={`screen-${index}`}
+                          className="cursor-pointer select-none text-sm"
+                        >
+                          Screen
+                        </Label>
                       </div>
                     )}
                   />
+
                   <Controller
                     name="muntin"
                     control={control}
                     render={({ field }) => (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-3">
                         <Checkbox
                           id={`muntin-${index}`}
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                          checked={!!field.value}
+                          onCheckedChange={(v) => field.onChange(Boolean(v))}
                           disabled={isLocked}
+                          className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                         />
-                        <Label htmlFor={`muntin-${index}`}>Muntin</Label>
+                        <Label
+                          htmlFor={`muntin-${index}`}
+                          className="cursor-pointer select-none text-sm"
+                        >
+                          Muntin
+                        </Label>
                       </div>
                     )}
                   />

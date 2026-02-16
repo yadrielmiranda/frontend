@@ -16,6 +16,7 @@ import {
 
 import type { OrderWithRelations } from "@/lib/types";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
+import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 
 export function getOrderColumns({
   canEdit,
@@ -42,25 +43,13 @@ export function getOrderColumns({
         </div>
       ),
     },
-    {
-      accessorKey: "status.name",
-      header: "Status",
-      cell: ({ row }) => {
-        const statusName = row.original.status.name;
-
-        // (sin cambiar tu lógica de colores, solo lo dejo igual)
-        let colorClasses = "bg-gray-100 text-gray-800";
-        if (statusName === "In production") colorClasses = "bg-yellow-100 text-yellow-800";
-        if (statusName === "Delivered") colorClasses = "bg-green-100 text-green-800";
-        if (statusName === "Ready to pick up") colorClasses = "bg-blue-100 text-blue-800";
-
-        return (
-          <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${colorClasses}`}>
-            {statusName}
-          </span>
-        );
-      },
-    },
+   {
+  accessorKey: "status.name",
+  header: "Status",
+  cell: ({ row }) => (
+    <OrderStatusBadge name={row.original.status?.name} />
+  ),
+},
     {
       id: "actions",
       cell: ({ row }) => {
