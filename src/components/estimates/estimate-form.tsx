@@ -159,6 +159,7 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
+  const defaultFrameColorId = useWatch({ control, name: "defaultFrameColorId" });
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", {
@@ -466,50 +467,50 @@ export function EstimateForm({
   const isSubmitDisabled = !isDirty || showLoadingState || fields.length === 0;
 
   const editingPieceData = useMemo<PieceFormValues>(() => {
-    if (
-      editingPieceIndex !== null &&
-      watchedPieces &&
-      watchedPieces[editingPieceIndex]
-    ) {
-      return getValues(`pieces.${editingPieceIndex}`);
-    }
+  if (
+    editingPieceIndex !== null &&
+    watchedPieces &&
+    watchedPieces[editingPieceIndex]
+  ) {
+    return getValues(`pieces.${editingPieceIndex}`);
+  }
 
-    return {
-      mark: "",
-      idProd: 0,
-      idBrand: 0,
-      idSyst: 0,
-      idConf: 0,
-      idFC: getValues("defaultFrameColorId") || 0,
+  return {
+    mark: "",
+    idProd: 0,
+    idBrand: 0,
+    idSyst: 0,
+    idConf: 0,
+    idFC: Number(defaultFrameColorId) || 0,
 
-      width: "",
-      height: "",
-      heightLeft: "",
-      heightRight: "",
-      legHeight: "",
+    width: "",
+    height: "",
+    heightLeft: "",
+    heightRight: "",
+    legHeight: "",
 
-      idCryst: 0,
-      idTint: 0,
-      privacy: false,
-      idCoat: 0,
-      screen: false,
-      muntin: false,
-      qty: 1,
+    idCryst: 0,
+    idTint: 0,
+    privacy: false,
+    idCoat: 0,
+    screen: false,
+    muntin: false,
+    qty: 1,
 
-      rate: 0,
-      price: 0,
-      subtotal: 0,
+    rate: 0,
+    price: 0,
+    subtotal: 0,
 
-      dealerMarkup: getValues("generalDealerMarkup") || 0,
-      total: 0,
-      netProfitD: 0,
-      customerPrice: 0,
-      customerSubtotal: 0,
+    dealerMarkup: getValues("generalDealerMarkup") || 0,
+    total: 0,
+    netProfitD: 0,
+    customerPrice: 0,
+    customerSubtotal: 0,
 
-      dpPosPsf: null,
-      dpNegPsf: null,
-    };
-  }, [editingPieceIndex, getValues, watchedPieces]);
+    dpPosPsf: null,
+    dpNegPsf: null,
+  };
+}, [editingPieceIndex, getValues, watchedPieces, defaultFrameColorId]);
 
   const modalTitle =
     editingPieceIndex !== null
