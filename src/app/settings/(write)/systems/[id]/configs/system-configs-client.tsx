@@ -22,16 +22,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { addConfigToSystem, removeConfigFromSystem } from "@/app/api/systems.api";
-import { getAssociatedConfigsColumns, getAvailableConfigsColumns } from "./columns-system-configs";
+import {
+  addConfigToSystem,
+  removeConfigFromSystem,
+  updateSystemConfig,
+} from "@/app/api/systems.api";
+import {
+  getAssociatedConfigsColumns,
+  getAvailableConfigsColumns,
+} from "./columns-system-configs";
 
-type Config = { id: number; conf: string };
+type AvailableConfig = { id: number; conf: string };
+type AssociatedConfig = { id: number; conf: string; allowScreen: boolean };
 
 interface SystemConfigsClientProps {
   systemId: number;
   systemName: string;
-  initialAssociatedConfigs: Config[];
-  initialAvailableConfigs: Config[];
+  initialAssociatedConfigs: AssociatedConfig[];
+  initialAvailableConfigs: AvailableConfig[];
 }
 
 export function SystemConfigsClient({
@@ -78,10 +86,24 @@ export function SystemConfigsClient({
     );
   };
 
-  const availableConfigs = useMemo(() => initialAvailableConfigs, [initialAvailableConfigs]);
+  const handleToggleAllowScreen = async (
+    configId: number,
+    allowScreen: boolean
+  ) => {
+    await runAction(
+      () => updateSystemConfig(systemId, configId, { allowScreen }),
+      `Screen ${allowScreen ? "enabled" : "disabled"} successfully.`,
+      "Error updating screen option."
+    );
+  };
+
+  const availableConfigs = useMemo(
+    () => initialAvailableConfigs,
+    [initialAvailableConfigs]
+  );
 
   const associatedColumns = useMemo(
-    () => getAssociatedConfigsColumns(handleRemove),
+    () => getAssociatedConfigsColumns(handleRemove, handleToggleAllowScreen),
     []
   );
 

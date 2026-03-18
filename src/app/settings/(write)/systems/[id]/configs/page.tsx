@@ -25,7 +25,11 @@ export default async function ManageSystemConfigsPage({
     getAvailableConfigs(systemId),
   ]);
 
-  const associatedConfigs = systemData.sysconfs.map((sc: any) => sc.config);
+  const associatedConfigs = systemData.sysconfs.map((sc: any) => ({
+    id: sc.config.id,
+    conf: sc.config.conf,
+    allowScreen: sc.allowScreen,
+  }));
 
   return (
     <div className="container mx-auto py-10">

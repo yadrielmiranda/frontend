@@ -29,9 +29,9 @@ export interface User {
 export interface Brand {
   id: number;
   name: string;
-} 
+}
 
-export interface Product  {
+export interface Product {
   id: number;
   name: string;
 }
@@ -47,7 +47,7 @@ export interface System {
   id: number;
   name: string;
   idProduct: number;
-  idBrand: number; 
+  idBrand: number;
   brandProduct: BrandProduct;
 }
 
@@ -230,6 +230,7 @@ export interface PieceWithRelations extends Piece {
 export interface SysConf {
   idSystem: number;
   idConfig: number;
+  allowScreen: boolean;
   config: Config;
 }
 

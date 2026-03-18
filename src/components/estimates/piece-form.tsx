@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Pencil, Calculator, AlertTriangle } from "lucide-react";
@@ -39,17 +39,21 @@ import type {
 
 import { PieceDiagram } from "@/components/piece-diagram";
 import {
-  // normalizar inputs
   normalizeInchesToEighthStep,
   DimensionParseError,
-  // formatear
   formatPsf,
 } from "@/lib/dimensions";
 import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
 
-// --- SUB-COMPONENTE: FORMULARIO DE PIEZA DENTRO DEL MODAL ---
+type SystemConfigLink = {
+  idSystem: number;
+  idConfig: number;
+  allowScreen: boolean;
+  config: Config;
+};
+
 export interface PieceFormProps {
   initialData: PieceFormValues;
   onSubmit: (data: PieceFormValues) => void;
@@ -79,6 +83,7 @@ export function PieceForm({
     handleSubmit,
     setValue,
     getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<PieceFormValues>({
     defaultValues: {
@@ -89,7 +94,6 @@ export function PieceForm({
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
 
-      // métricas/valores por si vienen vacíos
       rate: initialData.rate ?? 0,
       price: initialData.price ?? 0,
       subtotal: initialData.subtotal ?? 0,
@@ -121,12 +125,12 @@ export function PieceForm({
     }
   );
 
-  // flag para saber si el dealer cambió el % y no ha aplicado
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
 
   const pieceValues = useWatch({ control });
 
   const { idProd, idConf, width, height, price } = pieceValues;
+  const safeConfigId = Number(idConf || 0);
 
   const { productName } = useMemo(() => {
     const product = idProd
@@ -159,22 +163,36 @@ export function PieceForm({
     );
   }, [idProd, brandId, props.systemsWithConfigs]);
 
-  const availableConfigs = useMemo(() => {
+  const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     if (!systemId) return [];
     const selectedSystem = props.systemsWithConfigs.find(
       (s) => s.id === Number(systemId)
     );
-    return (
-      selectedSystem?.sysconfs
-        ?.map((sc) => sc.config)
-        .filter((c): c is Config => !!c) ?? []
+
+    return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
+      (sc) => !!sc?.config
     );
   }, [systemId, props.systemsWithConfigs]);
+
+  const availableConfigs = useMemo(() => {
+    return availableSysConfs
+      .map((sc) => sc.config)
+      .filter((c): c is Config => !!c);
+  }, [availableSysConfs]);
 
   const selectedConfig = useMemo(() => {
     if (!idConf) return null;
     return availableConfigs.find((c) => c.id === Number(idConf)) ?? null;
   }, [idConf, availableConfigs]);
+
+  const selectedSysConf = useMemo(() => {
+    if (!idConf) return null;
+    return (
+      availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
+    );
+  }, [idConf, availableSysConfs]);
+
+  const screenAllowed = selectedSysConf?.allowScreen ?? false;
 
   const { configuration } = useMemo(() => {
     return { configuration: selectedConfig?.conf };
@@ -185,8 +203,58 @@ export function PieceForm({
     min: 0,
   });
 
+  const previousConfigIdRef = useRef<number>(Number(initialData.idConf || 0));
+
+  useEffect(() => {
+    const currentConfigId = Number(idConf || 0);
+
+    if (!currentConfigId) {
+      previousConfigIdRef.current = 0;
+
+      if (getValues("screen")) {
+        setValue("screen", false, { shouldDirty: true });
+      }
+      return;
+    }
+
+    if (previousConfigIdRef.current === currentConfigId) {
+      if (!screenAllowed && getValues("screen")) {
+        setValue("screen", false, { shouldDirty: false });
+      }
+      return;
+    }
+
+    previousConfigIdRef.current = currentConfigId;
+    setValue("screen", screenAllowed, { shouldDirty: true });
+  }, [idConf, screenAllowed, getValues, setValue]);
+
   const handleCalculate = async () => {
     try {
+      const fieldsToValidate: (keyof PieceFormValues)[] = [
+        "idProd",
+        "idBrand",
+        "idSyst",
+        "idConf",
+        "idFC",
+        "idCryst",
+        "idTint",
+        "idCoat",
+        "qty",
+      ];
+
+      if (selectedConfig?.requiresWidth) fieldsToValidate.push("width");
+      if (selectedConfig?.requiresHeight) fieldsToValidate.push("height");
+      if (selectedConfig?.requiresHeightLeft) fieldsToValidate.push("heightLeft");
+      if (selectedConfig?.requiresHeightRight) fieldsToValidate.push("heightRight");
+      if (selectedConfig?.requiresLegHeight) fieldsToValidate.push("legHeight");
+
+      const isValid = await trigger(fieldsToValidate);
+
+      if (!isValid) {
+        toast.error("Please complete the required fields before calculating.");
+        return;
+      }
+
       const currentValues = getValues();
 
       if (!selectedConfig) {
@@ -194,7 +262,6 @@ export function PieceForm({
         return;
       }
 
-      // 1) Normalizar dimensiones según lo que requiera la config
       const widthNorm = selectedConfig.requiresWidth
         ? normalizeInchesToEighthStep(currentValues.width, "Width", 1)
         : undefined;
@@ -223,7 +290,6 @@ export function PieceForm({
         ? normalizeInchesToEighthStep(currentValues.legHeight, "Leg Height", 1)
         : undefined;
 
-      // 2) Reflejar en el form (texto normalizado)
       if (widthNorm !== undefined) setValue("width", String(widthNorm));
       if (heightNorm !== undefined) setValue("height", String(heightNorm));
       if (heightLeftNorm !== undefined)
@@ -233,9 +299,8 @@ export function PieceForm({
       if (legHeightNorm !== undefined)
         setValue("legHeight", String(legHeightNorm));
 
-      // 3) DTO para /calculate-piece
       const pieceDtoToSend: CalculatePiecePayload = {
-        mark: currentValues.mark,
+        mark: currentValues.mark ?? "",
         idProd: Number(currentValues.idProd),
         idBrand: Number(currentValues.idBrand),
         idSyst: Number(currentValues.idSyst),
@@ -263,7 +328,6 @@ export function PieceForm({
           : undefined,
       };
 
-      // 4) PRE-CHECK NOA
       const precheck = await validatePiece({
         idSyst: pieceDtoToSend.idSyst,
         idConf: pieceDtoToSend.idConf,
@@ -311,7 +375,6 @@ export function PieceForm({
         return;
       }
 
-      // 5) Cálculo REAL
       const calculated = await calculatePiece(pieceDtoToSend);
 
       const unitPrice = roundMoney(Number(calculated.price) || 0);
@@ -330,10 +393,8 @@ export function PieceForm({
       setValue("customerSubtotal", customerSubtotalLine);
       setValue("customerPrice", customerUnitPrice);
 
-      // total (line) = customerSubtotal
       setValue("total", customerSubtotalLine);
 
-      // presiones (dpPosPsf / dpNegPsf)
       const dpPos =
         calculated.dpPosPsf === null || calculated.dpPosPsf === undefined
           ? null
@@ -347,7 +408,6 @@ export function PieceForm({
       setValue("dpPosPsf", dpPos);
       setValue("dpNegPsf", dpNeg);
 
-      // mantenemos dealerMarkup en % en el form
       if (props.isDealer) {
         setValue("dealerMarkup", Number(currentValues.dealerMarkup || 0));
       }
@@ -378,7 +438,6 @@ export function PieceForm({
     const qtyN = Number(v.qty) || 0;
     const markupPercent = (Number(v.dealerMarkup) || 0) / 100;
 
-    // ✅ usa tu line subtotal actual como base (backend truth)
     const baseLine = roundMoney(Number(v.subtotal) || 0);
 
     const dealerProfitLine = roundMoney(baseLine * markupPercent);
@@ -409,7 +468,6 @@ export function PieceForm({
             onValueChange={setActiveAccordionItems}
             className="w-full"
           >
-            {/* Frame */}
             <AccordionItem value="item-frame">
               <AccordionTrigger className="font-semibold text-base">
                 Frame
@@ -595,7 +653,6 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Size */}
             <AccordionItem value="item-size">
               <AccordionTrigger className="font-semibold text-base">
                 Size
@@ -812,7 +869,6 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Glass */}
             <AccordionItem value="item-glass">
               <AccordionTrigger className="font-semibold text-base">
                 Glass
@@ -942,38 +998,55 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Options */}
             <AccordionItem value="item-options">
               <AccordionTrigger className="font-semibold text-base">
                 Options
               </AccordionTrigger>
               <AccordionContent>
                 <div
-                  className={`flex items-center space-x-6 pt-4 ${
+                  className={`flex items-start space-x-6 pt-4 ${
                     isLocked ? "opacity-70" : ""
                   }`}
                 >
-                  <Controller
-                    name="screen"
-                    control={control}
-                    render={({ field }) => (
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id={`screen-${index}`}
-                          checked={!!field.value}
-                          onCheckedChange={(v) => field.onChange(Boolean(v))}
-                          disabled={isLocked}
-                          className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                        />
-                        <Label
-                          htmlFor={`screen-${index}`}
-                          className="cursor-pointer select-none text-sm"
-                        >
-                          Screen
-                        </Label>
-                      </div>
+                  <div className="flex flex-col gap-2">
+                    <Controller
+                      name="screen"
+                      control={control}
+                      render={({ field }) => (
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            id={`screen-${index}`}
+                            checked={!!field.value}
+                            onCheckedChange={(v) => field.onChange(Boolean(v))}
+                            disabled={isLocked || !screenAllowed}
+                            className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                          />
+                          <Label
+                            htmlFor={`screen-${index}`}
+                            className={`select-none text-sm ${
+                              screenAllowed
+                                ? "cursor-pointer"
+                                : "cursor-not-allowed text-muted-foreground"
+                            }`}
+                          >
+                            Screen
+                          </Label>
+                        </div>
+                      )}
+                    />
+
+                    {safeConfigId > 0 && !screenAllowed && (
+                      <p className="text-xs text-muted-foreground">
+                        Screen is not allowed for this configuration.
+                      </p>
                     )}
-                  />
+
+                    {safeConfigId > 0 && screenAllowed && (
+                      <p className="text-xs text-muted-foreground">
+                        Screen is allowed for this configuration and is selected by default.
+                      </p>
+                    )}
+                  </div>
 
                   <Controller
                     name="muntin"
@@ -1000,7 +1073,6 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Details */}
             <AccordionItem value="item-details">
               <AccordionTrigger className="font-semibold text-base">
                 Details & Qty
@@ -1015,7 +1087,7 @@ export function PieceForm({
                     <Label>Mark</Label>
                     <Input
                       disabled={isLocked}
-                      {...register("mark", { required: "Mark is required" })}
+                      {...register("mark")}
                     />
                     {errors.mark && (
                       <p className="text-red-500 text-xs mt-1">
@@ -1045,7 +1117,6 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Results */}
             {Number(price || 0) > 0 && (
               <AccordionItem value="item-results">
                 <AccordionTrigger className="font-semibold text-base text-green-700">
@@ -1078,7 +1149,6 @@ export function PieceForm({
                       </div>
                     </div>
 
-                    {/* Design Pressures */}
                     <div className="bg-white border rounded-md p-3">
                       <div className="text-xs font-semibold text-gray-600 mb-2">
                         Design Pressures
@@ -1183,7 +1253,6 @@ export function PieceForm({
           </Accordion>
         </div>
 
-        {/* Preview */}
         <div className="hidden md:col-span-2 md:block">
           <div className="sticky top-8">
             <Label className="text-center block mb-2 font-semibold text-gray-600">

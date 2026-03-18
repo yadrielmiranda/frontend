@@ -9,6 +9,10 @@ export type SystemData = {
 
 export type UpdateSystemData = Partial<SystemData>;
 
+export type UpdateSystemConfigData = {
+  allowScreen: boolean;
+};
+
 /**
  * ✅ Obtiene todos los sistemas y precarga las configuraciones asociadas.
  */
@@ -84,6 +88,23 @@ export function addConfigToSystem(systemId: number, configId: number) {
   return apiFetch<SystemWithConfigs>(
     `/api/systems/${systemId}/configs/${configId}`,
     { method: 'POST' }
+  );
+}
+
+/**
+ * Actualiza opciones de la relación System ⇄ Config.
+ */
+export function updateSystemConfig(
+  systemId: number,
+  configId: number,
+  data: UpdateSystemConfigData
+) {
+  return apiFetch<SystemWithConfigs>(
+    `/api/systems/${systemId}/configs/${configId}`,
+    {
+      method: 'PATCH',
+      body: data,
+    }
   );
 }
 
