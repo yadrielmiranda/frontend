@@ -1,4 +1,3 @@
-// src/components/types.ts
 import type {
   CreatePieceData,
   EstimateWithRelations,
@@ -10,27 +9,22 @@ import type {
   Coating,
 } from "@/lib/types";
 
-// --- Tipos para el Formulario ---
 export interface PieceFormValues extends CreatePieceData {
   id?: number;
 
-  // métricas
   rate: number;
-  price: number; // unit (your price)
-  subtotal: number; // line (your price * qty)
+  price: number;
+  subtotal: number;
 
-  // dealer
-  dealerMarkup: number; // % en el form
-  total: number; // line customer total (customerSubtotal)
-  netProfitD: number; // line dealer profit (pre-tax)
-  customerPrice: number; // unit customer price
-  customerSubtotal: number; // line customer subtotal
+  dealerMarkup: number;
+  total: number;
+  netProfitD: number;
+  customerPrice: number;
+  customerSubtotal: number;
 
-  // presiones
   dpPosPsf: number | null;
   dpNegPsf: number | null;
 
-  // dimensiones opcionales
   heightLeft?: string | undefined;
   heightRight?: string | undefined;
   legHeight?: string | undefined;
@@ -49,11 +43,10 @@ export interface EstimateFormValues {
 
   generalDealerMarkup: number;
   defaultFrameColorId: number;
-  customerTaxRate: number; // % en el form
+  customerTaxRate: number;
   pieces: PieceFormValues[];
 }
 
-// --- Props del Componente ---
 export interface EstimateFormProps {
   estimate?: EstimateWithRelations;
   taxRate: number;

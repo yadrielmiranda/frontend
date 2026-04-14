@@ -35,6 +35,7 @@ import type {
   Coating,
   Config,
   CalculatePiecePayload,
+  CreatePieceMuntinData,
 } from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
@@ -53,6 +54,62 @@ type SystemConfigLink = {
   allowScreen: boolean;
   config: Config;
 };
+
+const DEFAULT_FULL_VIEW_PATTERN_ID = 1;
+const DEFAULT_FULL_VIEW_PATTERN_LABEL = "Full View";
+
+function getPanelCodesFromConfig(conf?: string | null): string[] {
+  if (!conf) return ["P1"];
+
+  const cleaned = conf
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .trim();
+
+  if (!cleaned) return ["P1"];
+
+  return cleaned.split("").map((char) => char);
+}
+
+function buildDefaultMuntin(conf?: string | null): CreatePieceMuntinData {
+  const panelCodes = getPanelCodesFromConfig(conf);
+
+  return {
+    idPattern: DEFAULT_FULL_VIEW_PATTERN_ID,
+    idType: null,
+    panels: panelCodes.map((panelCode, index) => ({
+      panelIndex: index + 1,
+      panelCode,
+      horizontalLites: 1,
+      verticalLites: 1,
+    })),
+  };
+}
+
+function syncMuntinWithConfig(
+  existing: CreatePieceMuntinData | null | undefined,
+  conf?: string | null,
+): CreatePieceMuntinData {
+  const fallback = buildDefaultMuntin(conf);
+  if (!existing) return fallback;
+
+  return {
+    idPattern: existing.idPattern || DEFAULT_FULL_VIEW_PATTERN_ID,
+    idType: existing.idType ?? null,
+    panels: fallback.panels.map((panel) => {
+      const prev = existing.panels?.find(
+        (p) => p.panelIndex === panel.panelIndex,
+      );
+
+      return {
+        panelIndex: panel.panelIndex,
+        panelCode: panel.panelCode,
+        horizontalLites: prev?.horizontalLites ?? 1,
+        verticalLites: prev?.verticalLites ?? 1,
+      };
+    }),
+  };
+}
 
 export interface PieceFormProps {
   initialData: PieceFormValues;
@@ -94,6 +151,8 @@ export function PieceForm({
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
 
+      muntin: initialData.muntin ?? null,
+
       rate: initialData.rate ?? 0,
       price: initialData.price ?? 0,
       subtotal: initialData.subtotal ?? 0,
@@ -108,7 +167,7 @@ export function PieceForm({
   });
 
   const [isLocked, setIsLocked] = useState(
-    !!initialData.price && initialData.price > 0
+    !!initialData.price && initialData.price > 0,
   );
 
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(
@@ -118,11 +177,12 @@ export function PieceForm({
         "item-size",
         "item-glass",
         "item-options",
+        "item-muntin",
         "item-details",
       ];
       if (initialData.price > 0) return [...defaultItems, "item-results"];
       return defaultItems;
-    }
+    },
   );
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
@@ -147,7 +207,7 @@ export function PieceForm({
   const availableBrands = useMemo(() => {
     if (!idProd) return [];
     const selectedProduct = props.productsWithBrands.find(
-      (p) => p.id === Number(idProd)
+      (p) => p.id === Number(idProd),
     );
     return selectedProduct
       ? selectedProduct.brandProducts.map((bp) => bp.brand)
@@ -159,18 +219,18 @@ export function PieceForm({
     return props.systemsWithConfigs.filter(
       (system) =>
         system.idProduct === Number(idProd) &&
-        system.idBrand === Number(brandId)
+        system.idBrand === Number(brandId),
     );
   }, [idProd, brandId, props.systemsWithConfigs]);
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     if (!systemId) return [];
     const selectedSystem = props.systemsWithConfigs.find(
-      (s) => s.id === Number(systemId)
+      (s) => s.id === Number(systemId),
     );
 
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
-      (sc) => !!sc?.config
+      (sc) => !!sc?.config,
     );
   }, [systemId, props.systemsWithConfigs]);
 
@@ -214,8 +274,16 @@ export function PieceForm({
       if (getValues("screen")) {
         setValue("screen", false, { shouldDirty: true });
       }
+      setValue("muntin", null, { shouldDirty: false });
       return;
     }
+
+    const syncedMuntin = syncMuntinWithConfig(
+      getValues("muntin"),
+      selectedConfig?.conf,
+    );
+
+    setValue("muntin", syncedMuntin, { shouldDirty: false });
 
     if (previousConfigIdRef.current === currentConfigId) {
       if (!screenAllowed && getValues("screen")) {
@@ -226,7 +294,36 @@ export function PieceForm({
 
     previousConfigIdRef.current = currentConfigId;
     setValue("screen", screenAllowed, { shouldDirty: true });
-  }, [idConf, screenAllowed, getValues, setValue]);
+  }, [idConf, selectedConfig?.conf, screenAllowed, getValues, setValue]);
+
+  const handleMuntinPanelChange = (
+    panelIndex: number,
+    axis: "horizontalLites" | "verticalLites",
+    value: string,
+  ) => {
+    const numericValue = Math.max(1, Number(value || 1));
+
+    const current = getValues("muntin");
+    if (!current) return;
+
+    const nextPanels = current.panels.map((panel) =>
+      panel.panelIndex === panelIndex
+        ? {
+            ...panel,
+            [axis]: numericValue,
+          }
+        : panel,
+    );
+
+    setValue(
+      "muntin",
+      {
+        ...current,
+        panels: nextPanels,
+      },
+      { shouldDirty: true },
+    );
+  };
 
   const handleCalculate = async () => {
     try {
@@ -244,8 +341,10 @@ export function PieceForm({
 
       if (selectedConfig?.requiresWidth) fieldsToValidate.push("width");
       if (selectedConfig?.requiresHeight) fieldsToValidate.push("height");
-      if (selectedConfig?.requiresHeightLeft) fieldsToValidate.push("heightLeft");
-      if (selectedConfig?.requiresHeightRight) fieldsToValidate.push("heightRight");
+      if (selectedConfig?.requiresHeightLeft)
+        fieldsToValidate.push("heightLeft");
+      if (selectedConfig?.requiresHeightRight)
+        fieldsToValidate.push("heightRight");
       if (selectedConfig?.requiresLegHeight) fieldsToValidate.push("legHeight");
 
       const isValid = await trigger(fieldsToValidate);
@@ -274,7 +373,7 @@ export function PieceForm({
         ? normalizeInchesToEighthStep(
             currentValues.heightLeft,
             "Height Left",
-            1
+            1,
           )
         : undefined;
 
@@ -282,7 +381,7 @@ export function PieceForm({
         ? normalizeInchesToEighthStep(
             currentValues.heightRight,
             "Height Right",
-            1
+            1,
           )
         : undefined;
 
@@ -321,7 +420,7 @@ export function PieceForm({
         privacy: currentValues.privacy,
         idCoat: Number(currentValues.idCoat),
         screen: currentValues.screen,
-        muntin: currentValues.muntin,
+        muntin: currentValues.muntin ?? null,
         qty: Number(currentValues.qty),
         dealerMarkup: props.isDealer
           ? Number(currentValues.dealerMarkup || 0)
@@ -342,7 +441,7 @@ export function PieceForm({
       if (!precheck.ok) {
         if (precheck.reason === "NOT_RATED") {
           toast.error(
-            "No hay política de dimensiones para esta combinación (System + Config + Crystal)."
+            "No hay política de dimensiones para esta combinación (System + Config + Crystal).",
           );
         } else if (precheck.reason === "OVERSIZE") {
           const belowMin = precheck.belowMinimum;
@@ -358,7 +457,7 @@ export function PieceForm({
             const sW = minW != null ? `${minW}″` : "—";
             const sH = minH != null ? `${minH}″` : "—";
             toast.error(
-              `Revise las dimensiones. Tamaño mínimo permitido: W=${sW}, H=${sH}.`
+              `Revise las dimensiones. Tamaño mínimo permitido: W=${sW}, H=${sH}.`,
             );
           } else {
             const maxW = precheck.suggestion?.maxWidthIn ?? null;
@@ -366,7 +465,7 @@ export function PieceForm({
             const sW = maxW != null ? `${maxW}″` : "—";
             const sH = maxH != null ? `${maxH}″` : "—";
             toast.error(
-              `Revise las dimensiones. Tamaño máximo permitido: W=${sW}, H=${sH}.`
+              `Revise las dimensiones. Tamaño máximo permitido: W=${sW}, H=${sH}.`,
             );
           }
         } else {
@@ -381,10 +480,10 @@ export function PieceForm({
       const lineSubtotal = roundMoney(Number(calculated.subtotal) || 0);
       const dealerProfitLine = roundMoney(Number(calculated.netProfitD) || 0);
       const customerSubtotalLine = roundMoney(
-        Number(calculated.customerSubtotal) || 0
+        Number(calculated.customerSubtotal) || 0,
       );
       const customerUnitPrice = roundMoney(
-        Number(calculated.customerPrice) || 0
+        Number(calculated.customerPrice) || 0,
       );
 
       setValue("price", unitPrice);
@@ -427,7 +526,7 @@ export function PieceForm({
   const handleUnlock = () => {
     setIsLocked(false);
     setActiveAccordionItems((prev) =>
-      prev.filter((item) => item !== "item-results")
+      prev.filter((item) => item !== "item-results"),
     );
   };
 
@@ -457,6 +556,17 @@ export function PieceForm({
     pieceValues.dpPosPsf == null ? "—" : formatPsf(pieceValues.dpPosPsf, 1);
   const dpMinusText =
     pieceValues.dpNegPsf == null ? "—" : formatPsf(pieceValues.dpNegPsf, 1);
+
+  const currentMuntin = pieceValues.muntin ?? null;
+
+  const currentMuntinPanels = (currentMuntin?.panels ?? []).map(
+    (panel, index) => ({
+      panelIndex: panel.panelIndex ?? index + 1,
+      panelCode: panel.panelCode ?? `P${index + 1}`,
+      horizontalLites: panel.horizontalLites ?? 1,
+      verticalLites: panel.verticalLites ?? 1,
+    }),
+  );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -680,7 +790,7 @@ export function PieceForm({
                             const v = normalizeInchesToEighthStep(
                               raw,
                               "Width",
-                              1
+                              1,
                             );
                             setValue("width", String(v), {
                               shouldValidate: true,
@@ -717,7 +827,7 @@ export function PieceForm({
                             const v = normalizeInchesToEighthStep(
                               raw,
                               "Height",
-                              1
+                              1,
                             );
                             setValue("height", String(v), {
                               shouldValidate: true,
@@ -754,7 +864,7 @@ export function PieceForm({
                             const v = normalizeInchesToEighthStep(
                               raw,
                               "Height Left",
-                              1
+                              1,
                             );
                             setValue("heightLeft", String(v), {
                               shouldValidate: true,
@@ -791,7 +901,7 @@ export function PieceForm({
                             const v = normalizeInchesToEighthStep(
                               raw,
                               "Height Right",
-                              1
+                              1,
                             );
                             setValue("heightRight", String(v), {
                               shouldValidate: true,
@@ -828,7 +938,7 @@ export function PieceForm({
                             const v = normalizeInchesToEighthStep(
                               raw,
                               "Leg Height",
-                              1
+                              1,
                             );
                             setValue("legHeight", String(v), {
                               shouldValidate: true,
@@ -1043,33 +1153,106 @@ export function PieceForm({
 
                     {safeConfigId > 0 && screenAllowed && (
                       <p className="text-xs text-muted-foreground">
-                        Screen is allowed for this configuration and is selected by default.
+                        Screen is allowed for this configuration and is selected
+                        by default.
                       </p>
                     )}
                   </div>
-
-                  <Controller
-                    name="muntin"
-                    control={control}
-                    render={({ field }) => (
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id={`muntin-${index}`}
-                          checked={!!field.value}
-                          onCheckedChange={(v) => field.onChange(Boolean(v))}
-                          disabled={isLocked}
-                          className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                        />
-                        <Label
-                          htmlFor={`muntin-${index}`}
-                          className="cursor-pointer select-none text-sm"
-                        >
-                          Muntin
-                        </Label>
-                      </div>
-                    )}
-                  />
                 </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-muntin">
+              <AccordionTrigger className="font-semibold text-base">
+                Muntin
+              </AccordionTrigger>
+              <AccordionContent>
+                {!selectedConfig ? (
+                  <p className="text-sm text-muted-foreground pt-2">
+                    Select a configuration first to generate the muntin layout.
+                  </p>
+                ) : !currentMuntin ? (
+                  <p className="text-sm text-muted-foreground pt-2">
+                    Muntin will be initialized automatically for this
+                    configuration.
+                  </p>
+                ) : (
+                  <div
+                    className={`space-y-4 pt-2 ${isLocked ? "opacity-70" : ""}`}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Pattern</Label>
+                        <Input
+                          value={DEFAULT_FULL_VIEW_PATTERN_LABEL}
+                          disabled
+                          readOnly
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Default pattern for now.
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label>Total Panels</Label>
+                        <Input
+                          value={String(currentMuntinPanels.length)}
+                          disabled
+                          readOnly
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border overflow-hidden">
+                      <div className="grid grid-cols-3 bg-muted/50 px-4 py-2 text-sm font-medium">
+                        <div>Panel</div>
+                        <div>Horizontal</div>
+                        <div>Vertical</div>
+                      </div>
+
+                      <div className="divide-y">
+                        {currentMuntinPanels.map((panel) => (
+                          <div
+                            key={panel.panelIndex}
+                            className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                          >
+                            <div className="font-medium">
+                              Panel {panel.panelIndex} ({panel.panelCode})
+                            </div>
+
+                            <Input
+                              type="number"
+                              min={1}
+                              disabled={isLocked}
+                              value={panel.horizontalLites}
+                              onChange={(e) =>
+                                handleMuntinPanelChange(
+                                  panel.panelIndex,
+                                  "horizontalLites",
+                                  e.target.value,
+                                )
+                              }
+                            />
+
+                            <Input
+                              type="number"
+                              min={1}
+                              disabled={isLocked}
+                              value={panel.verticalLites}
+                              onChange={(e) =>
+                                handleMuntinPanelChange(
+                                  panel.panelIndex,
+                                  "verticalLites",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </AccordionContent>
             </AccordionItem>
 
@@ -1085,10 +1268,7 @@ export function PieceForm({
                 >
                   <div>
                     <Label>Mark</Label>
-                    <Input
-                      disabled={isLocked}
-                      {...register("mark")}
-                    />
+                    <Input disabled={isLocked} {...register("mark")} />
                     {errors.mark && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.mark.message}

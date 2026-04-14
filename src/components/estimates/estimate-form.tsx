@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -31,7 +31,6 @@ import { PiecesDealerTable } from "./pieces-dealer-table";
 import { PiecesClientList } from "./pieces-client-list";
 import { PieceModal } from "./piece-modal";
 import { CustomerDetailsCard } from "./customer-details-card";
-import { useEffect } from "react";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 import { canSetCustomerOnEstimate, isDealerRole } from "@/lib/rbac";
@@ -50,11 +49,8 @@ export function EstimateForm({
   const { user } = useAuth();
   const role = user?.role?.name ?? null;
 
-  //  UI permission for customer section
   const showCustomerSection = canSetCustomerOnEstimate(role);
-  
   const isDealer = isDealerRole(role);
-
   const isEditMode = !!estimate;
 
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
@@ -97,6 +93,19 @@ export function EstimateForm({
             heightLeft: p.heightLeft ?? "",
             heightRight: p.heightRight ?? "",
             legHeight: p.legHeight ?? "",
+
+            muntin: p.pieceMuntin
+              ? {
+                  idPattern: p.pieceMuntin.patternId,
+                  idType: p.pieceMuntin.typeId ?? null,
+                  panels: (p.pieceMuntin.panels ?? []).map((panel) => ({
+                    panelIndex: panel.panelIndex,
+                    panelCode: panel.panelCode,
+                    horizontalLites: panel.horizontalLites,
+                    verticalLites: panel.verticalLites,
+                  })),
+                }
+              : null,
 
             rate: Number(p.rate) || 0,
             price: Number(p.price) || 0,
@@ -167,9 +176,6 @@ export function EstimateForm({
       currency: "USD",
     }).format(amount);
 
-  // -------------------------------
-  // Default frame color handlers
-  // -------------------------------
   const handleDefaultColorChange = (colorIdStr: string) => {
     const newColorId = Number(colorIdStr);
     const currentColorId = getValues("defaultFrameColorId");
@@ -212,9 +218,6 @@ export function EstimateForm({
     setPendingColorId(null);
   };
 
-  // -------------------------------
-  // General markup
-  // -------------------------------
   const handleApplyGeneralMarkup = () => {
     if (!isDealer) return;
 
@@ -247,9 +250,6 @@ export function EstimateForm({
     toast.success("General dealer markup applied to all pieces.");
   };
 
-  // -------------------------------
-  // Summary
-  // -------------------------------
   const summary = useMemo(() => {
     if (!watchedPieces || watchedPieces.length === 0) {
       return {
@@ -319,9 +319,6 @@ export function EstimateForm({
     };
   }, [watchedPieces, productsWithBrands, taxRate, customerTaxRatePercent]);
 
-  // -------------------------------
-  // Piece handlers
-  // -------------------------------
   const handleAddNewPiece = () => {
     setEditingPieceIndex(null);
     setIsPieceModalOpen(true);
@@ -362,9 +359,6 @@ export function EstimateForm({
     setEditingPieceIndex(null);
   };
 
-  // -------------------------------
-  // Submit
-  // -------------------------------
   const onSubmit = handleSubmit(async (data) => {
     try {
       const customerTaxRateDec = isDealer
@@ -395,14 +389,13 @@ export function EstimateForm({
           privacy: p.privacy,
           idCoat: Number(p.idCoat),
           screen: p.screen,
-          muntin: p.muntin,
+          muntin: p.muntin ?? null,
           qty: Number(p.qty),
 
           dealerMarkup: isDealer ? Number(p.dealerMarkup || 0) : 0,
         };
       };
 
-      // customer header is ONLY included when role can set customer
       type CustomerFields = Pick<
         CreateEstimateData,
         | "customerFirstName"
@@ -432,7 +425,7 @@ export function EstimateForm({
         const updateData: UpdateEstimateData = {
           name: data.name,
           customerTaxRate: customerTaxRateDec,
-          ...customerHeader, //  only adds when allowed
+          ...customerHeader,
           pieces: data.pieces.map(mapPiecesForApi),
         };
 
@@ -442,14 +435,12 @@ export function EstimateForm({
         const createData: CreateEstimateData = {
           name: data.name,
           customerTaxRate: customerTaxRateDec,
-          ...customerHeader, //  only adds when allowed
+          ...customerHeader,
           pieces: data.pieces.map((p) => {
             const { id, ...rest } = mapPiecesForApi(p);
             return rest;
           }),
         };
-
-        console.log("CREATE DATA =>", createData);
 
         await createEstimate(createData);
         toast.success("Estimate created successfully!");
@@ -467,50 +458,50 @@ export function EstimateForm({
   const isSubmitDisabled = !isDirty || showLoadingState || fields.length === 0;
 
   const editingPieceData = useMemo<PieceFormValues>(() => {
-  if (
-    editingPieceIndex !== null &&
-    watchedPieces &&
-    watchedPieces[editingPieceIndex]
-  ) {
-    return getValues(`pieces.${editingPieceIndex}`);
-  }
+    if (
+      editingPieceIndex !== null &&
+      watchedPieces &&
+      watchedPieces[editingPieceIndex]
+    ) {
+      return getValues(`pieces.${editingPieceIndex}`);
+    }
 
-  return {
-    mark: "",
-    idProd: 0,
-    idBrand: 0,
-    idSyst: 0,
-    idConf: 0,
-    idFC: Number(defaultFrameColorId) || 0,
+    return {
+      mark: "",
+      idProd: 0,
+      idBrand: 0,
+      idSyst: 0,
+      idConf: 0,
+      idFC: Number(defaultFrameColorId) || 0,
 
-    width: "",
-    height: "",
-    heightLeft: "",
-    heightRight: "",
-    legHeight: "",
+      width: "",
+      height: "",
+      heightLeft: "",
+      heightRight: "",
+      legHeight: "",
 
-    idCryst: 0,
-    idTint: 0,
-    privacy: false,
-    idCoat: 0,
-    screen: false,
-    muntin: false,
-    qty: 1,
+      idCryst: 0,
+      idTint: 0,
+      privacy: false,
+      idCoat: 0,
+      screen: false,
+      muntin: null,
+      qty: 1,
 
-    rate: 0,
-    price: 0,
-    subtotal: 0,
+      rate: 0,
+      price: 0,
+      subtotal: 0,
 
-    dealerMarkup: getValues("generalDealerMarkup") || 0,
-    total: 0,
-    netProfitD: 0,
-    customerPrice: 0,
-    customerSubtotal: 0,
+      dealerMarkup: getValues("generalDealerMarkup") || 0,
+      total: 0,
+      netProfitD: 0,
+      customerPrice: 0,
+      customerSubtotal: 0,
 
-    dpPosPsf: null,
-    dpNegPsf: null,
-  };
-}, [editingPieceIndex, getValues, watchedPieces, defaultFrameColorId]);
+      dpPosPsf: null,
+      dpNegPsf: null,
+    };
+  }, [editingPieceIndex, getValues, watchedPieces, defaultFrameColorId]);
 
   const modalTitle =
     editingPieceIndex !== null
@@ -523,7 +514,6 @@ export function EstimateForm({
   return (
     <>
       <form onSubmit={onSubmit} className="space-y-8">
-        {/* Estimate Details */}
         <div className="p-6 border rounded-lg bg-slate-50">
           <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
 
@@ -579,7 +569,6 @@ export function EstimateForm({
           />
         </div>
 
-        {/* Pieces */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold">Pieces</h3>
@@ -613,7 +602,6 @@ export function EstimateForm({
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-4 mt-8">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
@@ -631,7 +619,6 @@ export function EstimateForm({
         </div>
       </form>
 
-      {/* Piece Modal */}
       <PieceModal
         open={isPieceModalOpen}
         onOpenChange={setIsPieceModalOpen}
@@ -650,7 +637,6 @@ export function EstimateForm({
         isDealer={isDealer}
       />
 
-      {/* AlertDialog color */}
       <ColorUpdateAlertDialog
         open={showColorUpdateAlert}
         onOpenChange={setShowColorUpdateAlert}

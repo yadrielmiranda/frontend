@@ -3,7 +3,7 @@
 export interface Role {
   id: number;
   name: string;
-  markup: number; // Campo 'markup' añadido para reflejar el schema del backend
+  markup: number;
 }
 
 export interface User {
@@ -24,7 +24,6 @@ export interface User {
   idRole: number;
   role: Role;
 }
-
 
 export interface Brand {
   id: number;
@@ -82,6 +81,36 @@ export interface Coating {
   name: string;
 }
 
+export interface MuntinPattern {
+  id: number;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface MuntinType {
+  id: number;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface PieceMuntinPanel {
+  id?: number;
+  panelIndex: number;
+  panelCode: string;
+  horizontalLites: number;
+  verticalLites: number;
+}
+
+export interface PieceMuntin {
+  id?: number;
+  patternId: number;
+  pattern?: MuntinPattern;
+  typeId?: number | null;
+  type?: MuntinType | null;
+  totalLites?: number | null;
+  panels: PieceMuntinPanel[];
+}
+
 export interface Piece {
   id: number;
   idEst: number;
@@ -103,7 +132,6 @@ export interface Piece {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
-  muntin: boolean;
   qty: number;
 
   rate: number;
@@ -118,6 +146,7 @@ export interface Piece {
   dpPosPsf?: number | null;
   dpNegPsf?: number | null;
 
+  pieceMuntin?: PieceMuntin | null;
 }
 
 export interface EstimateStatus {
@@ -167,16 +196,12 @@ export interface Order {
   date: string;
 
   units: number;
-
-  // amount = total con taxes incluidos (lo que paga el usuario)
   amount: number;
 
-  // snapshot financiero (sin taxes)
-  price: number;     // precio total (sin taxes)
-  rate: number;      // costo estimado total (fábrica estimada)
-  netProfit: number; // price - rate (ganancia estimada)
+  price: number;
+  rate: number;
+  netProfit: number;
 
-  // datos reales (después)
   poNumber?: string | null;
   rateReal?: number | null;
   netProfitReal?: number | null;
@@ -191,7 +216,6 @@ export interface Order {
   updatedAt?: string;
 }
 
-
 // --- NUEVOS TIPOS PARA REGLAS DE PRECIOS ---
 
 export interface PricingRule {
@@ -204,7 +228,6 @@ export interface PricingRule {
   costoA: number;
   costoB: number;
   costoC: number;
-  // Propiedades de relación para mostrar en la tabla de datos
   brand?: { name: string };
   product?: { name: string };
   system?: { name: string };
@@ -224,8 +247,6 @@ export interface PieceWithRelations extends Piece {
   tin: Tint;
   coat: Coating;
 }
-
-
 
 export interface SysConf {
   idSystem: number;
@@ -251,15 +272,27 @@ export type EstimateWithRelations = Estimate & {
 };
 
 export type OrderWithRelations = Order & {
-  estimate: Estimate; // La orden incluye los datos básicos del estimado
+  estimate: Estimate;
   status: OrderStatus;
   user: User;
 };
 
-
 // --- Tipos para Creación y Actualización (DTOs del Frontend) ---
 
-export type CreateProductData = Omit<Product, 'id'>;
+export type CreateProductData = Omit<Product, "id">;
+
+export interface CreatePieceMuntinPanelData {
+  panelIndex: number;
+  panelCode: string;
+  horizontalLites: number;
+  verticalLites: number;
+}
+
+export interface CreatePieceMuntinData {
+  idPattern: number;
+  idType?: number | null;
+  panels: CreatePieceMuntinPanelData[];
+}
 
 export interface CreatePieceData {
   mark: string;
@@ -278,39 +311,40 @@ export interface CreatePieceData {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
-  muntin: boolean;
+  muntin?: CreatePieceMuntinData | null;
   qty: number;
-  dealerMarkup?: number; // porcentaje (10 = 10%)
+  dealerMarkup?: number;
 }
 
 export type CalculatePiecePayload = CreatePieceData;
 
-export interface CreateEstimateData extends Omit<Estimate,
-  | 'id'
-  | 'number'
-  | 'date'
-  | 'units'
-  | 'rateT'
-  | 'priceT'
-  | 'netProfit'
-  | 'taxRate'
-  | 'taxAmount'
-  | 'totalPayable'
-  | 'customerPriceT'
-  | 'customerTaxRate'
-  | 'customerTaxAmount'
-  | 'customerTotalPayable'
-  | 'netProfitD'
-  | 'statusId'
-  | 'idUser'
-  | 'order'
-> {
+export interface CreateEstimateData
+  extends Omit<
+    Estimate,
+    | "id"
+    | "number"
+    | "date"
+    | "units"
+    | "rateT"
+    | "priceT"
+    | "netProfit"
+    | "taxRate"
+    | "taxAmount"
+    | "totalPayable"
+    | "customerPriceT"
+    | "customerTaxRate"
+    | "customerTaxAmount"
+    | "customerTotalPayable"
+    | "netProfitD"
+    | "statusId"
+    | "idUser"
+    | "order"
+  > {
   pieces: CreatePieceData[];
   customerTaxRate?: number;
 }
 
-
-export type UpdateEstimateData = Partial<Omit<CreateEstimateData, 'pieces'>> & {
+export type UpdateEstimateData = Partial<Omit<CreateEstimateData, "pieces">> & {
   pieces?: (CreatePieceData & { id?: number })[];
 };
 
@@ -335,7 +369,10 @@ export type UpdateUserDto = Partial<CreateUserDto> & {
   markupOverride?: number | null;
 };
 
-export type CreatePricingRuleData = Omit<PricingRule, 'id' | 'brand' | 'product' | 'system' | 'config' | 'crystal'>;
+export type CreatePricingRuleData = Omit<
+  PricingRule,
+  "id" | "brand" | "product" | "system" | "config" | "crystal"
+>;
 export type UpdatePricingRuleData = Partial<CreatePricingRuleData>;
 
 export interface UpdateOrderData {
@@ -343,7 +380,6 @@ export interface UpdateOrderData {
   poNumber?: string | null;
   rateReal?: number | null;
 }
-
 
 export interface Notification {
   id: number;
@@ -391,7 +427,3 @@ export interface Branding {
   createdAt: string;
   updatedAt: string;
 }
-
-
-
-
