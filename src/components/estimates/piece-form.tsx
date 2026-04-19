@@ -35,7 +35,10 @@ import type {
   Coating,
   Config,
   CalculatePiecePayload,
-  CreatePieceMuntinData,
+  PieceMuntin,
+  MuntinPattern,
+  MuntinType,
+  ConfigMuntinLayoutItem,
 } from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
@@ -55,59 +58,59 @@ type SystemConfigLink = {
   config: Config;
 };
 
-const DEFAULT_FULL_VIEW_PATTERN_ID = 1;
-const DEFAULT_FULL_VIEW_PATTERN_LABEL = "Full View";
+function buildDefaultPanelsFromLayout(
+  layout: ConfigMuntinLayoutItem[] | null | undefined,
+  existingPanels?: PieceMuntin["panels"] | null,
+): PieceMuntin["panels"] {
+  if (!Array.isArray(layout) || layout.length === 0) return [];
 
-function getPanelCodesFromConfig(conf?: string | null): string[] {
-  if (!conf) return ["P1"];
+  return layout.map((layoutPanel) => {
+    const existing = existingPanels?.find(
+      (p) => p.panelIndex === layoutPanel.panelIndex,
+    );
 
-  const cleaned = conf
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "")
-    .trim();
-
-  if (!cleaned) return ["P1"];
-
-  return cleaned.split("").map((char) => char);
+    return {
+      panelIndex: layoutPanel.panelIndex,
+      panelLabel: layoutPanel.panelLabel,
+      panelCode: layoutPanel.panelCode,
+      horizontalLites: Math.max(1, Number(existing?.horizontalLites ?? 1)),
+      verticalLites: Math.max(1, Number(existing?.verticalLites ?? 1)),
+    };
+  });
 }
 
-function buildDefaultMuntin(conf?: string | null): CreatePieceMuntinData {
-  const panelCodes = getPanelCodesFromConfig(conf);
+function buildDefaultMuntinFromConfig(
+  config: Config | null | undefined,
+  fullViewPatternId: number,
+  existing?: PieceMuntin | null,
+): PieceMuntin | null {
+  if (!config || !fullViewPatternId) return null;
 
   return {
-    idPattern: DEFAULT_FULL_VIEW_PATTERN_ID,
-    idType: null,
-    panels: panelCodes.map((panelCode, index) => ({
-      panelIndex: index + 1,
-      panelCode,
-      horizontalLites: 1,
-      verticalLites: 1,
-    })),
+    idPattern: existing?.idPattern ?? fullViewPatternId,
+    idType: existing?.idType ?? null,
+    panels: buildDefaultPanelsFromLayout(config.muntinLayout, existing?.panels),
   };
 }
 
-function syncMuntinWithConfig(
-  existing: CreatePieceMuntinData | null | undefined,
-  conf?: string | null,
-): CreatePieceMuntinData {
-  const fallback = buildDefaultMuntin(conf);
-  if (!existing) return fallback;
+function syncMuntinWithConfigLayout(
+  existing: PieceMuntin | null | undefined,
+  config: Config | null | undefined,
+  fullViewPatternId: number,
+): PieceMuntin | null {
+  if (!config || !fullViewPatternId) return null;
+
+  const fallback = buildDefaultMuntinFromConfig(
+    config,
+    fullViewPatternId,
+    existing,
+  );
+  if (!fallback) return null;
 
   return {
-    idPattern: existing.idPattern || DEFAULT_FULL_VIEW_PATTERN_ID,
-    idType: existing.idType ?? null,
-    panels: fallback.panels.map((panel) => {
-      const prev = existing.panels?.find(
-        (p) => p.panelIndex === panel.panelIndex,
-      );
-
-      return {
-        panelIndex: panel.panelIndex,
-        panelCode: panel.panelCode,
-        horizontalLites: prev?.horizontalLites ?? 1,
-        verticalLites: prev?.verticalLites ?? 1,
-      };
-    }),
+    idPattern: existing?.idPattern || fullViewPatternId,
+    idType: existing?.idType ?? null,
+    panels: buildDefaultPanelsFromLayout(config.muntinLayout, existing?.panels),
   };
 }
 
@@ -123,6 +126,8 @@ export interface PieceFormProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  muntinPatterns: MuntinPattern[];
+  muntinTypes: MuntinType[];
 
   isDealer: boolean;
 }
@@ -134,6 +139,21 @@ export function PieceForm({
   index,
   ...props
 }: PieceFormProps) {
+  const activeMuntinPatterns = useMemo(
+    () => props.muntinPatterns.filter((p) => p.isActive),
+    [props.muntinPatterns],
+  );
+
+  const activeMuntinTypes = useMemo(
+    () => props.muntinTypes.filter((t) => t.isActive),
+    [props.muntinTypes],
+  );
+
+  const defaultMuntinPattern = useMemo(
+    () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
+    [activeMuntinPatterns],
+  );
+
   const {
     control,
     register,
@@ -254,6 +274,14 @@ export function PieceForm({
 
   const screenAllowed = selectedSysConf?.allowScreen ?? false;
 
+  const selectedPattern = useMemo(() => {
+    const patternId = Number(pieceValues.muntin?.idPattern || 0);
+    if (!patternId) return null;
+    return activeMuntinPatterns.find((p) => p.id === patternId) ?? null;
+  }, [pieceValues.muntin?.idPattern, activeMuntinPatterns]);
+
+  const patternRequiresLites = selectedPattern?.requiresLites ?? false;
+
   const { configuration } = useMemo(() => {
     return { configuration: selectedConfig?.conf };
   }, [selectedConfig]);
@@ -274,13 +302,17 @@ export function PieceForm({
       if (getValues("screen")) {
         setValue("screen", false, { shouldDirty: true });
       }
+
       setValue("muntin", null, { shouldDirty: false });
       return;
     }
 
-    const syncedMuntin = syncMuntinWithConfig(
+    if (!selectedConfig || !defaultMuntinPattern?.id) return;
+
+    const syncedMuntin = syncMuntinWithConfigLayout(
       getValues("muntin"),
-      selectedConfig?.conf,
+      selectedConfig,
+      defaultMuntinPattern.id,
     );
 
     setValue("muntin", syncedMuntin, { shouldDirty: false });
@@ -294,7 +326,55 @@ export function PieceForm({
 
     previousConfigIdRef.current = currentConfigId;
     setValue("screen", screenAllowed, { shouldDirty: true });
-  }, [idConf, selectedConfig?.conf, screenAllowed, getValues, setValue]);
+  }, [
+    idConf,
+    selectedConfig,
+    screenAllowed,
+    defaultMuntinPattern?.id,
+    getValues,
+    setValue,
+  ]);
+
+  const handleMuntinPatternChange = (patternIdValue: string) => {
+    const patternId = Number(patternIdValue);
+    const pattern = activeMuntinPatterns.find((p) => p.id === patternId);
+
+    if (!pattern) return;
+
+    const current = getValues("muntin");
+    const nextPanels = pattern.requiresLites
+      ? buildDefaultPanelsFromLayout(
+          selectedConfig?.muntinLayout,
+          current?.panels,
+        )
+      : [];
+
+    setValue(
+      "muntin",
+      {
+        idPattern: pattern.id,
+        idType: current?.idType ?? null,
+        panels: nextPanels,
+      },
+      { shouldDirty: true },
+    );
+  };
+
+  const handleMuntinTypeChange = (typeIdValue: string) => {
+    const typeId = Number(typeIdValue);
+    const current = getValues("muntin");
+
+    if (!current) return;
+
+    setValue(
+      "muntin",
+      {
+        ...current,
+        idType: typeId > 0 ? typeId : null,
+      },
+      { shouldDirty: true },
+    );
+  };
 
   const handleMuntinPanelChange = (
     panelIndex: number,
@@ -491,8 +571,8 @@ export function PieceForm({
       setValue("netProfitD", dealerProfitLine);
       setValue("customerSubtotal", customerSubtotalLine);
       setValue("customerPrice", customerUnitPrice);
-
       setValue("total", customerSubtotalLine);
+      setValue("muntin", calculated.muntin ?? null, { shouldDirty: true });
 
       const dpPos =
         calculated.dpPosPsf === null || calculated.dpPosPsf === undefined
@@ -559,13 +639,16 @@ export function PieceForm({
 
   const currentMuntin = pieceValues.muntin ?? null;
 
-  const currentMuntinPanels = (currentMuntin?.panels ?? []).map(
-    (panel, index) => ({
-      panelIndex: panel.panelIndex ?? index + 1,
-      panelCode: panel.panelCode ?? `P${index + 1}`,
-      horizontalLites: panel.horizontalLites ?? 1,
-      verticalLites: panel.verticalLites ?? 1,
-    }),
+  const currentMuntinPanels = useMemo(
+    () =>
+      (currentMuntin?.panels ?? []).map((panel, index) => ({
+        panelIndex: panel.panelIndex ?? index + 1,
+        panelLabel: panel.panelLabel ?? `Panel ${index + 1}`,
+        panelCode: panel.panelCode,
+        horizontalLites: panel.horizontalLites ?? 1,
+        verticalLites: panel.verticalLites ?? 1,
+      })),
+    [currentMuntin?.panels],
   );
 
   return (
@@ -1169,7 +1252,7 @@ export function PieceForm({
               <AccordionContent>
                 {!selectedConfig ? (
                   <p className="text-sm text-muted-foreground pt-2">
-                    Select a configuration first to generate the muntin layout.
+                    Select a configuration first to configure muntin.
                   </p>
                 ) : !currentMuntin ? (
                   <p className="text-sm text-muted-foreground pt-2">
@@ -1183,74 +1266,114 @@ export function PieceForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Pattern</Label>
-                        <Input
-                          value={DEFAULT_FULL_VIEW_PATTERN_LABEL}
-                          disabled
-                          readOnly
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Default pattern for now.
-                        </p>
+                        <Select
+                          disabled={isLocked}
+                          value={String(currentMuntin.idPattern || "")}
+                          onValueChange={handleMuntinPatternChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select pattern..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeMuntinPatterns.map((pattern) => (
+                              <SelectItem
+                                key={pattern.id}
+                                value={String(pattern.id)}
+                              >
+                                {pattern.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      <div>
-                        <Label>Total Panels</Label>
-                        <Input
-                          value={String(currentMuntinPanels.length)}
-                          disabled
-                          readOnly
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-md border overflow-hidden">
-                      <div className="grid grid-cols-3 bg-muted/50 px-4 py-2 text-sm font-medium">
-                        <div>Panel</div>
-                        <div>Horizontal</div>
-                        <div>Vertical</div>
-                      </div>
-
-                      <div className="divide-y">
-                        {currentMuntinPanels.map((panel) => (
-                          <div
-                            key={panel.panelIndex}
-                            className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                      {patternRequiresLites && (
+                        <div>
+                          <Label>Type</Label>
+                          <Select
+                            disabled={isLocked}
+                            value={String(currentMuntin?.idType ?? 0)}
+                            onValueChange={handleMuntinTypeChange}
                           >
-                            <div className="font-medium">
-                              Panel {panel.panelIndex} ({panel.panelCode})
-                            </div>
-
-                            <Input
-                              type="number"
-                              min={1}
-                              disabled={isLocked}
-                              value={panel.horizontalLites}
-                              onChange={(e) =>
-                                handleMuntinPanelChange(
-                                  panel.panelIndex,
-                                  "horizontalLites",
-                                  e.target.value,
-                                )
-                              }
-                            />
-
-                            <Input
-                              type="number"
-                              min={1}
-                              disabled={isLocked}
-                              value={panel.verticalLites}
-                              onChange={(e) =>
-                                handleMuntinPanelChange(
-                                  panel.panelIndex,
-                                  "verticalLites",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          </div>
-                        ))}
-                      </div>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">None</SelectItem>
+                              {activeMuntinTypes.map((type) => (
+                                <SelectItem
+                                  key={type.id}
+                                  value={String(type.id)}
+                                >
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
+
+                    {!patternRequiresLites ? (
+                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        This pattern does not use lites. Full view will be
+                        shown.
+                      </div>
+                    ) : currentMuntinPanels.length === 0 ? (
+                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        This configuration does not define a muntin panel
+                        layout.
+                      </div>
+                    ) : (
+                      <div className="rounded-md border overflow-hidden">
+                        <div className="grid grid-cols-3 bg-muted/50 px-4 py-2 text-sm font-medium">
+                          <div>Panel</div>
+                          <div>Horizontal</div>
+                          <div>Vertical</div>
+                        </div>
+
+                        <div className="divide-y">
+                          {currentMuntinPanels.map((panel) => (
+                            <div
+                              key={panel.panelIndex}
+                              className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                            >
+                              <div className="font-medium">
+                                {panel.panelLabel}
+                              </div>
+
+                              <Input
+                                type="number"
+                                min={1}
+                                disabled={isLocked}
+                                value={panel.horizontalLites}
+                                onChange={(e) =>
+                                  handleMuntinPanelChange(
+                                    panel.panelIndex,
+                                    "horizontalLites",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+
+                              <Input
+                                type="number"
+                                min={1}
+                                disabled={isLocked}
+                                value={panel.verticalLites}
+                                onChange={(e) =>
+                                  handleMuntinPanelChange(
+                                    panel.panelIndex,
+                                    "verticalLites",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </AccordionContent>

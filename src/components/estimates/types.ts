@@ -7,6 +7,9 @@ import type {
   Crystal,
   Tint,
   Coating,
+  MuntinPattern,
+  MuntinType,
+  PieceMuntin,
 } from "@/lib/types";
 
 export interface PieceFormValues extends CreatePieceData {
@@ -24,6 +27,8 @@ export interface PieceFormValues extends CreatePieceData {
 
   dpPosPsf: number | null;
   dpNegPsf: number | null;
+
+  muntin?: PieceMuntin | null;
 
   heightLeft?: string | undefined;
   heightRight?: string | undefined;
@@ -56,4 +61,6 @@ export interface EstimateFormProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  muntinPatterns: MuntinPattern[];
+  muntinTypes: MuntinType[];
 }

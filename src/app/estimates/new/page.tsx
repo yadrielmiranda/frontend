@@ -1,4 +1,3 @@
-// src/app/estimates/new/page.tsx
 import {
   Card,
   CardContent,
@@ -15,6 +14,8 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
+import { getMuntinPatterns } from "@/app/api/muntin-patterns.api";
+import { getMuntinTypes } from "@/app/api/muntin-types.api";
 import { EstimateForm } from "@/components/estimates/estimate-form";
 import { getCurrentUser } from "@/lib/session";
 import { notFound } from "next/navigation";
@@ -32,6 +33,8 @@ export default async function NewEstimatePage() {
     tints,
     coatings,
     parameters,
+    muntinPatterns,
+    muntinTypes,
   ] = await Promise.all([
     getProductsWithBrands(),
     getSystemsWithConfigs(),
@@ -40,42 +43,43 @@ export default async function NewEstimatePage() {
     getTints(),
     getCoatings(),
     getGlobalParameters(),
+    getMuntinPatterns({ active: true }),
+    getMuntinTypes({ active: true }),
   ]);
 
   const salesTaxParam = parameters.find((p) => p.key === "SALES_TAX");
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-  <div className="min-h-screen bg-gray-50 py-10 px-4">
-    {/* Contenedor con el MISMO ancho de la Card */}
-    <div className="mx-auto w-full max-w-6xl">
-      {/* Header row */}
-      <div className="mb-4 flex items-center justify-between">
-        <BackLink href="/estimates" label="Back to Estimates" />
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-4 flex items-center justify-between">
+          <BackLink href="/estimates" label="Back to Estimates" />
+        </div>
+
+        <Card className="w-full shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl">New Estimate</CardTitle>
+            <CardDescription>
+              Fill in the details below to create a new estimate.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <EstimateForm
+              taxRate={taxRate}
+              productsWithBrands={productsWithBrands}
+              systemsWithConfigs={systemsWithConfigs}
+              frameColors={frameColors}
+              crystals={crystals}
+              tints={tints}
+              coatings={coatings}
+              muntinPatterns={muntinPatterns}
+              muntinTypes={muntinTypes}
+            />
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="w-full shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl">New Estimate</CardTitle>
-          <CardDescription>
-            Fill in the details below to create a new estimate.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <EstimateForm
-            taxRate={taxRate}
-            productsWithBrands={productsWithBrands}
-            systemsWithConfigs={systemsWithConfigs}
-            frameColors={frameColors}
-            crystals={crystals}
-            tints={tints}
-            coatings={coatings}
-          />
-        </CardContent>
-      </Card>
     </div>
-  </div>
-);
-
+  );
 }

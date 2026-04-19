@@ -44,6 +44,8 @@ export function EstimateForm({
   crystals,
   tints,
   coatings,
+  muntinPatterns,
+  muntinTypes,
 }: EstimateFormProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -55,7 +57,7 @@ export function EstimateForm({
 
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
   const [editingPieceIndex, setEditingPieceIndex] = useState<number | null>(
-    null
+    null,
   );
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
@@ -84,7 +86,7 @@ export function EstimateForm({
           generalDealerMarkup: 0,
           customerTaxRate: roundMoney(
             Number(estimate!.customerTaxRate || 0) * 100,
-            2
+            2,
           ),
           pieces: estimate!.pieces.map((p) => ({
             ...p,
@@ -93,19 +95,6 @@ export function EstimateForm({
             heightLeft: p.heightLeft ?? "",
             heightRight: p.heightRight ?? "",
             legHeight: p.legHeight ?? "",
-
-            muntin: p.pieceMuntin
-              ? {
-                  idPattern: p.pieceMuntin.patternId,
-                  idType: p.pieceMuntin.typeId ?? null,
-                  panels: (p.pieceMuntin.panels ?? []).map((panel) => ({
-                    panelIndex: panel.panelIndex,
-                    panelCode: panel.panelCode,
-                    horizontalLites: panel.horizontalLites,
-                    verticalLites: panel.verticalLites,
-                  })),
-                }
-              : null,
 
             rate: Number(p.rate) || 0,
             price: Number(p.price) || 0,
@@ -126,6 +115,8 @@ export function EstimateForm({
               p.dpNegPsf === null || p.dpNegPsf === undefined
                 ? null
                 : Number(p.dpNegPsf),
+
+            muntin: p.muntin ?? null,
           })),
           defaultFrameColorId: 0,
         }
@@ -147,6 +138,10 @@ export function EstimateForm({
   });
 
   const zip = useWatch({ control, name: "customerPostalCode" });
+  const defaultFrameColorId = useWatch({
+    control,
+    name: "defaultFrameColorId",
+  });
 
   useEffect(() => {
     const zip5 = normalizeUSZip(zip);
@@ -168,7 +163,6 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
-  const defaultFrameColorId = useWatch({ control, name: "defaultFrameColorId" });
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", {
@@ -196,9 +190,11 @@ export function EstimateForm({
 
   const updateAllPiecesColor = () => {
     if (pendingColorId === null) return;
+
     fields.forEach((_, index) => {
       setValue(`pieces.${index}.idFC`, pendingColorId, { shouldDirty: true });
     });
+
     setValue("defaultFrameColorId", pendingColorId, { shouldDirty: true });
     setShowColorUpdateAlert(false);
     setPendingColorId(null);
@@ -277,7 +273,7 @@ export function EstimateForm({
         const lineFactorySubtotal = roundMoney(unitPrice * qty);
 
         const lineDealerTotal = roundMoney(
-          Number(piece.total) || lineFactorySubtotal
+          Number(piece.total) || lineFactorySubtotal,
         );
 
         acc.totalUnits += qty;
@@ -286,12 +282,13 @@ export function EstimateForm({
 
         const productIdNumber = Number(piece.idProd);
         const product = productsWithBrands.find((p) => p.id === productIdNumber);
-        if (product)
+        if (product) {
           breakdown[product.name] = (breakdown[product.name] || 0) + qty;
+        }
 
         return acc;
       },
-      { totalUnits: 0, subtotal: 0, dealerTotal: 0 }
+      { totalUnits: 0, subtotal: 0, dealerTotal: 0 },
     );
 
     const factoryTaxAmount = roundMoney(totals.subtotal * taxRate);
@@ -299,7 +296,7 @@ export function EstimateForm({
 
     const customerTaxRateDec = roundMoney(
       (Number(customerTaxRatePercent) || 0) / 100,
-      4
+      4,
     );
     const dealerTaxAmount = roundMoney(totals.dealerTotal * customerTaxRateDec);
     const dealerGrandTotal = roundMoney(totals.dealerTotal + dealerTaxAmount);
@@ -345,6 +342,7 @@ export function EstimateForm({
       dpPosPsf: null,
       dpNegPsf: null,
     };
+
     append(newPiece);
     setEditingPieceIndex(fields.length);
     setIsPieceModalOpen(true);
@@ -352,8 +350,11 @@ export function EstimateForm({
   };
 
   const handleSavePiece = (data: PieceFormValues) => {
-    if (editingPieceIndex !== null) update(editingPieceIndex, data);
-    else append(data);
+    if (editingPieceIndex !== null) {
+      update(editingPieceIndex, data);
+    } else {
+      append(data);
+    }
 
     setIsPieceModalOpen(false);
     setEditingPieceIndex(null);
@@ -366,7 +367,7 @@ export function EstimateForm({
         : 0;
 
       const mapPiecesForApi = (
-        p: PieceFormValues
+        p: PieceFormValues,
       ): CreatePieceData & { id?: number } => {
         return {
           ...(p.id !== undefined && { id: p.id }),
@@ -448,9 +449,11 @@ export function EstimateForm({
 
       router.push("/estimates");
     } catch (error) {
-      if (error instanceof Error)
+      if (error instanceof Error) {
         toast.error(error.message || "An unexpected error occurred.");
-      else toast.error("An unexpected error occurred.");
+      } else {
+        toast.error("An unexpected error occurred.");
+      }
     }
   });
 
@@ -613,8 +616,8 @@ export function EstimateForm({
             {showLoadingState
               ? "Saving..."
               : isEditMode
-              ? "Update Estimate"
-              : "Create Estimate"}
+                ? "Update Estimate"
+                : "Create Estimate"}
           </Button>
         </div>
       </form>
@@ -634,6 +637,8 @@ export function EstimateForm({
         crystals={crystals}
         tints={tints}
         coatings={coatings}
+        muntinPatterns={muntinPatterns}
+        muntinTypes={muntinTypes}
         isDealer={isDealer}
       />
 

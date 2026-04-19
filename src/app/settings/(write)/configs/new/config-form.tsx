@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useForm, Controller, type SubmitHandler } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import {
+  useForm,
+  Controller,
+  useFieldArray,
+  type SubmitHandler,
+} from "react-hook-form";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,9 +24,8 @@ import {
 } from "@/components/ui/select";
 
 import { createConfig, updateConfig } from "@/app/api/configs.api";
-import type { Product } from "@/lib/types";
+import type { Product, ConfigMuntinLayoutItem } from "@/lib/types";
 
-// --- Tipo base para Config con flags ---
 interface ConfigBase {
   id?: number;
   conf: string;
@@ -31,11 +35,18 @@ interface ConfigBase {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  muntinLayout?: ConfigMuntinLayoutItem[] | null;
 }
 
-// Valores del formulario (Select usa string)
-type FormValues = Omit<ConfigBase, "id" | "idProduct"> & {
+type LayoutFormItem = {
+  panelIndex: number;
+  panelLabel: string;
+  panelCode?: string;
+};
+
+type FormValues = Omit<ConfigBase, "id" | "idProduct" | "muntinLayout"> & {
   idProduct: string;
+  muntinLayout: LayoutFormItem[];
 };
 
 interface ConfigFormProps {
@@ -50,10 +61,22 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
 
   const isEdit = Boolean(params.id);
 
+  const defaultLayout = useMemo<LayoutFormItem[]>(
+    () =>
+      (config?.muntinLayout ?? []).map((item, index) => ({
+        panelIndex: Number(item.panelIndex ?? index + 1),
+        panelCode: item.panelCode ?? "",
+        panelLabel: item.panelLabel ?? "",
+      })),
+    [config?.muntinLayout],
+  );
+
   const {
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     defaultValues: {
@@ -64,14 +87,57 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       requiresHeightLeft: config?.requiresHeightLeft ?? false,
       requiresHeightRight: config?.requiresHeightRight ?? false,
       requiresLegHeight: config?.requiresLegHeight ?? false,
+      muntinLayout: defaultLayout,
     },
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "muntinLayout",
+  });
+
+  const watchedLayout = watch("muntinLayout");
+
+  const addPanel = () => {
+    append({
+      panelIndex: fields.length + 1,
+      panelLabel: "",
+      panelCode: "",
+    });
+  };
+
+  const removePanel = (index: number) => {
+    remove(index);
+
+    const next = [...(watchedLayout ?? [])]
+      .filter((_, i) => i !== index)
+      .map((item, idx) => ({
+        ...item,
+        panelIndex: idx + 1,
+      }));
+
+    setValue("muntinLayout", next, { shouldDirty: true });
+  };
+
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     try {
+      const normalizedLayout = (data.muntinLayout ?? [])
+        .map((item, index) => ({
+          panelIndex: index + 1,
+          panelCode: item.panelCode?.trim().toUpperCase() || undefined,
+          panelLabel: item.panelLabel?.trim() || "",
+        }))
+        .filter((item) => item.panelLabel !== "");
+
       const payload = {
-        ...data,
+        conf: data.conf.trim(),
         idProduct: Number(data.idProduct),
+        requiresWidth: Boolean(data.requiresWidth),
+        requiresHeight: Boolean(data.requiresHeight),
+        requiresHeightLeft: Boolean(data.requiresHeightLeft),
+        requiresHeightRight: Boolean(data.requiresHeightRight),
+        requiresLegHeight: Boolean(data.requiresLegHeight),
+        muntinLayout: normalizedLayout,
       };
 
       if (isEdit && config?.id) {
@@ -83,9 +149,10 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       }
 
       setIsSuccess(true);
-      router.push("/settings/configs");      
+      router.push("/settings/configs");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
+      const message =
+        err instanceof Error ? err.message : "Something went wrong.";
       toast.error(message);
       console.error("Error saving config:", err);
     }
@@ -95,7 +162,6 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Name */}
       <div className="space-y-2">
         <Label htmlFor="conf">Configuration Name</Label>
         <Input
@@ -109,7 +175,6 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         )}
       </div>
 
-      {/* Product */}
       <div className="space-y-2">
         <Label htmlFor="product">Product</Label>
         <Controller
@@ -136,7 +201,6 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         )}
       </div>
 
-      {/* Required Dimensions */}
       <div className="space-y-3 rounded-md border p-4">
         <div>
           <p className="text-sm font-medium">Required Dimensions</p>
@@ -223,19 +287,98 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         </div>
       </div>
 
-      {/* Footer */}
+      <div className="space-y-3 rounded-md border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Muntin Layout</p>
+            <p className="text-sm text-muted-foreground">
+              Define the panel structure for this configuration.
+            </p>
+          </div>
+
+          <Button type="button" variant="outline" size="sm" onClick={addPanel}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Panel
+          </Button>
+        </div>
+
+        {fields.length === 0 ? (
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            No panels defined yet. Add the layout for this configuration.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {fields.map((field, index) => (
+              <div
+                key={field.id}
+                className="grid grid-cols-12 gap-3 items-end rounded-md border p-3"
+              >
+                <div className="col-span-2">
+                  <Label>Index</Label>
+                  <Input value={index + 1} disabled readOnly />
+                </div>
+
+                <div className="col-span-3">
+                  <Label htmlFor={`muntinLayout.${index}.panelCode`}>
+                    Panel Code
+                  </Label>
+                  <Input
+                    id={`muntinLayout.${index}.panelCode`}
+                    placeholder="X, O, T, B..."
+                    {...register(`muntinLayout.${index}.panelCode` as const)}
+                  />
+                </div>
+
+                <div className="col-span-5">
+                  <Label htmlFor={`muntinLayout.${index}.panelLabel`}>
+                    Panel Label
+                  </Label>
+                  <Input
+                    id={`muntinLayout.${index}.panelLabel`}
+                    placeholder="Left Sash, Right Fixed..."
+                    {...register(`muntinLayout.${index}.panelLabel` as const)}
+                  />
+                </div>
+
+                <div className="col-span-2 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePanel(index)}
+                    disabled={fields.length <= 1}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+          Examples: XO = panel 1: X, panel 2: O. Single Hung = panel 1: T, panel
+          2: B.
+        </div>
+      </div>
+
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
 
-        <Button type="submit" disabled={(!isDirty && !isEdit) || showLoadingState}>
-          {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button
+          type="submit"
+          disabled={(!isDirty && !isEdit) || showLoadingState}
+        >
+          {showLoadingState && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           {showLoadingState
             ? "Saving..."
             : isEdit
-            ? "Save Changes"
-            : "Create Config"}
+              ? "Save Changes"
+              : "Create Config"}
         </Button>
       </div>
     </form>

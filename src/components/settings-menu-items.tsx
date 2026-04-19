@@ -1,4 +1,4 @@
-import {
+import { 
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -25,6 +25,15 @@ export function SettingsMenuItems({ role }: { role?: RoleName | string | null })
       <DropdownMenuItem asChild>
         <Link href="/settings/configs">Configs</Link>
       </DropdownMenuItem>
+
+      {/* ✅ NUEVO */}
+      <DropdownMenuItem asChild>
+        <Link href="/settings/muntin-patterns">Muntin Patterns</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/muntin-types">Muntin Types</Link>
+      </DropdownMenuItem>
+
       <DropdownMenuItem asChild>
         <Link href="/settings/framecolors">Frame Colors</Link>
       </DropdownMenuItem>

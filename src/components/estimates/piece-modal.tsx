@@ -15,6 +15,8 @@ import type {
   Crystal,
   Tint,
   Coating,
+  MuntinPattern,
+  MuntinType,
 } from "@/lib/types";
 
 import type { PieceFormValues } from "./types";
@@ -39,6 +41,8 @@ interface PieceModalProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  muntinPatterns: MuntinPattern[];
+  muntinTypes: MuntinType[];
   isDealer: boolean;
 }
 
@@ -57,6 +61,8 @@ export function PieceModal({
   crystals,
   tints,
   coatings,
+  muntinPatterns,
+  muntinTypes,
   isDealer,
 }: PieceModalProps) {
   return (
@@ -81,6 +87,8 @@ export function PieceModal({
           crystals={crystals}
           tints={tints}
           coatings={coatings}
+          muntinPatterns={muntinPatterns}
+          muntinTypes={muntinTypes}
           isDealer={isDealer}
         />
       </DialogContent>

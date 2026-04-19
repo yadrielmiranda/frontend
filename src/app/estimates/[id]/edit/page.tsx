@@ -1,5 +1,4 @@
-// src/app/estimates/[id]/edit/page.tsx
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -17,6 +16,8 @@ import { getCoatings } from "@/app/api/coatings.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
+import { getMuntinPatterns } from "@/app/api/muntin-patterns.api";
+import { getMuntinTypes } from "@/app/api/muntin-types.api";
 import { EstimateForm } from "@/components/estimates/estimate-form";
 import { isApiError } from "@/app/api/_base";
 import { getCurrentUser } from "@/lib/session";
@@ -27,7 +28,6 @@ export default async function EditEstimatePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-
   const user = await getCurrentUser();
   if (!user) notFound();
 
@@ -36,17 +36,15 @@ export default async function EditEstimatePage({
 
   if (Number.isNaN(estimateId)) notFound();
 
-  
-
   let estimate;
 
   try {
     estimate = await getEstimate(estimateId);
   } catch (e) {
     if (isApiError(e) && (e.status === 404 || e.status === 403)) {
-      notFound(); // 👈 URL pegada sin permiso → 404 bonito
+      notFound();
     }
-    throw e; // otros errores reales
+    throw e;
   }
 
   const [
@@ -57,6 +55,8 @@ export default async function EditEstimatePage({
     tints,
     coatings,
     parameters,
+    muntinPatterns,
+    muntinTypes,
   ] = await Promise.all([
     getProductsWithBrands(),
     getSystemsWithConfigs(),
@@ -65,11 +65,12 @@ export default async function EditEstimatePage({
     getTints(),
     getCoatings(),
     getGlobalParameters(),
+    getMuntinPatterns({ active: true }),
+    getMuntinTypes({ active: true }),
   ]);
 
   if (!estimate) notFound();
 
-  // 🔒 CANDADO: si ya está ordenado / inactivo, NO se puede editar aunque entren por URL
   const isActive = estimate.status?.name === "Active";
   const canEdit = isActive && !estimate.order;
   if (!canEdit) notFound();
@@ -78,41 +79,38 @@ export default async function EditEstimatePage({
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-  <div className="min-h-screen bg-gray-50 py-10 px-4">
-    <div className="mx-auto w-full max-w-6xl">
-      {/* Header row */}
-      <div className="mb-4 flex items-center justify-between">
-        <BackLink
-          href={"/estimates"}
-          label="Back to Estimate"
-        />
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-4 flex items-center justify-between">
+          <BackLink href="/estimates" label="Back to Estimate" />
+        </div>
+
+        <Card className="w-full shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl">
+              Edit Estimate #{estimate.number}
+            </CardTitle>
+            <CardDescription>
+              Update the details for this estimate.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <EstimateForm
+              estimate={estimate}
+              taxRate={taxRate}
+              productsWithBrands={productsWithBrands}
+              systemsWithConfigs={systemsWithConfigs}
+              frameColors={frameColors}
+              crystals={crystals}
+              tints={tints}
+              coatings={coatings}
+              muntinPatterns={muntinPatterns}
+              muntinTypes={muntinTypes}
+            />
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="w-full shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            Edit Estimate #{estimate.number}
-          </CardTitle>
-          <CardDescription>
-            Update the details for this estimate.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <EstimateForm
-            estimate={estimate}
-            taxRate={taxRate}
-            productsWithBrands={productsWithBrands}
-            systemsWithConfigs={systemsWithConfigs}
-            frameColors={frameColors}
-            crystals={crystals}
-            tints={tints}
-            coatings={coatings}
-          />
-        </CardContent>
-      </Card>
     </div>
-  </div>
-);
-
+  );
 }

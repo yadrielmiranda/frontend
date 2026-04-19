@@ -50,6 +50,12 @@ export interface System {
   brandProduct: BrandProduct;
 }
 
+export interface ConfigMuntinLayoutItem {
+  panelIndex: number;
+  panelLabel: string;
+  panelCode?: string;
+}
+
 export interface Config {
   id: number;
   conf: string;
@@ -58,6 +64,7 @@ export interface Config {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  muntinLayout?: ConfigMuntinLayoutItem[] | null;
   prod?: Product;
 }
 
@@ -84,32 +91,40 @@ export interface Coating {
 export interface MuntinPattern {
   id: number;
   name: string;
-  isActive?: boolean;
+  requiresLites: boolean;
+  isActive: boolean;
+  isDefault: boolean;
 }
 
 export interface MuntinType {
   id: number;
   name: string;
-  isActive?: boolean;
+  isActive: boolean;
 }
 
 export interface PieceMuntinPanel {
-  id?: number;
   panelIndex: number;
-  panelCode: string;
+  panelLabel: string; 
+  panelCode?: string; 
   horizontalLites: number;
   verticalLites: number;
 }
 
-export interface PieceMuntin {
-  id?: number;
-  patternId: number;
-  pattern?: MuntinPattern;
-  typeId?: number | null;
-  type?: MuntinType | null;
-  totalLites?: number | null;
-  panels: PieceMuntinPanel[];
+export interface CreatePieceMuntinPanelData {
+  panelIndex: number;
+  panelLabel: string;
+  panelCode?: string;
+  horizontalLites: number;
+  verticalLites: number;
 }
+
+export interface CreatePieceMuntinData {
+  idPattern: number;
+  idType?: number | null;
+  panels: CreatePieceMuntinPanelData[];
+}
+
+export type PieceMuntin = CreatePieceMuntinData;
 
 export interface Piece {
   id: number;
@@ -146,7 +161,7 @@ export interface Piece {
   dpPosPsf?: number | null;
   dpNegPsf?: number | null;
 
-  pieceMuntin?: PieceMuntin | null;
+  muntin?: PieceMuntin | null;
 }
 
 export interface EstimateStatus {
@@ -280,19 +295,6 @@ export type OrderWithRelations = Order & {
 // --- Tipos para Creación y Actualización (DTOs del Frontend) ---
 
 export type CreateProductData = Omit<Product, "id">;
-
-export interface CreatePieceMuntinPanelData {
-  panelIndex: number;
-  panelCode: string;
-  horizontalLites: number;
-  verticalLites: number;
-}
-
-export interface CreatePieceMuntinData {
-  idPattern: number;
-  idType?: number | null;
-  panels: CreatePieceMuntinPanelData[];
-}
 
 export interface CreatePieceData {
   mark: string;
