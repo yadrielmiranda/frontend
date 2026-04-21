@@ -104,8 +104,8 @@ export interface MuntinType {
 
 export interface PieceMuntinPanel {
   panelIndex: number;
-  panelLabel: string; 
-  panelCode?: string; 
+  panelLabel: string;
+  panelCode?: string;
   horizontalLites: number;
   verticalLites: number;
 }
@@ -147,6 +147,10 @@ export interface Piece {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
+  idActiveOption?: number | null;
+  idPreparationOption?: number | null;
+  idSillOption?: number | null;
+  idReinforcementOption?: number | null;
   qty: number;
 
   rate: number;
@@ -261,6 +265,16 @@ export interface PieceWithRelations extends Piece {
   cryst: Crystal;
   tin: Tint;
   coat: Coating;
+
+  activeOption?: ActiveOption | null;
+  preparationOption?: PreparationOption | null;
+  sillOption?: SillOption | null;
+  reinforcementOption?: ReinforcementOption | null;
+}
+
+export interface SysConfOptionLink<T> {
+  optionId: number;
+  option: T;
 }
 
 export interface SysConf {
@@ -268,6 +282,11 @@ export interface SysConf {
   idConfig: number;
   allowScreen: boolean;
   config: Config;
+
+  activeOptions?: SysConfOptionLink<ActiveOption>[];
+  preparationOptions?: SysConfOptionLink<PreparationOption>[];
+  sillOptions?: SysConfOptionLink<SillOption>[];
+  reinforcementOptions?: SysConfOptionLink<ReinforcementOption>[];
 }
 
 export interface ProductWithBrands extends Product {
@@ -313,6 +332,12 @@ export interface CreatePieceData {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
+
+  idActiveOption?: number | null;
+  idPreparationOption?: number | null;
+  idSillOption?: number | null;
+  idReinforcementOption?: number | null;
+
   muntin?: CreatePieceMuntinData | null;
   qty: number;
   dealerMarkup?: number;
@@ -426,6 +451,42 @@ export interface Branding {
   logoUrl: string | null;
 
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActiveOption {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PreparationOption {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SillOption {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReinforcementOption {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

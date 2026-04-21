@@ -54,7 +54,7 @@ export function SystemConfigsClient({
   const runAction = async (
     action: () => Promise<unknown>,
     successMsg: string,
-    errorMsg: string
+    errorMsg: string,
   ) => {
     try {
       await action();
@@ -72,7 +72,7 @@ export function SystemConfigsClient({
     const ok = await runAction(
       () => addConfigToSystem(systemId, configId),
       "Config linked successfully.",
-      "Error linking config."
+      "Error linking config.",
     );
 
     if (ok) setIsAddDialogOpen(false);
@@ -82,34 +82,39 @@ export function SystemConfigsClient({
     await runAction(
       () => removeConfigFromSystem(systemId, configId),
       "Config unlinked successfully.",
-      "Error unlinking config."
+      "Error unlinking config.",
     );
   };
 
   const handleToggleAllowScreen = async (
     configId: number,
-    allowScreen: boolean
+    allowScreen: boolean,
   ) => {
     await runAction(
       () => updateSystemConfig(systemId, configId, { allowScreen }),
       `Screen ${allowScreen ? "enabled" : "disabled"} successfully.`,
-      "Error updating screen option."
+      "Error updating screen option.",
     );
   };
 
   const availableConfigs = useMemo(
     () => initialAvailableConfigs,
-    [initialAvailableConfigs]
+    [initialAvailableConfigs],
   );
 
   const associatedColumns = useMemo(
-    () => getAssociatedConfigsColumns(handleRemove, handleToggleAllowScreen),
-    []
+    () =>
+      getAssociatedConfigsColumns(
+        systemId,
+        handleRemove,
+        handleToggleAllowScreen,
+      ),
+    [systemId],
   );
 
   const availableColumns = useMemo(
     () => getAvailableConfigsColumns(handleAdd),
-    []
+    [],
   );
 
   const hasAssociated = initialAssociatedConfigs.length > 0;
@@ -151,7 +156,8 @@ export function SystemConfigsClient({
                   <span className="font-semibold">{systemName}</span>
                 </DialogTitle>
                 <DialogDescription>
-                  Select a config from the list to associate it with this system.
+                  Select a config from the list to associate it with this
+                  system.
                 </DialogDescription>
               </DialogHeader>
 
@@ -165,7 +171,9 @@ export function SystemConfigsClient({
               ) : (
                 <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-10 text-center">
                   <PackageOpen className="h-8 w-8 text-muted-foreground" />
-                  <p className="mt-3 text-sm font-medium">No configs available</p>
+                  <p className="mt-3 text-sm font-medium">
+                    No configs available
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     All configs are already linked to this system.
                   </p>

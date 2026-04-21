@@ -13,6 +13,62 @@ export type UpdateSystemConfigData = {
   allowScreen: boolean;
 };
 
+export type UpdateSystemConfigOptionsData = {
+  activeOptionIds: number[];
+  preparationOptionIds: number[];
+  sillOptionIds: number[];
+  reinforcementOptionIds: number[];
+};
+
+export type SystemConfigOptionsManage = {
+  idSystem: number;
+  idConfig: number;
+  system: { id: number; name: string };
+  config: { id: number; conf: string };
+  allowScreen: boolean;
+
+  selectedActiveOptionIds: number[];
+  selectedPreparationOptionIds: number[];
+  selectedSillOptionIds: number[];
+  selectedReinforcementOptionIds: number[];
+
+  activeOptionsCatalog: {
+    id: number;
+    name: string;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+
+  preparationOptionsCatalog: {
+    id: number;
+    name: string;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+
+  sillOptionsCatalog: {
+    id: number;
+    name: string;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+
+  reinforcementOptionsCatalog: {
+    id: number;
+    name: string;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+};
+
 /**
  * ✅ Obtiene todos los sistemas y precarga las configuraciones asociadas.
  */
@@ -115,5 +171,34 @@ export function removeConfigFromSystem(systemId: number, configId: number) {
   return apiFetch<SystemWithConfigs>(
     `/api/systems/${systemId}/configs/${configId}`,
     { method: 'DELETE' }
+  );
+}
+
+/**
+ * Obtiene la data de options para administrar un SysConf.
+ */
+export function getSystemConfigOptionsForManage(
+  systemId: number,
+  configId: number
+) {
+  return apiFetch<SystemConfigOptionsManage>(
+    `/api/systems/${systemId}/configs/${configId}/options/manage`
+  );
+}
+
+/**
+ * Actualiza las options asociadas a un SysConf.
+ */
+export function updateSystemConfigOptions(
+  systemId: number,
+  configId: number,
+  data: UpdateSystemConfigOptionsData
+) {
+  return apiFetch<SystemConfigOptionsManage>(
+    `/api/systems/${systemId}/configs/${configId}/options/manage`,
+    {
+      method: "PATCH",
+      body: data,
+    }
   );
 }

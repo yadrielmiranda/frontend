@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { XCircle, PlusCircle } from "lucide-react";
+import { Settings2, XCircle, PlusCircle } from "lucide-react";
 
 import {
   Tooltip,
@@ -31,6 +32,7 @@ type AvailableConfig = { id: number; conf: string };
 type AssociatedConfig = { id: number; conf: string; allowScreen: boolean };
 
 export const getAssociatedConfigsColumns = (
+  systemId: number,
   handleRemove: (configId: number) => Promise<void>,
   handleToggleAllowScreen: (
     configId: number,
@@ -143,7 +145,20 @@ export const getAssociatedConfigsColumns = (
       const [open, setOpen] = useState(false);
 
       return (
-        <div className="text-right">
+        <div className="flex justify-end gap-1">
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" asChild aria-label="Manage options">
+                  <Link href={`/settings/systems/${systemId}/configs/${config.id}/options`}>
+                    <Settings2 className="h-4 w-4 text-blue-600" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Manage Options</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
