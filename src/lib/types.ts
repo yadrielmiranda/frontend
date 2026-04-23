@@ -163,9 +163,7 @@ export interface Piece {
   customerSubtotal: number;
   netProfitD: number;
   dpPosPsf?: number | null;
-  dpNegPsf?: number | null;
-
-  muntin?: PieceMuntin | null;
+  dpNegPsf?: number | null; 
 }
 
 export interface EstimateStatus {
@@ -256,6 +254,31 @@ export interface PricingRule {
 
 // --- Tipos con Relaciones (Para Obtener y Mostrar Datos) ---
 
+export interface PieceMuntinPanelRelation {
+  id?: number;
+  pieceMuntinId?: number;
+  panelIndex: number;
+  panelCode: string;
+  panelLabel?: string | null;
+  horizontalLites: number;
+  verticalLites: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PieceMuntinWithRelations {
+  id?: number;
+  pieceId?: number;
+  patternId: number;
+  typeId?: number | null;
+  totalLites?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  pattern?: MuntinPattern | null;
+  type?: MuntinType | null;
+  panels: PieceMuntinPanelRelation[];
+}
+
 export interface PieceWithRelations extends Piece {
   prod: Product;
   bran: Brand;
@@ -270,6 +293,8 @@ export interface PieceWithRelations extends Piece {
   preparationOption?: PreparationOption | null;
   sillOption?: SillOption | null;
   reinforcementOption?: ReinforcementOption | null;
+
+  pieceMuntin?: PieceMuntinWithRelations | null;
 }
 
 export interface SysConfOptionLink<T> {

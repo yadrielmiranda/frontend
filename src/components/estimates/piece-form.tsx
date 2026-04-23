@@ -51,11 +51,21 @@ import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
 
+type NamedOption = {
+  id: number;
+  name: string;
+};
+
 type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
   config: Config;
+
+  activeOptions?: { optionId: number; option: NamedOption }[];
+  preparationOptions?: { optionId: number; option: NamedOption }[];
+  sillOptions?: { optionId: number; option: NamedOption }[];
+  reinforcementOptions?: { optionId: number; option: NamedOption }[];
 };
 
 function buildDefaultPanelsFromLayout(
@@ -170,9 +180,7 @@ export function PieceForm({
       heightLeft: initialData.heightLeft ?? "",
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
-
       muntin: initialData.muntin ?? null,
-
       rate: initialData.rate ?? 0,
       price: initialData.price ?? 0,
       subtotal: initialData.subtotal ?? 0,
@@ -191,18 +199,7 @@ export function PieceForm({
   );
 
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(
-    () => {
-      const defaultItems = [
-        "item-frame",
-        "item-size",
-        "item-glass",
-        "item-options",
-        "item-muntin",
-        "item-details",
-      ];
-      if (initialData.price > 0) return [...defaultItems, "item-results"];
-      return defaultItems;
-    },
+    [],
   );
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
@@ -210,7 +207,6 @@ export function PieceForm({
   const pieceValues = useWatch({ control });
 
   const { idProd, idConf, width, height, price } = pieceValues;
-  const safeConfigId = Number(idConf || 0);
 
   const { productName } = useMemo(() => {
     const product = idProd
@@ -274,6 +270,45 @@ export function PieceForm({
 
   const screenAllowed = selectedSysConf?.allowScreen ?? false;
 
+  const availableActiveOptions = useMemo(
+    () =>
+      (selectedSysConf?.activeOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
+    [selectedSysConf],
+  );
+
+  const availablePreparationOptions = useMemo(
+    () =>
+      (selectedSysConf?.preparationOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
+    [selectedSysConf],
+  );
+
+  const availableSillOptions = useMemo(
+    () =>
+      (selectedSysConf?.sillOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
+    [selectedSysConf],
+  );
+
+  const availableReinforcementOptions = useMemo(
+    () =>
+      (selectedSysConf?.reinforcementOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
+    [selectedSysConf],
+  );
+
+  const hasOptionsSection =
+    screenAllowed ||
+    availableActiveOptions.length > 0 ||
+    availablePreparationOptions.length > 0 ||
+    availableSillOptions.length > 0 ||
+    availableReinforcementOptions.length > 0;
+
   const selectedPattern = useMemo(() => {
     const patternId = Number(pieceValues.muntin?.idPattern || 0);
     if (!patternId) return null;
@@ -294,6 +329,25 @@ export function PieceForm({
   const previousConfigIdRef = useRef<number>(Number(initialData.idConf || 0));
 
   useEffect(() => {
+    const defaultItems = [
+      "item-frame",
+      ...(hasOptionsSection ? ["item-options"] : []),
+      "item-size",
+      "item-glass",
+      "item-muntin",
+      "item-details",
+    ];
+
+    setActiveAccordionItems((prev) => {
+      const hadResultsOpen = prev.includes("item-results");
+      if (hadResultsOpen || Number(initialData.price) > 0) {
+        return [...defaultItems, "item-results"];
+      }
+      return defaultItems;
+    });
+  }, [hasOptionsSection, initialData.price]);
+
+  useEffect(() => {
     const currentConfigId = Number(idConf || 0);
 
     if (!currentConfigId) {
@@ -304,10 +358,42 @@ export function PieceForm({
       }
 
       setValue("muntin", null, { shouldDirty: false });
+      setValue("idActiveOption", null, { shouldDirty: false });
+      setValue("idPreparationOption", null, { shouldDirty: false });
+      setValue("idSillOption", null, { shouldDirty: false });
+      setValue("idReinforcementOption", null, { shouldDirty: false });
       return;
     }
 
     if (!selectedConfig || !defaultMuntinPattern?.id) return;
+
+    if (previousConfigIdRef.current === currentConfigId) {
+      if (!screenAllowed && getValues("screen")) {
+        setValue("screen", false, { shouldDirty: false });
+      }
+      if (availableActiveOptions.length === 0 && getValues("idActiveOption")) {
+        setValue("idActiveOption", null, { shouldDirty: false });
+      }
+
+      if (
+        availablePreparationOptions.length === 0 &&
+        getValues("idPreparationOption")
+      ) {
+        setValue("idPreparationOption", null, { shouldDirty: false });
+      }
+
+      if (availableSillOptions.length === 0 && getValues("idSillOption")) {
+        setValue("idSillOption", null, { shouldDirty: false });
+      }
+
+      if (
+        availableReinforcementOptions.length === 0 &&
+        getValues("idReinforcementOption")
+      ) {
+        setValue("idReinforcementOption", null, { shouldDirty: false });
+      }
+      return;
+    }
 
     const syncedMuntin = syncMuntinWithConfigLayout(
       getValues("muntin"),
@@ -317,20 +403,21 @@ export function PieceForm({
 
     setValue("muntin", syncedMuntin, { shouldDirty: false });
 
-    if (previousConfigIdRef.current === currentConfigId) {
-      if (!screenAllowed && getValues("screen")) {
-        setValue("screen", false, { shouldDirty: false });
-      }
-      return;
-    }
-
     previousConfigIdRef.current = currentConfigId;
     setValue("screen", screenAllowed, { shouldDirty: true });
+    setValue("idActiveOption", null, { shouldDirty: false });
+    setValue("idPreparationOption", null, { shouldDirty: false });
+    setValue("idSillOption", null, { shouldDirty: false });
+    setValue("idReinforcementOption", null, { shouldDirty: false });
   }, [
     idConf,
     selectedConfig,
     screenAllowed,
     defaultMuntinPattern?.id,
+    availableActiveOptions,
+    availablePreparationOptions,
+    availableSillOptions,
+    availableReinforcementOptions,
     getValues,
     setValue,
   ]);
@@ -485,7 +572,6 @@ export function PieceForm({
         idSyst: Number(currentValues.idSyst),
         idConf: Number(currentValues.idConf),
         idFC: Number(currentValues.idFC),
-
         width: widthNorm !== undefined ? String(widthNorm) : undefined,
         height: heightNorm !== undefined ? String(heightNorm) : undefined,
         heightLeft:
@@ -494,12 +580,25 @@ export function PieceForm({
           heightRightNorm !== undefined ? String(heightRightNorm) : undefined,
         legHeight:
           legHeightNorm !== undefined ? String(legHeightNorm) : undefined,
-
         idCryst: Number(currentValues.idCryst),
         idTint: Number(currentValues.idTint),
         privacy: currentValues.privacy,
         idCoat: Number(currentValues.idCoat),
         screen: currentValues.screen,
+
+        idActiveOption: currentValues.idActiveOption
+          ? Number(currentValues.idActiveOption)
+          : undefined,
+        idPreparationOption: currentValues.idPreparationOption
+          ? Number(currentValues.idPreparationOption)
+          : undefined,
+        idSillOption: currentValues.idSillOption
+          ? Number(currentValues.idSillOption)
+          : undefined,
+        idReinforcementOption: currentValues.idReinforcementOption
+          ? Number(currentValues.idReinforcementOption)
+          : undefined,
+
         muntin: currentValues.muntin ?? null,
         qty: Number(currentValues.qty),
         dealerMarkup: props.isDealer
@@ -651,6 +750,14 @@ export function PieceForm({
     [currentMuntin?.panels],
   );
 
+  const fieldLabelClass = "mb-2 block text-sm font-semibold text-slate-800";
+
+  const selectTriggerClass =
+    "h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm justify-between";
+
+  const inputClass =
+    "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-none";
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8 p-1">
@@ -665,14 +772,15 @@ export function PieceForm({
               <AccordionTrigger className="font-semibold text-base">
                 Frame
               </AccordionTrigger>
+
               <AccordionContent>
                 <div
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 ${
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
                     isLocked ? "opacity-70" : ""
                   }`}
                 >
                   <div>
-                    <Label>Product</Label>
+                    <Label className={fieldLabelClass}>Product</Label>
                     <Controller
                       name="idProd"
                       control={control}
@@ -688,8 +796,8 @@ export function PieceForm({
                           }}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
                             {props.productsWithBrands.map((p) => (
@@ -702,14 +810,14 @@ export function PieceForm({
                       )}
                     />
                     {errors.idProd && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         Product required
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label>Brand</Label>
+                    <Label className={fieldLabelClass}>Brand</Label>
                     <Controller
                       name="idBrand"
                       control={control}
@@ -724,8 +832,8 @@ export function PieceForm({
                           }}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select brand" />
                           </SelectTrigger>
                           <SelectContent>
                             {availableBrands.map((b) => (
@@ -738,14 +846,14 @@ export function PieceForm({
                       )}
                     />
                     {errors.idBrand && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         Brand required
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label>System</Label>
+                    <Label className={fieldLabelClass}>System</Label>
                     <Controller
                       name="idSyst"
                       control={control}
@@ -759,8 +867,8 @@ export function PieceForm({
                           }}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select brand..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select system" />
                           </SelectTrigger>
                           <SelectContent>
                             {availableSystems.map((s) => (
@@ -773,14 +881,14 @@ export function PieceForm({
                       )}
                     />
                     {errors.idSyst && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         System required
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label>Configuration</Label>
+                    <Label className={fieldLabelClass}>Configuration</Label>
                     <Controller
                       name="idConf"
                       control={control}
@@ -791,8 +899,8 @@ export function PieceForm({
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select system..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select configuration" />
                           </SelectTrigger>
                           <SelectContent>
                             {availableConfigs.map((c) => (
@@ -805,14 +913,14 @@ export function PieceForm({
                       )}
                     />
                     {errors.idConf && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         Config required
                       </p>
                     )}
                   </div>
 
-                  <div className="col-span-2">
-                    <Label>Frame Color</Label>
+                  <div>
+                    <Label className={fieldLabelClass}>Frame Color</Label>
                     <Controller
                       name="idFC"
                       control={control}
@@ -823,8 +931,8 @@ export function PieceForm({
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select frame color" />
                           </SelectTrigger>
                           <SelectContent>
                             {props.frameColors.map((fc) => (
@@ -837,7 +945,7 @@ export function PieceForm({
                       )}
                     />
                     {errors.idFC && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         Color required
                       </p>
                     )}
@@ -846,217 +954,433 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
+            {hasOptionsSection && (
+              <AccordionItem value="item-options">
+                <AccordionTrigger className="font-semibold text-base">
+                  Options
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div
+                    className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
+                  >
+                    {screenAllowed && (
+                      <div className="flex flex-col gap-2">
+                        <Controller
+                          name="screen"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={`screen-${index}`}
+                                checked={!!field.value}
+                                onCheckedChange={(v) =>
+                                  field.onChange(Boolean(v))
+                                }
+                                disabled={isLocked}
+                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                              />
+                              <Label
+                                htmlFor={`screen-${index}`}
+                                className="cursor-pointer select-none text-sm"
+                              >
+                                Screen
+                              </Label>
+                            </div>
+                          )}
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                          Screen is allowed for this configuration and is
+                          selected by default.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableActiveOptions.length > 0 && (
+                        <div>
+                          <Label>Active</Label>
+                          <Controller
+                            name="idActiveOption"
+                            control={control}
+                            rules={{ required: "Active option is required" }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                value={field.value ? String(field.value) : ""}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select active..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableActiveOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idActiveOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idActiveOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {availablePreparationOptions.length > 0 && (
+                        <div>
+                          <Label>Preparation</Label>
+                          <Controller
+                            name="idPreparationOption"
+                            control={control}
+                            rules={{
+                              required: "Preparation option is required",
+                            }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                value={field.value ? String(field.value) : ""}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select preparation..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availablePreparationOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idPreparationOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idPreparationOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {availableSillOptions.length > 0 && (
+                        <div>
+                          <Label>Sill</Label>
+                          <Controller
+                            name="idSillOption"
+                            control={control}
+                            rules={{ required: "Sill option is required" }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                value={field.value ? String(field.value) : ""}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select sill..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableSillOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idSillOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idSillOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {availableReinforcementOptions.length > 0 && (
+                        <div>
+                          <Label>Reinforcement</Label>
+                          <Controller
+                            name="idReinforcementOption"
+                            control={control}
+                            rules={{
+                              required: "Reinforcement option is required",
+                            }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                value={field.value ? String(field.value) : ""}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select reinforcement..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableReinforcementOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idReinforcementOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idReinforcementOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
             <AccordionItem value="item-size">
               <AccordionTrigger className="font-semibold text-base">
                 Size
               </AccordionTrigger>
               <AccordionContent>
-                <div
-                  className={`grid grid-cols-2 gap-4 pt-2 ${
-                    isLocked ? "opacity-70" : ""
-                  }`}
-                >
-                  {selectedConfig?.requiresWidth && (
-                    <div>
-                      <Label>Width</Label>
-                      <Input
-                        autoComplete="off"
-                        type="text"
-                        disabled={isLocked}
-                        {...register("width", {
-                          required: "Width is required",
-                        })}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) return;
-                          try {
-                            const v = normalizeInchesToEighthStep(
-                              raw,
-                              "Width",
-                              1,
-                            );
-                            setValue("width", String(v), {
-                              shouldValidate: true,
-                            });
-                          } catch (err) {
-                            if (err instanceof DimensionParseError) {
-                              toast.error(err.message);
-                            }
-                          }
-                        }}
-                      />
-                      {errors.width && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.width.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedConfig?.requiresHeight && (
-                    <div>
-                      <Label>Height</Label>
-                      <Input
-                        autoComplete="off"
-                        type="text"
-                        disabled={isLocked}
-                        {...register("height", {
-                          required: "Height is required",
-                        })}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) return;
-                          try {
-                            const v = normalizeInchesToEighthStep(
-                              raw,
-                              "Height",
-                              1,
-                            );
-                            setValue("height", String(v), {
-                              shouldValidate: true,
-                            });
-                          } catch (err) {
-                            if (err instanceof DimensionParseError) {
-                              toast.error(err.message);
-                            }
-                          }
-                        }}
-                      />
-                      {errors.height && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.height.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedConfig?.requiresHeightLeft && (
-                    <div>
-                      <Label>Height Left</Label>
-                      <Input
-                        autoComplete="off"
-                        type="text"
-                        disabled={isLocked}
-                        {...register("heightLeft", {
-                          required: "Height Left is required",
-                        })}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) return;
-                          try {
-                            const v = normalizeInchesToEighthStep(
-                              raw,
-                              "Height Left",
-                              1,
-                            );
-                            setValue("heightLeft", String(v), {
-                              shouldValidate: true,
-                            });
-                          } catch (err) {
-                            if (err instanceof DimensionParseError) {
-                              toast.error(err.message);
-                            }
-                          }
-                        }}
-                      />
-                      {errors.heightLeft && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.heightLeft.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedConfig?.requiresHeightRight && (
-                    <div>
-                      <Label>Height Right</Label>
-                      <Input
-                        autoComplete="off"
-                        type="text"
-                        disabled={isLocked}
-                        {...register("heightRight", {
-                          required: "Height Right is required",
-                        })}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) return;
-                          try {
-                            const v = normalizeInchesToEighthStep(
-                              raw,
-                              "Height Right",
-                              1,
-                            );
-                            setValue("heightRight", String(v), {
-                              shouldValidate: true,
-                            });
-                          } catch (err) {
-                            if (err instanceof DimensionParseError) {
-                              toast.error(err.message);
-                            }
-                          }
-                        }}
-                      />
-                      {errors.heightRight && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.heightRight.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedConfig?.requiresLegHeight && (
-                    <div>
-                      <Label>Leg Height</Label>
-                      <Input
-                        autoComplete="off"
-                        type="text"
-                        disabled={isLocked}
-                        {...register("legHeight", {
-                          required: "Leg Height is required",
-                        })}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) return;
-                          try {
-                            const v = normalizeInchesToEighthStep(
-                              raw,
-                              "Leg Height",
-                              1,
-                            );
-                            setValue("legHeight", String(v), {
-                              shouldValidate: true,
-                            });
-                          } catch (err) {
-                            if (err instanceof DimensionParseError) {
-                              toast.error(err.message);
-                            }
-                          }
-                        }}
-                      />
-                      {errors.legHeight && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.legHeight.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {Number(idConf) > 0 &&
-                    !selectedConfig?.requiresWidth &&
-                    !selectedConfig?.requiresHeight &&
-                    !selectedConfig?.requiresHeightLeft &&
-                    !selectedConfig?.requiresHeightRight &&
-                    !selectedConfig?.requiresLegHeight && (
-                      <p className="text-sm text-muted-foreground col-span-2">
-                        This configuration does not require specific dimensions
-                        for calculation.
-                      </p>
-                    )}
-
+                <div className={`pt-4 ${isLocked ? "opacity-70" : ""}`}>
                   {!idConf && (
-                    <p className="text-sm text-muted-foreground col-span-2">
+                    <p className="text-sm text-muted-foreground">
                       Select a configuration to see required dimensions.
                     </p>
+                  )}
+
+                  {idConf && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                      <div className="flex flex-wrap gap-4">
+                        {selectedConfig?.requiresWidth && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Width (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("width", {
+                                required: "Width is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Width",
+                                    1,
+                                  );
+                                  setValue("width", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.width && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.width.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedConfig?.requiresHeight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Height (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("height", {
+                                required: "Height is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Height",
+                                    1,
+                                  );
+                                  setValue("height", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.height && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.height.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedConfig?.requiresHeightLeft && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Height Left (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("heightLeft", {
+                                required: "Height Left is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Height Left",
+                                    1,
+                                  );
+                                  setValue("heightLeft", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.heightLeft && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.heightLeft.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedConfig?.requiresHeightRight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Height Right (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("heightRight", {
+                                required: "Height Right is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Height Right",
+                                    1,
+                                  );
+                                  setValue("heightRight", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.heightRight && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.heightRight.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedConfig?.requiresLegHeight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Leg Height (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("legHeight", {
+                                required: "Leg Height is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Leg Height",
+                                    1,
+                                  );
+                                  setValue("legHeight", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.legHeight && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.legHeight.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {!selectedConfig?.requiresWidth &&
+                          !selectedConfig?.requiresHeight &&
+                          !selectedConfig?.requiresHeightLeft &&
+                          !selectedConfig?.requiresHeightRight &&
+                          !selectedConfig?.requiresLegHeight && (
+                            <p className="text-sm text-muted-foreground">
+                              This configuration does not require specific
+                              dimensions for calculation.
+                            </p>
+                          )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </AccordionContent>
@@ -1068,12 +1392,12 @@ export function PieceForm({
               </AccordionTrigger>
               <AccordionContent>
                 <div
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 ${
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
                     isLocked ? "opacity-70" : ""
                   }`}
                 >
                   <div>
-                    <Label>Type</Label>
+                    <Label className={fieldLabelClass}>Type</Label>
                     <Controller
                       name="idCryst"
                       control={control}
@@ -1084,8 +1408,8 @@ export function PieceForm({
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select glass type" />
                           </SelectTrigger>
                           <SelectContent>
                             {props.crystals.map((c) => (
@@ -1098,12 +1422,12 @@ export function PieceForm({
                       )}
                     />
                     {errors.idCryst && (
-                      <p className="text-red-500 text-xs mt-1">Type required</p>
+                      <p className="mt-1 text-xs text-red-500">Type required</p>
                     )}
                   </div>
 
                   <div>
-                    <Label>Tint</Label>
+                    <Label className={fieldLabelClass}>Tint</Label>
                     <Controller
                       name="idTint"
                       control={control}
@@ -1114,8 +1438,8 @@ export function PieceForm({
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select tint" />
                           </SelectTrigger>
                           <SelectContent>
                             {props.tints.map((t) => (
@@ -1128,12 +1452,12 @@ export function PieceForm({
                       )}
                     />
                     {errors.idTint && (
-                      <p className="text-red-500 text-xs mt-1">Tint required</p>
+                      <p className="mt-1 text-xs text-red-500">Tint required</p>
                     )}
                   </div>
 
                   <div>
-                    <Label>Coating</Label>
+                    <Label className={fieldLabelClass}>Coating</Label>
                     <Controller
                       name="idCoat"
                       control={control}
@@ -1144,8 +1468,8 @@ export function PieceForm({
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select..." />
+                          <SelectTrigger className={selectTriggerClass}>
+                            <SelectValue placeholder="Select coating" />
                           </SelectTrigger>
                           <SelectContent>
                             {props.coatings.map((c) => (
@@ -1158,88 +1482,34 @@ export function PieceForm({
                       )}
                     />
                     {errors.idCoat && (
-                      <p className="text-red-500 text-xs mt-1">
+                      <p className="mt-1 text-xs text-red-500">
                         Coating required
                       </p>
                     )}
                   </div>
 
-                  <div className="flex items-end pb-2">
+                  <div className="flex items-end">
                     <Controller
                       name="privacy"
                       control={control}
                       render={({ field }) => (
-                        <div className="flex items-center gap-3">
+                        <div className="inline-flex h-11 items-center gap-3 rounded-md px-1">
                           <Checkbox
                             id={`privacy-${index}`}
                             checked={!!field.value}
                             onCheckedChange={(v) => field.onChange(Boolean(v))}
                             disabled={isLocked}
-                            className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                            className="h-4 w-4 border-2 border-slate-500 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                           />
                           <Label
                             htmlFor={`privacy-${index}`}
-                            className="cursor-pointer select-none text-sm"
+                            className="cursor-pointer text-sm font-medium text-slate-800"
                           >
                             Privacy
                           </Label>
                         </div>
                       )}
                     />
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-options">
-              <AccordionTrigger className="font-semibold text-base">
-                Options
-              </AccordionTrigger>
-              <AccordionContent>
-                <div
-                  className={`flex items-start space-x-6 pt-4 ${
-                    isLocked ? "opacity-70" : ""
-                  }`}
-                >
-                  <div className="flex flex-col gap-2">
-                    <Controller
-                      name="screen"
-                      control={control}
-                      render={({ field }) => (
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            id={`screen-${index}`}
-                            checked={!!field.value}
-                            onCheckedChange={(v) => field.onChange(Boolean(v))}
-                            disabled={isLocked || !screenAllowed}
-                            className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                          />
-                          <Label
-                            htmlFor={`screen-${index}`}
-                            className={`select-none text-sm ${
-                              screenAllowed
-                                ? "cursor-pointer"
-                                : "cursor-not-allowed text-muted-foreground"
-                            }`}
-                          >
-                            Screen
-                          </Label>
-                        </div>
-                      )}
-                    />
-
-                    {safeConfigId > 0 && !screenAllowed && (
-                      <p className="text-xs text-muted-foreground">
-                        Screen is not allowed for this configuration.
-                      </p>
-                    )}
-
-                    {safeConfigId > 0 && screenAllowed && (
-                      <p className="text-xs text-muted-foreground">
-                        Screen is allowed for this configuration and is selected
-                        by default.
-                      </p>
-                    )}
                   </div>
                 </div>
               </AccordionContent>
@@ -1261,17 +1531,17 @@ export function PieceForm({
                   </p>
                 ) : (
                   <div
-                    className={`space-y-4 pt-2 ${isLocked ? "opacity-70" : ""}`}
+                    className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <Label>Pattern</Label>
+                        <Label className={fieldLabelClass}>Pattern</Label>
                         <Select
                           disabled={isLocked}
                           value={String(currentMuntin.idPattern || "")}
                           onValueChange={handleMuntinPatternChange}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className={selectTriggerClass}>
                             <SelectValue placeholder="Select pattern..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1289,13 +1559,13 @@ export function PieceForm({
 
                       {patternRequiresLites && (
                         <div>
-                          <Label>Type</Label>
+                          <Label className={fieldLabelClass}>Type</Label>
                           <Select
                             disabled={isLocked}
                             value={String(currentMuntin?.idType ?? 0)}
                             onValueChange={handleMuntinTypeChange}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className={selectTriggerClass}>
                               <SelectValue placeholder="Select type..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -1315,34 +1585,35 @@ export function PieceForm({
                     </div>
 
                     {!patternRequiresLites ? (
-                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
                         This pattern does not use lites. Full view will be
                         shown.
                       </div>
                     ) : currentMuntinPanels.length === 0 ? (
-                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
                         This configuration does not define a muntin panel
                         layout.
                       </div>
                     ) : (
-                      <div className="rounded-md border overflow-hidden">
-                        <div className="grid grid-cols-3 bg-muted/50 px-4 py-2 text-sm font-medium">
+                      <div className="rounded-md border border-slate-200 overflow-hidden">
+                        <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
                           <div>Panel</div>
                           <div>Horizontal</div>
                           <div>Vertical</div>
                         </div>
 
-                        <div className="divide-y">
+                        <div className="divide-y divide-slate-200 bg-white">
                           {currentMuntinPanels.map((panel) => (
                             <div
                               key={panel.panelIndex}
                               className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
                             >
-                              <div className="font-medium">
+                              <div className="font-medium text-slate-700">
                                 {panel.panelLabel}
                               </div>
 
                               <Input
+                                className={inputClass}
                                 type="number"
                                 min={1}
                                 disabled={isLocked}
@@ -1357,6 +1628,7 @@ export function PieceForm({
                               />
 
                               <Input
+                                className={inputClass}
                                 type="number"
                                 min={1}
                                 disabled={isLocked}

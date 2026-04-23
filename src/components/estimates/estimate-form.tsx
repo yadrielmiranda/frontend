@@ -11,6 +11,7 @@ import type {
   CreateEstimateData,
   CreatePieceData,
   UpdateEstimateData,
+  EstimateWithRelations,
 } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,30 @@ import { CustomerDetailsCard } from "./customer-details-card";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 import { canSetCustomerOnEstimate, isDealerRole } from "@/lib/rbac";
+
+function mapPieceMuntinToForm(
+  piece: EstimateWithRelations["pieces"][number],
+): PieceFormValues["muntin"] {
+  const pm = piece.pieceMuntin;
+  if (!pm) return null;
+
+  return {
+    idPattern: Number(pm.patternId),
+    idType: pm.typeId != null ? Number(pm.typeId) : null,
+    panels: Array.isArray(pm.panels)
+      ? pm.panels.map((panel, index) => ({
+          panelIndex: Number(panel.panelIndex),
+          panelLabel:
+            panel.panelLabel ??
+            panel.panelCode ??
+            `Panel ${Number(panel.panelIndex ?? index + 1)}`,
+          panelCode: panel.panelCode ?? undefined,
+          horizontalLites: Number(panel.horizontalLites || 1),
+          verticalLites: Number(panel.verticalLites || 1),
+        }))
+      : [],
+  };
+}
 
 export function EstimateForm({
   estimate,
@@ -95,18 +120,14 @@ export function EstimateForm({
             heightLeft: p.heightLeft ?? "",
             heightRight: p.heightRight ?? "",
             legHeight: p.legHeight ?? "",
-
             rate: Number(p.rate) || 0,
             price: Number(p.price) || 0,
             subtotal: Number(p.subtotal) || 0,
-
             dealerMarkup: (Number(p.dealerMarkup) || 0) * 100,
             total: Number(p.customerSubtotal) || 0,
             netProfitD: Number(p.netProfitD) || 0,
-
             customerPrice: Number(p.customerPrice) || 0,
             customerSubtotal: Number(p.customerSubtotal) || 0,
-
             dpPosPsf:
               p.dpPosPsf === null || p.dpPosPsf === undefined
                 ? null
@@ -116,7 +137,13 @@ export function EstimateForm({
                 ? null
                 : Number(p.dpNegPsf),
 
-            muntin: p.muntin ?? null,
+            // ✅ clave: usar pieceMuntin real del backend
+            muntin: mapPieceMuntinToForm(p),
+
+            idActiveOption: p.idActiveOption ?? null,
+            idPreparationOption: p.idPreparationOption ?? null,
+            idSillOption: p.idSillOption ?? null,
+            idReinforcementOption: p.idReinforcementOption ?? null,
           })),
           defaultFrameColorId: 0,
         }
@@ -281,7 +308,9 @@ export function EstimateForm({
         acc.dealerTotal = roundMoney(acc.dealerTotal + lineDealerTotal);
 
         const productIdNumber = Number(piece.idProd);
-        const product = productsWithBrands.find((p) => p.id === productIdNumber);
+        const product = productsWithBrands.find(
+          (p) => p.id === productIdNumber,
+        );
         if (product) {
           breakdown[product.name] = (breakdown[product.name] || 0) + qty;
         }
@@ -371,28 +400,34 @@ export function EstimateForm({
       ): CreatePieceData & { id?: number } => {
         return {
           ...(p.id !== undefined && { id: p.id }),
-
           mark: p.mark,
           idProd: Number(p.idProd),
           idBrand: Number(p.idBrand),
           idSyst: Number(p.idSyst),
           idConf: Number(p.idConf),
           idFC: Number(p.idFC),
-
           width: p.width ? String(p.width) : null,
           height: p.height ? String(p.height) : null,
           heightLeft: p.heightLeft ? String(p.heightLeft) : null,
           heightRight: p.heightRight ? String(p.heightRight) : null,
           legHeight: p.legHeight ? String(p.legHeight) : null,
-
           idCryst: Number(p.idCryst),
           idTint: Number(p.idTint),
           privacy: p.privacy,
           idCoat: Number(p.idCoat),
           screen: p.screen,
+
+          idActiveOption: p.idActiveOption ? Number(p.idActiveOption) : null,
+          idPreparationOption: p.idPreparationOption
+            ? Number(p.idPreparationOption)
+            : null,
+          idSillOption: p.idSillOption ? Number(p.idSillOption) : null,
+          idReinforcementOption: p.idReinforcementOption
+            ? Number(p.idReinforcementOption)
+            : null,
+
           muntin: p.muntin ?? null,
           qty: Number(p.qty),
-
           dealerMarkup: isDealer ? Number(p.dealerMarkup || 0) : 0,
         };
       };
@@ -476,31 +511,32 @@ export function EstimateForm({
       idSyst: 0,
       idConf: 0,
       idFC: Number(defaultFrameColorId) || 0,
-
       width: "",
       height: "",
       heightLeft: "",
       heightRight: "",
       legHeight: "",
-
       idCryst: 0,
       idTint: 0,
       privacy: false,
       idCoat: 0,
       screen: false,
+
+      idActiveOption: null,
+      idPreparationOption: null,
+      idSillOption: null,
+      idReinforcementOption: null,
+
       muntin: null,
       qty: 1,
-
       rate: 0,
       price: 0,
       subtotal: 0,
-
       dealerMarkup: getValues("generalDealerMarkup") || 0,
       total: 0,
       netProfitD: 0,
       customerPrice: 0,
       customerSubtotal: 0,
-
       dpPosPsf: null,
       dpNegPsf: null,
     };

@@ -14,21 +14,22 @@ import type {
 
 export interface PieceFormValues extends CreatePieceData {
   id?: number;
-
   rate: number;
   price: number;
   subtotal: number;
-
   dealerMarkup: number;
   total: number;
   netProfitD: number;
   customerPrice: number;
   customerSubtotal: number;
-
   dpPosPsf: number | null;
   dpNegPsf: number | null;
-
   muntin?: PieceMuntin | null;
+
+  idActiveOption?: number | null;
+  idPreparationOption?: number | null;
+  idSillOption?: number | null;
+  idReinforcementOption?: number | null;
 
   heightLeft?: string | undefined;
   heightRight?: string | undefined;
