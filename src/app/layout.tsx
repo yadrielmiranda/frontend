@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Impact +",
+  title: "Authentic Evolution",
   description: "Project Management",
 };
 

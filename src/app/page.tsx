@@ -8,7 +8,7 @@ export default function HomePage() {
   if (isLoading) {
     return (
       <div>
-        <h1 className="text-4xl font-bold">Welcome to Impact+</h1>
+        <h1 className="text-4xl font-bold">Welcome to Authentic Evolution+</h1>
         <p>Loading...</p>
       </div>
     );
@@ -27,7 +27,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-2">
-      <h1 className="text-4xl font-bold">Welcome to Impact+</h1>
+      <h1 className="text-4xl font-bold">Welcome to Authentic Evolution+</h1>
       <p className="text-muted-foreground">Sign in to get started.</p>
     </div>
   );

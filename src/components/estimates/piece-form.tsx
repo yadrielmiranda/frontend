@@ -97,14 +97,17 @@ function buildDefaultPanelsFromLayout(
 
 function buildDefaultMuntinFromConfig(
   config: Config | null | undefined,
-  fullViewPatternId: number,
+  fallbackPatternId: number,
   existing?: PieceMuntin | null,
 ): PieceMuntin | null {
-  if (!config || !fullViewPatternId) return null;
+  if (!config || !fallbackPatternId) return null;
+
+  const hasLayout =
+    Array.isArray(config.muntinLayout) && config.muntinLayout.length > 0;
 
   return {
-    idPattern: existing?.idPattern ?? fullViewPatternId,
-    idType: existing?.idType ?? null,
+    idPattern: existing?.idPattern ?? fallbackPatternId,
+    idType: hasLayout ? (existing?.idType ?? null) : null,
     panels: buildDefaultPanelsFromLayout(config.muntinLayout, existing?.panels),
   };
 }
@@ -112,20 +115,16 @@ function buildDefaultMuntinFromConfig(
 function syncMuntinWithConfigLayout(
   existing: PieceMuntin | null | undefined,
   config: Config | null | undefined,
-  fullViewPatternId: number,
+  fallbackPatternId: number,
 ): PieceMuntin | null {
-  if (!config || !fullViewPatternId) return null;
+  if (!config || !fallbackPatternId) return null;
 
-  const fallback = buildDefaultMuntinFromConfig(
-    config,
-    fullViewPatternId,
-    existing,
-  );
-  if (!fallback) return null;
+  const hasLayout =
+    Array.isArray(config.muntinLayout) && config.muntinLayout.length > 0;
 
   return {
-    idPattern: existing?.idPattern || fullViewPatternId,
-    idType: existing?.idType ?? null,
+    idPattern: existing?.idPattern || fallbackPatternId,
+    idType: hasLayout ? (existing?.idType ?? null) : null,
     panels: buildDefaultPanelsFromLayout(config.muntinLayout, existing?.panels),
   };
 }
@@ -155,21 +154,6 @@ export function PieceForm({
   index,
   ...props
 }: PieceFormProps) {
-  const activeMuntinPatterns = useMemo(
-    () => props.muntinPatterns.filter((p) => p.isActive),
-    [props.muntinPatterns],
-  );
-
-  const activeMuntinTypes = useMemo(
-    () => props.muntinTypes.filter((t) => t.isActive),
-    [props.muntinTypes],
-  );
-
-  const defaultMuntinPattern = useMemo(
-    () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
-    [activeMuntinPatterns],
-  );
-
   const {
     control,
     register,
@@ -209,12 +193,11 @@ export function PieceForm({
   );
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
-
   const [isMuntinOpen, setIsMuntinOpen] = useState(true);
 
   const pieceValues = useWatch({ control });
-
   const { idProd, idConf, width, height, price } = pieceValues;
+  const currentMuntin = pieceValues.muntin ?? null;
 
   const { productName } = useMemo(() => {
     const product = idProd
@@ -268,6 +251,41 @@ export function PieceForm({
     if (!idConf) return null;
     return availableConfigs.find((c) => c.id === Number(idConf)) ?? null;
   }, [idConf, availableConfigs]);
+
+  const hasMuntinLayout = useMemo(() => {
+    return (
+      Array.isArray(selectedConfig?.muntinLayout) &&
+      selectedConfig.muntinLayout.length > 0
+    );
+  }, [selectedConfig]);
+
+  const activeMuntinPatterns = useMemo(() => {
+    const active = props.muntinPatterns.filter((p) => p.isActive);
+
+    if (hasMuntinLayout) return active;
+
+    return active.filter((p) => !p.requiresLites);
+  }, [props.muntinPatterns, hasMuntinLayout]);
+
+  const activeMuntinTypes = useMemo(
+    () => props.muntinTypes.filter((t) => t.isActive),
+    [props.muntinTypes],
+  );
+
+  const defaultMuntinPattern = useMemo(
+    () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
+    [activeMuntinPatterns],
+  );
+
+  const defaultFullViewPattern = useMemo(
+    () =>
+      props.muntinPatterns.find(
+        (p) => p.isActive && !p.requiresLites && p.isDefault,
+      ) ??
+      props.muntinPatterns.find((p) => p.isActive && !p.requiresLites) ??
+      null,
+    [props.muntinPatterns],
+  );
 
   const selectedSysConf = useMemo(() => {
     if (!idConf) return null;
@@ -325,6 +343,34 @@ export function PieceForm({
 
   const patternRequiresLites = selectedPattern?.requiresLites ?? false;
 
+  useEffect(() => {
+    if (!currentMuntin) return;
+    if (hasMuntinLayout) return;
+    if (!defaultFullViewPattern) return;
+
+    const currentPattern = props.muntinPatterns.find(
+      (p) => p.id === Number(currentMuntin.idPattern),
+    );
+
+    if (currentPattern?.requiresLites) {
+      setValue(
+        "muntin",
+        {
+          idPattern: defaultFullViewPattern.id,
+          idType: null,
+          panels: [],
+        },
+        { shouldDirty: true },
+      );
+    }
+  }, [
+    currentMuntin,
+    hasMuntinLayout,
+    defaultFullViewPattern,
+    props.muntinPatterns,
+    setValue,
+  ]);
+
   const { configuration } = useMemo(() => {
     return { configuration: selectedConfig?.conf };
   }, [selectedConfig]);
@@ -379,6 +425,7 @@ export function PieceForm({
       if (!screenAllowed && getValues("screen")) {
         setValue("screen", false, { shouldDirty: false });
       }
+
       if (availableActiveOptions.length === 0 && getValues("idActiveOption")) {
         setValue("idActiveOption", null, { shouldDirty: false });
       }
@@ -403,10 +450,14 @@ export function PieceForm({
       return;
     }
 
+    const fallbackPatternId = hasMuntinLayout
+      ? defaultMuntinPattern.id
+      : (defaultFullViewPattern?.id ?? defaultMuntinPattern.id);
+
     const syncedMuntin = syncMuntinWithConfigLayout(
       getValues("muntin"),
       selectedConfig,
-      defaultMuntinPattern.id,
+      fallbackPatternId,
     );
 
     setValue("muntin", syncedMuntin, { shouldDirty: false });
@@ -421,7 +472,9 @@ export function PieceForm({
     idConf,
     selectedConfig,
     screenAllowed,
+    hasMuntinLayout,
     defaultMuntinPattern?.id,
+    defaultFullViewPattern?.id,
     availableActiveOptions,
     availablePreparationOptions,
     availableSillOptions,
@@ -437,18 +490,22 @@ export function PieceForm({
     if (!pattern) return;
 
     const current = getValues("muntin");
-    const nextPanels = pattern.requiresLites
-      ? buildDefaultPanelsFromLayout(
-          selectedConfig?.muntinLayout,
-          current?.panels,
-        )
-      : [];
+
+    const nextPanels =
+      pattern.requiresLites && hasMuntinLayout
+        ? buildDefaultPanelsFromLayout(
+            selectedConfig?.muntinLayout,
+            current?.panels,
+          )
+        : [];
 
     setValue(
       "muntin",
       {
         idPattern: pattern.id,
-        idType: current?.idType ?? null,
+        idType: pattern.requiresLites && hasMuntinLayout
+          ? (current?.idType ?? null)
+          : null,
         panels: nextPanels,
       },
       { shouldDirty: true },
@@ -743,8 +800,6 @@ export function PieceForm({
     pieceValues.dpPosPsf == null ? "—" : formatPsf(pieceValues.dpPosPsf, 1);
   const dpMinusText =
     pieceValues.dpNegPsf == null ? "—" : formatPsf(pieceValues.dpNegPsf, 1);
-
-  const currentMuntin = pieceValues.muntin ?? null;
 
   const currentMuntinPanels = useMemo(
     () =>
@@ -1577,7 +1632,7 @@ export function PieceForm({
                           </Select>
                         </div>
 
-                        {patternRequiresLites && (
+                        {patternRequiresLites && hasMuntinLayout && (
                           <div>
                             <Label className={fieldLabelClass}>Type</Label>
                             <Select
@@ -1608,6 +1663,10 @@ export function PieceForm({
                         <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
                           This pattern does not use lites. Full view will be
                           shown.
+                        </div>
+                      ) : !hasMuntinLayout ? (
+                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                          This configuration supports Full View only.
                         </div>
                       ) : currentMuntinPanels.length === 0 ? (
                         <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
