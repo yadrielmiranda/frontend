@@ -2,6 +2,7 @@
 import { Toaster } from "sonner";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// @ts-ignore: CSS import without type declarations
 import "./globals.css";
 import TopBar from "@/components/top-bar";
 import { Providers } from "./providers";
@@ -22,6 +23,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Authentic Evolution",
   description: "Project Management",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -31,7 +40,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <Providers>
           <LoginDialogBridge />
           <GlobalLoginDialog />

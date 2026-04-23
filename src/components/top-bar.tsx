@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +8,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -19,53 +19,75 @@ import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
 import { Menu } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { NotificationBell } from "./notifications-bell";
 import { canAccessSettings } from "@/lib/rbac";
 
 function TopBar() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const [mounted, setMounted] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
     return (
-      <header className=" sticky top-0 z-50 flex items-center justify-between p-4 bg-white  border-b-2 border-red-700 shadow-sm">
-        <div className="flex items-center gap-4"> 
-          <Link href="/" className="flex items-center">
+      <header className="sticky top-0 z-50 flex items-center justify-between p-4 bg-white border-b-2 border-red-700 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Authentic Evolution"
+              width={44}
+              height={44}
+              className="h-20 w-auto object-contain"
+              priority
+            />
             <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
               Authentic Evolution
             </h1>
           </Link>
         </div>
+
         <div className="flex items-center gap-4">
-          <div className="w-24 h-8 bg-gray-200 animate-pulse rounded hidden md:block"></div>
-          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
-          <UserDropdown />
-          <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse md:hidden"></div>
+          <div className="hidden h-8 w-24 animate-pulse rounded bg-gray-200 md:block" />
+          <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
+          <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200 md:hidden" />
         </div>
       </header>
     );
   }
 
   return (
-    <header className=" sticky top-0 z-50 flex items-center justify-between p-4 bg-white  border-b-2 border-red-700 shadow-sm">
+    <header className="sticky top-0 z-50 flex items-center justify-between p-4 bg-white border-b-2 border-red-700 shadow-sm">
       <div className="flex items-center gap-4">
-        <Link href="/" className="flex items-center">
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Authentic Evolution"
+            width={44}
+            height={44}
+            className="h-15 w-auto object-contain"
+            priority
+          />
           <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
             Authentic Evolution
           </h1>
         </Link>
       </div>
 
-      {/* --- Contenido para Usuarios Autenticados (Desktop) --- */}
       {isAuthenticated && (
         <nav className="hidden md:flex items-center gap-6">
           <Button variant="ghost" asChild>
             <Link href="/estimates">Estimates</Link>
           </Button>
+
           <Button variant="ghost" asChild>
             <Link href="/orders">Orders</Link>
           </Button>
 
-          {canAccessSettings(user?.role.name) && (
+          {canAccessSettings(user?.role?.name) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost">Settings</Button>
@@ -78,13 +100,8 @@ function TopBar() {
         </nav>
       )}
 
-      {/* --- Acciones y Perfil de Usuario --- */}
       <div className="flex items-center gap-4">
-        {isAuthenticated && (
-          <>            
-            <NotificationBell />
-          </>
-        )}
+        {isAuthenticated && <NotificationBell />}
 
         <UserDropdown />
 
@@ -102,7 +119,7 @@ function TopBar() {
                   <SheetTitle>Navegación</SheetTitle>
                 </SheetHeader>
 
-                <div className="flex flex-col gap-4 mt-6">
+                <div className="mt-6 flex flex-col gap-4">
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
@@ -119,7 +136,7 @@ function TopBar() {
                     <Link href="/orders">Orders</Link>
                   </Button>
 
-                  {canAccessSettings(user?.role.name) && (
+                  {canAccessSettings(user?.role?.name) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
