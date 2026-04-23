@@ -3,7 +3,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Pencil, Calculator, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  Calculator,
+  AlertTriangle,
+  ChevronDownIcon,
+} from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
 
@@ -203,6 +209,8 @@ export function PieceForm({
   );
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
+
+  const [isMuntinOpen, setIsMuntinOpen] = useState(true);
 
   const pieceValues = useWatch({ control });
 
@@ -1515,141 +1523,154 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="item-muntin">
-              <AccordionTrigger className="font-semibold text-base">
-                Muntin
-              </AccordionTrigger>
-              <AccordionContent>
-                {!selectedConfig ? (
-                  <p className="text-sm text-muted-foreground pt-2">
-                    Select a configuration first to configure muntin.
-                  </p>
-                ) : !currentMuntin ? (
-                  <p className="text-sm text-muted-foreground pt-2">
-                    Muntin will be initialized automatically for this
-                    configuration.
-                  </p>
-                ) : (
-                  <div
-                    className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <Label className={fieldLabelClass}>Pattern</Label>
-                        <Select
-                          disabled={isLocked}
-                          value={String(currentMuntin.idPattern || "")}
-                          onValueChange={handleMuntinPatternChange}
-                        >
-                          <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select pattern..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {activeMuntinPatterns.map((pattern) => (
-                              <SelectItem
-                                key={pattern.id}
-                                value={String(pattern.id)}
-                              >
-                                {pattern.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+            <div className="border-b last:border-b-0">
+              <button
+                type="button"
+                onClick={() => setIsMuntinOpen((prev) => !prev)}
+                className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
+              >
+                <span className="text-base font-semibold">Muntin</span>
 
-                      {patternRequiresLites && (
+                <ChevronDownIcon
+                  className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
+                    isMuntinOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isMuntinOpen && (
+                <div className="pb-4 text-sm">
+                  {!selectedConfig ? (
+                    <p className="text-sm text-muted-foreground pt-2">
+                      Select a configuration first to configure muntin.
+                    </p>
+                  ) : !currentMuntin ? (
+                    <p className="text-sm text-muted-foreground pt-2">
+                      Muntin will be initialized automatically for this
+                      configuration.
+                    </p>
+                  ) : (
+                    <div
+                      className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                          <Label className={fieldLabelClass}>Type</Label>
+                          <Label className={fieldLabelClass}>Pattern</Label>
                           <Select
                             disabled={isLocked}
-                            value={String(currentMuntin?.idType ?? 0)}
-                            onValueChange={handleMuntinTypeChange}
+                            value={String(currentMuntin.idPattern || "")}
+                            onValueChange={handleMuntinPatternChange}
                           >
                             <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select type..." />
+                              <SelectValue placeholder="Select pattern..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="0">None</SelectItem>
-                              {activeMuntinTypes.map((type) => (
+                              {activeMuntinPatterns.map((pattern) => (
                                 <SelectItem
-                                  key={type.id}
-                                  value={String(type.id)}
+                                  key={pattern.id}
+                                  value={String(pattern.id)}
                                 >
-                                  {type.name}
+                                  {pattern.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
+
+                        {patternRequiresLites && (
+                          <div>
+                            <Label className={fieldLabelClass}>Type</Label>
+                            <Select
+                              disabled={isLocked}
+                              value={String(currentMuntin?.idType ?? 0)}
+                              onValueChange={handleMuntinTypeChange}
+                            >
+                              <SelectTrigger className={selectTriggerClass}>
+                                <SelectValue placeholder="Select type..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">None</SelectItem>
+                                {activeMuntinTypes.map((type) => (
+                                  <SelectItem
+                                    key={type.id}
+                                    value={String(type.id)}
+                                  >
+                                    {type.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+
+                      {!patternRequiresLites ? (
+                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                          This pattern does not use lites. Full view will be
+                          shown.
+                        </div>
+                      ) : currentMuntinPanels.length === 0 ? (
+                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                          This configuration does not define a muntin panel
+                          layout.
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-slate-200 overflow-hidden">
+                          <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                            <div>Panel</div>
+                            <div>Horizontal</div>
+                            <div>Vertical</div>
+                          </div>
+
+                          <div className="divide-y divide-slate-200 bg-white">
+                            {currentMuntinPanels.map((panel) => (
+                              <div
+                                key={panel.panelIndex}
+                                className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                              >
+                                <div className="font-medium text-slate-700">
+                                  {panel.panelLabel}
+                                </div>
+
+                                <Input
+                                  className={inputClass}
+                                  type="number"
+                                  min={1}
+                                  disabled={isLocked}
+                                  value={panel.horizontalLites}
+                                  onChange={(e) =>
+                                    handleMuntinPanelChange(
+                                      panel.panelIndex,
+                                      "horizontalLites",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+
+                                <Input
+                                  className={inputClass}
+                                  type="number"
+                                  min={1}
+                                  disabled={isLocked}
+                                  value={panel.verticalLites}
+                                  onChange={(e) =>
+                                    handleMuntinPanelChange(
+                                      panel.panelIndex,
+                                      "verticalLites",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-
-                    {!patternRequiresLites ? (
-                      <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                        This pattern does not use lites. Full view will be
-                        shown.
-                      </div>
-                    ) : currentMuntinPanels.length === 0 ? (
-                      <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                        This configuration does not define a muntin panel
-                        layout.
-                      </div>
-                    ) : (
-                      <div className="rounded-md border border-slate-200 overflow-hidden">
-                        <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                          <div>Panel</div>
-                          <div>Horizontal</div>
-                          <div>Vertical</div>
-                        </div>
-
-                        <div className="divide-y divide-slate-200 bg-white">
-                          {currentMuntinPanels.map((panel) => (
-                            <div
-                              key={panel.panelIndex}
-                              className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
-                            >
-                              <div className="font-medium text-slate-700">
-                                {panel.panelLabel}
-                              </div>
-
-                              <Input
-                                className={inputClass}
-                                type="number"
-                                min={1}
-                                disabled={isLocked}
-                                value={panel.horizontalLites}
-                                onChange={(e) =>
-                                  handleMuntinPanelChange(
-                                    panel.panelIndex,
-                                    "horizontalLites",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-
-                              <Input
-                                className={inputClass}
-                                type="number"
-                                min={1}
-                                disabled={isLocked}
-                                value={panel.verticalLites}
-                                onChange={(e) =>
-                                  handleMuntinPanelChange(
-                                    panel.panelIndex,
-                                    "verticalLites",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
+                  )}
+                </div>
+              )}
+            </div>
 
             <AccordionItem value="item-details">
               <AccordionTrigger className="font-semibold text-base">
