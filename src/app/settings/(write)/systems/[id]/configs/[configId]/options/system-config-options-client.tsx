@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Star } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -60,18 +60,30 @@ function OptionsGroup({
         >
           {options.map((option) => {
             const checked = selectedIds.includes(option.id);
+            const isDefault = defaultId === option.id;
             const checkboxId = `${title}-${option.id}`;
             const radioId = `${title}-default-${option.id}`;
 
             return (
               <div
                 key={option.id}
-                className="flex items-center justify-between gap-4 rounded-md border p-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => onToggle(option.id, !checked)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onToggle(option.id, !checked);
+                  }
+                }}
+                className="flex items-center justify-between gap-4 rounded-md border p-3 cursor-pointer hover:bg-muted/50"
               >
                 <div className="flex items-center space-x-3">
                   <Checkbox
                     id={checkboxId}
                     checked={checked}
+                    className="cursor-pointer"
+                    onClick={(event) => event.stopPropagation()}
                     onCheckedChange={(value) =>
                       onToggle(option.id, value === true)
                     }
@@ -79,29 +91,35 @@ function OptionsGroup({
 
                   <Label
                     htmlFor={checkboxId}
+                    onClick={(event) => event.preventDefault()}
                     className="font-normal cursor-pointer"
                   >
                     {option.name}
                   </Label>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-2"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <RadioGroupItem
                     id={radioId}
                     value={String(option.id)}
                     disabled={!checked}
+                    className={checked ? "cursor-pointer" : "cursor-not-allowed"}
                   />
 
                   <Label
                     htmlFor={radioId}
                     className={
-                      checked
-                        ? "flex items-center gap-1 text-xs text-muted-foreground cursor-pointer"
-                        : "flex items-center gap-1 text-xs text-muted-foreground/50 cursor-not-allowed"
+                      isDefault
+                        ? "text-xs text-blue-600 font-semibold cursor-pointer"
+                        : checked
+                        ? "text-xs text-muted-foreground hover:text-blue-400 cursor-pointer"
+                        : "text-xs text-muted-foreground/50 cursor-not-allowed"
                     }
                   >
-                    <Star className="h-3.5 w-3.5" />
-                    Default
+                    {isDefault ? "Default" : "Set as default"}
                   </Label>
                 </div>
               </div>
