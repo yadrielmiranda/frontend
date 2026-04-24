@@ -67,18 +67,20 @@ function OptionsGroup({
             return (
               <div
                 key={option.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onToggle(option.id, !checked)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onToggle(option.id, !checked);
-                  }
-                }}
-                className="flex items-center justify-between gap-4 rounded-md border p-3 cursor-pointer hover:bg-muted/50"
+                className="flex items-center justify-between gap-4 rounded-md border p-3 hover:bg-muted/50"
               >
-                <div className="flex items-center space-x-3">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex flex-1 items-center space-x-3 cursor-pointer"
+                  onClick={() => onToggle(option.id, !checked)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onToggle(option.id, !checked);
+                    }
+                  }}
+                >
                   <Checkbox
                     id={checkboxId}
                     checked={checked}
