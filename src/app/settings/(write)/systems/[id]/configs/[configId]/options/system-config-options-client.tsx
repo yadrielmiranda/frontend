@@ -82,13 +82,12 @@ function OptionsGroup({
                   <Checkbox
                     id={checkboxId}
                     checked={checked}
-                    className="cursor-pointer"
+                    className="cursor-pointer border-gray-400 data-[state=checked]:border-primary"
                     onClick={(event) => event.stopPropagation()}
                     onCheckedChange={(value) =>
                       onToggle(option.id, value === true)
                     }
                   />
-
                   <Label
                     htmlFor={checkboxId}
                     onClick={(event) => event.preventDefault()}
@@ -106,7 +105,11 @@ function OptionsGroup({
                     id={radioId}
                     value={String(option.id)}
                     disabled={!checked}
-                    className={checked ? "cursor-pointer" : "cursor-not-allowed"}
+                    className={
+                      checked
+                        ? "cursor-pointer border-gray-400 data-[state=checked]:border-blue-600 data-[state=checked]:text-blue-600"
+                        : "cursor-not-allowed border-gray-300 opacity-50"
+                    }
                   />
 
                   <Label
@@ -115,8 +118,8 @@ function OptionsGroup({
                       isDefault
                         ? "text-xs text-blue-600 font-semibold cursor-pointer"
                         : checked
-                        ? "text-xs text-muted-foreground hover:text-blue-400 cursor-pointer"
-                        : "text-xs text-muted-foreground/50 cursor-not-allowed"
+                          ? "text-xs text-muted-foreground hover:text-blue-400 cursor-pointer"
+                          : "text-xs text-muted-foreground/50 cursor-not-allowed"
                     }
                   >
                     {isDefault ? "Default" : "Set as default"}
