@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type OptionItem = {
   id: number;
@@ -28,13 +29,17 @@ function OptionsGroup({
   description,
   options,
   selectedIds,
+  defaultId,
   onToggle,
+  onDefaultChange,
 }: {
   title: string;
   description: string;
   options: OptionItem[];
   selectedIds: number[];
+  defaultId: number | null;
   onToggle: (id: number, checked: boolean) => void;
+  onDefaultChange: (id: number | null) => void;
 }) {
   return (
     <div className="rounded-lg border p-4 space-y-4">
@@ -48,30 +53,61 @@ function OptionsGroup({
           No options available in this catalog.
         </div>
       ) : (
-        <div className="grid gap-3">
+        <RadioGroup
+          value={defaultId ? String(defaultId) : ""}
+          onValueChange={(value) => onDefaultChange(Number(value))}
+          className="grid gap-3"
+        >
           {options.map((option) => {
             const checked = selectedIds.includes(option.id);
             const checkboxId = `${title}-${option.id}`;
+            const radioId = `${title}-default-${option.id}`;
 
             return (
               <div
                 key={option.id}
-                className="flex items-center space-x-3 rounded-md border p-3"
+                className="flex items-center justify-between gap-4 rounded-md border p-3"
               >
-                <Checkbox
-                  id={checkboxId}
-                  checked={checked}
-                  onCheckedChange={(value) =>
-                    onToggle(option.id, value === true)
-                  }
-                />
-                <Label htmlFor={checkboxId} className="font-normal cursor-pointer">
-                  {option.name}
-                </Label>
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id={checkboxId}
+                    checked={checked}
+                    onCheckedChange={(value) =>
+                      onToggle(option.id, value === true)
+                    }
+                  />
+
+                  <Label
+                    htmlFor={checkboxId}
+                    className="font-normal cursor-pointer"
+                  >
+                    {option.name}
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem
+                    id={radioId}
+                    value={String(option.id)}
+                    disabled={!checked}
+                  />
+
+                  <Label
+                    htmlFor={radioId}
+                    className={
+                      checked
+                        ? "flex items-center gap-1 text-xs text-muted-foreground cursor-pointer"
+                        : "flex items-center gap-1 text-xs text-muted-foreground/50 cursor-not-allowed"
+                    }
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                    Default
+                  </Label>
+                </div>
               </div>
             );
           })}
-        </div>
+        </RadioGroup>
       )}
     </div>
   );
@@ -86,28 +122,92 @@ export function SystemConfigOptionsClient({
   const [isSaving, setIsSaving] = useState(false);
 
   const [activeOptionIds, setActiveOptionIds] = useState<number[]>(
-    data.selectedActiveOptionIds
+    data.selectedActiveOptionIds,
   );
   const [preparationOptionIds, setPreparationOptionIds] = useState<number[]>(
-    data.selectedPreparationOptionIds
+    data.selectedPreparationOptionIds,
   );
   const [sillOptionIds, setSillOptionIds] = useState<number[]>(
-    data.selectedSillOptionIds
+    data.selectedSillOptionIds,
   );
-  const [reinforcementOptionIds, setReinforcementOptionIds] = useState<number[]>(
-    data.selectedReinforcementOptionIds
+  const [reinforcementOptionIds, setReinforcementOptionIds] = useState<
+    number[]
+  >(data.selectedReinforcementOptionIds);
+
+  const [defaultActiveOptionId, setDefaultActiveOptionId] = useState<
+    number | null
+  >(data.defaultActiveOptionId);
+
+  const [defaultPreparationOptionId, setDefaultPreparationOptionId] = useState<
+    number | null
+  >(data.defaultPreparationOptionId);
+
+  const [defaultSillOptionId, setDefaultSillOptionId] = useState<number | null>(
+    data.defaultSillOptionId,
   );
+
+  const [defaultReinforcementOptionId, setDefaultReinforcementOptionId] =
+    useState<number | null>(data.defaultReinforcementOptionId);
 
   const toggleId = (
     current: number[],
     id: number,
-    checked: boolean
+    checked: boolean,
   ): number[] => {
     if (checked) {
       if (current.includes(id)) return current;
       return [...current, id];
     }
+
     return current.filter((x) => x !== id);
+  };
+
+  const handleActiveToggle = (id: number, checked: boolean) => {
+    setActiveOptionIds((current) => toggleId(current, id, checked));
+
+    if (!checked && defaultActiveOptionId === id) {
+      setDefaultActiveOptionId(null);
+    }
+
+    if (checked && defaultActiveOptionId === null) {
+      setDefaultActiveOptionId(id);
+    }
+  };
+
+  const handlePreparationToggle = (id: number, checked: boolean) => {
+    setPreparationOptionIds((current) => toggleId(current, id, checked));
+
+    if (!checked && defaultPreparationOptionId === id) {
+      setDefaultPreparationOptionId(null);
+    }
+
+    if (checked && defaultPreparationOptionId === null) {
+      setDefaultPreparationOptionId(id);
+    }
+  };
+
+  const handleSillToggle = (id: number, checked: boolean) => {
+    setSillOptionIds((current) => toggleId(current, id, checked));
+
+    if (!checked && defaultSillOptionId === id) {
+      setDefaultSillOptionId(null);
+    }
+
+    if (checked && defaultSillOptionId === null) {
+      setDefaultSillOptionId(id);
+    }
+  };
+
+  const handleReinforcementToggle = (id: number, checked: boolean) => {
+    setReinforcementOptionIds((current) => toggleId(current, id, checked));
+
+    if (!checked && defaultReinforcementOptionId === id) {
+      setDefaultReinforcementOptionId(null);
+    }
+
+    if (checked && defaultReinforcementOptionId === null) {
+      setDefaultReinforcementOptionId(id);
+    }
   };
 
   const handleSave = async () => {
@@ -119,6 +219,11 @@ export function SystemConfigOptionsClient({
         preparationOptionIds,
         sillOptionIds,
         reinforcementOptionIds,
+
+        defaultActiveOptionId,
+        defaultPreparationOptionId,
+        defaultSillOptionId,
+        defaultReinforcementOptionId,
       });
 
       toast.success("System config options updated successfully.");
@@ -140,9 +245,9 @@ export function SystemConfigOptionsClient({
         description="Select which active options will be available for this config."
         options={data.activeOptionsCatalog}
         selectedIds={activeOptionIds}
-        onToggle={(id, checked) =>
-          setActiveOptionIds((current) => toggleId(current, id, checked))
-        }
+        defaultId={defaultActiveOptionId}
+        onToggle={handleActiveToggle}
+        onDefaultChange={setDefaultActiveOptionId}
       />
 
       <OptionsGroup
@@ -150,9 +255,9 @@ export function SystemConfigOptionsClient({
         description="Select which preparation options will be available for this config."
         options={data.preparationOptionsCatalog}
         selectedIds={preparationOptionIds}
-        onToggle={(id, checked) =>
-          setPreparationOptionIds((current) => toggleId(current, id, checked))
-        }
+        defaultId={defaultPreparationOptionId}
+        onToggle={handlePreparationToggle}
+        onDefaultChange={setDefaultPreparationOptionId}
       />
 
       <OptionsGroup
@@ -160,9 +265,9 @@ export function SystemConfigOptionsClient({
         description="Select which sill options will be available for this config."
         options={data.sillOptionsCatalog}
         selectedIds={sillOptionIds}
-        onToggle={(id, checked) =>
-          setSillOptionIds((current) => toggleId(current, id, checked))
-        }
+        defaultId={defaultSillOptionId}
+        onToggle={handleSillToggle}
+        onDefaultChange={setDefaultSillOptionId}
       />
 
       <OptionsGroup
@@ -170,9 +275,9 @@ export function SystemConfigOptionsClient({
         description="Select which reinforcement options will be available for this config."
         options={data.reinforcementOptionsCatalog}
         selectedIds={reinforcementOptionIds}
-        onToggle={(id, checked) =>
-          setReinforcementOptionIds((current) => toggleId(current, id, checked))
-        }
+        defaultId={defaultReinforcementOptionId}
+        onToggle={handleReinforcementToggle}
+        onDefaultChange={setDefaultReinforcementOptionId}
       />
 
       <div className="flex justify-end gap-2 pt-2">

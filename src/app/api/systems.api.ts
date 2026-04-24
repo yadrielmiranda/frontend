@@ -18,6 +18,11 @@ export type UpdateSystemConfigOptionsData = {
   preparationOptionIds: number[];
   sillOptionIds: number[];
   reinforcementOptionIds: number[];
+
+  defaultActiveOptionId?: number | null;
+  defaultPreparationOptionId?: number | null;
+  defaultSillOptionId?: number | null;
+  defaultReinforcementOptionId?: number | null;
 };
 
 export type SystemConfigOptionsManage = {
@@ -31,6 +36,11 @@ export type SystemConfigOptionsManage = {
   selectedPreparationOptionIds: number[];
   selectedSillOptionIds: number[];
   selectedReinforcementOptionIds: number[];
+
+  defaultActiveOptionId: number | null;
+  defaultPreparationOptionId: number | null;
+  defaultSillOptionId: number | null;
+  defaultReinforcementOptionId: number | null;
 
   activeOptionsCatalog: {
     id: number;
