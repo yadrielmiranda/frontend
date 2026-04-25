@@ -68,6 +68,11 @@ type SystemConfigLink = {
   allowScreen: boolean;
   config: Config;
 
+  defaultActiveOptionId?: number | null;
+  defaultPreparationOptionId?: number | null;
+  defaultSillOptionId?: number | null;
+  defaultReinforcementOptionId?: number | null;
+
   activeOptions?: { optionId: number; option: NamedOption }[];
   preparationOptions?: { optionId: number; option: NamedOption }[];
   sillOptions?: { optionId: number; option: NamedOption }[];
@@ -463,11 +468,28 @@ export function PieceForm({
     setValue("muntin", syncedMuntin, { shouldDirty: false });
 
     previousConfigIdRef.current = currentConfigId;
+
     setValue("screen", screenAllowed, { shouldDirty: true });
-    setValue("idActiveOption", null, { shouldDirty: false });
-    setValue("idPreparationOption", null, { shouldDirty: false });
-    setValue("idSillOption", null, { shouldDirty: false });
-    setValue("idReinforcementOption", null, { shouldDirty: false });
+
+    setValue("idActiveOption", selectedSysConf?.defaultActiveOptionId ?? null, {
+      shouldDirty: true,
+    });
+
+    setValue(
+      "idPreparationOption",
+      selectedSysConf?.defaultPreparationOptionId ?? null,
+      { shouldDirty: true },
+    );
+
+    setValue("idSillOption", selectedSysConf?.defaultSillOptionId ?? null, {
+      shouldDirty: true,
+    });
+
+    setValue(
+      "idReinforcementOption",
+      selectedSysConf?.defaultReinforcementOptionId ?? null,
+      { shouldDirty: true },
+    );
   }, [
     idConf,
     selectedConfig,
@@ -479,6 +501,7 @@ export function PieceForm({
     availablePreparationOptions,
     availableSillOptions,
     availableReinforcementOptions,
+    selectedSysConf,
     getValues,
     setValue,
   ]);
@@ -503,9 +526,10 @@ export function PieceForm({
       "muntin",
       {
         idPattern: pattern.id,
-        idType: pattern.requiresLites && hasMuntinLayout
-          ? (current?.idType ?? null)
-          : null,
+        idType:
+          pattern.requiresLites && hasMuntinLayout
+            ? (current?.idType ?? null)
+            : null,
         panels: nextPanels,
       },
       { shouldDirty: true },

@@ -163,7 +163,7 @@ export interface Piece {
   customerSubtotal: number;
   netProfitD: number;
   dpPosPsf?: number | null;
-  dpNegPsf?: number | null; 
+  dpNegPsf?: number | null;
 }
 
 export interface EstimateStatus {
@@ -307,6 +307,11 @@ export interface SysConf {
   idConfig: number;
   allowScreen: boolean;
   config: Config;
+
+  defaultActiveOptionId?: number | null;
+  defaultPreparationOptionId?: number | null;
+  defaultSillOptionId?: number | null;
+  defaultReinforcementOptionId?: number | null;
 
   activeOptions?: SysConfOptionLink<ActiveOption>[];
   preparationOptions?: SysConfOptionLink<PreparationOption>[];
