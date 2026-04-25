@@ -96,6 +96,11 @@ export function getSystemColumns({
                   Manage Configs
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/systems/${system.id}/crystals`}>
+                  Manage Glass
+                </Link>
+              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 

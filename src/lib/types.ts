@@ -48,6 +48,14 @@ export interface System {
   idProduct: number;
   idBrand: number;
   brandProduct: BrandProduct;
+
+  defaultCrystalId?: number | null;
+
+  systemCrystals?: {
+    idCrystal: number;
+    sortOrder?: number;
+    crystal: Crystal;
+  }[];
 }
 
 export interface ConfigMuntinLayoutItem {

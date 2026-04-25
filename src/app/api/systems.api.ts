@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { System, SystemWithConfigs } from '../../lib/types';
+import type { System, SystemWithConfigs, Crystal } from '../../lib/types';
 
 export type SystemData = {
   name: string;
@@ -23,6 +23,25 @@ export type UpdateSystemConfigOptionsData = {
   defaultPreparationOptionId?: number | null;
   defaultSillOptionId?: number | null;
   defaultReinforcementOptionId?: number | null;
+};
+
+export type UpdateSystemCrystalsData = {
+  crystalIds: number[];
+  defaultCrystalId?: number | null;
+};
+
+export type SystemCrystalsManage = {
+  system: {
+    id: number;
+    name: string;
+    idBrand: number;
+    idProduct: number;
+    brand: { id: number; name: string };
+    product: { id: number; name: string };
+  };
+  selectedCrystalIds: number[];
+  defaultCrystalId: number | null;
+  crystalsCatalog: Crystal[];
 };
 
 export type SystemConfigOptionsManage = {
@@ -206,6 +225,25 @@ export function updateSystemConfigOptions(
 ) {
   return apiFetch<SystemConfigOptionsManage>(
     `/api/systems/${systemId}/configs/${configId}/options/manage`,
+    {
+      method: "PATCH",
+      body: data,
+    }
+  );
+}
+
+export function getSystemCrystalsForManage(systemId: number) {
+  return apiFetch<SystemCrystalsManage>(
+    `/api/systems/${systemId}/crystals/manage`
+  );
+}
+
+export function updateSystemCrystals(
+  systemId: number,
+  data: UpdateSystemCrystalsData
+) {
+  return apiFetch<SystemCrystalsManage>(
+    `/api/systems/${systemId}/crystals/manage`,
     {
       method: "PATCH",
       body: data,
