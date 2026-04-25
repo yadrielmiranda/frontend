@@ -101,8 +101,7 @@ function OptionAssociationGroup({
   const availableColumns = useMemo(
     () =>
       getAvailableOptionsColumns(async (optionId) => {
-        const ok = await onAdd(group.key, optionId);
-        if (ok) setIsAddDialogOpen(false);
+        const ok = await onAdd(group.key, optionId);        
       }),
     [group.key, onAdd],
   );

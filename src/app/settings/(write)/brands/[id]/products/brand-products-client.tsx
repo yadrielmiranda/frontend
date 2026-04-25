@@ -76,9 +76,7 @@ export function BrandProductsClient({
       () => addProductToBrand(initialBrand.id, productId),
       "Product linked successfully.",
       "Error linking product."
-    );
-
-    if (ok) setIsAddDialogOpen(false);
+    );    
   };
 
   const availableProducts = useMemo(() => {

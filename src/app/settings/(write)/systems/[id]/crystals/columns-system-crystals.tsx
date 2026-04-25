@@ -2,7 +2,6 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Circle, XCircle, PlusCircle } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,6 +10,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
+import { useState } from "react";
 
 export type AssociatedCrystal = {
   id: number;
@@ -72,6 +73,7 @@ export const getAssociatedCrystalsColumns = (
     header: () => <div className="text-right">Action</div>,
     cell: ({ row }) => {
       const crystal = row.original;
+      const [open, setOpen] = useState(false);
 
       return (
         <div className="flex justify-end">
@@ -82,7 +84,7 @@ export const getAssociatedCrystalsColumns = (
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemove(crystal.id)}
+                  onClick={() => setOpen(true)}
                   aria-label="Remove glass"
                 >
                   <XCircle className="h-4 w-4 text-destructive" />
@@ -91,6 +93,16 @@ export const getAssociatedCrystalsColumns = (
               <TooltipContent>Remove</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          <DeleteConfirmationDialog
+            isOpen={open}
+            onClose={() => setOpen(false)}
+            onConfirm={async () => {
+              await handleRemove(crystal.id);
+              setOpen(false);
+            }}
+            itemName={`glass "${crystal.glass}"`}
+          />
         </div>
       );
     },

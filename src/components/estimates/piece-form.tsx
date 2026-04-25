@@ -235,16 +235,38 @@ export function PieceForm({
     );
   }, [idProd, brandId, props.systemsWithConfigs]);
 
-  const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
-    if (!systemId) return [];
-    const selectedSystem = props.systemsWithConfigs.find(
-      (s) => s.id === Number(systemId),
-    );
+  const selectedSystem = useMemo(() => {
+    if (!systemId) return null;
 
+    return (
+      props.systemsWithConfigs.find((s) => s.id === Number(systemId)) ?? null
+    );
+  }, [systemId, props.systemsWithConfigs]);
+
+  useEffect(() => {
+    if (!selectedSystem) return;
+
+    const currentCrystal = getValues("idCryst");
+
+    // ✅ solo setear si está vacío o en 0
+    if (!currentCrystal || currentCrystal === 0) {
+      setValue("idCryst", Number(selectedSystem.defaultCrystalId) || 0, {
+        shouldDirty: false,
+      });
+    }
+  }, [systemId]); 
+
+  const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
       (sc) => !!sc?.config,
     );
-  }, [systemId, props.systemsWithConfigs]);
+  }, [selectedSystem]);
+
+  const availableCrystals = useMemo(() => {
+    return (selectedSystem?.systemCrystals ?? [])
+      .map((item) => item.crystal)
+      .filter((crystal): crystal is Crystal => !!crystal);
+  }, [selectedSystem]);
 
   const availableConfigs = useMemo(() => {
     return availableSysConfs
@@ -949,8 +971,17 @@ export function PieceForm({
                         <Select
                           disabled={isLocked || !brandId}
                           onValueChange={(v) => {
-                            field.onChange(Number(v));
+                            const nextSystemId = Number(v);
+                            const nextSystem = props.systemsWithConfigs.find(
+                              (s) => s.id === nextSystemId,
+                            );
+
+                            field.onChange(nextSystemId);
                             setValue("idConf", 0);
+                            setValue(
+                              "idCryst",
+                              Number(nextSystem?.defaultCrystalId) || 0,
+                            );
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1491,7 +1522,11 @@ export function PieceForm({
                       rules={{ required: true, min: 1 }}
                       render={({ field }) => (
                         <Select
-                          disabled={isLocked}
+                          disabled={
+                            isLocked ||
+                            !systemId ||
+                            availableCrystals.length === 0
+                          }
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={String(field.value || "0")}
                         >
@@ -1499,7 +1534,7 @@ export function PieceForm({
                             <SelectValue placeholder="Select glass type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {props.crystals.map((c) => (
+                            {availableCrystals.map((c) => (
                               <SelectItem key={c.id} value={String(c.id)}>
                                 {c.glass}
                               </SelectItem>

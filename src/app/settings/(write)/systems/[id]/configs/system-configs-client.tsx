@@ -73,9 +73,7 @@ export function SystemConfigsClient({
       () => addConfigToSystem(systemId, configId),
       "Config linked successfully.",
       "Error linking config.",
-    );
-
-    if (ok) setIsAddDialogOpen(false);
+    );    
   };
 
   const handleRemove = async (configId: number) => {
