@@ -18,6 +18,9 @@ interface ColorUpdateAlertDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 
+  title?: string;
+  description?: string;
+
   onCancel: () => void;
   onNewPiecesOnly: () => void;
   onUpdateAll: () => void;
@@ -26,6 +29,8 @@ interface ColorUpdateAlertDialogProps {
 export function ColorUpdateAlertDialog({
   open,
   onOpenChange,
+  title = "Update Frame Color?",
+  description = "You have changed the default frame color. Do you want to apply this new color to all existing pieces in this estimate?",
   onCancel,
   onNewPiecesOnly,
   onUpdateAll,
@@ -36,12 +41,9 @@ export function ColorUpdateAlertDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center">
             <AlertTriangle className="mr-2 text-yellow-500" />
-            Update Frame Color?
+            {title}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            You have changed the default frame color. Do you want to apply this
-            new color to all existing pieces in this estimate?
-          </AlertDialogDescription>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>

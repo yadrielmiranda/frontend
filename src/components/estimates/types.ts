@@ -49,6 +49,8 @@ export interface EstimateFormValues {
 
   generalDealerMarkup: number;
   defaultFrameColorId: number;
+  defaultTintId: number;
+  defaultCoatingId: number;
   customerTaxRate: number;
   pieces: PieceFormValues[];
 }

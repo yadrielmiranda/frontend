@@ -89,6 +89,14 @@ export function EstimateForm({
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
   const previousColorIdRef = useRef<number>(0);
 
+  const [showTintUpdateAlert, setShowTintUpdateAlert] = useState(false);
+  const [pendingTintId, setPendingTintId] = useState<number | null>(null);
+  const previousTintIdRef = useRef<number>(0);
+
+  const [showCoatingUpdateAlert, setShowCoatingUpdateAlert] = useState(false);
+  const [pendingCoatingId, setPendingCoatingId] = useState<number | null>(null);
+  const previousCoatingIdRef = useRef<number>(0);
+
   const {
     register,
     control,
@@ -146,6 +154,8 @@ export function EstimateForm({
             idReinforcementOption: p.idReinforcementOption ?? null,
           })),
           defaultFrameColorId: 0,
+          defaultTintId: 0,
+          defaultCoatingId: 0,
         }
       : {
           name: "",
@@ -161,6 +171,8 @@ export function EstimateForm({
           customerTaxRate: 0,
           pieces: [],
           defaultFrameColorId: 0,
+          defaultTintId: 0,
+          defaultCoatingId: 0,
         },
   });
 
@@ -168,6 +180,16 @@ export function EstimateForm({
   const defaultFrameColorId = useWatch({
     control,
     name: "defaultFrameColorId",
+  });
+
+  const defaultTintId = useWatch({
+    control,
+    name: "defaultTintId",
+  });
+
+  const defaultCoatingId = useWatch({
+    control,
+    name: "defaultCoatingId",
   });
 
   useEffect(() => {
@@ -215,6 +237,42 @@ export function EstimateForm({
     }
   };
 
+  const handleDefaultTintChange = (tintIdStr: string) => {
+    const newTintId = Number(tintIdStr);
+    const currentTintId = getValues("defaultTintId");
+
+    if (newTintId === 0) {
+      setValue("defaultTintId", 0, { shouldDirty: true });
+      return;
+    }
+
+    if (fields.length > 0 && newTintId !== currentTintId) {
+      previousTintIdRef.current = currentTintId;
+      setPendingTintId(newTintId);
+      setShowTintUpdateAlert(true);
+    } else {
+      setValue("defaultTintId", newTintId, { shouldDirty: true });
+    }
+  };
+
+  const handleDefaultCoatingChange = (coatingIdStr: string) => {
+    const newCoatingId = Number(coatingIdStr);
+    const currentCoatingId = getValues("defaultCoatingId");
+
+    if (newCoatingId === 0) {
+      setValue("defaultCoatingId", 0, { shouldDirty: true });
+      return;
+    }
+
+    if (fields.length > 0 && newCoatingId !== currentCoatingId) {
+      previousCoatingIdRef.current = currentCoatingId;
+      setPendingCoatingId(newCoatingId);
+      setShowCoatingUpdateAlert(true);
+    } else {
+      setValue("defaultCoatingId", newCoatingId, { shouldDirty: true });
+    }
+  };
+
   const updateAllPiecesColor = () => {
     if (pendingColorId === null) return;
 
@@ -228,6 +286,34 @@ export function EstimateForm({
     toast.success("All pieces have been updated to the new default color.");
   };
 
+  const updateAllPiecesTint = () => {
+    if (pendingTintId === null) return;
+
+    fields.forEach((_, index) => {
+      setValue(`pieces.${index}.idTint`, pendingTintId, { shouldDirty: true });
+    });
+
+    setValue("defaultTintId", pendingTintId, { shouldDirty: true });
+    setShowTintUpdateAlert(false);
+    setPendingTintId(null);
+    toast.success("All pieces have been updated to the new default tint.");
+  };
+
+  const updateAllPiecesCoating = () => {
+    if (pendingCoatingId === null) return;
+
+    fields.forEach((_, index) => {
+      setValue(`pieces.${index}.idCoat`, pendingCoatingId, {
+        shouldDirty: true,
+      });
+    });
+
+    setValue("defaultCoatingId", pendingCoatingId, { shouldDirty: true });
+    setShowCoatingUpdateAlert(false);
+    setPendingCoatingId(null);
+    toast.success("All pieces have been updated to the new default coating.");
+  };
+
   const setNewColorForFuturePieces = () => {
     if (pendingColorId === null) return;
     setValue("defaultFrameColorId", pendingColorId, { shouldDirty: true });
@@ -235,10 +321,36 @@ export function EstimateForm({
     setPendingColorId(null);
   };
 
+  const setNewTintForFuturePieces = () => {
+    if (pendingTintId === null) return;
+    setValue("defaultTintId", pendingTintId, { shouldDirty: true });
+    setShowTintUpdateAlert(false);
+    setPendingTintId(null);
+  };
+
+  const setNewCoatingForFuturePieces = () => {
+    if (pendingCoatingId === null) return;
+    setValue("defaultCoatingId", pendingCoatingId, { shouldDirty: true });
+    setShowCoatingUpdateAlert(false);
+    setPendingCoatingId(null);
+  };
+
   const handleCancelColorChange = () => {
     setValue("defaultFrameColorId", previousColorIdRef.current);
     setShowColorUpdateAlert(false);
     setPendingColorId(null);
+  };
+
+  const handleCancelTintChange = () => {
+    setValue("defaultTintId", previousTintIdRef.current);
+    setShowTintUpdateAlert(false);
+    setPendingTintId(null);
+  };
+
+  const handleCancelCoatingChange = () => {
+    setValue("defaultCoatingId", previousCoatingIdRef.current);
+    setShowCoatingUpdateAlert(false);
+    setPendingCoatingId(null);
   };
 
   const handleApplyGeneralMarkup = () => {
@@ -511,15 +623,15 @@ export function EstimateForm({
       idSyst: 0,
       idConf: 0,
       idFC: Number(defaultFrameColorId) || 0,
+      idTint: Number(defaultTintId) || 0,
+      idCoat: Number(defaultCoatingId) || 0,
       width: "",
       height: "",
       heightLeft: "",
       heightRight: "",
       legHeight: "",
       idCryst: 0,
-      idTint: 0,
       privacy: false,
-      idCoat: 0,
       screen: false,
 
       idActiveOption: null,
@@ -540,7 +652,14 @@ export function EstimateForm({
       dpPosPsf: null,
       dpNegPsf: null,
     };
-  }, [editingPieceIndex, getValues, watchedPieces, defaultFrameColorId]);
+  }, [
+    editingPieceIndex,
+    getValues,
+    watchedPieces,
+    defaultFrameColorId,
+    defaultTintId,
+    defaultCoatingId,
+  ]);
 
   const modalTitle =
     editingPieceIndex !== null
@@ -568,6 +687,12 @@ export function EstimateForm({
               defaultFrameColorId={getValues("defaultFrameColorId")}
               frameColors={frameColors}
               onDefaultColorChange={handleDefaultColorChange}
+              defaultTintId={getValues("defaultTintId")}
+              defaultCoatingId={getValues("defaultCoatingId")}
+              tints={tints}
+              coatings={coatings}
+              onDefaultTintChange={handleDefaultTintChange}
+              onDefaultCoatingChange={handleDefaultCoatingChange}
               generalDealerMarkupRegister={register("generalDealerMarkup", {
                 valueAsNumber: true,
                 min: 0,
@@ -684,6 +809,26 @@ export function EstimateForm({
         onCancel={handleCancelColorChange}
         onNewPiecesOnly={setNewColorForFuturePieces}
         onUpdateAll={updateAllPiecesColor}
+      />
+
+      <ColorUpdateAlertDialog
+        open={showTintUpdateAlert}
+        onOpenChange={setShowTintUpdateAlert}
+        title="Update Tint?"
+        description="You have changed the default tint. Do you want to apply this new tint to all existing pieces in this estimate?"
+        onCancel={handleCancelTintChange}
+        onNewPiecesOnly={setNewTintForFuturePieces}
+        onUpdateAll={updateAllPiecesTint}
+      />
+
+      <ColorUpdateAlertDialog
+        open={showCoatingUpdateAlert}
+        onOpenChange={setShowCoatingUpdateAlert}
+        title="Update Coating?"
+        description="You have changed the default coating. Do you want to apply this new coating to all existing pieces in this estimate?"
+        onCancel={handleCancelCoatingChange}
+        onNewPiecesOnly={setNewCoatingForFuturePieces}
+        onUpdateAll={updateAllPiecesCoating}
       />
     </>
   );
