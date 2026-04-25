@@ -79,38 +79,38 @@ export default async function EditEstimatePage({
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-4 flex items-center justify-between">
-          <BackLink href="/estimates" label="Back to Estimate" />
-        </div>
-
-        <Card className="w-full shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              Edit Estimate #{estimate.number}
-            </CardTitle>
-            <CardDescription>
-              Update the details for this estimate.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <EstimateForm
-              estimate={estimate}
-              taxRate={taxRate}
-              productsWithBrands={productsWithBrands}
-              systemsWithConfigs={systemsWithConfigs}
-              frameColors={frameColors}
-              crystals={crystals}
-              tints={tints}
-              coatings={coatings}
-              muntinPatterns={muntinPatterns}
-              muntinTypes={muntinTypes}
-            />
-          </CardContent>
-        </Card>
+  <div className="min-h-screen bg-gray-50 px-4 md:px-8 py-6">
+    <div className="w-full">
+      <div className="mb-4 flex items-center justify-between">
+        <BackLink href="/estimates" label="Back to Estimate" />
       </div>
+
+      <Card className="w-full shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl">
+            Edit Estimate #{estimate.number}
+          </CardTitle>
+          <CardDescription>
+            Update the details for this estimate.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <EstimateForm
+            estimate={estimate}
+            taxRate={taxRate}
+            productsWithBrands={productsWithBrands}
+            systemsWithConfigs={systemsWithConfigs}
+            frameColors={frameColors}
+            crystals={crystals}
+            tints={tints}
+            coatings={coatings}
+            muntinPatterns={muntinPatterns}
+            muntinTypes={muntinTypes}
+          />
+        </CardContent>
+      </Card>
     </div>
-  );
+  </div>
+);
 }

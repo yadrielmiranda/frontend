@@ -68,7 +68,7 @@ export function PieceModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[90vw] lg:max-w-screen-xl max-h-[90vh] overflow-y-auto"
+        className="w-[95vw] max-w-[95vw] xl:max-w-[1400px] max-h-[92vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>

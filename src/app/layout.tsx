@@ -50,7 +50,7 @@ export default function RootLayout({
           <TopBar />
 
           {/* ✅ un poco de padding arriba para que respire bajo la barra */}
-          <main className="container mx-auto p-4 md:p-8 pt-6">{children}</main>
+          <main className="w-full px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </Providers>
 
         {/* ✅ Toaster abajo para que no tape dropdowns */}
