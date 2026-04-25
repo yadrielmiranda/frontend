@@ -869,8 +869,8 @@ export function PieceForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 p-1">
-        <div className="md:col-span-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 p-1">
+        <div className="min-w-0">
           <Accordion
             type="multiple"
             value={activeAccordionItems}
@@ -1967,7 +1967,7 @@ export function PieceForm({
           </Accordion>
         </div>
 
-        <div className="hidden md:col-span-2 md:block">
+        <div className="hidden xl:block">
           <div className="sticky top-8">
             <Label className="text-center block mb-2 font-semibold text-gray-600">
               Preview
