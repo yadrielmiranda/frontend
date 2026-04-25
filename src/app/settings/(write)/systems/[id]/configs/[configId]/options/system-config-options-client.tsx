@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Plus, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -10,10 +10,29 @@ import {
   type SystemConfigOptionsManage,
 } from "@/app/api/systems.api";
 
+import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import {
+  getAssociatedOptionsColumns,
+  getAvailableOptionsColumns,
+  type AssociatedOption,
+  type AvailableOption,
+} from "./columns-system-config-options";
 
 type OptionItem = {
   id: number;
@@ -24,113 +43,166 @@ type OptionItem = {
   updatedAt: string;
 };
 
-function OptionsGroup({
-  title,
-  description,
-  options,
-  selectedIds,
-  defaultId,
-  onToggle,
-  onDefaultChange,
-}: {
+type OptionGroupKey = "active" | "preparation" | "sill" | "reinforcement";
+
+type OptionGroupConfig = {
+  key: OptionGroupKey;
   title: string;
-  description: string;
-  options: OptionItem[];
+  addLabel: string;
+  associatedTitle: string;
+  emptyTitle: string;
+  emptyDescription: string;
+  catalog: OptionItem[];
   selectedIds: number[];
   defaultId: number | null;
-  onToggle: (id: number, checked: boolean) => void;
-  onDefaultChange: (id: number | null) => void;
+};
+
+function OptionAssociationGroup({
+  group,
+  onAdd,
+  onRemove,
+  onSetDefault,
+}: {
+  group: OptionGroupConfig;
+  onAdd: (groupKey: OptionGroupKey, optionId: number) => Promise<boolean>;
+  onRemove: (groupKey: OptionGroupKey, optionId: number) => Promise<void>;
+  onSetDefault: (groupKey: OptionGroupKey, optionId: number) => Promise<void>;
 }) {
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const associatedOptions = useMemo<AssociatedOption[]>(() => {
+    return group.catalog
+      .filter((option) => group.selectedIds.includes(option.id))
+      .map((option) => ({
+        id: option.id,
+        name: option.name,
+        isDefault: group.defaultId === option.id,
+      }));
+  }, [group.catalog, group.selectedIds, group.defaultId]);
+
+  const availableOptions = useMemo<AvailableOption[]>(() => {
+    return group.catalog
+      .filter((option) => !group.selectedIds.includes(option.id))
+      .map((option) => ({
+        id: option.id,
+        name: option.name,
+      }));
+  }, [group.catalog, group.selectedIds]);
+
+  const associatedColumns = useMemo(
+    () =>
+      getAssociatedOptionsColumns(
+        (optionId) => onRemove(group.key, optionId),
+        (optionId) => onSetDefault(group.key, optionId),
+      ),
+    [group.key, onRemove, onSetDefault],
+  );
+
+  const availableColumns = useMemo(
+    () =>
+      getAvailableOptionsColumns(async (optionId) => {
+        const ok = await onAdd(group.key, optionId);
+        if (ok) setIsAddDialogOpen(false);
+      }),
+    [group.key, onAdd],
+  );
+
+  const hasAssociated = associatedOptions.length > 0;
+  const hasAvailable = availableOptions.length > 0;
+
   return (
-    <div className="rounded-lg border p-4 space-y-4">
-      <div>
-        <h3 className="text-base font-semibold">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+    <div className="space-y-4 rounded-lg border p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold">{group.title}</h3>
+          <p className="text-sm text-muted-foreground">
+            Manage associated options and default value.
+          </p>
+        </div>
+
+        <TooltipProvider>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={!hasAvailable}
+                      className="inline-flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {group.addLabel}
+                    </Button>
+                  </DialogTrigger>
+                </span>
+              </TooltipTrigger>
+
+              {!hasAvailable && (
+                <TooltipContent side="bottom" align="end">
+                  No available options to add.
+                </TooltipContent>
+              )}
+            </Tooltip>
+
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{group.addLabel}</DialogTitle>
+                <DialogDescription>
+                  Select an option from the list to associate it.
+                </DialogDescription>
+              </DialogHeader>
+
+              {hasAvailable ? (
+                <DataTable
+                  columns={availableColumns}
+                  data={availableOptions}
+                  filterColumnId="name"
+                  filterPlaceholder="Search options..."
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-10 text-center">
+                  <PackageOpen className="h-8 w-8 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">
+                    No options available
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    All options are already associated.
+                  </p>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </TooltipProvider>
       </div>
 
-      {options.length === 0 ? (
-        <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          No options available in this catalog.
+      {!hasAssociated ? (
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
+          <PackageOpen className="h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 text-sm font-medium">{group.emptyTitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {group.emptyDescription}
+          </p>
+
+          <Button
+            type="button"
+            className="mt-4 inline-flex items-center gap-2"
+            onClick={() => setIsAddDialogOpen(true)}
+            disabled={!hasAvailable}
+          >
+            <Plus className="h-4 w-4" />
+            {group.addLabel}
+          </Button>
         </div>
       ) : (
-        <RadioGroup
-          value={defaultId ? String(defaultId) : ""}
-          onValueChange={(value) => onDefaultChange(Number(value))}
-          className="grid gap-3"
-        >
-          {options.map((option) => {
-            const checked = selectedIds.includes(option.id);
-            const isDefault = defaultId === option.id;
-            const checkboxId = `${title}-${option.id}`;
-            const radioId = `${title}-default-${option.id}`;
-
-            return (
-              <div
-                key={option.id}
-                className="flex items-center justify-between gap-4 rounded-md border p-3 hover:bg-muted/50"
-              >
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="flex flex-1 items-center space-x-3 cursor-pointer"
-                  onClick={() => onToggle(option.id, !checked)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onToggle(option.id, !checked);
-                    }
-                  }}
-                >
-                  <Checkbox
-                    id={checkboxId}
-                    checked={checked}
-                    className="cursor-pointer border-gray-400 data-[state=checked]:border-primary"
-                    onClick={(event) => event.stopPropagation()}
-                    onCheckedChange={(value) =>
-                      onToggle(option.id, value === true)
-                    }
-                  />
-                  <Label
-                    htmlFor={checkboxId}
-                    onClick={(event) => event.preventDefault()}
-                    className="font-normal cursor-pointer"
-                  >
-                    {option.name}
-                  </Label>
-                </div>
-
-                <div
-                  className="flex items-center gap-2"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <RadioGroupItem
-                    id={radioId}
-                    value={String(option.id)}
-                    disabled={!checked}
-                    className={
-                      checked
-                        ? "cursor-pointer border-gray-400 data-[state=checked]:border-blue-600 data-[state=checked]:text-blue-600"
-                        : "cursor-not-allowed border-gray-300 opacity-50"
-                    }
-                  />
-
-                  <Label
-                    htmlFor={radioId}
-                    className={
-                      isDefault
-                        ? "text-xs text-blue-600 font-semibold cursor-pointer"
-                        : checked
-                          ? "text-xs text-muted-foreground hover:text-blue-400 cursor-pointer"
-                          : "text-xs text-muted-foreground/50 cursor-not-allowed"
-                    }
-                  >
-                    {isDefault ? "Default" : "Set as default"}
-                  </Label>
-                </div>
-              </div>
-            );
-          })}
-        </RadioGroup>
+        <div className="rounded-md border">
+          <DataTable
+            columns={associatedColumns}
+            data={associatedOptions}
+            filterColumnId="name"
+            filterPlaceholder={`Filter ${group.associatedTitle.toLowerCase()}...`}
+          />
+        </div>
       )}
     </div>
   );
@@ -142,177 +214,203 @@ export function SystemConfigOptionsClient({
   data: SystemConfigOptionsManage;
 }) {
   const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
 
-  const [activeOptionIds, setActiveOptionIds] = useState<number[]>(
-    data.selectedActiveOptionIds,
-  );
-  const [preparationOptionIds, setPreparationOptionIds] = useState<number[]>(
-    data.selectedPreparationOptionIds,
-  );
-  const [sillOptionIds, setSillOptionIds] = useState<number[]>(
-    data.selectedSillOptionIds,
-  );
-  const [reinforcementOptionIds, setReinforcementOptionIds] = useState<
-    number[]
-  >(data.selectedReinforcementOptionIds);
+  const buildPayload = (
+    groupKey: OptionGroupKey,
+    nextIds: number[],
+    nextDefaultId: number | null,
+  ) => {
+    return {
+      activeOptionIds:
+        groupKey === "active" ? nextIds : data.selectedActiveOptionIds,
+      preparationOptionIds:
+        groupKey === "preparation"
+          ? nextIds
+          : data.selectedPreparationOptionIds,
+      sillOptionIds: groupKey === "sill" ? nextIds : data.selectedSillOptionIds,
+      reinforcementOptionIds:
+        groupKey === "reinforcement"
+          ? nextIds
+          : data.selectedReinforcementOptionIds,
 
-  const [defaultActiveOptionId, setDefaultActiveOptionId] = useState<
-    number | null
-  >(data.defaultActiveOptionId);
-
-  const [defaultPreparationOptionId, setDefaultPreparationOptionId] = useState<
-    number | null
-  >(data.defaultPreparationOptionId);
-
-  const [defaultSillOptionId, setDefaultSillOptionId] = useState<number | null>(
-    data.defaultSillOptionId,
-  );
-
-  const [defaultReinforcementOptionId, setDefaultReinforcementOptionId] =
-    useState<number | null>(data.defaultReinforcementOptionId);
-
-  const toggleId = (
-    current: number[],
-    id: number,
-    checked: boolean,
-  ): number[] => {
-    if (checked) {
-      if (current.includes(id)) return current;
-      return [...current, id];
-    }
-
-    return current.filter((x) => x !== id);
+      defaultActiveOptionId:
+        groupKey === "active" ? nextDefaultId : data.defaultActiveOptionId,
+      defaultPreparationOptionId:
+        groupKey === "preparation"
+          ? nextDefaultId
+          : data.defaultPreparationOptionId,
+      defaultSillOptionId:
+        groupKey === "sill" ? nextDefaultId : data.defaultSillOptionId,
+      defaultReinforcementOptionId:
+        groupKey === "reinforcement"
+          ? nextDefaultId
+          : data.defaultReinforcementOptionId,
+    };
   };
 
-  const handleActiveToggle = (id: number, checked: boolean) => {
-    setActiveOptionIds((current) => toggleId(current, id, checked));
-
-    if (!checked && defaultActiveOptionId === id) {
-      setDefaultActiveOptionId(null);
+  const getGroupState = (groupKey: OptionGroupKey) => {
+    if (groupKey === "active") {
+      return {
+        selectedIds: data.selectedActiveOptionIds,
+        defaultId: data.defaultActiveOptionId,
+      };
     }
 
-    if (checked && defaultActiveOptionId === null) {
-      setDefaultActiveOptionId(id);
+    if (groupKey === "preparation") {
+      return {
+        selectedIds: data.selectedPreparationOptionIds,
+        defaultId: data.defaultPreparationOptionId,
+      };
     }
+
+    if (groupKey === "sill") {
+      return {
+        selectedIds: data.selectedSillOptionIds,
+        defaultId: data.defaultSillOptionId,
+      };
+    }
+
+    return {
+      selectedIds: data.selectedReinforcementOptionIds,
+      defaultId: data.defaultReinforcementOptionId,
+    };
   };
 
-  const handlePreparationToggle = (id: number, checked: boolean) => {
-    setPreparationOptionIds((current) => toggleId(current, id, checked));
-
-    if (!checked && defaultPreparationOptionId === id) {
-      setDefaultPreparationOptionId(null);
-    }
-
-    if (checked && defaultPreparationOptionId === null) {
-      setDefaultPreparationOptionId(id);
-    }
-  };
-
-  const handleSillToggle = (id: number, checked: boolean) => {
-    setSillOptionIds((current) => toggleId(current, id, checked));
-
-    if (!checked && defaultSillOptionId === id) {
-      setDefaultSillOptionId(null);
-    }
-
-    if (checked && defaultSillOptionId === null) {
-      setDefaultSillOptionId(id);
-    }
-  };
-
-  const handleReinforcementToggle = (id: number, checked: boolean) => {
-    setReinforcementOptionIds((current) => toggleId(current, id, checked));
-
-    if (!checked && defaultReinforcementOptionId === id) {
-      setDefaultReinforcementOptionId(null);
-    }
-
-    if (checked && defaultReinforcementOptionId === null) {
-      setDefaultReinforcementOptionId(id);
-    }
-  };
-
-  const handleSave = async () => {
+  const runAction = async (
+    groupKey: OptionGroupKey,
+    nextIds: number[],
+    nextDefaultId: number | null,
+    successMsg: string,
+    errorMsg: string,
+  ) => {
     try {
-      setIsSaving(true);
+      await updateSystemConfigOptions(
+        data.idSystem,
+        data.idConfig,
+        buildPayload(groupKey, nextIds, nextDefaultId),
+      );
 
-      await updateSystemConfigOptions(data.idSystem, data.idConfig, {
-        activeOptionIds,
-        preparationOptionIds,
-        sillOptionIds,
-        reinforcementOptionIds,
-
-        defaultActiveOptionId,
-        defaultPreparationOptionId,
-        defaultSillOptionId,
-        defaultReinforcementOptionId,
-      });
-
-      toast.success("System config options updated successfully.");
+      toast.success(successMsg);
       router.refresh();
+      return true;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong.";
-      toast.error(message);
-      console.error(error);
-    } finally {
-      setIsSaving(false);
+      toast.error((error as Error).message || errorMsg);
+      console.error(errorMsg, error);
+      return false;
     }
   };
+
+  const handleAdd = async (groupKey: OptionGroupKey, optionId: number) => {
+    const { selectedIds, defaultId } = getGroupState(groupKey);
+
+    const nextIds = selectedIds.includes(optionId)
+      ? selectedIds
+      : [...selectedIds, optionId];
+
+    const nextDefaultId = defaultId ?? optionId;
+
+    return runAction(
+      groupKey,
+      nextIds,
+      nextDefaultId,
+      "Option linked successfully.",
+      "Error linking option.",
+    );
+  };
+
+  const handleRemove = async (groupKey: OptionGroupKey, optionId: number) => {
+    const { selectedIds, defaultId } = getGroupState(groupKey);
+
+    const nextIds = selectedIds.filter((id) => id !== optionId);
+    const nextDefaultId =
+      defaultId === optionId ? (nextIds[0] ?? null) : defaultId;
+
+    await runAction(
+      groupKey,
+      nextIds,
+      nextDefaultId,
+      "Option unlinked successfully.",
+      "Error unlinking option.",
+    );
+  };
+
+  const handleSetDefault = async (
+    groupKey: OptionGroupKey,
+    optionId: number,
+  ) => {
+    const { selectedIds } = getGroupState(groupKey);
+
+    await runAction(
+      groupKey,
+      selectedIds,
+      optionId,
+      "Default option updated successfully.",
+      "Error updating default option.",
+    );
+  };
+
+  const groups: OptionGroupConfig[] = [
+    {
+      key: "active",
+      title: "Active Options",
+      addLabel: "Add Active Option",
+      associatedTitle: "Associated Active Options",
+      emptyTitle: "No active options associated",
+      emptyDescription:
+        "Add active options to make them available for this config.",
+      catalog: data.activeOptionsCatalog,
+      selectedIds: data.selectedActiveOptionIds,
+      defaultId: data.defaultActiveOptionId,
+    },
+    {
+      key: "preparation",
+      title: "Preparation Options",
+      addLabel: "Add Preparation Option",
+      associatedTitle: "Associated Preparation Options",
+      emptyTitle: "No preparation options associated",
+      emptyDescription:
+        "Add preparation options to make them available for this config.",
+      catalog: data.preparationOptionsCatalog,
+      selectedIds: data.selectedPreparationOptionIds,
+      defaultId: data.defaultPreparationOptionId,
+    },
+    {
+      key: "sill",
+      title: "Sill Options",
+      addLabel: "Add Sill Option",
+      associatedTitle: "Associated Sill Options",
+      emptyTitle: "No sill options associated",
+      emptyDescription:
+        "Add sill options to make them available for this config.",
+      catalog: data.sillOptionsCatalog,
+      selectedIds: data.selectedSillOptionIds,
+      defaultId: data.defaultSillOptionId,
+    },
+    {
+      key: "reinforcement",
+      title: "Reinforcement Options",
+      addLabel: "Add Reinforcement Option",
+      associatedTitle: "Associated Reinforcement Options",
+      emptyTitle: "No reinforcement options associated",
+      emptyDescription:
+        "Add reinforcement options to make them available for this config.",
+      catalog: data.reinforcementOptionsCatalog,
+      selectedIds: data.selectedReinforcementOptionIds,
+      defaultId: data.defaultReinforcementOptionId,
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <OptionsGroup
-        title="Active Options"
-        description="Select which active options will be available for this config."
-        options={data.activeOptionsCatalog}
-        selectedIds={activeOptionIds}
-        defaultId={defaultActiveOptionId}
-        onToggle={handleActiveToggle}
-        onDefaultChange={setDefaultActiveOptionId}
-      />
-
-      <OptionsGroup
-        title="Preparation Options"
-        description="Select which preparation options will be available for this config."
-        options={data.preparationOptionsCatalog}
-        selectedIds={preparationOptionIds}
-        defaultId={defaultPreparationOptionId}
-        onToggle={handlePreparationToggle}
-        onDefaultChange={setDefaultPreparationOptionId}
-      />
-
-      <OptionsGroup
-        title="Sill Options"
-        description="Select which sill options will be available for this config."
-        options={data.sillOptionsCatalog}
-        selectedIds={sillOptionIds}
-        defaultId={defaultSillOptionId}
-        onToggle={handleSillToggle}
-        onDefaultChange={setDefaultSillOptionId}
-      />
-
-      <OptionsGroup
-        title="Reinforcement Options"
-        description="Select which reinforcement options will be available for this config."
-        options={data.reinforcementOptionsCatalog}
-        selectedIds={reinforcementOptionIds}
-        defaultId={defaultReinforcementOptionId}
-        onToggle={handleReinforcementToggle}
-        onDefaultChange={setDefaultReinforcementOptionId}
-      />
-
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={() => router.back()}>
-          Cancel
-        </Button>
-
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSaving ? "Saving..." : "Save Options"}
-        </Button>
-      </div>
+      {groups.map((group) => (
+        <OptionAssociationGroup
+          key={group.key}
+          group={group}
+          onAdd={handleAdd}
+          onRemove={handleRemove}
+          onSetDefault={handleSetDefault}
+        />
+      ))}
     </div>
   );
 }

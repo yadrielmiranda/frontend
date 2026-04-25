@@ -95,9 +95,7 @@ export function SystemCrystalsClient({
       nextDefaultCrystalId,
       "Glass linked successfully.",
       "Error linking glass.",
-    );
-
-    if (ok) setIsAddDialogOpen(false);
+    );    
   };
 
   const handleRemove = async (crystalId: number) => {
