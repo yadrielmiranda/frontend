@@ -254,7 +254,7 @@ export function PieceForm({
         shouldDirty: false,
       });
     }
-  }, [systemId]); 
+  }, [systemId]);
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -446,7 +446,7 @@ export function PieceForm({
       return;
     }
 
-    if (!selectedConfig || !defaultMuntinPattern?.id) return;
+    if (!selectedConfig) return;
 
     if (previousConfigIdRef.current === currentConfigId) {
       if (!screenAllowed && getValues("screen")) {
@@ -477,17 +477,18 @@ export function PieceForm({
       return;
     }
 
-    const fallbackPatternId = hasMuntinLayout
-      ? defaultMuntinPattern.id
-      : (defaultFullViewPattern?.id ?? defaultMuntinPattern.id);
+    const fallbackPatternId =
+      defaultFullViewPattern?.id ?? defaultMuntinPattern?.id;
 
-    const syncedMuntin = syncMuntinWithConfigLayout(
-      getValues("muntin"),
-      selectedConfig,
-      fallbackPatternId,
-    );
+    if (fallbackPatternId) {
+      const syncedMuntin = syncMuntinWithConfigLayout(
+        getValues("muntin"),
+        selectedConfig,
+        fallbackPatternId,
+      );
 
-    setValue("muntin", syncedMuntin, { shouldDirty: false });
+      setValue("muntin", syncedMuntin, { shouldDirty: false });
+    }
 
     previousConfigIdRef.current = currentConfigId;
 

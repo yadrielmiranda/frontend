@@ -345,8 +345,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => removePanel(index)}
-                    disabled={fields.length <= 1}
+                    onClick={() => removePanel(index)}                    
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
