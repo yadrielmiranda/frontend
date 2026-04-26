@@ -1127,7 +1127,12 @@ export function PieceForm({
                               <Select
                                 disabled={isLocked}
                                 onValueChange={(v) => field.onChange(Number(v))}
-                                value={field.value ? String(field.value) : ""}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select active..." />
@@ -1166,7 +1171,12 @@ export function PieceForm({
                               <Select
                                 disabled={isLocked}
                                 onValueChange={(v) => field.onChange(Number(v))}
-                                value={field.value ? String(field.value) : ""}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select preparation..." />
@@ -1203,7 +1213,12 @@ export function PieceForm({
                               <Select
                                 disabled={isLocked}
                                 onValueChange={(v) => field.onChange(Number(v))}
-                                value={field.value ? String(field.value) : ""}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select sill..." />
@@ -1242,7 +1257,12 @@ export function PieceForm({
                               <Select
                                 disabled={isLocked}
                                 onValueChange={(v) => field.onChange(Number(v))}
-                                value={field.value ? String(field.value) : ""}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select reinforcement..." />
