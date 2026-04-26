@@ -15,7 +15,7 @@ export default async function OrdersPage() {
   const orders = await getOrders();
 
   return (
-    <div className="container mx-auto py-10 max-w-6xl">
+    <div className="w-full px-4 md:px-8 py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-4xl font-bold">Orders</h1>
