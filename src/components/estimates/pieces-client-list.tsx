@@ -99,11 +99,11 @@ export function PiecesClientList({
                   className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-slate-100"
                   title={isExpanded ? "Hide details" : "Show details"}
                 >
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${
+                      isExpanded ? "rotate-0" : "-rotate-90"
+                    }`}
+                  />
                 </button>
 
                 <div className="flex-1">

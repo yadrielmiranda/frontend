@@ -149,7 +149,7 @@ export interface PieceFormProps {
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 
-  isDealer: boolean;
+  canUseCustomerPricing: boolean;
 }
 
 export function PieceForm({
@@ -713,7 +713,7 @@ export function PieceForm({
 
         muntin: currentValues.muntin ?? null,
         qty: Number(currentValues.qty),
-        dealerMarkup: props.isDealer
+        dealerMarkup: props.canUseCustomerPricing
           ? Number(currentValues.dealerMarkup || 0)
           : undefined,
       };
@@ -798,7 +798,7 @@ export function PieceForm({
       setValue("dpPosPsf", dpPos);
       setValue("dpNegPsf", dpNeg);
 
-      if (props.isDealer) {
+      if (props.canUseCustomerPricing) {
         setValue("dealerMarkup", Number(currentValues.dealerMarkup || 0));
       }
 
@@ -822,7 +822,7 @@ export function PieceForm({
   };
 
   const recalcDealerTotals = () => {
-    if (!props.isDealer) return;
+    if (!props.canUseCustomerPricing) return;
 
     const v = getValues();
     const qtyN = Number(v.qty) || 0;
@@ -1904,7 +1904,7 @@ export function PieceForm({
                       </div>
                     </div>
 
-                    {props.isDealer && (
+                    {props.canUseCustomerPricing && (
                       <div className="border-t border-green-200 pt-4 space-y-3">
                         <h4 className="font-semibold text-gray-600">
                           Dealer Pricing

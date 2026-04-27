@@ -66,36 +66,45 @@ export function PieceFormDetailsPanel({
     system?.sysconfs?.find((sc) => sc.idConfig === Number(piece.idConf))?.config
       ?.conf ?? null;
 
+  const selectedSysConf = system?.sysconfs?.find(
+    (sc) => sc.idConfig === Number(piece.idConf),
+  );
+
+  const muntinLayout = selectedSysConf?.config?.muntinLayout ?? [];
+
+  const panelLabelByIndex = new Map(
+    Array.isArray(muntinLayout)
+      ? muntinLayout.map((panel) => [
+          Number(panel.panelIndex),
+          panel.panelLabel || panel.panelCode || `Panel ${panel.panelIndex}`,
+        ])
+      : [],
+  );
+
   const frameColor = findNameById(frameColors, piece.idFC, (fc) => fc.color);
   const glass = findNameById(crystals, piece.idCryst, (c) => c.glass);
   const tint = findNameById(tints, piece.idTint, (t) => t.color);
   const coating = findNameById(coatings, piece.idCoat, (c) => c.name);
 
   const activeName =
-    system?.sysconfs
-      ?.find((sc) => sc.idConfig === Number(piece.idConf))
-      ?.activeOptions?.find((o) => o.optionId === Number(piece.idActiveOption))
-      ?.option?.name ?? null;
+    selectedSysConf?.activeOptions?.find(
+      (o) => o.optionId === Number(piece.idActiveOption),
+    )?.option?.name ?? null;
 
   const preparationName =
-    system?.sysconfs
-      ?.find((sc) => sc.idConfig === Number(piece.idConf))
-      ?.preparationOptions?.find(
-        (o) => o.optionId === Number(piece.idPreparationOption),
-      )?.option?.name ?? null;
+    selectedSysConf?.preparationOptions?.find(
+      (o) => o.optionId === Number(piece.idPreparationOption),
+    )?.option?.name ?? null;
 
   const sillName =
-    system?.sysconfs
-      ?.find((sc) => sc.idConfig === Number(piece.idConf))
-      ?.sillOptions?.find((o) => o.optionId === Number(piece.idSillOption))
-      ?.option?.name ?? null;
+    selectedSysConf?.sillOptions?.find(
+      (o) => o.optionId === Number(piece.idSillOption),
+    )?.option?.name ?? null;
 
   const reinforcementName =
-    system?.sysconfs
-      ?.find((sc) => sc.idConfig === Number(piece.idConf))
-      ?.reinforcementOptions?.find(
-        (o) => o.optionId === Number(piece.idReinforcementOption),
-      )?.option?.name ?? null;
+    selectedSysConf?.reinforcementOptions?.find(
+      (o) => o.optionId === Number(piece.idReinforcementOption),
+    )?.option?.name ?? null;
 
   const pattern = muntinPatterns.find(
     (p) => p.id === Number(piece.muntin?.idPattern),
@@ -207,23 +216,38 @@ export function PieceFormDetailsPanel({
             <strong>Muntin Pattern:</strong> {pattern?.name ?? "—"}
           </p>
 
-          <p>
-            <strong>Muntin Type:</strong> {muntinType?.name ?? "None"}
-          </p>
+          {pattern?.requiresLites && (
+            <>
+              <p>
+                <strong>Muntin Type:</strong> {muntinType?.name ?? "—"}
+              </p>
 
-          {piece.muntin?.panels?.length ? (
-            <div className="pt-2">
-              <strong>Panels:</strong>
-              <div className="mt-1 space-y-1">
-                {piece.muntin.panels.map((panel) => (
-                  <p key={panel.panelIndex} className="text-xs text-slate-600">
-                    {panel.panelLabel}: {panel.horizontalLites}H x{" "}
-                    {panel.verticalLites}V
-                  </p>
-                ))}
-              </div>
-            </div>
-          ) : null}
+              {piece.muntin?.panels?.length ? (
+                <div className="pt-2">
+                  <strong>Panels:</strong>
+                  <div className="mt-1 space-y-1">
+                    {piece.muntin.panels.map((panel) => {
+                      const label =
+                        panel.panelLabel ||
+                        panelLabelByIndex.get(Number(panel.panelIndex)) ||
+                        panel.panelCode ||
+                        `Panel ${panel.panelIndex}`;
+
+                      return (
+                        <p
+                          key={panel.panelIndex}
+                          className="text-xs text-slate-600"
+                        >
+                          {label}: {panel.horizontalLites}H x{" "}
+                          {panel.verticalLites}V
+                        </p>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
 
           <p>
             <strong>DP:</strong>{" "}

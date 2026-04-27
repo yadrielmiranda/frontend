@@ -34,7 +34,7 @@ import { PieceModal } from "./piece-modal";
 import { CustomerDetailsCard } from "./customer-details-card";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
-import { canSetCustomerOnEstimate, isDealerRole } from "@/lib/rbac";
+import { canSetCustomerOnEstimate } from "@/lib/rbac";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -76,8 +76,8 @@ export function EstimateForm({
   const { user } = useAuth();
   const role = user?.role?.name ?? null;
 
-  const showCustomerSection = canSetCustomerOnEstimate(role);
-  const isDealer = isDealerRole(role);
+  const canUseCustomerPricing = canSetCustomerOnEstimate(role);
+  const isTaxExempt = !!user?.isTaxExempt;
   const isEditMode = !!estimate;
 
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
@@ -354,7 +354,7 @@ export function EstimateForm({
   };
 
   const handleApplyGeneralMarkup = () => {
-    if (!isDealer) return;
+    if (!canUseCustomerPricing) return;
 
     const gm = Number(getValues("generalDealerMarkup")) || 0;
     const pieces = getValues("pieces");
@@ -432,7 +432,8 @@ export function EstimateForm({
       { totalUnits: 0, subtotal: 0, dealerTotal: 0 },
     );
 
-    const factoryTaxAmount = roundMoney(totals.subtotal * taxRate);
+    const effectiveTaxRate = isTaxExempt ? 0 : taxRate;
+    const factoryTaxAmount = roundMoney(totals.subtotal * effectiveTaxRate);
     const factoryTotalPayable = roundMoney(totals.subtotal + factoryTaxAmount);
 
     const customerTaxRateDec = roundMoney(
@@ -455,7 +456,13 @@ export function EstimateForm({
       dealerProfit,
       pieceBreakdown: breakdown,
     };
-  }, [watchedPieces, productsWithBrands, taxRate, customerTaxRatePercent]);
+  }, [
+    watchedPieces,
+    productsWithBrands,
+    taxRate,
+    customerTaxRatePercent,
+    isTaxExempt,
+  ]);
 
   const handleAddNewPiece = () => {
     setEditingPieceIndex(null);
@@ -503,7 +510,7 @@ export function EstimateForm({
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const customerTaxRateDec = isDealer
+      const customerTaxRateDec = canUseCustomerPricing
         ? (Number(data.customerTaxRate) || 0) / 100
         : 0;
 
@@ -540,7 +547,7 @@ export function EstimateForm({
 
           muntin: p.muntin ?? null,
           qty: Number(p.qty),
-          dealerMarkup: isDealer ? Number(p.dealerMarkup || 0) : 0,
+          dealerMarkup: canUseCustomerPricing ? Number(p.dealerMarkup || 0) : 0,
         };
       };
 
@@ -556,7 +563,7 @@ export function EstimateForm({
         | "customerPostalCode"
       >;
 
-      const customerHeader: Partial<CustomerFields> = showCustomerSection
+      const customerHeader: Partial<CustomerFields> = canUseCustomerPricing
         ? {
             customerFirstName: data.customerFirstName?.trim() || null,
             customerLastName: data.customerLastName?.trim() || null,
@@ -679,7 +686,7 @@ export function EstimateForm({
             <EstimateDetailsLeft
               isEditMode={isEditMode}
               estimateNumber={estimate?.number}
-              isDealer={isDealer}
+              canUseCustomerPricing={canUseCustomerPricing}
               nameError={errors.name?.message}
               nameRegister={register("name", {
                 required: "The name is required",
@@ -709,15 +716,16 @@ export function EstimateForm({
             />
 
             <EstimateTotalsCard
-              isDealer={isDealer}
+              canUseCustomerPricing={canUseCustomerPricing}
               taxRate={taxRate}
+              isTaxExempt={isTaxExempt}
               customerTaxRatePercent={Number(customerTaxRatePercent) || 0}
               summary={summary}
               formatCurrency={formatCurrency}
             />
           </div>
 
-          {showCustomerSection && (
+          {canUseCustomerPricing && (
             <div className="mt-6">
               <CustomerDetailsCard
                 register={register}
@@ -741,7 +749,7 @@ export function EstimateForm({
             </Button>
           </div>
 
-          {isDealer ? (
+          {canUseCustomerPricing ? (
             <PiecesDealerTable
               fields={fields as any}
               watchedPieces={watchedPieces}
@@ -812,7 +820,7 @@ export function EstimateForm({
         coatings={coatings}
         muntinPatterns={muntinPatterns}
         muntinTypes={muntinTypes}
-        isDealer={isDealer}
+        canUseCustomerPricing={canUseCustomerPricing}
       />
 
       <ColorUpdateAlertDialog

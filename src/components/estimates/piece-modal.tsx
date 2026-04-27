@@ -43,7 +43,7 @@ interface PieceModalProps {
   coatings: Coating[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
-  isDealer: boolean;
+  canUseCustomerPricing: boolean;
 }
 
 export function PieceModal({
@@ -63,7 +63,7 @@ export function PieceModal({
   coatings,
   muntinPatterns,
   muntinTypes,
-  isDealer,
+  canUseCustomerPricing,
 }: PieceModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,7 +89,7 @@ export function PieceModal({
           coatings={coatings}
           muntinPatterns={muntinPatterns}
           muntinTypes={muntinTypes}
-          isDealer={isDealer}
+          canUseCustomerPricing={canUseCustomerPricing}
         />
       </DialogContent>
     </Dialog>

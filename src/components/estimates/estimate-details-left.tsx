@@ -22,7 +22,7 @@ interface EstimateDetailsLeftProps {
   isEditMode: boolean;
   estimateNumber?: string;
 
-  isDealer: boolean;
+  canUseCustomerPricing: boolean;
 
   // Name
   nameError?: string;
@@ -51,7 +51,7 @@ interface EstimateDetailsLeftProps {
 export function EstimateDetailsLeft({
   isEditMode,
   estimateNumber,
-  isDealer,
+  canUseCustomerPricing,
 
   nameError,
   nameRegister,
@@ -192,7 +192,7 @@ export function EstimateDetailsLeft({
         </p>
       </div>
 
-      {isDealer && (
+      {canUseCustomerPricing && (
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <Label htmlFor="generalDealerMarkup">
@@ -218,7 +218,7 @@ export function EstimateDetailsLeft({
         </div>
       )}
 
-      {isDealer && (
+      {canUseCustomerPricing && (
         <div>
           <Label htmlFor="customerTaxRate">Customer Sales Tax (%)</Label>
           <Input

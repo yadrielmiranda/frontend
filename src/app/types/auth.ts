@@ -1,14 +1,15 @@
 
 export interface AuthUser {
-  id: number; 
+  id: number;
   username: string;
   firstName: string;
   lastName: string;
   email: string;
+  isTaxExempt: boolean;
   role: {
-      id: number;
-      name: string;
-  }; 
+    id: number;
+    name: string;
+  };
 }
 
 export interface LoginResponse {

@@ -15,16 +15,18 @@ type Summary = {
 };
 
 interface EstimateTotalsCardProps {
-  isDealer: boolean;
+  canUseCustomerPricing: boolean;
   taxRate: number;
+  isTaxExempt: boolean;
   customerTaxRatePercent: number;
   summary: Summary;
   formatCurrency: (amount: number) => string;
 }
 
 export function EstimateTotalsCard({
-  isDealer,
+  canUseCustomerPricing,
   taxRate,
+  isTaxExempt,
   customerTaxRatePercent,
   summary,
   formatCurrency,
@@ -33,12 +35,33 @@ export function EstimateTotalsCard({
     <div className="border p-3 rounded-md bg-slate-100 space-y-2">
       <div className="flex justify-between items-center text-sm">
         <Label>Subtotal (Your Price)</Label>
-        <span className="font-semibold">{formatCurrency(summary.subtotal)}</span>
+        <span className="font-semibold">
+          {formatCurrency(summary.subtotal)}
+        </span>
       </div>
 
       <div className="flex justify-between items-center text-sm">
-        <Label>Sales Tax ({(Number(taxRate) * 100).toFixed(2)}%)</Label>
-        <span className="font-semibold">{formatCurrency(summary.taxAmount)}</span>
+        <Label>
+          Sales Tax{" "}
+          {isTaxExempt ? (
+            <>
+              <span className="line-through text-slate-400">
+                ({(Number(taxRate) * 100).toFixed(2)}%)
+              </span>{" "}
+              <span className="text-green-700 font-semibold">(Exempt)</span>
+            </>
+          ) : (
+            <>({(Number(taxRate) * 100).toFixed(2)}%)</>
+          )}
+        </Label>
+
+        <span
+          className={
+            isTaxExempt ? "font-semibold text-green-700" : "font-semibold"
+          }
+        >
+          {formatCurrency(summary.taxAmount)}
+        </span>
       </div>
 
       <div className="flex justify-between items-center border-t pt-2 mt-2">
@@ -48,7 +71,7 @@ export function EstimateTotalsCard({
         </span>
       </div>
 
-      {isDealer && (
+      {canUseCustomerPricing && (
         <>
           <div className="flex justify-between items-center border-t pt-2 mt-2">
             <Label className="font-bold text-green-700">
@@ -61,7 +84,8 @@ export function EstimateTotalsCard({
 
           <div className="flex justify-between items-center text-sm">
             <Label className="text-green-700">
-              Dealer Sales Tax ({(Number(customerTaxRatePercent) || 0).toFixed(2)}%)
+              Dealer Sales Tax (
+              {(Number(customerTaxRatePercent) || 0).toFixed(2)}%)
             </Label>
             <span className="font-semibold text-green-700">
               {formatCurrency(summary.dealerTaxAmount)}
@@ -78,7 +102,9 @@ export function EstimateTotalsCard({
           </div>
 
           <div className="flex justify-between items-center text-sm">
-            <Label className="text-green-700">Dealer Net Profit (pre-tax)</Label>
+            <Label className="text-green-700">
+              Dealer Net Profit (pre-tax)
+            </Label>
             <span className="font-semibold text-green-700">
               {formatCurrency(summary.dealerProfit)}
             </span>

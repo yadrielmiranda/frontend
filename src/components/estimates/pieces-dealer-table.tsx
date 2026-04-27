@@ -147,8 +147,8 @@ export function PiecesDealerTable({
                       title="View Details"
                     >
                       <ChevronDown
-                        className={`h-4 w-4 transition-transform ${
-                          openIndex === index ? "rotate-180" : ""
+                        className={`h-4 w-4 transition-transform duration-200 ${
+                          openIndex === index ? "rotate-0" : "-rotate-90"
                         }`}
                       />
                     </Button>
