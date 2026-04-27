@@ -763,7 +763,13 @@ export function EstimateForm({
               fields={fields as any}
               watchedPieces={watchedPieces}
               productsWithBrands={productsWithBrands}
+              systemsWithConfigs={systemsWithConfigs}
               frameColors={frameColors}
+              crystals={crystals}
+              tints={tints}
+              coatings={coatings}
+              muntinPatterns={muntinPatterns}
+              muntinTypes={muntinTypes}
               formatCurrency={formatCurrency}
               onDuplicate={handleDuplicatePiece}
               onEdit={handleEditPiece}
