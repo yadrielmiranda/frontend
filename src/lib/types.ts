@@ -108,6 +108,7 @@ export interface MuntinType {
   id: number;
   name: string;
   isActive: boolean;
+  isDefault: boolean;
 }
 
 export interface PieceMuntinPanel {

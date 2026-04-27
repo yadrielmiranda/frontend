@@ -299,6 +299,14 @@ export function PieceForm({
     [props.muntinTypes],
   );
 
+  const defaultMuntinType = useMemo(
+    () =>
+      activeMuntinTypes.find((t) => t.isDefault) ??
+      activeMuntinTypes[0] ??
+      null,
+    [activeMuntinTypes],
+  );
+
   const defaultMuntinPattern = useMemo(
     () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
     [activeMuntinPatterns],
@@ -369,6 +377,42 @@ export function PieceForm({
   }, [pieceValues.muntin?.idPattern, activeMuntinPatterns]);
 
   const patternRequiresLites = selectedPattern?.requiresLites ?? false;
+
+  useEffect(() => {
+    if (!currentMuntin) return;
+    if (!patternRequiresLites) return;
+    if (!hasMuntinLayout) return;
+    if (currentMuntin.idType) return;
+    if (!defaultMuntinType?.id) return;
+
+    setValue(
+      "muntin",
+      {
+        idPattern: Number(currentMuntin.idPattern),
+        idType: defaultMuntinType.id,
+        panels: buildDefaultPanelsFromLayout(
+          selectedConfig?.muntinLayout,
+          currentMuntin.panels?.map((panel, index) => ({
+            panelIndex: Number(panel.panelIndex ?? index + 1),
+            panelLabel:
+              panel.panelLabel ??
+              `Panel ${Number(panel.panelIndex ?? index + 1)}`,
+            panelCode: panel.panelCode,
+            horizontalLites: Math.max(1, Number(panel.horizontalLites ?? 1)),
+            verticalLites: Math.max(1, Number(panel.verticalLites ?? 1)),
+          })) ?? [],
+        ),
+      },
+      { shouldDirty: true },
+    );
+  }, [
+    currentMuntin,
+    patternRequiresLites,
+    hasMuntinLayout,
+    defaultMuntinType?.id,
+    selectedConfig?.muntinLayout,
+    setValue,
+  ]);
 
   useEffect(() => {
     if (!currentMuntin) return;
@@ -551,7 +595,7 @@ export function PieceForm({
         idPattern: pattern.id,
         idType:
           pattern.requiresLites && hasMuntinLayout
-            ? (current?.idType ?? null)
+            ? (current?.idType ?? defaultMuntinType?.id ?? null)
             : null,
         panels: nextPanels,
       },
@@ -1717,14 +1761,17 @@ export function PieceForm({
                             <Label className={fieldLabelClass}>Type</Label>
                             <Select
                               disabled={isLocked}
-                              value={String(currentMuntin?.idType ?? 0)}
+                              value={
+                                currentMuntin?.idType
+                                  ? String(currentMuntin.idType)
+                                  : undefined
+                              }
                               onValueChange={handleMuntinTypeChange}
                             >
                               <SelectTrigger className={selectTriggerClass}>
                                 <SelectValue placeholder="Select type..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="0">None</SelectItem>
                                 {activeMuntinTypes.map((type) => (
                                   <SelectItem
                                     key={type.id}

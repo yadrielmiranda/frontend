@@ -11,14 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import {
-  createMuntinType,
-  updateMuntinType,
-} from "@/app/api/muntin-types.api";
+import { createMuntinType, updateMuntinType } from "@/app/api/muntin-types.api";
 
 interface MuntinTypeFormValues {
   name: string;
   isActive: boolean;
+  isDefault: boolean;
 }
 
 interface MuntinTypeFormProps {
@@ -26,6 +24,7 @@ interface MuntinTypeFormProps {
     id?: number;
     name: string;
     isActive: boolean;
+    isDefault: boolean;
   };
 }
 
@@ -45,6 +44,7 @@ export function MuntinTypeForm({ typeItem }: MuntinTypeFormProps) {
     defaultValues: {
       name: typeItem?.name || "",
       isActive: typeItem?.isActive ?? true,
+      isDefault: typeItem?.isDefault ?? false,
     },
   });
 
@@ -53,6 +53,7 @@ export function MuntinTypeForm({ typeItem }: MuntinTypeFormProps) {
       const payload = {
         name: data.name.trim(),
         isActive: Boolean(data.isActive),
+        isDefault: Boolean(data.isDefault),
       };
 
       if (isEdit && typeItem?.id) {
@@ -112,6 +113,21 @@ export function MuntinTypeForm({ typeItem }: MuntinTypeFormProps) {
             </div>
           )}
         />
+
+        <Controller
+          name="isDefault"
+          control={control}
+          render={({ field }) => (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isDefault"
+                checked={Boolean(field.value)}
+                onCheckedChange={field.onChange}
+              />
+              <Label htmlFor="isDefault">Default</Label>
+            </div>
+          )}
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
@@ -123,7 +139,9 @@ export function MuntinTypeForm({ typeItem }: MuntinTypeFormProps) {
           type="submit"
           disabled={(!isDirty && !isEdit) || showLoadingState}
         >
-          {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {showLoadingState && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           {showLoadingState
             ? "Saving..."
             : isEdit

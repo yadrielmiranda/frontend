@@ -4,6 +4,7 @@ import type { MuntinType } from "@/lib/types";
 export type CreateMuntinTypeData = {
   name: string;
   isActive?: boolean;
+  isDefault?: boolean;
 };
 
 export type UpdateMuntinTypeData = Partial<CreateMuntinTypeData>;

@@ -41,6 +41,11 @@ export function getMuntinTypeColumns({
       header: "Active",
       cell: ({ row }) => (row.original.isActive ? "Yes" : "No"),
     },
+    {
+      accessorKey: "isDefault",
+      header: "Default",
+      cell: ({ row }) => (row.original.isDefault ? "Yes" : "No"),
+    },
   ];
 
   if (!canEdit) return cols;
