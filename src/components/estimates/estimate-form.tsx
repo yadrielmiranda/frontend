@@ -85,6 +85,9 @@ export function EstimateForm({
     null,
   );
 
+  const [duplicatingPieceData, setDuplicatingPieceData] =
+    useState<PieceFormValues | null>(null);
+
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
   const previousColorIdRef = useRef<number>(0);
@@ -466,6 +469,7 @@ export function EstimateForm({
 
   const handleAddNewPiece = () => {
     setEditingPieceIndex(null);
+    setDuplicatingPieceData(null);
     setIsPieceModalOpen(true);
   };
 
@@ -476,6 +480,7 @@ export function EstimateForm({
 
   const handleDuplicatePiece = (index: number) => {
     const pieceToDuplicate = getValues(`pieces.${index}`);
+
     const newPiece: PieceFormValues = {
       ...pieceToDuplicate,
       id: undefined,
@@ -491,9 +496,10 @@ export function EstimateForm({
       dpNegPsf: null,
     };
 
-    append(newPiece);
-    setEditingPieceIndex(fields.length);
+    setEditingPieceIndex(null);
+    setDuplicatingPieceData(newPiece);
     setIsPieceModalOpen(true);
+
     toast.info("Piece duplicated. Please enter a new mark and recalculate.");
   };
 
@@ -506,6 +512,7 @@ export function EstimateForm({
 
     setIsPieceModalOpen(false);
     setEditingPieceIndex(null);
+    setDuplicatingPieceData(null);
   };
 
   const onSubmit = handleSubmit(async (data) => {
@@ -623,6 +630,10 @@ export function EstimateForm({
       return getValues(`pieces.${editingPieceIndex}`);
     }
 
+    if (duplicatingPieceData) {
+      return duplicatingPieceData;
+    }
+
     return {
       mark: "",
       idProd: 0,
@@ -661,6 +672,7 @@ export function EstimateForm({
     };
   }, [
     editingPieceIndex,
+    duplicatingPieceData,
     getValues,
     watchedPieces,
     defaultFrameColorId,
@@ -805,13 +817,24 @@ export function EstimateForm({
 
       <PieceModal
         open={isPieceModalOpen}
-        onOpenChange={setIsPieceModalOpen}
+        onOpenChange={(open) => {
+          setIsPieceModalOpen(open);
+          if (!open) {
+            setEditingPieceIndex(null);
+            setDuplicatingPieceData(null);
+          }
+        }}
         title={modalTitle}
         pieceKey={pieceKey}
         initialData={editingPieceData}
         index={pieceIndex}
+        startUnlocked={editingPieceIndex !== null}
         onSave={handleSavePiece}
-        onCancel={() => setIsPieceModalOpen(false)}
+        onCancel={() => {
+          setIsPieceModalOpen(false);
+          setEditingPieceIndex(null);
+          setDuplicatingPieceData(null);
+        }}
         productsWithBrands={productsWithBrands}
         systemsWithConfigs={systemsWithConfigs}
         frameColors={frameColors}

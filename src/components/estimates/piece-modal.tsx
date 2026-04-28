@@ -44,6 +44,7 @@ interface PieceModalProps {
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
   canUseCustomerPricing: boolean;
+  startUnlocked?: boolean;
 }
 
 export function PieceModal({
@@ -64,6 +65,7 @@ export function PieceModal({
   muntinPatterns,
   muntinTypes,
   canUseCustomerPricing,
+  startUnlocked = false,
 }: PieceModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,6 +92,7 @@ export function PieceModal({
           muntinPatterns={muntinPatterns}
           muntinTypes={muntinTypes}
           canUseCustomerPricing={canUseCustomerPricing}
+          startUnlocked={startUnlocked}
         />
       </DialogContent>
     </Dialog>

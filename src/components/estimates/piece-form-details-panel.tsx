@@ -223,7 +223,7 @@ export function PieceFormDetailsPanel({
               </p>
 
               {piece.muntin?.panels?.length ? (
-                <div className="pt-2">
+                <div>
                   <strong>Panels:</strong>
                   <div className="mt-1 space-y-1">
                     {piece.muntin.panels.map((panel) => {

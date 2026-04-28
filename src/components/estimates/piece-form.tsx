@@ -150,6 +150,7 @@ export interface PieceFormProps {
   muntinTypes: MuntinType[];
 
   canUseCustomerPricing: boolean;
+  startUnlocked?: boolean;
 }
 
 export function PieceForm({
@@ -157,6 +158,7 @@ export function PieceForm({
   onCancel,
   initialData,
   index,
+  startUnlocked = false,
   ...props
 }: PieceFormProps) {
   const {
@@ -190,7 +192,7 @@ export function PieceForm({
   });
 
   const [isLocked, setIsLocked] = useState(
-    !!initialData.price && initialData.price > 0,
+    startUnlocked ? false : !!initialData.price && initialData.price > 0,
   );
 
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(

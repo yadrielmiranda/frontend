@@ -87,7 +87,11 @@ export function EstimateDetailsLeft({
 
       <div>
         <Label htmlFor="name">Estimate Name</Label>
-        <Input id="name" {...nameRegister} />
+        <Input
+          id="name"
+          className="bg-white border-slate-300 text-slate-900 shadow-sm"
+          {...nameRegister}
+        />
         {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
       </div>
 
