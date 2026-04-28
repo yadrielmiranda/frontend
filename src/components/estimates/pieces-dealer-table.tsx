@@ -7,7 +7,7 @@ import type { ProductWithBrands, FrameColor } from "@/lib/types";
 import type { PieceFormValues } from "./types";
 
 import { Button } from "@/components/ui/button";
-import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
+import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
 import type {
   SystemWithConfigs,
@@ -72,14 +72,11 @@ export function PiecesDealerTable({
             <th className="px-4 py-2 text-left font-semibold">Mark</th>
             <th className="px-4 py-2 text-left font-semibold">Description</th>
             <th className="px-4 py-2 text-right font-semibold">Qty</th>
-            <th className="px-4 py-2 text-right font-semibold">
-              Your Rate (unit)
-            </th>
+            <th className="px-4 py-2 text-right font-semibold">Rate (unit)</th>
+            <th className="px-4 py-2 text-right font-semibold">Markup %</th>
             <th className="px-4 py-2 text-right font-semibold">
               Customer Price (unit)
             </th>
-            <th className="px-4 py-2 text-right font-semibold">Markup %</th>
-            <th className="px-4 py-2 text-center font-semibold">DP+ / DP-</th>
             <th className="px-4 py-2 text-right font-semibold">
               Customer Subtotal
             </th>
@@ -124,15 +121,6 @@ export function PiecesDealerTable({
             const description =
               descriptionParts.join(" - ") || "Piece description";
 
-            const dpPlus =
-              currentPieceData.dpPosPsf == null
-                ? "—"
-                : formatPsf(currentPieceData.dpPosPsf, 1);
-            const dpMinus =
-              currentPieceData.dpNegPsf == null
-                ? "—"
-                : formatPsf(currentPieceData.dpNegPsf, 1);
-
             return (
               <React.Fragment key={field.id}>
                 <tr className="border-b last:border-b-0 hover:bg-slate-50">
@@ -172,16 +160,12 @@ export function PiecesDealerTable({
                     {formatCurrency(unitRate)}
                   </td>
 
-                  <td className="px-4 py-2 align-middle text-right font-mono">
-                    {formatCurrency(customerUnitPrice)}
-                  </td>
-
                   <td className="px-4 py-2 align-middle text-right">
                     {markupPercent.toFixed(2)}%
                   </td>
 
-                  <td className="px-4 py-2 align-middle text-center font-mono">
-                    {dpPlus} / {dpMinus}
+                  <td className="px-4 py-2 align-middle text-right font-mono">
+                    {formatCurrency(customerUnitPrice)}
                   </td>
 
                   <td className="px-4 py-2 align-middle text-right font-mono">
@@ -224,7 +208,7 @@ export function PiecesDealerTable({
                 </tr>
                 {openIndex === index && (
                   <tr>
-                    <td colSpan={10} className="p-0">
+                    <td colSpan={9} className="p-0">
                       <PieceFormDetailsPanel
                         piece={currentPieceData}
                         productsWithBrands={productsWithBrands}

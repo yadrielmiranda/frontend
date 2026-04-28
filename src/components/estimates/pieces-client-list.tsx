@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Trash2, Pencil, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Pencil, Copy, ChevronDown } from "lucide-react";
 
 import type {
   ProductWithBrands,
@@ -56,140 +56,188 @@ export function PiecesClientList({
   onEdit,
   onRemove,
 }: PiecesClientListProps) {
-  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const toggleRow = (index: number) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
-
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      {fields.map((field, index) => {
-        const currentPieceData = watchedPieces?.[index];
-        if (!currentPieceData) return null;
-
-        const isExpanded = !!expandedRows[index];
-
-        const product = productsWithBrands.find(
-          (p) => p.id === Number(currentPieceData.idProd),
-        );
-
-        const frameColor = frameColors.find(
-          (fc) => fc.id === Number(currentPieceData.idFC),
-        );
-
-        const wTxt = currentPieceData.width
-          ? formatInchesFromEighthStep(currentPieceData.width)
-          : "?";
-
-        const hTxt = currentPieceData.height
-          ? formatInchesFromEighthStep(currentPieceData.height)
-          : "?";
-
-        return (
-          <div key={field.id} className="border-b last:border-b-0">
-            <div className="flex items-center justify-between p-3">
-              <div className="flex items-center gap-3 flex-1">
-                <button
-                  type="button"
-                  onClick={() => toggleRow(index)}
-                  className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-slate-100"
-                  title={isExpanded ? "Hide details" : "Show details"}
-                >
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${
-                      isExpanded ? "rotate-0" : "-rotate-90"
-                    }`}
-                  />
-                </button>
-
-                <div className="flex-1">
-                  <p className="font-medium">
-                    {currentPieceData.mark || `Piece #${index + 1}`}
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-                    {product?.name} - {wTxt} W x {hTxt} H{" "}
-                    {currentPieceData.heightLeft &&
-                      ` / ${formatInchesFromEighthStep(
-                        currentPieceData.heightLeft,
-                      )} HL`}
-                    {currentPieceData.heightRight &&
-                      ` / ${formatInchesFromEighthStep(
-                        currentPieceData.heightRight,
-                      )} HR`}
-                    {currentPieceData.legHeight &&
-                      ` / ${formatInchesFromEighthStep(
-                        currentPieceData.legHeight,
-                      )} LegH`}
-                    {" - "}
-                    {frameColor?.color} (Qty: {currentPieceData.qty})
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <p className="font-mono text-right text-sm w-28">
-                  {formatCurrency(currentPieceData.subtotal || 0)}
-                </p>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onDuplicate(index)}
-                  title="Duplicate Piece"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onEdit(index)}
-                  title="Edit Piece"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => onRemove(index)}
-                  title="Delete Piece"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {isExpanded && (
-              <PieceFormDetailsPanel
-                piece={currentPieceData}
-                productsWithBrands={productsWithBrands}
-                systemsWithConfigs={systemsWithConfigs}
-                frameColors={frameColors}
-                crystals={crystals}
-                tints={tints}
-                coatings={coatings}
-                muntinPatterns={muntinPatterns}
-                muntinTypes={muntinTypes}
-              />
-            )}
-          </div>
-        );
-      })}
-
-      {fields.length === 0 && (
+  if (fields.length === 0) {
+    return (
+      <div className="border rounded-lg overflow-x-auto">
         <p className="text-center text-gray-500 py-6">
           No pieces have been added yet.
         </p>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-100 border-b">
+          <tr>
+            <th className="px-4 py-2 w-10"></th>
+            <th className="px-4 py-2 text-left font-semibold">Mark</th>
+            <th className="px-4 py-2 text-left font-semibold">Description</th>
+            <th className="px-4 py-2 text-right font-semibold">Qty</th>
+            <th className="px-4 py-2 text-right font-semibold">
+              Price (unit)
+            </th>
+            <th className="px-4 py-2 text-right font-semibold">Subtotal</th>
+            <th className="px-4 py-2 text-right font-semibold">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {fields.map((field, index) => {
+            const currentPieceData = watchedPieces?.[index];
+            if (!currentPieceData) return null;
+
+            const product = productsWithBrands.find(
+              (p) => p.id === Number(currentPieceData.idProd),
+            );
+
+            const frameColor = frameColors.find(
+              (fc) => fc.id === Number(currentPieceData.idFC),
+            );
+
+            const qty = Number(currentPieceData.qty) || 0;
+            const unitPrice = Number(currentPieceData.price) || 0;
+            const subtotal =
+              Number(currentPieceData.subtotal) || unitPrice * qty || 0;
+
+            const wTxt = currentPieceData.width
+              ? formatInchesFromEighthStep(currentPieceData.width)
+              : "?";
+
+            const hTxt = currentPieceData.height
+              ? formatInchesFromEighthStep(currentPieceData.height)
+              : "?";
+
+            const descriptionParts: string[] = [];
+
+            if (product?.name) descriptionParts.push(product.name);
+
+            if (currentPieceData.width || currentPieceData.height) {
+              descriptionParts.push(`${wTxt} W x ${hTxt} H`);
+            }
+
+            if (currentPieceData.heightLeft) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.heightLeft)} HL`,
+              );
+            }
+
+            if (currentPieceData.heightRight) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.heightRight)} HR`,
+              );
+            }
+
+            if (currentPieceData.legHeight) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.legHeight)} LegH`,
+              );
+            }
+
+            if (frameColor?.color) descriptionParts.push(frameColor.color);
+
+            const description =
+              descriptionParts.join(" - ") || "Piece description";
+
+            return (
+              <React.Fragment key={field.id}>
+                <tr className="border-b last:border-b-0 hover:bg-slate-50">
+                  <td className="px-4 py-2 align-middle">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setOpenIndex(openIndex === index ? null : index)
+                      }
+                      title="View Details"
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform duration-200 ${
+                          openIndex === index ? "rotate-0" : "-rotate-90"
+                        }`}
+                      />
+                    </Button>
+                  </td>
+
+                  <td className="px-4 py-2 align-middle font-medium">
+                    {currentPieceData.mark || `#${index + 1}`}
+                  </td>
+
+                  <td className="px-4 py-2 align-middle text-gray-700">
+                    {description}
+                  </td>
+
+                  <td className="px-4 py-2 align-middle text-right">{qty}</td>
+
+                  <td className="px-4 py-2 align-middle text-right font-mono">
+                    {formatCurrency(unitPrice)}
+                  </td>
+
+                  <td className="px-4 py-2 align-middle text-right font-mono">
+                    {formatCurrency(subtotal)}
+                  </td>
+
+                  <td className="px-4 py-2 align-middle text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onDuplicate(index)}
+                        title="Duplicate Piece"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onEdit(index)}
+                        title="Edit Piece"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => onRemove(index)}
+                        title="Delete Piece"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+
+                {openIndex === index && (
+                  <tr>
+                    <td colSpan={7} className="p-0">
+                      <PieceFormDetailsPanel
+                        piece={currentPieceData}
+                        productsWithBrands={productsWithBrands}
+                        systemsWithConfigs={systemsWithConfigs}
+                        frameColors={frameColors}
+                        crystals={crystals}
+                        tints={tints}
+                        coatings={coatings}
+                        muntinPatterns={muntinPatterns}
+                        muntinTypes={muntinTypes}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
