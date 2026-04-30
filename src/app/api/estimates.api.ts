@@ -95,3 +95,9 @@ export function deleteEstimate(id: number) {
     method: "DELETE",
   });
 }
+
+export function recalculateEstimate(id: number) {
+  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}/recalculate`, {
+    method: "POST",
+  });
+}

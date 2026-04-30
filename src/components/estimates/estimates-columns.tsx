@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Send } from "lucide-react";
+import { MoreHorizontal, Send, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { deleteEstimate } from "@/app/api/estimates.api";
+import { deleteEstimate, recalculateEstimate } from "@/app/api/estimates.api";
 import { createCheckoutSession } from "@/app/api/payments.api";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
@@ -74,7 +74,7 @@ const getStatusBadge = (statusName: string) => {
 // =============================
 
 export const getEstimateColumns = (
-  currentUser: AuthUser | null
+  currentUser: AuthUser | null,
 ): ColumnDef<EstimateWithRelations>[] => [
   {
     accessorKey: "number",
@@ -92,9 +92,7 @@ export const getEstimateColumns = (
   {
     accessorKey: "units",
     header: "Units",
-    cell: ({ row }) => (
-      <div className="text-center">{row.original.units}</div>
-    ),
+    cell: ({ row }) => <div className="text-center">{row.original.units}</div>,
   },
   {
     accessorKey: "priceT",
@@ -109,9 +107,7 @@ export const getEstimateColumns = (
     accessorKey: "netProfitD",
     header: () => <div className="text-right">Net Profit ($)</div>,
     cell: ({ row }) => (
-      <div className="text-right">
-        {formatMoney(row.original.netProfitD)}
-      </div>
+      <div className="text-right">{formatMoney(row.original.netProfitD)}</div>
     ),
   },
   {
@@ -133,15 +129,18 @@ export const getEstimateColumns = (
 
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const [isPaying, setIsPaying] = useState(false);
+      const [isRecalculating, setIsRecalculating] = useState(false);
       const router = useRouter();
 
       const isOwner = currentUser?.id === estimate.idUser;
 
       const statusName = getEstimateStatusName(estimate);
       const isActive = statusName.trim().toLowerCase() === "active";
+      const isExpired = statusName.trim().toLowerCase() === "expired";
 
       // Solo se puede pagar si está Active y no tiene order
       const isPayable = isActive && !estimate.order;
+      const canDelete = !estimate.order && isOwner;
 
       const handleDelete = async () => {
         try {
@@ -165,6 +164,20 @@ export const getEstimateColumns = (
         }
       };
 
+      const handleRecalculate = async () => {
+        setIsRecalculating(true);
+
+        try {
+          await recalculateEstimate(estimate.id);
+          toast.success("Estimate recalculated successfully.");
+          router.refresh();
+        } catch (error) {
+          toast.error((error as Error).message);
+        } finally {
+          setIsRecalculating(false);
+        }
+      };
+
       const payLabel = () => {
         if (isPaying) return "Redirecting to payment...";
         if (!isPayable) return "Not Available";
@@ -185,9 +198,7 @@ export const getEstimateColumns = (
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
               <DropdownMenuItem asChild>
-                <Link href={`/estimates/${estimate.id}`}>
-                  View Details
-                </Link>
+                <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem asChild disabled={!isPayable || !isOwner}>
@@ -198,21 +209,34 @@ export const getEstimateColumns = (
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem
-                onSelect={handlePay}
-                disabled={isPaying || !isPayable || !isOwner}
-                className="text-green-700 focus:bg-green-50 focus:text-green-800"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {payLabel()}
-              </DropdownMenuItem>
+              {isExpired ? (
+                <DropdownMenuItem
+                  onSelect={handleRecalculate}
+                  disabled={isRecalculating || !isOwner}
+                  className="text-blue-700 focus:bg-blue-50 focus:text-blue-800"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {isRecalculating
+                    ? "Recalculating..."
+                    : "Recalculate Estimate"}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onSelect={handlePay}
+                  disabled={isPaying || !isPayable || !isOwner}
+                  className="text-green-700 focus:bg-green-50 focus:text-green-800"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {payLabel()}
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
                 onSelect={() => setShowDeleteConfirm(true)}
-                disabled={!isPayable || !isOwner}
+                disabled={!canDelete}
               >
                 Delete Estimate
               </DropdownMenuItem>
