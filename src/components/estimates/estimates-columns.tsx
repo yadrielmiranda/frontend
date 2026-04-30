@@ -132,15 +132,18 @@ export const getEstimateColumns = (
       const [isRecalculating, setIsRecalculating] = useState(false);
       const router = useRouter();
 
-      const isOwner = currentUser?.id === estimate.idUser;
-
       const statusName = getEstimateStatusName(estimate);
-      const isActive = statusName.trim().toLowerCase() === "active";
-      const isExpired = statusName.trim().toLowerCase() === "expired";
+      const statusLower = statusName.trim().toLowerCase();
 
-      // Solo se puede pagar si está Active y no tiene order
-      const isPayable = isActive && !estimate.order;
-      const canDelete = !estimate.order && isOwner;
+      const isOwner = currentUser?.id === estimate.idUser;
+      const showOwnerActions = isOwner;
+      const isActive = statusLower === "active";
+      const isExpired = statusLower === "expired";
+      const isOrdered = statusLower === "ordered" || !!estimate.order;
+
+      const canEdit = isActive && isOwner;
+      const canPay = isActive && !estimate.order && isOwner;
+      const canRecalculate = isExpired && !estimate.order && isOwner;
 
       const handleDelete = async () => {
         try {
@@ -178,12 +181,6 @@ export const getEstimateColumns = (
         }
       };
 
-      const payLabel = () => {
-        if (isPaying) return "Redirecting to payment...";
-        if (!isPayable) return "Not Available";
-        return "Pay & Create Order";
-      };
-
       return (
         <div className="text-right">
           <DropdownMenu>
@@ -201,18 +198,18 @@ export const getEstimateColumns = (
                 <Link href={`/estimates/${estimate.id}`}>View Details</Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild disabled={!isPayable || !isOwner}>
-                <Link href={`/estimates/${estimate.id}/edit`}>
-                  Edit Estimate
-                </Link>
-              </DropdownMenuItem>
+              {showOwnerActions && canEdit && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/estimates/${estimate.id}/edit`}>
+                    Edit Estimate
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
-              <DropdownMenuSeparator />
-
-              {isExpired ? (
+              {showOwnerActions && canRecalculate && (
                 <DropdownMenuItem
                   onSelect={handleRecalculate}
-                  disabled={isRecalculating || !isOwner}
+                  disabled={isRecalculating}
                   className="text-blue-700 focus:bg-blue-50 focus:text-blue-800"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -220,26 +217,30 @@ export const getEstimateColumns = (
                     ? "Recalculating..."
                     : "Recalculate Estimate"}
                 </DropdownMenuItem>
-              ) : (
+              )}
+
+              {showOwnerActions && canPay && (
                 <DropdownMenuItem
                   onSelect={handlePay}
-                  disabled={isPaying || !isPayable || !isOwner}
+                  disabled={isPaying}
                   className="text-green-700 focus:bg-green-50 focus:text-green-800"
                 >
                   <Send className="mr-2 h-4 w-4" />
-                  {payLabel()}
+                  {isPaying ? "Redirecting..." : "Pay & Create Order"}
                 </DropdownMenuItem>
               )}
 
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                onSelect={() => setShowDeleteConfirm(true)}
-                disabled={!canDelete}
-              >
-                Delete Estimate
-              </DropdownMenuItem>
+              {showOwnerActions && !isOrdered && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                    onSelect={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete Estimate
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
