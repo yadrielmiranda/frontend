@@ -21,6 +21,10 @@ export interface User {
 
   markupOverride?: number | null;
   isTaxExempt: boolean;
+
+  isActive: boolean;
+  deletedAt?: string | null;
+
   idRole: number;
   role: Role;
 }
@@ -433,6 +437,7 @@ export interface CreateUserDto {
 
 export type UpdateUserDto = Partial<CreateUserDto> & {
   markupOverride?: number | null;
+  isActive?: boolean;
 };
 
 export type CreatePricingRuleData = Omit<

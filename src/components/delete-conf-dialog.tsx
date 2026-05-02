@@ -1,3 +1,4 @@
+// src/components/delete-conf-dialog.tsx
 "use client";
 
 import {
@@ -12,45 +13,55 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle } from "lucide-react";
 
-// 1. AÑADIMOS 'itemName' A LAS PROPS DEL COMPONENTE
 interface DeleteConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
-  itemName?: string; // Hacemos que sea opcional para no romper otras partes
+  onConfirm: () => void | Promise<void>;
+  itemName?: string;
+  title?: string;
+  description?: string;
+  confirmText?: string;
+  confirmClassName?: string;
 }
 
 export function DeleteConfirmationDialog({
   isOpen,
   onClose,
   onConfirm,
-  itemName, // Recibimos la nueva prop
+  itemName,
+  title = "Are you absolutely sure?",
+  description,
+  confirmText = "Confirm",
+  confirmClassName = "bg-red-600 hover:bg-red-700",
 }: DeleteConfirmationDialogProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}> 
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          {/* 2. HACEMOS EL TÍTULO MÁS GENÉRICO */}
-          <AlertDialogTitle className="flex items-center gap-2"> 
+          <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
-            Are you absolutely sure?
+            {title}
           </AlertDialogTitle>
+
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete{' '}
-            {/* 3. USAMOS 'itemName' PARA UN MENSAJE ESPECÍFICO */}
-            <span className="font-bold text-black-600">
-              {itemName || 'the selected item'}
-            </span>
-            .
+            {description ? (
+              description
+            ) : (
+              <>
+                This action cannot be undone. This will permanently delete{" "}
+                <span className="font-bold text-black">
+                  {itemName || "the selected item"}
+                </span>
+                .
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            Confirm
+          <AlertDialogAction onClick={onConfirm} className={confirmClassName}>
+            {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

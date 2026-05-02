@@ -36,6 +36,13 @@ export function updateUser(id: number, userData: UpdateUserDto) {
   });
 }
 
+export function setUserActive(id: number, isActive: boolean) {
+  return apiFetch<User>(`/api/users/${id}/active`, {
+    method: "PATCH",
+    body: { isActive },
+  });
+}
+
 /**
  * Elimina un usuario (admin-only).
  * Tu backend devuelve el usuario eliminado (no void).
