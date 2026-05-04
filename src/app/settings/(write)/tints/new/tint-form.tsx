@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type FormData = { color: string };
+type FormData = {
+  color: string;
+  isActive: boolean;
+};
 
 export function TintForm({ tint }: { tint?: Tint }) {
   const router = useRouter();
@@ -29,21 +32,26 @@ export function TintForm({ tint }: { tint?: Tint }) {
   } = useForm<FormData>({
     defaultValues: {
       color: tint?.color || "",
+      isActive: tint?.isActive ?? true,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const payload = isEdit
+        ? { color: data.color.trim(), isActive: data.isActive }
+        : { color: data.color.trim() };
+
       if (isEdit) {
-        await updateTint(Number(params.id), data);
+        await updateTint(Number(params.id), payload);
         toast.success("Tint updated successfully.");
       } else {
-        await createTint(data);
+        await createTint(payload);
         toast.success("Tint created successfully.");
       }
 
       setIsSuccess(true);
-      router.push("/settings/tints");      
+      router.push("/settings/tints");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -65,10 +73,22 @@ export function TintForm({ tint }: { tint?: Tint }) {
             autoComplete="off"
             {...register("color", { required: "Tint color is required." })}
           />
+
           {errors.color && (
             <p className="text-sm text-destructive">{errors.color.message}</p>
           )}
         </div>
+
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -82,8 +102,8 @@ export function TintForm({ tint }: { tint?: Tint }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Tint"}
+                ? "Save Changes"
+                : "Create Tint"}
           </Button>
         </div>
       </div>

@@ -1,7 +1,6 @@
 // src/app/settings/brands/[id]/products/page.tsx
 import Link from "next/link";
-import { getBrandWithProducts } from "@/app/api/brands.api";
-import { getProducts } from "@/app/api/products.api";
+import { getAvailableProductsForBrand, getBrandWithProducts } from "@/app/api/brands.api";
 import { BrandProductsClient } from "./brand-products-client";
 import {
   Card,
@@ -22,7 +21,7 @@ export default async function BrandProductsPage({
 
   // ✅ Cargamos data necesaria
   const brandData = await getBrandWithProducts(brandId);
-  const allProducts = await getProducts();
+  const allProducts = await getAvailableProductsForBrand(brandId);
 
   return (
     <div className="container mx-auto py-10">

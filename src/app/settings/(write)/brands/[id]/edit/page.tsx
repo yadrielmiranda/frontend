@@ -27,7 +27,7 @@ export default async function EditBrandPage({
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Edit Brand</CardTitle>
-            <CardDescription>Update the brand name.</CardDescription>
+            <CardDescription>Update the brand name and status.</CardDescription>
           </CardHeader>
 
           <CardContent>

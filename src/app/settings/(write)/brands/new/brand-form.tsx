@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   name: string;
+  isActive: boolean;
 };
 
 export function BrandForm({ brand }: { brand?: Brand }) {
@@ -31,22 +32,27 @@ export function BrandForm({ brand }: { brand?: Brand }) {
   } = useForm<FormData>({
     defaultValues: {
       name: brand?.name || "",
+      isActive: brand?.isActive ?? true,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      // Creamos o actualizamos según si estamos en modo edición
       if (isEdit) {
-        await updateBrand(Number(params.id), data);
+        await updateBrand(Number(params.id), {
+          name: data.name,
+          isActive: data.isActive,
+        });
         toast.success("Brand updated successfully.");
       } else {
-        await createBrand(data);
+        await createBrand({
+          name: data.name,
+        });
         toast.success("Brand created successfully.");
       }
 
       setIsSuccess(true);
-      router.push("/settings/brands");      
+      router.push("/settings/brands");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -76,6 +82,17 @@ export function BrandForm({ brand }: { brand?: Brand }) {
           )}
         </div>
 
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
@@ -88,8 +105,8 @@ export function BrandForm({ brand }: { brand?: Brand }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Brand"}
+                ? "Save Changes"
+                : "Create Brand"}
           </Button>
         </div>
       </div>

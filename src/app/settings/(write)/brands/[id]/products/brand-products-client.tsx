@@ -79,12 +79,7 @@ export function BrandProductsClient({
     );    
   };
 
-  const availableProducts = useMemo(() => {
-    const associatedIds = new Set(
-      initialBrand.brandProducts.map((p) => p.product.id)
-    );
-    return allProducts.filter((p) => !associatedIds.has(p.id));
-  }, [allProducts, initialBrand.brandProducts]);
+  const availableProducts = allProducts;
 
  const associatedColumns = useMemo(
   () => getAssociatedColumns(handleRemoveProduct),

@@ -1,23 +1,22 @@
-import { apiFetch } from './_base';
-import { Brand, BrandProduct } from '../../lib/types';
-
-
-
+import { apiFetch } from "./_base";
+import type {
+  Brand,
+  BrandProduct,
+  CreateBrandData,
+  Product,
+  UpdateBrandData,
+} from "../../lib/types";
 
 export type BrandWithProducts = Brand & {
   brandProducts: BrandProduct[];
 };
 
-export type CreateBrandData = Omit<Brand, 'id'>;
-
-// --- Brand Fetching Functions ---
-
 export function getBrands() {
-  return apiFetch<Brand[]>('/api/brands');
+  return apiFetch<Brand[]>("/api/brands");
 }
 
 export function getBrandsWithProducts() {
-  return apiFetch<BrandWithProducts[]>('/api/brands/with-products');
+  return apiFetch<BrandWithProducts[]>("/api/brands/with-products");
 }
 
 export function getBrand(id: number) {
@@ -28,40 +27,40 @@ export function getBrandWithProducts(id: number) {
   return apiFetch<BrandWithProducts>(`/api/brands/${id}/products`);
 }
 
-// --- Brand Mutation Functions ---
-
 export function createBrand(data: CreateBrandData) {
-  return apiFetch<Brand>('/api/brands', {
-    method: 'POST',
+  return apiFetch<Brand>("/api/brands", {
+    method: "POST",
     body: data,
   });
 }
 
-export function updateBrand(id: number, data: CreateBrandData) {
+export function updateBrand(id: number, data: UpdateBrandData) {
   return apiFetch<Brand>(`/api/brands/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: data,
   });
 }
 
 export function deleteBrand(id: number) {
   return apiFetch<Brand>(`/api/brands/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
-
-// --- Brand-Product Relationship Functions ---
 
 export function addProductToBrand(brandId: number, productId: number) {
   return apiFetch<BrandWithProducts>(
     `/api/brands/${brandId}/products/${productId}`,
-    { method: 'POST' }
+    { method: "POST" },
   );
 }
 
 export function removeProductFromBrand(brandId: number, productId: number) {
   return apiFetch<BrandWithProducts>(
     `/api/brands/${brandId}/products/${productId}`,
-    { method: 'DELETE' }
+    { method: "DELETE" },
   );
+}
+
+export function getAvailableProductsForBrand(brandId: number) {
+  return apiFetch<Product[]>(`/api/brands/${brandId}/available-products`);
 }

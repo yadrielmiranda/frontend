@@ -30,7 +30,7 @@ export default async function EditProductPage({
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Edit Product</CardTitle>
-            <CardDescription>Update the product name.</CardDescription>
+            <CardDescription>Update the product name and status.</CardDescription>
           </CardHeader>
 
           <CardContent>

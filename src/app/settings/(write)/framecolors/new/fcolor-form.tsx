@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   color: string;
+  isActive: boolean;
 };
 
 export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
@@ -31,21 +32,27 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
   } = useForm<FormData>({
     defaultValues: {
       color: fcolor?.color || "",
+      isActive: fcolor?.isActive ?? true,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (isEdit) {
-        await updateFColor(Number(params.id), data);
+        await updateFColor(Number(params.id), {
+          color: data.color.trim(),
+          isActive: data.isActive,
+        });
         toast.success("Frame color updated successfully.");
       } else {
-        await createFColor(data);
+        await createFColor({
+          color: data.color.trim(),
+        });
         toast.success("Frame color created successfully.");
       }
 
       setIsSuccess(true);
-      router.push("/settings/framecolors");      
+      router.push("/settings/framecolors");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -67,10 +74,22 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
             autoComplete="off"
             {...register("color", { required: "Color is required." })}
           />
+
           {errors.color && (
             <p className="text-sm text-destructive">{errors.color.message}</p>
           )}
         </div>
+
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -84,8 +103,8 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Color"}
+                ? "Save Changes"
+                : "Create Color"}
           </Button>
         </div>
       </div>

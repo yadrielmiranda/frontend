@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   glass: string;
+  isActive: boolean;
 };
 
 export function CrystalForm({ crystal }: { crystal?: Crystal }) {
@@ -31,21 +32,26 @@ export function CrystalForm({ crystal }: { crystal?: Crystal }) {
   } = useForm<FormData>({
     defaultValues: {
       glass: crystal?.glass || "",
+      isActive: crystal?.isActive ?? true,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const payload = isEdit
+        ? { glass: data.glass.trim(), isActive: data.isActive }
+        : { glass: data.glass.trim() };
+
       if (isEdit) {
-        await updateCrystal(Number(params.id), data);
+        await updateCrystal(Number(params.id), payload);
         toast.success("Crystal updated successfully.");
       } else {
-        await createCrystal(data);
+        await createCrystal(payload);
         toast.success("Crystal created successfully.");
       }
 
       setIsSuccess(true);
-      router.push("/settings/crystals");      
+      router.push("/settings/crystals");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -71,6 +77,16 @@ export function CrystalForm({ crystal }: { crystal?: Crystal }) {
             <p className="text-sm text-destructive">{errors.glass.message}</p>
           )}
         </div>
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -84,8 +100,8 @@ export function CrystalForm({ crystal }: { crystal?: Crystal }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Crystal"}
+                ? "Save Changes"
+                : "Create Crystal"}
           </Button>
         </div>
       </div>

@@ -30,7 +30,7 @@ export default async function EditFrameColorPage({
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Edit Frame Color</CardTitle>
-            <CardDescription>Update the frame color name.</CardDescription>
+            <CardDescription>Update the frame color name and status.</CardDescription>
           </CardHeader>
 
           <CardContent>

@@ -36,6 +36,25 @@ export function getCoatingColumns({
       accessorKey: "name",
       header: "Name",
     },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.original.isActive;
+
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
+      },
+    },
   ];
 
   // ✅ Si no puede editar settings, NO mostramos la columna actions

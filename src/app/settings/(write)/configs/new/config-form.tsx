@@ -30,6 +30,7 @@ interface ConfigBase {
   id?: number;
   conf: string;
   idProduct: number;
+  isActive: boolean;
   requiresWidth?: boolean;
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;
@@ -46,6 +47,7 @@ type LayoutFormItem = {
 
 type FormValues = Omit<ConfigBase, "id" | "idProduct" | "muntinLayout"> & {
   idProduct: string;
+  isActive: boolean;
   muntinLayout: LayoutFormItem[];
 };
 
@@ -82,6 +84,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
     defaultValues: {
       conf: config?.conf || "",
       idProduct: config ? String(config.idProduct) : "",
+      isActive: config?.isActive ?? true,
       requiresWidth: config?.requiresWidth ?? false,
       requiresHeight: config?.requiresHeight ?? false,
       requiresHeightLeft: config?.requiresHeightLeft ?? false,
@@ -132,6 +135,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       const payload = {
         conf: data.conf.trim(),
         idProduct: Number(data.idProduct),
+        ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
         requiresWidth: Boolean(data.requiresWidth),
         requiresHeight: Boolean(data.requiresHeight),
         requiresHeightLeft: Boolean(data.requiresHeightLeft),
@@ -200,6 +204,23 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
           <p className="text-sm text-destructive">{errors.idProduct.message}</p>
         )}
       </div>
+
+      {isEdit && (
+        <Controller
+          name="isActive"
+          control={control}
+          render={({ field }) => (
+            <div className="flex items-center space-x-2 rounded-md border p-3">
+              <Checkbox
+                id="isActive"
+                checked={Boolean(field.value)}
+                onCheckedChange={field.onChange}
+              />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+          )}
+        />
+      )}
 
       <div className="space-y-3 rounded-md border p-4">
         <div>
@@ -345,7 +366,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => removePanel(index)}                    
+                    onClick={() => removePanel(index)}
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>

@@ -45,6 +45,25 @@ export function getSystemColumns({
       accessorKey: "brandProduct.product.name",
       header: "Product",
     },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.original.isActive;
+
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
+      },
+    },
   ];
 
   // ✅ Si no puede editar settings, NO mostramos la columna (igual que Brands)
@@ -88,7 +107,7 @@ export function getSystemColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/systems/${system.id}/edit`}>Edit</Link>
+                <Link href={`/settings/systems/${system.id}/edit`}>Edit System</Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem asChild>

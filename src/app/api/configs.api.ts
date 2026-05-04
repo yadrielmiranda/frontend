@@ -9,6 +9,7 @@ export type ConfigMuntinLayoutItemData = {
 export type CreateConfigData = {
   conf: string;
   idProduct: number;
+  isActive?: boolean;
   requiresWidth?: boolean;
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;

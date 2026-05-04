@@ -32,11 +32,13 @@ export interface User {
 export interface Brand {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 export interface Product {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 export interface BrandProduct {
@@ -52,6 +54,7 @@ export interface System {
   idProduct: number;
   idBrand: number;
   brandProduct: BrandProduct;
+  isActive: boolean;
 
   defaultCrystalId?: number | null;
 
@@ -71,6 +74,7 @@ export interface ConfigMuntinLayoutItem {
 export interface Config {
   id: number;
   conf: string;
+  isActive: boolean;
   requiresWidth?: boolean;
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;
@@ -83,21 +87,25 @@ export interface Config {
 export interface FrameColor {
   id: number;
   color: string;
+  isActive: boolean;
 }
 
 export interface Crystal {
   id: number;
   glass: string;
+  isActive: boolean;
 }
 
 export interface Tint {
   id: number;
   color: string;
+  isActive: boolean;
 }
 
 export interface Coating {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 export interface MuntinPattern {
@@ -356,7 +364,59 @@ export type OrderWithRelations = Order & {
 
 // --- Tipos para Creación y Actualización (DTOs del Frontend) ---
 
-export type CreateProductData = Omit<Product, "id">;
+export type CreateProductData = {
+  name: string;
+};
+
+export type UpdateProductData = {
+  name?: string;
+  isActive?: boolean;
+};
+
+export type CreateBrandData = {
+  name: string;
+};
+
+export type UpdateBrandData = {
+  name?: string;
+  isActive?: boolean;
+};
+
+export type CreateFrameColorData = {
+  color: string;
+};
+
+export type UpdateFrameColorData = {
+  color?: string;
+  isActive?: boolean;
+};
+
+export type CreateCrystalData = {
+  glass: string;
+};
+
+export type UpdateCrystalData = {
+  glass?: string;
+  isActive?: boolean;
+};
+
+export type CreateTintData = {
+  color: string;
+};
+
+export type UpdateTintData = {
+  color?: string;
+  isActive?: boolean;
+};
+
+export type CreateCoatingData = {
+  name: string;
+};
+
+export type UpdateCoatingData = {
+  name?: string;
+  isActive?: boolean;
+};
 
 export interface CreatePieceData {
   mark: string;

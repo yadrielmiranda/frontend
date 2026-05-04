@@ -36,6 +36,25 @@ export function getFrameColorColumns({
       accessorKey: "color",
       header: "Color",
     },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.original.isActive;
+
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
+      },
+    },
   ];
 
   // ✅ If cannot edit, hide actions column entirely
@@ -79,7 +98,9 @@ export function getFrameColorColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/framecolors/${fcolor.id}/edit`}>Edit</Link>
+                <Link href={`/settings/framecolors/${fcolor.id}/edit`}>
+                  Edit
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

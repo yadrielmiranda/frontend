@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { createSystem, updateSystem } from "@/app/api/systems.api";
 import { getBrandWithProducts } from "@/app/api/brands.api";
@@ -23,13 +24,14 @@ import {
 
 type FormValues = {
   name: string;
-  idBrand: string; // Comentario en español: Select trabaja cómodo con string
+  idBrand: string; // Guardamos como string para el select, convertiremos a number al enviar
   idProduct: string;
+  isActive: boolean;
 };
 
 interface SystemFormProps {
   brands: Brand[];
-  system?: System; // Comentario en español: Para editar
+  system?: System; // Si se pasa el sistema, el formulario se comporta como edit. Si no, como creación.
 }
 
 export function SystemForm({ brands, system }: SystemFormProps) {
@@ -54,6 +56,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       name: system?.name ?? "",
       idBrand: system?.idBrand ? String(system.idBrand) : "",
       idProduct: system?.idProduct ? String(system.idProduct) : "",
+      isActive: system?.isActive ?? true,
     },
   });
 
@@ -63,7 +66,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   // Comentario en español: cacheamos el brand inicial para decidir cuándo resetear product
   const initialBrandId = useMemo(
     () => (system?.idBrand ? String(system.idBrand) : ""),
-    [system?.idBrand]
+    [system?.idBrand],
   );
 
   useEffect(() => {
@@ -76,10 +79,12 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       setIsProductLoading(true);
       try {
         const brandWithProducts = await getBrandWithProducts(
-          Number(watchedBrandId)
+          Number(watchedBrandId),
         );
 
-        const products = brandWithProducts.brandProducts.map((bp: any) => bp.product);
+        const products = brandWithProducts.brandProducts.map(
+          (bp: any) => bp.product,
+        );
         setAvailableProducts(products);
       } catch (err) {
         console.error("Error fetching products for brand:", err);
@@ -104,6 +109,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       name: data.name.trim(),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
+      ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
     };
 
     try {
@@ -116,7 +122,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       }
 
       setIsSuccess(true);
-      router.push("/settings/systems");      
+      router.push("/settings/systems");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -184,9 +190,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
             <Select
               value={field.value}
               onValueChange={field.onChange}
-              disabled={
-                showLoadingState || !watchedBrandId || isProductLoading
-              }
+              disabled={showLoadingState || !watchedBrandId || isProductLoading}
             >
               <SelectTrigger id="product">
                 <SelectValue
@@ -194,8 +198,8 @@ export function SystemForm({ brands, system }: SystemFormProps) {
                     isProductLoading
                       ? "Loading..."
                       : watchedBrandId
-                      ? "Select a product"
-                      : "First select a brand"
+                        ? "Select a product"
+                        : "First select a brand"
                   }
                 />
               </SelectTrigger>
@@ -214,6 +218,17 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         )}
       </div>
 
+      {isEdit && (
+        <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            {...register("isActive")}
+          />
+          <span>Active</span>
+        </label>
+      )}
+
       {/* Footer */}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -230,8 +245,8 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           {showLoadingState
             ? "Saving..."
             : isEdit
-            ? "Save Changes"
-            : "Create System"}
+              ? "Save Changes"
+              : "Create System"}
         </Button>
       </div>
     </form>

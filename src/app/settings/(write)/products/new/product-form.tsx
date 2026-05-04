@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type FormData = { name: string };
+type FormData = {
+  name: string;
+  isActive: boolean;
+};
 
 export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
@@ -27,16 +30,24 @@ export function ProductForm({ product }: { product?: Product }) {
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
-    defaultValues: { name: product?.name || "" },
+    defaultValues: {
+      name: product?.name || "",
+      isActive: product?.isActive ?? true,
+    },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (isEdit) {
-        await updateProduct(Number(params.id), data);
+        await updateProduct(Number(params.id), {
+          name: data.name,
+          isActive: data.isActive,
+        });
         toast.success("Product updated successfully.");
       } else {
-        await createProduct(data);
+        await createProduct({
+          name: data.name,
+        });
         toast.success("Product created successfully.");
       }
 
@@ -63,10 +74,22 @@ export function ProductForm({ product }: { product?: Product }) {
             autoComplete="off"
             {...register("name", { required: "Product name is required." })}
           />
+
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
+
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -80,8 +103,8 @@ export function ProductForm({ product }: { product?: Product }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Product"}
+                ? "Save Changes"
+                : "Create Product"}
           </Button>
         </div>
       </div>

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   name: string;
+  isActive: boolean;
 };
 
 export function CoatingForm({ coating }: { coating?: Coating }) {
@@ -31,21 +32,26 @@ export function CoatingForm({ coating }: { coating?: Coating }) {
   } = useForm<FormData>({
     defaultValues: {
       name: coating?.name || "",
+      isActive: coating?.isActive ?? true,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const payload = isEdit
+        ? { name: data.name.trim(), isActive: data.isActive }
+        : { name: data.name.trim() };
+
       if (isEdit) {
-        await updateCoating(Number(params.id), data);
+        await updateCoating(Number(params.id), payload);
         toast.success("Coating updated successfully.");
       } else {
-        await createCoating(data);
+        await createCoating(payload);
         toast.success("Coating created successfully.");
       }
 
       setIsSuccess(true);
-      router.push("/settings/coatings");      
+      router.push("/settings/coatings");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -67,10 +73,22 @@ export function CoatingForm({ coating }: { coating?: Coating }) {
             autoComplete="off"
             {...register("name", { required: "Coating name is required." })}
           />
+
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
+
+        {isEdit && (
+          <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              {...register("isActive")}
+            />
+            <span>Active</span>
+          </label>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -84,8 +102,8 @@ export function CoatingForm({ coating }: { coating?: Coating }) {
             {showLoadingState
               ? "Saving..."
               : isEdit
-              ? "Save Changes"
-              : "Create Coating"}
+                ? "Save Changes"
+                : "Create Coating"}
           </Button>
         </div>
       </div>

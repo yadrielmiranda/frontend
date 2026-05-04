@@ -40,6 +40,25 @@ export function getConfigColumns({
       accessorKey: "prod.name",
       header: "Product",
     },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.original.isActive;
+
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
+      },
+    },
   ];
 
   // ✅ si no puede editar, no mostramos actions
@@ -83,7 +102,7 @@ export function getConfigColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/configs/${config.id}/edit`}>Edit</Link>
+                <Link href={`/settings/configs/${config.id}/edit`}>Edit Config</Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

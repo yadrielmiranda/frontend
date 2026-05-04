@@ -5,6 +5,7 @@ export type SystemData = {
   name: string;
   idBrand: number;
   idProduct: number;
+  isActive?: boolean;
 };
 
 export type UpdateSystemData = Partial<SystemData>;
@@ -250,3 +251,4 @@ export function updateSystemCrystals(
     }
   );
 }
+
