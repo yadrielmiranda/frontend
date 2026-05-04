@@ -107,7 +107,9 @@ export function getSystemColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/systems/${system.id}/edit`}>Edit System</Link>
+                <Link href={`/settings/systems/${system.id}/edit`}>
+                  Edit System
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem asChild>
@@ -118,6 +120,11 @@ export function getSystemColumns({
               <DropdownMenuItem asChild>
                 <Link href={`/settings/systems/${system.id}/crystals`}>
                   Manage Glass
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/systems/${system.id}/frame-colors`}>
+                  Manage Frame Colors
                 </Link>
               </DropdownMenuItem>
 

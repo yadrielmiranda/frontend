@@ -1,5 +1,5 @@
 import { apiFetch } from './_base';
-import type { System, SystemWithConfigs, Crystal } from '../../lib/types';
+import type { System, SystemWithConfigs, Crystal, FrameColor } from '../../lib/types';
 
 export type SystemData = {
   name: string;
@@ -31,6 +31,11 @@ export type UpdateSystemCrystalsData = {
   defaultCrystalId?: number | null;
 };
 
+export type UpdateSystemFrameColorsData = {
+  frameColorIds: number[];
+  defaultFrameColorId?: number | null;
+};
+
 export type SystemCrystalsManage = {
   system: {
     id: number;
@@ -43,6 +48,20 @@ export type SystemCrystalsManage = {
   selectedCrystalIds: number[];
   defaultCrystalId: number | null;
   crystalsCatalog: Crystal[];
+};
+
+export type SystemFrameColorsManage = {
+  system: {
+    id: number;
+    name: string;
+    idBrand: number;
+    idProduct: number;
+    brand: { id: number; name: string };
+    product: { id: number; name: string };
+  };
+  selectedFrameColorIds: number[];
+  defaultFrameColorId: number | null;
+  frameColorsCatalog: FrameColor[];
 };
 
 export type SystemConfigOptionsManage = {
@@ -245,6 +264,25 @@ export function updateSystemCrystals(
 ) {
   return apiFetch<SystemCrystalsManage>(
     `/api/systems/${systemId}/crystals/manage`,
+    {
+      method: "PATCH",
+      body: data,
+    }
+  );
+}
+
+export function getSystemFrameColorsForManage(systemId: number) {
+  return apiFetch<SystemFrameColorsManage>(
+    `/api/systems/${systemId}/frame-colors/manage`
+  );
+}
+
+export function updateSystemFrameColors(
+  systemId: number,
+  data: UpdateSystemFrameColorsData
+) {
+  return apiFetch<SystemFrameColorsManage>(
+    `/api/systems/${systemId}/frame-colors/manage`,
     {
       method: "PATCH",
       body: data,

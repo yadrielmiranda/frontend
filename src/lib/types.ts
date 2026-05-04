@@ -57,11 +57,18 @@ export interface System {
   isActive: boolean;
 
   defaultCrystalId?: number | null;
+  defaultFrameColorId?: number | null;
 
   systemCrystals?: {
     idCrystal: number;
     sortOrder?: number;
     crystal: Crystal;
+  }[];
+
+  systemFrameColors?: {
+    idFrameColor: number;
+    sortOrder?: number;
+    frameColor: FrameColor;
   }[];
 }
 
