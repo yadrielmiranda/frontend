@@ -11,7 +11,7 @@ import { getProductsWithBrands } from "@/app/api/products.api";
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
-import { getFColors } from "@/app/api/fcolors.api";
+import { getGlobalFrameColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
 import { getMuntinPatterns } from "@/app/api/muntin-patterns.api";
@@ -38,7 +38,7 @@ export default async function NewEstimatePage() {
   ] = await Promise.all([
     getProductsWithBrands(),
     getSystemsWithConfigs(),
-    getFColors(),
+    getGlobalFrameColors(),
     getCrystals(),
     getTints(),
     getCoatings(),

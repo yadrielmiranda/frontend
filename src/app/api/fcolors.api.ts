@@ -32,3 +32,7 @@ export function deleteFColor(id: number) {
     method: "DELETE",
   });
 }
+
+export function getGlobalFrameColors() {
+  return apiFetch<FrameColor[]>("/api/framecolors/globals");
+}

@@ -56,9 +56,7 @@ export interface System {
   brandProduct: BrandProduct;
   isActive: boolean;
 
-  defaultCrystalId?: number | null;
-  defaultFrameColorId?: number | null;
-
+  defaultCrystalId?: number | null;  
   systemCrystals?: {
     idCrystal: number;
     sortOrder?: number;
@@ -95,6 +93,7 @@ export interface FrameColor {
   id: number;
   color: string;
   isActive: boolean;
+  isGlobal: boolean;
 }
 
 export interface Crystal {
@@ -391,11 +390,13 @@ export type UpdateBrandData = {
 
 export type CreateFrameColorData = {
   color: string;
+  isGlobal?: boolean;
 };
 
 export type UpdateFrameColorData = {
   color?: string;
   isActive?: boolean;
+  isGlobal?: boolean;
 };
 
 export type CreateCrystalData = {

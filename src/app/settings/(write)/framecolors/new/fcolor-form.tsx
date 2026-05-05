@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 type FormData = {
   color: string;
   isActive: boolean;
+  isGlobal: boolean;
 };
 
 export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
@@ -33,6 +34,7 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
     defaultValues: {
       color: fcolor?.color || "",
       isActive: fcolor?.isActive ?? true,
+      isGlobal: fcolor?.isGlobal ?? false,
     },
   });
 
@@ -42,11 +44,13 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
         await updateFColor(Number(params.id), {
           color: data.color.trim(),
           isActive: data.isActive,
+          isGlobal: data.isGlobal,
         });
         toast.success("Frame color updated successfully.");
       } else {
         await createFColor({
           color: data.color.trim(),
+          isGlobal: data.isGlobal,
         });
         toast.success("Frame color created successfully.");
       }
@@ -79,6 +83,15 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
             <p className="text-sm text-destructive">{errors.color.message}</p>
           )}
         </div>
+
+        <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            {...register("isGlobal")}
+          />
+          <span>Global</span>
+        </label>
 
         {isEdit && (
           <label className="flex items-center gap-2 rounded-md border p-3 text-sm">

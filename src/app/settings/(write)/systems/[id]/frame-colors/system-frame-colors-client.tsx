@@ -43,7 +43,6 @@ export function SystemFrameColorsClient({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const selectedFrameColorIds = data.selectedFrameColorIds;
-  const defaultFrameColorId = data.defaultFrameColorId;
 
   const associatedFrameColors = useMemo<AssociatedFrameColor[]>(() => {
     return data.frameColorsCatalog
@@ -51,9 +50,9 @@ export function SystemFrameColorsClient({
       .map((frameColor) => ({
         id: frameColor.id,
         color: frameColor.color,
-        isDefault: defaultFrameColorId === frameColor.id,
+        isDefault: false,
       }));
-  }, [data.frameColorsCatalog, selectedFrameColorIds, defaultFrameColorId]);
+  }, [data.frameColorsCatalog, selectedFrameColorIds]);
 
   const availableFrameColors = useMemo<AvailableFrameColor[]>(() => {
     return data.frameColorsCatalog
@@ -66,14 +65,12 @@ export function SystemFrameColorsClient({
 
   const runAction = async (
     nextFrameColorIds: number[],
-    nextDefaultFrameColorId: number | null,
     successMsg: string,
-    errorMsg: string
+    errorMsg: string,
   ) => {
     try {
       await updateSystemFrameColors(data.system.id, {
         frameColorIds: nextFrameColorIds,
-        defaultFrameColorId: nextDefaultFrameColorId,
       });
 
       toast.success(successMsg);
@@ -88,51 +85,34 @@ export function SystemFrameColorsClient({
 
   const handleAdd = async (frameColorId: number) => {
     const nextFrameColorIds = [...selectedFrameColorIds, frameColorId];
-    const nextDefaultFrameColorId = defaultFrameColorId ?? frameColorId;
 
     await runAction(
       nextFrameColorIds,
-      nextDefaultFrameColorId,
       "Frame color linked successfully.",
-      "Error linking frame color."
+      "Error linking frame color.",
     );
   };
 
   const handleRemove = async (frameColorId: number) => {
     const nextFrameColorIds = selectedFrameColorIds.filter(
-      (id) => id !== frameColorId
+      (id) => id !== frameColorId,
     );
-
-    const nextDefaultFrameColorId =
-      defaultFrameColorId === frameColorId
-        ? nextFrameColorIds[0] ?? null
-        : defaultFrameColorId;
 
     await runAction(
       nextFrameColorIds,
-      nextDefaultFrameColorId,
-      "Frame color unlinked successfully.",
-      "Error unlinking frame color."
-    );
-  };
-
-  const handleSetDefault = async (frameColorId: number) => {
-    await runAction(
-      selectedFrameColorIds,
-      frameColorId,
-      "Default frame color updated successfully.",
-      "Error updating default frame color."
+      "Frame color linked successfully.",
+      "Error linking frame color.",
     );
   };
 
   const associatedColumns = useMemo(
-    () => getAssociatedFrameColorsColumns(handleRemove, handleSetDefault),
-    [selectedFrameColorIds, defaultFrameColorId]
+    () => getAssociatedFrameColorsColumns(handleRemove),
+    [selectedFrameColorIds],
   );
 
   const availableColumns = useMemo(
     () => getAvailableFrameColorsColumns(handleAdd),
-    [selectedFrameColorIds, defaultFrameColorId]
+    [selectedFrameColorIds],
   );
 
   const hasAssociated = associatedFrameColors.length > 0;

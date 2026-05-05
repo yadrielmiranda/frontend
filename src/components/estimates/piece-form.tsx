@@ -245,6 +245,12 @@ export function PieceForm({
     );
   }, [systemId, props.systemsWithConfigs]);
 
+  const availableFrameColors = useMemo(() => {
+    return (selectedSystem?.systemFrameColors ?? [])
+      .map((item) => item.frameColor)
+      .filter(Boolean);
+  }, [selectedSystem]);
+
   useEffect(() => {
     if (!selectedSystem) return;
 
@@ -257,6 +263,22 @@ export function PieceForm({
       });
     }
   }, [systemId]);
+
+  useEffect(() => {
+    if (!selectedSystem) return;
+
+    const currentColor = getValues("idFC");
+
+    const isValidColor = availableFrameColors.some(
+      (fc) => fc.id === currentColor,
+    );
+
+    if (!isValidColor) {
+      setValue("idFC", availableFrameColors[0]?.id ?? 0, {
+        shouldDirty: true,
+      });
+    }
+  }, [systemId, availableFrameColors]);
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -558,7 +580,8 @@ export function PieceForm({
       "idReinforcementOption",
       selectedSysConf?.defaultReinforcementOptionId ?? null,
       { shouldDirty: true },
-    );
+    );   
+   
   }, [
     idConf,
     selectedConfig,
@@ -571,6 +594,7 @@ export function PieceForm({
     availableSillOptions,
     availableReinforcementOptions,
     selectedSysConf,
+    availableFrameColors,
     getValues,
     setValue,
   ]);
@@ -1100,7 +1124,7 @@ export function PieceForm({
                             <SelectValue placeholder="Select frame color" />
                           </SelectTrigger>
                           <SelectContent>
-                            {props.frameColors.map((fc) => (
+                            {availableFrameColors.map((fc) => (
                               <SelectItem key={fc.id} value={String(fc.id)}>
                                 {fc.color}
                               </SelectItem>

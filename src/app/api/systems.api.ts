@@ -32,8 +32,7 @@ export type UpdateSystemCrystalsData = {
 };
 
 export type UpdateSystemFrameColorsData = {
-  frameColorIds: number[];
-  defaultFrameColorId?: number | null;
+  frameColorIds: number[];  
 };
 
 export type SystemCrystalsManage = {
@@ -59,8 +58,7 @@ export type SystemFrameColorsManage = {
     brand: { id: number; name: string };
     product: { id: number; name: string };
   };
-  selectedFrameColorIds: number[];
-  defaultFrameColorId: number | null;
+  selectedFrameColorIds: number[];  
   frameColorsCatalog: FrameColor[];
 };
 

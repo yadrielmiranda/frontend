@@ -26,49 +26,12 @@ export type AvailableFrameColor = {
 };
 
 export const getAssociatedFrameColorsColumns = (
-  handleRemove: (frameColorId: number) => Promise<void>,
-  handleSetDefault: (frameColorId: number) => Promise<void>
+  handleRemove: (frameColorId: number) => Promise<void>
 ): ColumnDef<AssociatedFrameColor>[] => [
   {
     accessorKey: "color",
     header: "Associated Frame Color",
-  },
-  {
-    id: "default",
-    header: "Default",
-    cell: ({ row }) => {
-      const frameColor = row.original;
-
-      if (frameColor.isDefault) {
-        return (
-          <Badge variant="secondary" className="gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-            Default
-          </Badge>
-        );
-      }
-
-      return (
-        <TooltipProvider delayDuration={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleSetDefault(frameColor.id)}
-                className="gap-1 text-muted-foreground hover:text-blue-600"
-              >
-                <Circle className="h-3.5 w-3.5" />
-                Set default
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Set as default frame color</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    },
-  },
+  }, 
   {
     id: "actions",
     header: () => <div className="text-right">Action</div>,
