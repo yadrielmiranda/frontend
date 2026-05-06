@@ -5,8 +5,10 @@ import type { User, CreateUserDto, UpdateUserDto } from "../../lib/types";
 /**
  * Obtiene todos los usuarios (SSR opcional con token).
  */
-export function getUsers() {
-  return apiFetch<User[]>("/api/users");
+export function getUsers(includeDeleted = false) {
+  return apiFetch<User[]>(
+    `/api/users?includeDeleted=${includeDeleted}`,
+  );
 }
 
 /**
@@ -45,10 +47,19 @@ export function setUserActive(id: number, isActive: boolean) {
 
 /**
  * Elimina un usuario (admin-only).
- * Tu backend devuelve el usuario eliminado (no void).
+ * El backend devuelve el usuario eliminado (no void).
  */
 export function deleteUser(id: number) {
   return apiFetch<User>(`/api/users/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Elimina la cuenta del usuario autenticado.
+ */
+export function deleteMyAccount() {
+  return apiFetch<User>("/api/users/me", {
     method: "DELETE",
   });
 }

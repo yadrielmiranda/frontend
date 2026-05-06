@@ -76,17 +76,25 @@ export const columns: ColumnDef<User>[] = [
     accessorKey: "isActive",
     header: "Status",
     cell: ({ row }) => {
-      const isActive = row.original.isActive;
+      const user = row.original;
+
+      if (user.deletedAt) {
+        return (
+          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+            Deleted
+          </span>
+        );
+      }
 
       return (
         <span
           className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
-            isActive
+            user.isActive
               ? "bg-green-100 text-green-800"
               : "bg-yellow-100 text-yellow-800"
           }`}
         >
-          {isActive ? "Active" : "Inactive"}
+          {user.isActive ? "Active" : "Inactive"}
         </span>
       );
     },
@@ -95,6 +103,7 @@ export const columns: ColumnDef<User>[] = [
     id: "actions",
     cell: ({ row }) => {
       const u = row.original;
+      const isDeleted = !!u.deletedAt;
       const router = useRouter();
 
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -143,45 +152,54 @@ export const columns: ColumnDef<User>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <Link href={`/settings/users/${u.id}/edit`}>
-                  <UserCog className="mr-2 h-4 w-4" />
-                  <span>Edit Role & Markup</span>
-                </Link>
-              </DropdownMenuItem>
+              {isDeleted ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">
+                  This account has been deleted.
+                </div>
+              ) : (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/settings/users/${u.id}/edit`}>
+                      <UserCog className="mr-2 h-4 w-4" />
+                      <span>Edit Role & Markup</span>
+                    </Link>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onSelect={(e) => {                  
-                  setShowActiveConfirm(true);
-                }}
-              >
-                {u.isActive ? (
-                  <PowerOff className="mr-2 h-4 w-4" />
-                ) : (
-                  <Power className="mr-2 h-4 w-4" />
-                )}
-                <span>{activeActionLabel}</span>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setShowActiveConfirm(true);
+                    }}
+                  >
+                    {u.isActive ? (
+                      <PowerOff className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Power className="mr-2 h-4 w-4" />
+                    )}
 
-              <DropdownMenuItem asChild>
-                <Link href={`/settings/users/${u.id}/change-password`}>
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  <span>Change Password</span>
-                </Link>
-              </DropdownMenuItem>
+                    <span>{activeActionLabel}</span>
+                  </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={`/settings/users/${u.id}/change-password`}>
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      <span>Change Password</span>
+                    </Link>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                className="group text-red-600 focus:bg-red-50 focus:text-red-700"
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setShowDeleteConfirm(true);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4 text-red-600 group-focus:text-red-700" />
-                Delete User
-              </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    className="group text-red-600 focus:bg-red-50 focus:text-red-700"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setShowDeleteConfirm(true);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4 text-red-600 group-focus:text-red-700" />
+                    Delete User
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

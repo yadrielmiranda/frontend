@@ -1,10 +1,18 @@
-// src/app/profile/profile-client.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, KeyRound, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { UserForm } from "@/app/settings/(write)/users/new/user-form";
+import { getProfile } from "@/app/api/auth/me/auth.api";
+import { deleteMyAccount } from "@/app/api/users.api";
+
+import type { User } from "@/lib/types";
+import type { AuthUser } from "@/app/types/auth";
+
 import {
   Card,
   CardContent,
@@ -13,11 +21,19 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, KeyRound } from "lucide-react";
-import type { User } from "@/lib/types";
-import type { AuthUser } from "@/app/types/auth";
-import { toast } from "sonner";
-import { getProfile } from "@/app/api/auth/me/auth.api";
+import { Input } from "@/components/ui/input";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function ProfileClient({
   initialAuthUser,
@@ -29,19 +45,21 @@ export function ProfileClient({
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  // ✅ 1) Sincroniza contexto global inmediatamente con el AuthUser del server
-  // (evita estados raros en navbar/guards mientras se carga el profile completo)
+  const roleName = profileUser?.role?.name ?? initialAuthUser.role?.name;
+  const canDeleteOwnAccount = roleName !== "admin";
+
   useEffect(() => {
     setUser(initialAuthUser as unknown as User);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAuthUser.id]);
 
-  // ✅ 2) Trae el perfil completo (street/city/state/etc)
-  // y preserva el role del initialAuthUser.
   useEffect(() => {
     const fetchUserProfile = async () => {
       setIsLoading(true);
+
       try {
         const fullUserData = await getProfile();
 
@@ -65,7 +83,6 @@ export function ProfileClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAuthUser.id]);
 
-  // ✅ 3) TU lógica (correcta): mantener role aunque la API devuelva user sin role completo
   const handleProfileUpdate = (updatedUserFromApi: User) => {
     const roleToKeep = profileUser?.role ?? (initialAuthUser.role as any);
 
@@ -81,6 +98,30 @@ export function ProfileClient({
 
     setProfileUser(completeUpdatedUser);
     setUser(completeUpdatedUser);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast.error("Please type DELETE to confirm.");
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await deleteMyAccount();
+
+      setUser(null as any);
+      toast.success("Your account has been deleted.");
+
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error("Could not delete your account.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (isLoading) {
@@ -106,6 +147,7 @@ export function ProfileClient({
           <CardTitle className="text-2xl">My Profile</CardTitle>
           <CardDescription>Update your personal information.</CardDescription>
         </CardHeader>
+
         <CardContent>
           <UserForm
             user={profileUser}
@@ -120,6 +162,7 @@ export function ProfileClient({
           <CardTitle className="text-2xl">Security</CardTitle>
           <CardDescription>Manage your account security.</CardDescription>
         </CardHeader>
+
         <CardContent>
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
@@ -139,6 +182,87 @@ export function ProfileClient({
           </div>
         </CardContent>
       </Card>
+
+      {canDeleteOwnAccount && (
+        <Card className="w-full max-w-4xl border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-2xl text-destructive">
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Deleting your account will revoke your access immediately. Your
+              historical estimates, orders, payments, and logs will be preserved.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 p-4 border border-destructive/40 rounded-lg">
+              <div>
+                <p className="font-medium">Delete account</p>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone.
+                </p>
+              </div>
+
+              <AlertDialog
+                onOpenChange={(open) => {
+                  if (!open) setDeleteConfirmText("");
+                }}
+              >
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete My Account
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will deactivate your account, revoke your sessions,
+                      and remove your login access. Type DELETE to confirm.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(event) =>
+                      setDeleteConfirmText(event.target.value)
+                    }
+                    placeholder="Type DELETE"
+                    disabled={isDeleting}
+                  />
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      Cancel
+                    </AlertDialogCancel>
+
+                    <AlertDialogAction
+                      disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleDeleteAccount();
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete Account"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
