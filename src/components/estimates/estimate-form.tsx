@@ -66,6 +66,7 @@ export function EstimateForm({
   productsWithBrands,
   systemsWithConfigs,
   frameColors,
+  globalFrameColors,
   crystals,
   tints,
   coatings,
@@ -704,7 +705,7 @@ export function EstimateForm({
                 required: "The name is required",
               })}
               defaultFrameColorId={getValues("defaultFrameColorId")}
-              frameColors={frameColors}
+              frameColors={globalFrameColors}
               onDefaultColorChange={handleDefaultColorChange}
               defaultTintId={getValues("defaultTintId")}
               defaultCoatingId={getValues("defaultCoatingId")}

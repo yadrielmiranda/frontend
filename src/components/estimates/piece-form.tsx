@@ -264,22 +264,6 @@ export function PieceForm({
     }
   }, [systemId]);
 
-  useEffect(() => {
-    if (!selectedSystem) return;
-
-    const currentColor = getValues("idFC");
-
-    const isValidColor = availableFrameColors.some(
-      (fc) => fc.id === currentColor,
-    );
-
-    if (!isValidColor) {
-      setValue("idFC", availableFrameColors[0]?.id ?? 0, {
-        shouldDirty: true,
-      });
-    }
-  }, [systemId, availableFrameColors]);
-
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
       (sc) => !!sc?.config,
@@ -580,8 +564,7 @@ export function PieceForm({
       "idReinforcementOption",
       selectedSysConf?.defaultReinforcementOptionId ?? null,
       { shouldDirty: true },
-    );   
-   
+    );
   }, [
     idConf,
     selectedConfig,
@@ -1043,12 +1026,31 @@ export function PieceForm({
                           disabled={isLocked || !brandId}
                           onValueChange={(v) => {
                             const nextSystemId = Number(v);
+
                             const nextSystem = props.systemsWithConfigs.find(
                               (s) => s.id === nextSystemId,
                             );
 
                             field.onChange(nextSystemId);
+
                             setValue("idConf", 0);
+
+                            // mantener color actual si ya existe
+                            const currentColor = getValues("idFC");
+
+                            // solo usar default del estimate si la pieza aún no tiene color
+                            if (!currentColor || currentColor === 0) {
+                              const inheritedDefaultColor =
+                                Number(initialData.idFC) || 0;
+
+                              if (inheritedDefaultColor > 0) {
+                                setValue("idFC", inheritedDefaultColor, {
+                                  shouldDirty: false,
+                                  shouldValidate: true,
+                                });
+                              }
+                            }
+
                             setValue(
                               "idCryst",
                               Number(nextSystem?.defaultCrystalId) || 0,
@@ -1118,7 +1120,11 @@ export function PieceForm({
                         <Select
                           disabled={isLocked}
                           onValueChange={(v) => field.onChange(Number(v))}
-                          value={String(field.value || "0")}
+                          value={
+                            field.value && field.value > 0
+                              ? String(field.value)
+                              : undefined
+                          }
                         >
                           <SelectTrigger className={selectTriggerClass}>
                             <SelectValue placeholder="Select frame color" />

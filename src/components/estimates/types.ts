@@ -61,6 +61,7 @@ export interface EstimateFormProps {
   productsWithBrands: ProductWithBrands[];
   systemsWithConfigs: SystemWithConfigs[];
   frameColors: FrameColor[];
+  globalFrameColors: FrameColor[];
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];

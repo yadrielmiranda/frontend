@@ -11,6 +11,7 @@ import { getProductsWithBrands } from "@/app/api/products.api";
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
+import {getFColors} from "@/app/api/fcolors.api";
 import { getGlobalFrameColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
@@ -28,7 +29,8 @@ export default async function NewEstimatePage() {
   const [
     productsWithBrands,
     systemsWithConfigs,
-    frameColors,
+    allFrameColors,
+    globalFrameColors,
     crystals,
     tints,
     coatings,
@@ -38,6 +40,7 @@ export default async function NewEstimatePage() {
   ] = await Promise.all([
     getProductsWithBrands(),
     getSystemsWithConfigs(),
+    getFColors(),
     getGlobalFrameColors(),
     getCrystals(),
     getTints(),
@@ -70,7 +73,8 @@ export default async function NewEstimatePage() {
               taxRate={taxRate}
               productsWithBrands={productsWithBrands}
               systemsWithConfigs={systemsWithConfigs}
-              frameColors={frameColors}
+              frameColors={allFrameColors}
+              globalFrameColors={globalFrameColors}
               crystals={crystals}
               tints={tints}
               coatings={coatings}
