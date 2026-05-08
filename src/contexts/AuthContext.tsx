@@ -277,6 +277,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ✅ Socket notifications
   // ---------------------------------------
   useEffect(() => {
+    // comentario en espanol: desactivado temporalmente en producción hasta configurar websocket estable
+    const socketsEnabled = process.env.NEXT_PUBLIC_ENABLE_SOCKET === "true";
+
+    if (!socketsEnabled) return;
     if (!isAuthenticated || !user?.id) return;
 
     const socket: Socket = io(API_URL, {
