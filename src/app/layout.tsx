@@ -54,7 +54,7 @@ export default function RootLayout({
         </Providers>
 
         {/* ✅ Toaster abajo para que no tape dropdowns */}
-        <Toaster richColors position="bottom-right" />
+        <Toaster richColors position="bottom-left" />
       </body>
     </html>
   );
