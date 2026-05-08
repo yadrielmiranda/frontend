@@ -1,4 +1,3 @@
-// src/app/settings/(write)/users/page.tsx
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getUsers } from "@/app/api/users.api";
@@ -7,11 +6,13 @@ import { UsersClient } from "./users-client";
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams?: {
+  searchParams?: Promise<{
     showDeleted?: string;
-  };
+  }>;
 }) {
-  const showDeleted = searchParams?.showDeleted === "true";
+  const params = await searchParams;
+
+  const showDeleted = params?.showDeleted === "true";
 
   const users = await getUsers(showDeleted);
 
