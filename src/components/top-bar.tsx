@@ -22,14 +22,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { NotificationBell } from "./notifications-bell";
 import { canAccessSettings } from "@/lib/rbac";
+import { usePathname } from "next/navigation";
 
 function TopBar() {
   const { isAuthenticated, user } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   if (!mounted) {
     return (
@@ -107,7 +114,7 @@ function TopBar() {
 
         <div className="md:hidden">
           {isAuthenticated && (
-            <Sheet>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu />
