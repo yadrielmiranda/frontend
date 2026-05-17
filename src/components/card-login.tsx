@@ -18,7 +18,6 @@ import {
   EyeOff,
   User,
   Lock,
-  Mail,
   ChevronRight,
 } from "lucide-react";
 
@@ -58,10 +57,11 @@ export function CardLogin({
   const { revalidate } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const isUnlock = mode === "unlock";
   const isDark = appearance === "dark";
+  const signUpLabel = "New client? Create an account";
+  const forgotPasswordLabel = "Forgot your password?";
 
   const {
     register,
@@ -99,6 +99,11 @@ export function CardLogin({
     if (onClose) onClose();
   };
 
+  const handleForgotPasswordClick = () => {
+    router.push("/login/forgot-password");
+    if (onClose) onClose();
+  };
+
   const containerClass = isDark
     ? "w-full rounded-3xl border border-red-600/70 bg-black/45 p-5 shadow-[0_0_45px_rgba(220,38,38,0.12)] backdrop-blur-xl sm:p-6"
     : "w-full max-w-sm rounded-xl border bg-card p-6 text-card-foreground shadow-sm";
@@ -117,32 +122,46 @@ export function CardLogin({
   return (
     <div className={containerClass}>
       <div className="mb-6 text-center">
-        <h2 className={isDark ? "text-2xl font-semibold text-white" : "text-2xl font-semibold"}>
-          {isUnlock ? "Session expired" : "Welcome Back"}
+        <h2
+          className={
+            isDark
+              ? "text-2xl font-semibold text-white"
+              : "text-2xl font-semibold"
+          }
+        >
+          {isUnlock ? "Session expired" : "Access Portal"}
         </h2>
 
-        <p className={isDark ? "mt-1 text-sm text-white/45" : "mt-1 text-sm text-muted-foreground"}>
+        <p
+          className={
+            isDark
+              ? "mt-1 text-sm text-white/45"
+              : "mt-1 text-sm text-muted-foreground"
+          }
+        >
           {isUnlock
             ? "Sign in again to continue."
-            : "Sign in to your account to continue"}
+            : "Sign in to continue to your quoting workspace."}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="identifier" className={labelClass}>
-            Username
+            Username or Email
           </Label>
 
           <div className="relative">
             {isDark && (
-              <User className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`} />
+              <User
+                className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`}
+              />
             )}
 
             <Input
               id="identifier"
               type="text"
-              placeholder="Enter your username"
+              placeholder="Enter your username or email"
               disabled={isSubmitting || lockIdentifier}
               autoComplete="username"
               className={inputClass}
@@ -162,7 +181,9 @@ export function CardLogin({
 
           <div className="relative">
             {isDark && (
-              <Lock className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`} />
+              <Lock
+                className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`}
+              />
             )}
 
             <Input
@@ -199,22 +220,6 @@ export function CardLogin({
           )}
         </div>
 
-        {!isUnlock && isDark && (
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
-            <button
-              type="button"
-              onClick={() => setRememberMe((prev) => !prev)}
-              className={`h-4 w-4 rounded border ${
-                rememberMe
-                  ? "border-red-500 bg-red-600"
-                  : "border-white/25 bg-black/20"
-              }`}
-              aria-label="Remember me"
-            />
-            Remember me?
-          </label>
-        )}
-
         <Button
           type="submit"
           className={
@@ -245,35 +250,24 @@ export function CardLogin({
             disabled={isSubmitting}
           >
             <UserRoundPlus className="mr-2 h-4 w-4" />
-            Sign up
+            {signUpLabel}
           </Button>
         )}
 
         {!isUnlock && isDark && (
           <div className="space-y-2 pt-2">
-            <a
-              href="#"
-              className="flex items-center justify-between text-sm text-red-500 hover:text-red-400"
-              tabIndex={-1}
+            <button
+              type="button"
+              onClick={handleForgotPasswordClick}
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-between text-sm text-red-500 hover:text-red-400 disabled:pointer-events-none disabled:opacity-60"
             >
               <span className="inline-flex items-center gap-2">
                 <Lock className="h-4 w-4" />
-                Forgot your password?
+                {forgotPasswordLabel}
               </span>
               <ChevronRight className="h-4 w-4" />
-            </a>
-
-            <a
-              href="#"
-              className="flex items-center justify-between text-sm text-red-500 hover:text-red-400"
-              tabIndex={-1}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Resend email confirmation
-              </span>
-              <ChevronRight className="h-4 w-4" />
-            </a>
+            </button>
 
             <button
               type="button"
@@ -283,7 +277,7 @@ export function CardLogin({
             >
               <span className="inline-flex items-center gap-2">
                 <UserRoundPlus className="h-4 w-4" />
-                Create new account
+                {signUpLabel}
               </span>
               <ChevronRight className="h-4 w-4" />
             </button>
