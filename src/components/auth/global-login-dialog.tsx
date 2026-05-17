@@ -1,39 +1,29 @@
-'use client';
+"use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-import { CardLogin } from '@/components/card-login';
-import { useLoginDialog } from '@/contexts/LoginDialogContext';
-import { useRouter } from 'next/navigation';
+import { CardLogin } from "@/components/card-login";
+import { useLoginDialog } from "@/contexts/LoginDialogContext";
+import { useRouter } from "next/navigation";
 
 export function GlobalLoginDialog() {
   const router = useRouter();
 
-  const {
-    isLoginDialogOpen,
-    setIsLoginDialogOpen,
-    closeLoginDialog,
-    reason,
-  } = useLoginDialog();
+  const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, reason } =
+    useLoginDialog();
 
-  const isExpired = reason === 'expired';
+  const isExpired = reason === "expired";
 
   const handleLoginSuccess = () => {
-    // ✅ Siempre cerramos el modal
+    // Siempre cerramos el modal
     closeLoginDialog();
 
-    // ✅ Solo en login "manual" mandamos a "/"
+    // Solo en login "manual" mandamos a "/"
     if (!isExpired) {
-      router.push('/');
+      router.push("/");
     }
 
-    // ✅ En expired: NO hacemos nada más (sin refresh, sin navegación)
+    // En expired: NO hacemos nada más (sin refresh, sin navegación)
   };
 
   const handleClose = () => {
@@ -52,7 +42,7 @@ export function GlobalLoginDialog() {
       modal
     >
       <DialogContent
-        className="sm:max-w-[425px]"
+        className="border-red-600/70 bg-black/80 p-0 text-white shadow-[0_0_60px_rgba(220,38,38,0.22)] backdrop-blur-xl sm:max-w-[460px]"
         onEscapeKeyDown={(e) => {
           if (isExpired) e.preventDefault();
         }}
@@ -61,22 +51,16 @@ export function GlobalLoginDialog() {
         }}
         showCloseButton={!isExpired}
       >
-        <DialogHeader>
-          <DialogTitle>{isExpired ? 'Session expired' : 'Sign in'}</DialogTitle>
-          <DialogDescription>
-            {isExpired
-              ? 'Your session expired due to inactivity. Please sign in again to continue.'
-              : 'Use your username or email to access your account.'}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogTitle className="sr-only">
+          {isExpired ? "Session expired" : "Sign in"}
+        </DialogTitle>
 
-        <div className="py-4">
-          <CardLogin
-            onLoginSuccess={handleLoginSuccess}
-            onClose={handleClose}
-            mode={isExpired ? 'unlock' : 'full'}
-          />
-        </div>
+        <CardLogin
+          onLoginSuccess={handleLoginSuccess}
+          onClose={handleClose}
+          mode={isExpired ? "unlock" : "full"}
+          appearance="dark"
+        />
       </DialogContent>
     </Dialog>
   );
