@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 // @ts-ignore: CSS import without type declarations
 import "./globals.css";
-import TopBar from "@/components/top-bar";
+import { AppShell } from "@/components/app-shell";
 import { Providers } from "./providers";
 
 import { GlobalLoginDialog } from "@/components/auth/global-login-dialog";
@@ -47,10 +47,7 @@ export default function RootLayout({
           <LoginDialogBridge />
           <GlobalLoginDialog />
 
-          <TopBar />
-
-          {/* ✅ un poco de padding arriba para que respire bajo la barra */}
-          <main className="w-full px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <AppShell>{children}</AppShell>
         </Providers>
 
         {/* ✅ Toaster abajo para que no tape dropdowns */}

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -8,44 +8,41 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, UserRoundPlus, Loader2, Eye, EyeOff } from "lucide-react";
+import {
+  LogIn,
+  UserRoundPlus,
+  Loader2,
+  Eye,
+  EyeOff,
+  User,
+  Lock,
+  Mail,
+  ChevronRight,
+} from "lucide-react";
 
 import { loginUser } from "@/app/api/auth/me/auth.api";
 import { useAuth } from "@/contexts/AuthContext";
 
-// ✅ Validation schema (English)
 const loginSchema = z.object({
   identifier: z.string().min(1, { message: "Username or email is required." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  password: z.string().min(8, {
+    message: "Password must be at least 8 characters.",
+  }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
 type CardLoginMode = "full" | "unlock";
+type CardLoginAppearance = "light" | "dark";
 
 interface CardLoginProps {
   onLoginSuccess?: () => void;
   onClose?: () => void;
-
-  /**
-   * full  -> normal login (shows Sign up + Forgot password)
-   * unlock -> session expired re-login (hides Sign up + Forgot password)
-   */
   mode?: CardLoginMode;
-
-  /**
-   * Optional: lock the identifier input to prevent switching accounts on unlock.
-   * Default false (allows switching accounts).
-   */
+  appearance?: CardLoginAppearance;
   lockIdentifier?: boolean;
-
-  /**
-   * Optional: prefill identifier (useful if you want to suggest same user).
-   * If you don't want that, don't pass it.
-   */
   defaultIdentifier?: string;
 }
 
@@ -53,6 +50,7 @@ export function CardLogin({
   onLoginSuccess,
   onClose,
   mode = "full",
+  appearance = "light",
   lockIdentifier = false,
   defaultIdentifier,
 }: CardLoginProps) {
@@ -60,8 +58,10 @@ export function CardLogin({
   const { revalidate } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const isUnlock = mode === "unlock";
+  const isDark = appearance === "dark";
 
   const {
     register,
@@ -99,94 +99,197 @@ export function CardLogin({
     if (onClose) onClose();
   };
 
+  const containerClass = isDark
+    ? "w-full rounded-3xl border border-red-600/70 bg-black/45 p-5 shadow-[0_0_45px_rgba(220,38,38,0.12)] backdrop-blur-xl sm:p-6"
+    : "w-full max-w-sm rounded-xl border bg-card p-6 text-card-foreground shadow-sm";
+
+  const labelClass = isDark
+    ? "text-xs font-medium text-white"
+    : "text-sm font-medium text-foreground";
+
+  const inputClass = isDark
+    ? "h-11 border-white/15 bg-black/35 pl-10 text-white placeholder:text-white/35 focus-visible:ring-red-600"
+    : "h-10";
+
+  const iconClass = isDark ? "text-white/45" : "text-muted-foreground";
+  const errorClass = "mt-1 text-xs text-red-400";
+
   return (
-    <Card className="w-full max-w-sm">
-      <CardContent>
-        <form onSubmit={handleSubmit(handleLogin)}>
-          <div className="flex flex-col gap-6 pt-6">
-            <div className="grid gap-2">
-              <Label htmlFor="identifier">Username or Email</Label>
-              <Input
-                id="identifier"
-                type="text"
-                placeholder="Enter your username or email"
-                disabled={isSubmitting || lockIdentifier}
-                {...register("identifier")}
-              />
-              {errors.identifier && (
-                <p className="text-sm text-red-500 mt-1">{errors.identifier.message}</p>
-              )}
-            </div>
+    <div className={containerClass}>
+      <div className="mb-6 text-center">
+        <h2 className={isDark ? "text-2xl font-semibold text-white" : "text-2xl font-semibold"}>
+          {isUnlock ? "Session expired" : "Welcome Back"}
+        </h2>
 
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
+        <p className={isDark ? "mt-1 text-sm text-white/45" : "mt-1 text-sm text-muted-foreground"}>
+          {isUnlock
+            ? "Sign in again to continue."
+            : "Sign in to your account to continue"}
+        </p>
+      </div>
 
-                {/* ✅ Hide in unlock mode */}
-                {!isUnlock && (
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-blue-400"
-                    tabIndex={-1}
-                  >
-                    Forgot your password?
-                  </a>
-                )}
-              </div>
+      <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="identifier" className={labelClass}>
+            Username
+          </Label>
 
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  disabled={isSubmitting}
-                  {...register("password")}
-                  className="pr-10"
-                />
+          <div className="relative">
+            {isDark && (
+              <User className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`} />
+            )}
 
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-
-              {errors.password && (
-                <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>
-              )}
-            </div>
+            <Input
+              id="identifier"
+              type="text"
+              placeholder="Enter your username"
+              disabled={isSubmitting || lockIdentifier}
+              autoComplete="username"
+              className={inputClass}
+              {...register("identifier")}
+            />
           </div>
 
-          <CardFooter className="flex-col gap-2 pt-6">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <LogIn className="mr-2 h-4 w-4" />
-              )}
-              {isSubmitting ? "Signing in..." : (isUnlock ? "Unlock session" : "Sign in")}
-            </Button>
+          {errors.identifier && (
+            <p className={errorClass}>{errors.identifier.message}</p>
+          )}
+        </div>
 
-            {/* ✅ Hide Sign up in unlock mode */}
-            {!isUnlock && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleSignUpClick}
-                disabled={isSubmitting}
-              >
-                <UserRoundPlus className="mr-2 h-4 w-4" />
-                Sign up
-              </Button>
+        <div className="space-y-2">
+          <Label htmlFor="password" className={labelClass}>
+            Password
+          </Label>
+
+          <div className="relative">
+            {isDark && (
+              <Lock className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconClass}`} />
             )}
-          </CardFooter>
-        </form>
-      </CardContent>
-    </Card>
+
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              disabled={isSubmitting}
+              autoComplete={isUnlock ? "current-password" : "current-password"}
+              className={`${inputClass} pr-10`}
+              {...register("password")}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className={
+                isDark
+                  ? "absolute inset-y-0 right-0 flex items-center pr-3 text-white/45 hover:text-white"
+                  : "absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              }
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+
+          {errors.password && (
+            <p className={errorClass}>{errors.password.message}</p>
+          )}
+        </div>
+
+        {!isUnlock && isDark && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+            <button
+              type="button"
+              onClick={() => setRememberMe((prev) => !prev)}
+              className={`h-4 w-4 rounded border ${
+                rememberMe
+                  ? "border-red-500 bg-red-600"
+                  : "border-white/25 bg-black/20"
+              }`}
+              aria-label="Remember me"
+            />
+            Remember me?
+          </label>
+        )}
+
+        <Button
+          type="submit"
+          className={
+            isDark
+              ? "h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
+              : "w-full"
+          }
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="mr-2 h-4 w-4" />
+          )}
+          {isSubmitting
+            ? "Signing in..."
+            : isUnlock
+              ? "Unlock session"
+              : "Sign In"}
+        </Button>
+
+        {!isUnlock && !isDark && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleSignUpClick}
+            disabled={isSubmitting}
+          >
+            <UserRoundPlus className="mr-2 h-4 w-4" />
+            Sign up
+          </Button>
+        )}
+
+        {!isUnlock && isDark && (
+          <div className="space-y-2 pt-2">
+            <a
+              href="#"
+              className="flex items-center justify-between text-sm text-red-500 hover:text-red-400"
+              tabIndex={-1}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Forgot your password?
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </a>
+
+            <a
+              href="#"
+              className="flex items-center justify-between text-sm text-red-500 hover:text-red-400"
+              tabIndex={-1}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Resend email confirmation
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </a>
+
+            <button
+              type="button"
+              onClick={handleSignUpClick}
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-between pt-1 text-sm text-white/60 hover:text-white"
+            >
+              <span className="inline-flex items-center gap-2">
+                <UserRoundPlus className="h-4 w-4" />
+                Create new account
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </form>
+    </div>
   );
 }
