@@ -68,6 +68,25 @@ type SystemConfigLink = {
   allowScreen: boolean;
   config: Config;
 
+  dimensionMode?:
+    | "STANDARD"
+    | "ECO_WINDOWS_DOOR"
+    | "ECO_NOVO_DOOR"
+    | "WINDOW_WALL";
+
+  requiresWidth?: boolean;
+  requiresHeight?: boolean;
+  requiresHeightLeft?: boolean;
+  requiresHeightRight?: boolean;
+  requiresLegHeight?: boolean;
+  requiresDoorWidth?: boolean;
+  requiresLeftSideliteWidth?: boolean;
+  requiresRightSideliteWidth?: boolean;
+  requiresLeftPanels?: boolean;
+  requiresRightPanels?: boolean;
+  requiresPanelCount?: boolean;
+  requiresHorizontalHeights?: boolean;
+
   defaultActiveOptionId?: number | null;
   defaultPreparationOptionId?: number | null;
   defaultSillOptionId?: number | null;
@@ -177,6 +196,13 @@ export function PieceForm({
       heightLeft: initialData.heightLeft ?? "",
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
+      doorWidth: initialData.doorWidth ?? "",
+      leftSideliteWidth: initialData.leftSideliteWidth ?? "",
+      rightSideliteWidth: initialData.rightSideliteWidth ?? "",
+      leftPanels: initialData.leftPanels ?? null,
+      rightPanels: initialData.rightPanels ?? null,
+      panelCount: initialData.panelCount ?? null,
+      horizontalHeights: initialData.horizontalHeights ?? null,
       muntin: initialData.muntin ?? null,
       rate: initialData.rate ?? 0,
       price: initialData.price ?? 0,
@@ -336,6 +362,45 @@ export function PieceForm({
       availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
     );
   }, [idConf, availableSysConfs]);
+
+  const dimensionMode = selectedSysConf?.dimensionMode ?? "STANDARD";
+  const isStandardDimensionMode = dimensionMode === "STANDARD";
+
+  const dimensionRequirements = useMemo(() => {
+    if (isStandardDimensionMode) {
+      return {
+        requiresWidth: !!selectedConfig?.requiresWidth,
+        requiresHeight: !!selectedConfig?.requiresHeight,
+        requiresHeightLeft: !!selectedConfig?.requiresHeightLeft,
+        requiresHeightRight: !!selectedConfig?.requiresHeightRight,
+        requiresLegHeight: !!selectedConfig?.requiresLegHeight,
+
+        requiresDoorWidth: false,
+        requiresLeftSideliteWidth: false,
+        requiresRightSideliteWidth: false,
+        requiresLeftPanels: false,
+        requiresRightPanels: false,
+        requiresPanelCount: false,
+        requiresHorizontalHeights: false,
+      };
+    }
+
+    return {
+      requiresWidth: !!selectedSysConf?.requiresWidth,
+      requiresHeight: !!selectedSysConf?.requiresHeight,
+      requiresHeightLeft: !!selectedSysConf?.requiresHeightLeft,
+      requiresHeightRight: !!selectedSysConf?.requiresHeightRight,
+      requiresLegHeight: !!selectedSysConf?.requiresLegHeight,
+
+      requiresDoorWidth: !!selectedSysConf?.requiresDoorWidth,
+      requiresLeftSideliteWidth: !!selectedSysConf?.requiresLeftSideliteWidth,
+      requiresRightSideliteWidth: !!selectedSysConf?.requiresRightSideliteWidth,
+      requiresLeftPanels: !!selectedSysConf?.requiresLeftPanels,
+      requiresRightPanels: !!selectedSysConf?.requiresRightPanels,
+      requiresPanelCount: !!selectedSysConf?.requiresPanelCount,
+      requiresHorizontalHeights: !!selectedSysConf?.requiresHorizontalHeights,
+    };
+  }, [isStandardDimensionMode, selectedConfig, selectedSysConf]);
 
   const screenAllowed = selectedSysConf?.allowScreen ?? false;
 
@@ -671,13 +736,27 @@ export function PieceForm({
         "qty",
       ];
 
-      if (selectedConfig?.requiresWidth) fieldsToValidate.push("width");
-      if (selectedConfig?.requiresHeight) fieldsToValidate.push("height");
-      if (selectedConfig?.requiresHeightLeft)
+      if (dimensionRequirements.requiresWidth) fieldsToValidate.push("width");
+      if (dimensionRequirements.requiresHeight) fieldsToValidate.push("height");
+      if (dimensionRequirements.requiresHeightLeft)
         fieldsToValidate.push("heightLeft");
-      if (selectedConfig?.requiresHeightRight)
+      if (dimensionRequirements.requiresHeightRight)
         fieldsToValidate.push("heightRight");
-      if (selectedConfig?.requiresLegHeight) fieldsToValidate.push("legHeight");
+      if (dimensionRequirements.requiresLegHeight)
+        fieldsToValidate.push("legHeight");
+
+      if (dimensionRequirements.requiresDoorWidth)
+        fieldsToValidate.push("doorWidth");
+      if (dimensionRequirements.requiresLeftSideliteWidth)
+        fieldsToValidate.push("leftSideliteWidth");
+      if (dimensionRequirements.requiresRightSideliteWidth)
+        fieldsToValidate.push("rightSideliteWidth");
+      if (dimensionRequirements.requiresLeftPanels)
+        fieldsToValidate.push("leftPanels");
+      if (dimensionRequirements.requiresRightPanels)
+        fieldsToValidate.push("rightPanels");
+      if (dimensionRequirements.requiresPanelCount)
+        fieldsToValidate.push("panelCount");
 
       const isValid = await trigger(fieldsToValidate);
 
@@ -693,15 +772,15 @@ export function PieceForm({
         return;
       }
 
-      const widthNorm = selectedConfig.requiresWidth
+      const widthNorm = dimensionRequirements.requiresWidth
         ? normalizeInchesToEighthStep(currentValues.width, "Width", 1)
         : undefined;
 
-      const heightNorm = selectedConfig.requiresHeight
+      const heightNorm = dimensionRequirements.requiresHeight
         ? normalizeInchesToEighthStep(currentValues.height, "Height", 1)
         : undefined;
 
-      const heightLeftNorm = selectedConfig.requiresHeightLeft
+      const heightLeftNorm = dimensionRequirements.requiresHeightLeft
         ? normalizeInchesToEighthStep(
             currentValues.heightLeft,
             "Height Left",
@@ -709,7 +788,7 @@ export function PieceForm({
           )
         : undefined;
 
-      const heightRightNorm = selectedConfig.requiresHeightRight
+      const heightRightNorm = dimensionRequirements.requiresHeightRight
         ? normalizeInchesToEighthStep(
             currentValues.heightRight,
             "Height Right",
@@ -717,9 +796,31 @@ export function PieceForm({
           )
         : undefined;
 
-      const legHeightNorm = selectedConfig.requiresLegHeight
+      const legHeightNorm = dimensionRequirements.requiresLegHeight
         ? normalizeInchesToEighthStep(currentValues.legHeight, "Leg Height", 1)
         : undefined;
+
+      const doorWidthNorm = dimensionRequirements.requiresDoorWidth
+        ? normalizeInchesToEighthStep(currentValues.doorWidth, "Door Width", 1)
+        : undefined;
+
+      const leftSideliteWidthNorm =
+        dimensionRequirements.requiresLeftSideliteWidth
+          ? normalizeInchesToEighthStep(
+              currentValues.leftSideliteWidth,
+              "Left Sidelite Width",
+              1,
+            )
+          : undefined;
+
+      const rightSideliteWidthNorm =
+        dimensionRequirements.requiresRightSideliteWidth
+          ? normalizeInchesToEighthStep(
+              currentValues.rightSideliteWidth,
+              "Right Sidelite Width",
+              1,
+            )
+          : undefined;
 
       if (widthNorm !== undefined) setValue("width", String(widthNorm));
       if (heightNorm !== undefined) setValue("height", String(heightNorm));
@@ -729,6 +830,17 @@ export function PieceForm({
         setValue("heightRight", String(heightRightNorm));
       if (legHeightNorm !== undefined)
         setValue("legHeight", String(legHeightNorm));
+      if (doorWidthNorm !== undefined) {
+        setValue("doorWidth", String(doorWidthNorm));
+      }
+
+      if (leftSideliteWidthNorm !== undefined) {
+        setValue("leftSideliteWidth", String(leftSideliteWidthNorm));
+      }
+
+      if (rightSideliteWidthNorm !== undefined) {
+        setValue("rightSideliteWidth", String(rightSideliteWidthNorm));
+      }
 
       const pieceDtoToSend: CalculatePiecePayload = {
         mark: currentValues.mark ?? "",
@@ -745,6 +857,28 @@ export function PieceForm({
           heightRightNorm !== undefined ? String(heightRightNorm) : undefined,
         legHeight:
           legHeightNorm !== undefined ? String(legHeightNorm) : undefined,
+        doorWidth:
+          doorWidthNorm !== undefined ? String(doorWidthNorm) : undefined,
+        leftSideliteWidth:
+          leftSideliteWidthNorm !== undefined
+            ? String(leftSideliteWidthNorm)
+            : undefined,
+        rightSideliteWidth:
+          rightSideliteWidthNorm !== undefined
+            ? String(rightSideliteWidthNorm)
+            : undefined,
+        leftPanels: dimensionRequirements.requiresLeftPanels
+          ? Number(currentValues.leftPanels || 0)
+          : undefined,
+        rightPanels: dimensionRequirements.requiresRightPanels
+          ? Number(currentValues.rightPanels || 0)
+          : undefined,
+        panelCount: dimensionRequirements.requiresPanelCount
+          ? Number(currentValues.panelCount || 0)
+          : undefined,
+        horizontalHeights: dimensionRequirements.requiresHorizontalHeights
+          ? (currentValues.horizontalHeights ?? [])
+          : undefined,
         idCryst: Number(currentValues.idCryst),
         idTint: Number(currentValues.idTint),
         privacy: currentValues.privacy,
@@ -775,17 +909,27 @@ export function PieceForm({
         idSyst: pieceDtoToSend.idSyst,
         idConf: pieceDtoToSend.idConf,
         idCryst: pieceDtoToSend.idCryst,
-        width: widthNorm ?? 0,
-        height: heightNorm ?? 0,
+
+        width: widthNorm,
+        height: heightNorm ?? Number(currentValues.height || 0),
         heightLeft: heightLeftNorm,
         heightRight: heightRightNorm,
         legHeight: legHeightNorm,
+
+        doorWidth: doorWidthNorm,
+        leftSideliteWidth: leftSideliteWidthNorm,
+        rightSideliteWidth: rightSideliteWidthNorm,
+        leftPanels: pieceDtoToSend.leftPanels ?? undefined,
+        rightPanels: pieceDtoToSend.rightPanels ?? undefined,
+        panelCount: pieceDtoToSend.panelCount ?? undefined,
+        horizontalHeights: pieceDtoToSend.horizontalHeights ?? undefined,
       });
 
       if (!precheck.ok) {
         if (precheck.reason === "NOT_RATED") {
           toast.error(
-            "No hay política de dimensiones para esta combinación (System + Config + Crystal).",
+            precheck.note ||
+              "No dimension policy exists for this System + Config + Crystal combination.",
           );
         } else if (precheck.reason === "OVERSIZE") {
           const belowMin = precheck.belowMinimum;
@@ -801,7 +945,9 @@ export function PieceForm({
             const sW = minW != null ? `${minW}″` : "—";
             const sH = minH != null ? `${minH}″` : "—";
             toast.error(
-              `Revise las dimensiones. Tamaño mínimo permitido: W=${sW}, H=${sH}.`,
+              precheck.note
+                ? `${precheck.note}. Minimum allowed size: W=${sW}, H=${sH}.`
+                : `Please review the dimensions. Minimum allowed size: W=${sW}, H=${sH}.`,
             );
           } else {
             const maxW = precheck.suggestion?.maxWidthIn ?? null;
@@ -809,11 +955,13 @@ export function PieceForm({
             const sW = maxW != null ? `${maxW}″` : "—";
             const sH = maxH != null ? `${maxH}″` : "—";
             toast.error(
-              `Revise las dimensiones. Tamaño máximo permitido: W=${sW}, H=${sH}.`,
+              precheck.note
+                ? `${precheck.note}. Maximum allowed size: W=${sW}, H=${sH}.`
+                : `Please review the dimensions. Maximum allowed size: W=${sW}, H=${sH}.`,
             );
           }
         } else {
-          toast.error("Validación de dimensiones falló.");
+          toast.error("Dimension validation failed.");
         }
         return;
       }
@@ -1384,10 +1532,12 @@ export function PieceForm({
                   {idConf && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
                       <div className="flex flex-wrap gap-4">
-                        {selectedConfig?.requiresWidth && (
+                        {dimensionRequirements.requiresWidth && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
-                              Width (inches)
+                              {isStandardDimensionMode
+                                ? "Width (inches)"
+                                : "Opening Width (inches)"}
                             </Label>
                             <Input
                               className={inputClass}
@@ -1424,7 +1574,7 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {selectedConfig?.requiresHeight && (
+                        {dimensionRequirements.requiresHeight && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
                               Height (inches)
@@ -1464,7 +1614,7 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {selectedConfig?.requiresHeightLeft && (
+                        {dimensionRequirements.requiresHeightLeft && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
                               Height Left (inches)
@@ -1504,7 +1654,7 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {selectedConfig?.requiresHeightRight && (
+                        {dimensionRequirements.requiresHeightRight && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
                               Height Right (inches)
@@ -1544,7 +1694,7 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {selectedConfig?.requiresLegHeight && (
+                        {dimensionRequirements.requiresLegHeight && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
                               Leg Height (inches)
@@ -1584,16 +1734,206 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {!selectedConfig?.requiresWidth &&
-                          !selectedConfig?.requiresHeight &&
-                          !selectedConfig?.requiresHeightLeft &&
-                          !selectedConfig?.requiresHeightRight &&
-                          !selectedConfig?.requiresLegHeight && (
-                            <p className="text-sm text-muted-foreground">
-                              This configuration does not require specific
-                              dimensions for calculation.
-                            </p>
-                          )}
+                        {dimensionRequirements.requiresDoorWidth && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Door Width (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("doorWidth", {
+                                required: "Door Width is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Door Width",
+                                    1,
+                                  );
+                                  setValue("doorWidth", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.doorWidth && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.doorWidth.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresLeftSideliteWidth && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Left Sidelite Width (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("leftSideliteWidth", {
+                                required: "Left Sidelite Width is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Left Sidelite Width",
+                                    1,
+                                  );
+                                  setValue("leftSideliteWidth", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.leftSideliteWidth && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.leftSideliteWidth.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresRightSideliteWidth && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Right Sidelite Width (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("rightSideliteWidth", {
+                                required: "Right Sidelite Width is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Right Sidelite Width",
+                                    1,
+                                  );
+                                  setValue("rightSideliteWidth", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.rightSideliteWidth && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.rightSideliteWidth.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresLeftPanels && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Left Panels
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              type="number"
+                              min={1}
+                              disabled={isLocked}
+                              {...register("leftPanels", {
+                                required: "Left Panels is required",
+                                valueAsNumber: true,
+                                min: { value: 1, message: "Min value is 1" },
+                              })}
+                            />
+                            {errors.leftPanels && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.leftPanels.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresRightPanels && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Right Panels
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              type="number"
+                              min={1}
+                              disabled={isLocked}
+                              {...register("rightPanels", {
+                                required: "Right Panels is required",
+                                valueAsNumber: true,
+                                min: { value: 1, message: "Min value is 1" },
+                              })}
+                            />
+                            {errors.rightPanels && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.rightPanels.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresPanelCount && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Panel Count
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              type="number"
+                              min={1}
+                              disabled={isLocked}
+                              {...register("panelCount", {
+                                required: "Panel Count is required",
+                                valueAsNumber: true,
+                                min: { value: 1, message: "Min value is 1" },
+                              })}
+                            />
+                            {errors.panelCount && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.panelCount.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {!Object.values(dimensionRequirements).some(
+                          Boolean,
+                        ) && (
+                          <p className="text-sm text-muted-foreground">
+                            This configuration does not require specific
+                            dimensions for calculation.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

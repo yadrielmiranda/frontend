@@ -56,7 +56,7 @@ export interface System {
   brandProduct: BrandProduct;
   isActive: boolean;
 
-  defaultCrystalId?: number | null;  
+  defaultCrystalId?: number | null;
   systemCrystals?: {
     idCrystal: number;
     sortOrder?: number;
@@ -75,6 +75,14 @@ export interface ConfigMuntinLayoutItem {
   panelLabel: string;
   panelCode?: string;
 }
+
+export type DimensionMode =
+  | "STANDARD"
+  | "ECO_WINDOWS_DOOR"
+  | "ECO_NOVO_DOOR"
+  | "WINDOW_WALL";
+
+export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
 
 export interface Config {
   id: number;
@@ -168,6 +176,14 @@ export interface Piece {
   heightLeft?: string | null;
   heightRight?: string | null;
   legHeight?: string | null;
+
+  doorWidth?: string | null;
+  leftSideliteWidth?: string | null;
+  rightSideliteWidth?: string | null;
+  leftPanels?: number | null;
+  rightPanels?: number | null;
+  panelCount?: number | null;
+  horizontalHeights?: number[] | null;
 
   idCryst: number;
   idTint: number;
@@ -335,6 +351,21 @@ export interface SysConf {
   allowScreen: boolean;
   config: Config;
 
+  dimensionMode: DimensionMode;
+
+  requiresWidth: boolean;
+  requiresHeight: boolean;
+  requiresHeightLeft: boolean;
+  requiresHeightRight: boolean;
+  requiresLegHeight: boolean;
+  requiresDoorWidth: boolean;
+  requiresLeftSideliteWidth: boolean;
+  requiresRightSideliteWidth: boolean;
+  requiresLeftPanels: boolean;
+  requiresRightPanels: boolean;
+  requiresPanelCount: boolean;
+  requiresHorizontalHeights: boolean;
+
   defaultActiveOptionId?: number | null;
   defaultPreparationOptionId?: number | null;
   defaultSillOptionId?: number | null;
@@ -433,11 +464,21 @@ export interface CreatePieceData {
   idSyst: number;
   idConf: number;
   idFC: number;
+
   width?: string | null;
   height?: string | null;
   heightLeft?: string | null;
   heightRight?: string | null;
   legHeight?: string | null;
+
+  doorWidth?: string | null;
+  leftSideliteWidth?: string | null;
+  rightSideliteWidth?: string | null;
+  leftPanels?: number | null;
+  rightPanels?: number | null;
+  panelCount?: number | null;
+  horizontalHeights?: number[] | null;
+
   idCryst: number;
   idTint: number;
   privacy: boolean;

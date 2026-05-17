@@ -31,9 +31,17 @@ export interface PieceFormValues extends CreatePieceData {
   idSillOption?: number | null;
   idReinforcementOption?: number | null;
 
-  heightLeft?: string | undefined;
-  heightRight?: string | undefined;
-  legHeight?: string | undefined;
+  heightLeft?: string | null;
+  heightRight?: string | null;
+  legHeight?: string | null;
+
+  doorWidth?: string | null;
+  leftSideliteWidth?: string | null;
+  rightSideliteWidth?: string | null;
+  leftPanels?: number | null;
+  rightPanels?: number | null;
+  panelCount?: number | null;
+  horizontalHeights?: number[] | null;
 }
 
 export interface EstimateFormValues {

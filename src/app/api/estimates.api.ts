@@ -44,11 +44,20 @@ export interface ValidatePieceRequest {
   idSyst: number;
   idConf: number;
   idCryst: number;
-  width: number;
+
+  width?: number;
   height: number;
   heightLeft?: number;
   heightRight?: number;
   legHeight?: number;
+
+  doorWidth?: number;
+  leftSideliteWidth?: number;
+  rightSideliteWidth?: number;
+  leftPanels?: number;
+  rightPanels?: number;
+  panelCount?: number;
+  horizontalHeights?: number[];
 }
 
 export function calculatePiece(data: CreatePieceData) {

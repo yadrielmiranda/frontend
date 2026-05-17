@@ -12,6 +12,15 @@ import {
 
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +42,7 @@ import {
   type AssociatedOption,
   type AvailableOption,
 } from "./columns-system-config-options";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 type OptionItem = {
   id: number;
@@ -56,6 +66,230 @@ type OptionGroupConfig = {
   selectedIds: number[];
   defaultId: number | null;
 };
+
+type DimensionMode =
+  | "STANDARD"
+  | "ECO_WINDOWS_DOOR"
+  | "ECO_NOVO_DOOR"
+  | "WINDOW_WALL";
+
+type DimensionRequirementKey =
+  | "requiresWidth"
+  | "requiresHeight"
+  | "requiresHeightLeft"
+  | "requiresHeightRight"
+  | "requiresLegHeight"
+  | "requiresDoorWidth"
+  | "requiresLeftSideliteWidth"
+  | "requiresRightSideliteWidth"
+  | "requiresLeftPanels"
+  | "requiresRightPanels"
+  | "requiresPanelCount"
+  | "requiresHorizontalHeights";
+
+type DimensionRequirementsState = Record<DimensionRequirementKey, boolean>;
+
+const dimensionModeLabels: Record<DimensionMode, string> = {
+  STANDARD: "Standard",
+  ECO_WINDOWS_DOOR: "Eco Windows Door",
+  ECO_NOVO_DOOR: "Eco Novo Door",
+  WINDOW_WALL: "Window Wall",
+};
+
+const dimensionRequirementLabels: {
+  key: DimensionRequirementKey;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "requiresWidth",
+    label: "Width / Opening Width",
+    description: "Required for standard items and opening-based systems.",
+  },
+  {
+    key: "requiresHeight",
+    label: "Height",
+    description: "Main height required for this configuration.",
+  },
+  {
+    key: "requiresHeightLeft",
+    label: "Height Left",
+    description: "Used by shapes or configurations with left height.",
+  },
+  {
+    key: "requiresHeightRight",
+    label: "Height Right",
+    description: "Used by shapes or configurations with right height.",
+  },
+  {
+    key: "requiresLegHeight",
+    label: "Leg Height",
+    description: "Used by arches, eyebrows, or similar shapes.",
+  },
+  {
+    key: "requiresDoorWidth",
+    label: "Door Width",
+    description: "Door panel width required for door systems.",
+  },
+  {
+    key: "requiresLeftSideliteWidth",
+    label: "Left Sidelite Width",
+    description: "Required when the left sidelite is entered separately.",
+  },
+  {
+    key: "requiresRightSideliteWidth",
+    label: "Right Sidelite Width",
+    description: "Required when the right sidelite is entered separately.",
+  },
+  {
+    key: "requiresLeftPanels",
+    label: "Left Sidelite Qty",
+    description: "Number of sidelites/panels on the left side.",
+  },
+  {
+    key: "requiresRightPanels",
+    label: "Right Sidelite Qty",
+    description: "Number of sidelites/panels on the right side.",
+  },
+  {
+    key: "requiresPanelCount",
+    label: "Panel Count",
+    description: "Required for Window Wall or multi-panel openings.",
+  },
+  {
+    key: "requiresHorizontalHeights",
+    label: "Horizontal Heights",
+    description: "Required when horizontal divisions must be entered.",
+  },
+];
+
+const buildInitialRequirements = (
+  data: SystemConfigOptionsManage,
+): DimensionRequirementsState => ({
+  requiresWidth: data.requiresWidth ?? false,
+  requiresHeight: data.requiresHeight ?? false,
+  requiresHeightLeft: data.requiresHeightLeft ?? false,
+  requiresHeightRight: data.requiresHeightRight ?? false,
+  requiresLegHeight: data.requiresLegHeight ?? false,
+  requiresDoorWidth: data.requiresDoorWidth ?? false,
+  requiresLeftSideliteWidth: data.requiresLeftSideliteWidth ?? false,
+  requiresRightSideliteWidth: data.requiresRightSideliteWidth ?? false,
+  requiresLeftPanels: data.requiresLeftPanels ?? false,
+  requiresRightPanels: data.requiresRightPanels ?? false,
+  requiresPanelCount: data.requiresPanelCount ?? false,
+  requiresHorizontalHeights: data.requiresHorizontalHeights ?? false,
+});
+
+const emptyRequirements: DimensionRequirementsState = {
+  requiresWidth: false,
+  requiresHeight: false,
+  requiresHeightLeft: false,
+  requiresHeightRight: false,
+  requiresLegHeight: false,
+  requiresDoorWidth: false,
+  requiresLeftSideliteWidth: false,
+  requiresRightSideliteWidth: false,
+  requiresLeftPanels: false,
+  requiresRightPanels: false,
+  requiresPanelCount: false,
+  requiresHorizontalHeights: false,
+};
+
+function DimensionSettingsCard({
+  dimensionMode,
+  requirements,
+  isSaving,
+  hasChanges,
+  onDimensionModeChange,
+  onRequirementChange,
+  onSave,
+}: {
+  dimensionMode: DimensionMode;
+  requirements: DimensionRequirementsState;
+  isSaving: boolean;
+  hasChanges: boolean;
+  onDimensionModeChange: (value: DimensionMode) => void;
+  onRequirementChange: (key: DimensionRequirementKey, value: boolean) => void;
+  onSave: () => void;
+}) {
+  const isStandard = dimensionMode === "STANDARD";
+  const visibleRequirements = isStandard ? [] : dimensionRequirementLabels;
+
+  return (
+    <div className="space-y-5 rounded-lg border p-4">
+      <div>
+        <h3 className="text-base font-semibold">Dimension Settings</h3>
+        <p className="text-sm text-muted-foreground">
+          Configure how measurements are interpreted for this system/config.
+          Standard keeps the existing Config requirements. Door and Window Wall
+          modes use the required fields below.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Dimension Mode</Label>
+        <Select
+          value={dimensionMode}
+          onValueChange={(value) =>
+            onDimensionModeChange(value as DimensionMode)
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select dimension mode" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(dimensionModeLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {isStandard && (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Standard mode uses the Required Dimensions configured directly in
+            the Config screen. There are no System/Config-specific dimension
+            fields to select here.
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {visibleRequirements.map((item) => (
+          <div
+            key={item.key}
+            className="flex items-start justify-between gap-4 rounded-md border p-3"
+          >
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">{item.label}</Label>
+              <p className="text-xs text-muted-foreground">
+                {item.description}
+              </p>
+            </div>
+
+            <Switch
+              checked={requirements[item.key]}              
+              onCheckedChange={(checked) =>
+                onRequirementChange(item.key, checked)
+              }
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving || !hasChanges}
+        >
+          {isSaving ? "Saving..." : "Save Dimension Settings"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function OptionAssociationGroup({
   group,
@@ -101,7 +335,7 @@ function OptionAssociationGroup({
   const availableColumns = useMemo(
     () =>
       getAvailableOptionsColumns(async (optionId) => {
-        const ok = await onAdd(group.key, optionId);        
+        await onAdd(group.key, optionId);
       }),
     [group.key, onAdd],
   );
@@ -213,6 +447,37 @@ export function SystemConfigOptionsClient({
   data: SystemConfigOptionsManage;
 }) {
   const router = useRouter();
+  const initialDimensionMode = data.dimensionMode ?? "STANDARD";
+  const initialRequirements = useMemo(
+    () => buildInitialRequirements(data),
+    [data],
+  );
+
+  const [dimensionMode, setDimensionMode] =
+    useState<DimensionMode>(initialDimensionMode);
+
+  const [requirements, setRequirements] =
+    useState<DimensionRequirementsState>(initialRequirements);
+
+  const [isSavingDimensions, setIsSavingDimensions] = useState(false);
+  const [isConfirmDimensionsOpen, setIsConfirmDimensionsOpen] = useState(false);
+
+  const effectiveRequirements =
+    dimensionMode === "STANDARD" ? emptyRequirements : requirements;
+
+  const hasDimensionChanges = useMemo(() => {
+    if (dimensionMode !== initialDimensionMode) return true;
+
+    return Object.keys(emptyRequirements).some((key) => {
+      const typedKey = key as DimensionRequirementKey;
+      return effectiveRequirements[typedKey] !== initialRequirements[typedKey];
+    });
+  }, [
+    dimensionMode,
+    initialDimensionMode,
+    effectiveRequirements,
+    initialRequirements,
+  ]);
 
   const buildPayload = (
     groupKey: OptionGroupKey,
@@ -244,6 +509,9 @@ export function SystemConfigOptionsClient({
         groupKey === "reinforcement"
           ? nextDefaultId
           : data.defaultReinforcementOptionId,
+
+      dimensionMode,
+      ...effectiveRequirements,
     };
   };
 
@@ -296,6 +564,37 @@ export function SystemConfigOptionsClient({
       toast.error((error as Error).message || errorMsg);
       console.error(errorMsg, error);
       return false;
+    }
+  };
+
+  const handleSaveDimensionSettings = async () => {
+    try {
+      setIsSavingDimensions(true);
+
+      await updateSystemConfigOptions(data.idSystem, data.idConfig, {
+        activeOptionIds: data.selectedActiveOptionIds,
+        preparationOptionIds: data.selectedPreparationOptionIds,
+        sillOptionIds: data.selectedSillOptionIds,
+        reinforcementOptionIds: data.selectedReinforcementOptionIds,
+
+        defaultActiveOptionId: data.defaultActiveOptionId,
+        defaultPreparationOptionId: data.defaultPreparationOptionId,
+        defaultSillOptionId: data.defaultSillOptionId,
+        defaultReinforcementOptionId: data.defaultReinforcementOptionId,
+
+        dimensionMode,
+        ...effectiveRequirements,
+      });
+
+      toast.success("Dimension settings updated successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        (error as Error).message || "Error updating dimension settings.",
+      );
+      console.error("Error updating dimension settings.", error);
+    } finally {
+      setIsSavingDimensions(false);
     }
   };
 
@@ -401,6 +700,40 @@ export function SystemConfigOptionsClient({
 
   return (
     <div className="space-y-6">
+      <DimensionSettingsCard
+        dimensionMode={dimensionMode}
+        requirements={effectiveRequirements}
+        isSaving={isSavingDimensions}
+        hasChanges={hasDimensionChanges}
+        onDimensionModeChange={(value) => {
+          setDimensionMode(value);
+
+          if (value === "STANDARD") {
+            setRequirements(emptyRequirements);
+          }
+        }}
+        onRequirementChange={(key, value) =>
+          setRequirements((current) => ({
+            ...current,
+            [key]: value,
+          }))
+        }
+        onSave={() => setIsConfirmDimensionsOpen(true)}
+      />
+
+      <ConfirmActionDialog
+        isOpen={isConfirmDimensionsOpen}
+        onClose={() => setIsConfirmDimensionsOpen(false)}
+        onConfirm={async () => {
+          setIsConfirmDimensionsOpen(false);
+          await handleSaveDimensionSettings();
+        }}
+        title="Save dimension settings?"
+        description="These settings control which measurement fields are required for this System/Config. Existing STANDARD configurations continue using the Config requirements."
+        confirmText="Yes, save settings"
+        cancelText="Cancel"
+      />
+
       {groups.map((group) => (
         <OptionAssociationGroup
           key={group.key}

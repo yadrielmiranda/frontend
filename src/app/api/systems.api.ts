@@ -1,5 +1,11 @@
 import { apiFetch } from './_base';
-import type { System, SystemWithConfigs, Crystal, FrameColor } from '../../lib/types';
+import type {
+  System,
+  SystemWithConfigs,
+  Crystal,
+  FrameColor,
+  DimensionMode,
+} from "../../lib/types";
 
 export type SystemData = {
   name: string;
@@ -24,6 +30,21 @@ export type UpdateSystemConfigOptionsData = {
   defaultPreparationOptionId?: number | null;
   defaultSillOptionId?: number | null;
   defaultReinforcementOptionId?: number | null;
+
+  dimensionMode?: DimensionMode;
+
+  requiresWidth?: boolean;
+  requiresHeight?: boolean;
+  requiresHeightLeft?: boolean;
+  requiresHeightRight?: boolean;
+  requiresLegHeight?: boolean;
+  requiresDoorWidth?: boolean;
+  requiresLeftSideliteWidth?: boolean;
+  requiresRightSideliteWidth?: boolean;
+  requiresLeftPanels?: boolean;
+  requiresRightPanels?: boolean;
+  requiresPanelCount?: boolean;
+  requiresHorizontalHeights?: boolean;
 };
 
 export type UpdateSystemCrystalsData = {
@@ -32,7 +53,7 @@ export type UpdateSystemCrystalsData = {
 };
 
 export type UpdateSystemFrameColorsData = {
-  frameColorIds: number[];  
+  frameColorIds: number[];
 };
 
 export type SystemCrystalsManage = {
@@ -58,7 +79,7 @@ export type SystemFrameColorsManage = {
     brand: { id: number; name: string };
     product: { id: number; name: string };
   };
-  selectedFrameColorIds: number[];  
+  selectedFrameColorIds: number[];
   frameColorsCatalog: FrameColor[];
 };
 
@@ -68,6 +89,21 @@ export type SystemConfigOptionsManage = {
   system: { id: number; name: string };
   config: { id: number; conf: string };
   allowScreen: boolean;
+
+  dimensionMode: DimensionMode;
+
+  requiresWidth: boolean;
+  requiresHeight: boolean;
+  requiresHeightLeft: boolean;
+  requiresHeightRight: boolean;
+  requiresLegHeight: boolean;
+  requiresDoorWidth: boolean;
+  requiresLeftSideliteWidth: boolean;
+  requiresRightSideliteWidth: boolean;
+  requiresLeftPanels: boolean;
+  requiresRightPanels: boolean;
+  requiresPanelCount: boolean;
+  requiresHorizontalHeights: boolean;
 
   selectedActiveOptionIds: number[];
   selectedPreparationOptionIds: number[];

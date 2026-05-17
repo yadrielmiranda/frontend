@@ -1,5 +1,6 @@
 // src/app/api/dimension-policies.api.ts
 import { apiFetch } from './_base';
+import type { DimensionRuleType } from '@/lib/types';
 
 // ========================================
 // Tipos
@@ -33,8 +34,9 @@ export type CreatePolicyData = {
   isActive?: boolean;
 };
 
-// 👇 NUEVA FORMA DE LA REGLA (fila única)
+//FORMA DE LA REGLA (fila única)
 export type RuleRow = {
+  ruleType?: DimensionRuleType;
   widthIn: number;
   heightIn: number;
   dpPosPsf: number;
@@ -89,12 +91,16 @@ export function deletePolicy(id: number) {
 // ========================================
 // RULES BULK (CSV o tabla manual)
 // ========================================
-export function bulkUpsertRules(idPolicy: number, rows: RuleRow[]) {
+export function bulkUpsertRules(
+  idPolicy: number,
+  ruleType: DimensionRuleType,
+  rows: RuleRow[],
+) {
   return apiFetch<{ ok: boolean; count: number }>(
     `/api/dimension-policies/${idPolicy}/rules/bulk-upsert`,
     {
       method: 'POST',
-      body: { rows },
-    }
+      body: { ruleType, rows },
+    },
   );
 }

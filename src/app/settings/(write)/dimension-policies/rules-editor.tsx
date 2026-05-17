@@ -1,33 +1,75 @@
 // src/app/settings/(write)/dimension-policies/rules-editor.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
-import { bulkUpsertRules, type RuleRow } from "@/app/api/dimension-policies.api";
+import {
+  bulkUpsertRules,
+  type RuleRow,
+} from "@/app/api/dimension-policies.api";
 import {
   normalizeInchesToEighthStep,
   DimensionParseError,
 } from "@/lib/dimensions";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { DimensionRuleType } from "@/lib/types";
 
 type Props = {
   idPolicy: number;
   initialRows?: RuleRow[];
 };
 
+const ruleTypeOptions: { value: DimensionRuleType; label: string }[] = [
+  { value: "MAIN", label: "Main / Standard" },
+  { value: "DOOR", label: "Door" },
+  { value: "SIDELITE", label: "Sidelite" },
+];
+
 export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
-  const [rows, setRows] = useState<RuleRow[]>(initialRows);
+  const [selectedRuleType, setSelectedRuleType] =
+    useState<DimensionRuleType>("MAIN");
+
+  const [allRows, setAllRows] = useState<RuleRow[]>(initialRows);
+  const [rows, setRows] = useState<RuleRow[]>([]);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => setRows(initialRows), [initialRows]);
+  const rowsForSelectedType = useMemo(() => {
+    return allRows.filter(
+      (row) => (row.ruleType ?? "MAIN") === selectedRuleType,
+    );
+  }, [allRows, selectedRuleType]);
+
+  useEffect(() => {
+    setAllRows(initialRows);
+  }, [initialRows]);
+
+  useEffect(() => {
+    setRows(rowsForSelectedType);
+  }, [rowsForSelectedType]);
 
   const addRow = () =>
     setRows((r) => [
       ...r,
-      { widthIn: 0, heightIn: 0, dpPosPsf: 0, dpNegPsf: 0, screws: undefined, note: "" },
+      {
+        ruleType: selectedRuleType,
+        widthIn: 0,
+        heightIn: 0,
+        dpPosPsf: 0,
+        dpNegPsf: 0,
+        screws: undefined,
+        note: "",
+      },
     ]);
 
   const onExcel = async (file: File) => {
@@ -46,8 +88,16 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
       const parsed: RuleRow[] = json.map((r, idx) => {
         const rowLabel = `Row ${idx + 1}`;
 
-        const widthIn = normalizeInchesToEighthStep(r.widthIn, `${rowLabel} - widthIn`, 1);
-        const heightIn = normalizeInchesToEighthStep(r.heightIn, `${rowLabel} - heightIn`, 1);
+        const widthIn = normalizeInchesToEighthStep(
+          r.widthIn,
+          `${rowLabel} - widthIn`,
+          1,
+        );
+        const heightIn = normalizeInchesToEighthStep(
+          r.heightIn,
+          `${rowLabel} - heightIn`,
+          1,
+        );
 
         const dpPosPsf = Number(r.dpPosPsf);
         const dpNegPsf = Number(r.dpNegPsf);
@@ -57,15 +107,29 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
         }
 
         let screws: number | undefined = undefined;
-        if (r.screws !== undefined && r.screws !== null && String(r.screws).trim() !== "") {
+        if (
+          r.screws !== undefined &&
+          r.screws !== null &&
+          String(r.screws).trim() !== ""
+        ) {
           const n = Number(r.screws);
-          if (!Number.isFinite(n)) throw new Error(`${rowLabel}: invalid screws value.`);
-          if (!Number.isInteger(n)) throw new Error(`${rowLabel}: screws must be an integer.`);
+          if (!Number.isFinite(n))
+            throw new Error(`${rowLabel}: invalid screws value.`);
+          if (!Number.isInteger(n))
+            throw new Error(`${rowLabel}: screws must be an integer.`);
           if (n < 0) throw new Error(`${rowLabel}: screws cannot be negative.`);
           screws = n;
         }
 
-        return { widthIn, heightIn, dpPosPsf, dpNegPsf, screws, note: r.note ?? undefined };
+        return {
+          ruleType: selectedRuleType,
+          widthIn,
+          heightIn,
+          dpPosPsf,
+          dpNegPsf,
+          screws,
+          note: r.note ?? undefined,
+        };
       });
 
       setRows(parsed);
@@ -80,13 +144,27 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
     setBusy(true);
     try {
       for (const [i, r] of rows.entries()) {
-        if (!isFinite(r.widthIn) || r.widthIn <= 0) return toast.error(`Row ${i + 1}: invalid widthIn`);
-        if (!isFinite(r.heightIn) || r.heightIn <= 0) return toast.error(`Row ${i + 1}: invalid heightIn`);
-        if (!isFinite(r.dpPosPsf) || !isFinite(r.dpNegPsf)) return toast.error(`Row ${i + 1}: invalid pressures`);
+        if (!isFinite(r.widthIn) || r.widthIn <= 0)
+          return toast.error(`Row ${i + 1}: invalid widthIn`);
+        if (!isFinite(r.heightIn) || r.heightIn <= 0)
+          return toast.error(`Row ${i + 1}: invalid heightIn`);
+        if (!isFinite(r.dpPosPsf) || !isFinite(r.dpNegPsf))
+          return toast.error(`Row ${i + 1}: invalid pressures`);
       }
 
-      await bulkUpsertRules(idPolicy, rows);
-      toast.success("Rules saved.");
+      await bulkUpsertRules(idPolicy, selectedRuleType, rows);
+
+      setAllRows((current) => [
+        ...current.filter(
+          (row) => (row.ruleType ?? "MAIN") !== selectedRuleType,
+        ),
+        ...rows.map((row) => ({
+          ...row,
+          ruleType: selectedRuleType,
+        })),
+      ]);
+
+      toast.success(`${selectedRuleType} rules saved.`);
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save rules.");
     } finally {
@@ -96,22 +174,60 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="outline" onClick={addRow}>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1">
+          <Label>Rule Type</Label>
+          <Select
+            value={selectedRuleType}
+            onValueChange={(value) =>
+              setSelectedRuleType(value as DimensionRuleType)
+            }
+            disabled={busy}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ruleTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addRow}
+          disabled={busy}
+        >
           + Row
         </Button>
 
         <label>
-          <Button type="button" variant="outline" asChild>
-            <span>Import Excel</span>
+          <Button type="button" variant="outline" asChild disabled={busy}>
+            <span>Import Excel for {selectedRuleType}</span>
           </Button>
           <input
             type="file"
             accept=".xlsx,.xls"
             hidden
-            onChange={(e) => e.target.files && onExcel(e.target.files[0])}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+
+              await onExcel(file);
+
+              e.target.value = "";
+            }}
           />
         </label>
+
+        <p className="text-sm text-muted-foreground">
+          Saving replaces only the {selectedRuleType} rules for this policy.
+        </p>
       </div>
 
       <div className="overflow-auto rounded-md border">
@@ -130,61 +246,105 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
             {rows.map((r, idx) => (
               <tr key={idx} className="border-t">
                 <td className="px-3 py-2">
-                  <input className="w-28 rounded border px-2 py-1" type="number" step="0.001"
+                  <input
+                    className="w-28 rounded border px-2 py-1"
+                    type="number"
+                    step="0.001"
                     value={r.widthIn ?? ""}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, widthIn: v } : row)));
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, widthIn: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
 
                 <td className="px-3 py-2">
-                  <input className="w-28 rounded border px-2 py-1" type="number" step="0.001"
+                  <input
+                    className="w-28 rounded border px-2 py-1"
+                    type="number"
+                    step="0.001"
                     value={r.heightIn ?? ""}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, heightIn: v } : row)));
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, heightIn: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
 
                 <td className="px-3 py-2">
-                  <input className="w-28 rounded border px-2 py-1" type="number" step="0.01"
+                  <input
+                    className="w-28 rounded border px-2 py-1"
+                    type="number"
+                    step="0.01"
                     value={r.dpPosPsf ?? ""}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, dpPosPsf: v } : row)));
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, dpPosPsf: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
 
                 <td className="px-3 py-2">
-                  <input className="w-28 rounded border px-2 py-1" type="number" step="0.01"
+                  <input
+                    className="w-28 rounded border px-2 py-1"
+                    type="number"
+                    step="0.01"
                     value={r.dpNegPsf ?? ""}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, dpNegPsf: v } : row)));
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, dpNegPsf: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
 
                 <td className="px-3 py-2">
-                  <input className="w-24 rounded border px-2 py-1" type="number" step="1" min="0"
+                  <input
+                    className="w-24 rounded border px-2 py-1"
+                    type="number"
+                    step="1"
+                    min="0"
                     value={r.screws ?? ""}
                     onChange={(e) => {
-                      const v = e.target.value === "" ? undefined : Number(e.target.value);
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, screws: v } : row)));
+                      const v =
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value);
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, screws: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
 
                 <td className="px-3 py-2">
-                  <input className="w-64 rounded border px-2 py-1"
+                  <input
+                    className="w-64 rounded border px-2 py-1"
                     value={r.note ?? ""}
                     onChange={(e) => {
                       const v = e.target.value;
-                      setRows((rows) => rows.map((row, i) => (i === idx ? { ...row, note: v } : row)));
+                      setRows((rows) =>
+                        rows.map((row, i) =>
+                          i === idx ? { ...row, note: v } : row,
+                        ),
+                      );
                     }}
                   />
                 </td>
@@ -196,7 +356,7 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
 
       <div className="flex justify-end">
         <Button type="button" onClick={save} disabled={busy}>
-          {busy ? "Saving..." : "Save rules"}
+          {busy ? "Saving..." : `Save ${selectedRuleType} rules`}
         </Button>
       </div>
     </div>
