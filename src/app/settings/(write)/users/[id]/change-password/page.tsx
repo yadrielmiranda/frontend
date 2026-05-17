@@ -18,12 +18,10 @@ export default async function AdminChangePasswordPage({
   if (!user) notFound();
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="max-w-lg mx-auto mb-4">
+    <div className="mx-auto flex min-h-[calc(100vh-160px)] w-full max-w-6xl items-center justify-center px-4 py-10">
+      <div className="w-full max-w-xl space-y-4">
         <BackLink href="/settings/users" label="Back to Users" />
-      </div>
 
-      <div className="max-w-lg mx-auto">
         <AdminChangePasswordForm user={user} />
       </div>
     </div>

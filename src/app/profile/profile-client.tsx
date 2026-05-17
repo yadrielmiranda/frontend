@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, KeyRound, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  UserCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +58,31 @@ export function ProfileClient({
 
   const roleName = profileUser?.role?.name ?? initialAuthUser.role?.name;
   const canDeleteOwnAccount = roleName !== "admin";
+
+  const displayName = useMemo(() => {
+    if (!profileUser) return "Profile";
+
+    const fullName = `${profileUser.firstName ?? ""} ${
+      profileUser.lastName ?? ""
+    }`.trim();
+
+    return fullName || profileUser.username || profileUser.email || "Profile";
+  }, [profileUser]);
+
+  const initials = useMemo(() => {
+    if (!profileUser) return "U";
+
+    const first = profileUser.firstName?.trim()?.[0];
+    const last = profileUser.lastName?.trim()?.[0];
+
+    if (first || last) return `${first ?? ""}${last ?? ""}`.toUpperCase();
+
+    return (
+      profileUser.username?.[0] ||
+      profileUser.email?.[0] ||
+      "U"
+    ).toUpperCase();
+  }, [profileUser]);
 
   useEffect(() => {
     setUser(initialAuthUser as unknown as User);
@@ -126,143 +159,271 @@ export function ProfileClient({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center pt-20">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex items-center gap-3 rounded-2xl border bg-white px-5 py-4 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+          <span className="text-sm font-medium text-slate-600">
+            Loading profile...
+          </span>
+        </div>
       </div>
     );
   }
 
   if (!profileUser) {
     return (
-      <p className="text-center pt-20">
-        Could not load profile data. Please log in and try again.
-      </p>
+      <div className="mx-auto max-w-3xl py-16">
+        <Card className="rounded-3xl border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Profile unavailable
+            </CardTitle>
+            <CardDescription>
+              Could not load profile data. Please log in and try again.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-8 py-10 px-4">
-      <Card className="w-full max-w-4xl">
-        <CardHeader>
-          <CardTitle className="text-2xl">My Profile</CardTitle>
-          <CardDescription>Update your personal information.</CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <UserForm
-            user={profileUser}
-            roles={[profileUser.role]}
-            onProfileUpdate={handleProfileUpdate}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="w-full max-w-4xl">
-        <CardHeader>
-          <CardTitle className="text-2xl">Security</CardTitle>
-          <CardDescription>Manage your account security.</CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <p className="font-medium">Password</p>
-              <p className="text-sm text-muted-foreground">
-                It is recommended to change your password periodically.
-              </p>
+    <div className="mx-auto max-w-6xl space-y-8">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 text-white shadow-xl">
+        <div className="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center lg:p-8">
+          <div className="flex items-center gap-5">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-red-600 text-2xl font-bold text-white shadow-lg shadow-red-950/30 ring-1 ring-white/15">
+              {initials}
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() => router.push("/profile/change-password")}
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              Change Password
-            </Button>
+            <div className="min-w-0">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-red-100">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {roleName ? `${roleName} account` : "account"}
+              </div>
+
+              <h1 className="truncate text-3xl font-bold tracking-tight md:text-4xl">
+                {displayName}
+              </h1>
+
+              <p className="mt-2 text-sm text-white/65">
+                Manage your personal information, account access, and security.
+              </p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {canDeleteOwnAccount && (
-        <Card className="w-full max-w-4xl border-destructive/40">
-          <CardHeader>
-            <CardTitle className="text-2xl text-destructive">
-              Danger Zone
-            </CardTitle>
-            <CardDescription>
-              Deleting your account will revoke your access immediately. Your
-              historical estimates, orders, payments, and logs will be preserved.
-            </CardDescription>
-          </CardHeader>
+          <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white/80 md:block">
+            <p className="font-semibold text-white">Account status</p>
+            <p className="mt-1 inline-flex items-center gap-2 text-white/70">
+              <BadgeCheck className="h-4 w-4 text-red-300" />
+              Active profile
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <CardContent>
-            <div className="flex items-center justify-between gap-4 p-4 border border-destructive/40 rounded-lg">
-              <div>
-                <p className="font-medium">Delete account</p>
-                <p className="text-sm text-muted-foreground">
-                  This action cannot be undone.
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-8">
+          <Card className="rounded-3xl border-slate-200 shadow-sm">
+            <CardHeader className="border-b bg-slate-50/70">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <UserCircle className="h-5 w-5 text-red-600" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>
+                Update your contact details and address information.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="pt-6">
+              <UserForm
+                user={profileUser}
+                roles={[profileUser.role]}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <KeyRound className="h-5 w-5 text-red-600" />
+                Security
+              </CardTitle>
+              <CardDescription>Manage your account security.</CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-slate-950">Password</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    It is recommended to change your password periodically.
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/profile/change-password")}
+                  className="shrink-0"
+                >
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Change Password
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {canDeleteOwnAccount && (
+            <Card className="rounded-3xl border-destructive/40 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Danger Zone
+                </CardTitle>
+                <CardDescription>
+                  Deleting your account will revoke your access immediately.
+                  Historical estimates, orders, payments, and logs will be
+                  preserved.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                <div className="flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-red-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950">
+                      Delete account
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+
+                  <AlertDialog
+                    onOpenChange={(open) => {
+                      if (!open) setDeleteConfirmText("");
+                    }}
+                  >
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="shrink-0">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete My Account
+                      </Button>
+                    </AlertDialogTrigger>
+
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Delete your account?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will deactivate your account, revoke your
+                          sessions, and remove your login access. Type DELETE to
+                          confirm.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+
+                      <Input
+                        value={deleteConfirmText}
+                        onChange={(event) =>
+                          setDeleteConfirmText(event.target.value)
+                        }
+                        placeholder="Type DELETE"
+                        disabled={isDeleting}
+                      />
+
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>
+                          Cancel
+                        </AlertDialogCancel>
+
+                        <AlertDialogAction
+                          disabled={
+                            deleteConfirmText !== "DELETE" || isDeleting
+                          }
+                          onClick={(event) => {
+                            event.preventDefault();
+                            handleDeleteAccount();
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isDeleting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete Account"
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <aside className="space-y-4">
+          <Card className="rounded-3xl border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Account Summary</CardTitle>
+              <CardDescription>Your current access details.</CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Username
+                </p>
+                <p className="mt-1 truncate font-semibold text-slate-950">
+                  {profileUser.username || "Not set"}
                 </p>
               </div>
 
-              <AlertDialog
-                onOpenChange={(open) => {
-                  if (!open) setDeleteConfirmText("");
-                }}
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Email
+                </p>
+                <p className="mt-1 truncate font-semibold text-slate-950">
+                  {profileUser.email || "Not set"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Role
+                </p>
+                <p className="mt-1 inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold capitalize text-red-700">
+                  {roleName || "User"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-slate-200 bg-slate-950 text-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Need help?</CardTitle>
+              <CardDescription className="text-white/60">
+                Contact your administrator if your profile information is
+                incorrect.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={() => router.push("/")}
               >
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete My Account
-                  </Button>
-                </AlertDialogTrigger>
-
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will deactivate your account, revoke your sessions,
-                      and remove your login access. Type DELETE to confirm.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-
-                  <Input
-                    value={deleteConfirmText}
-                    onChange={(event) =>
-                      setDeleteConfirmText(event.target.value)
-                    }
-                    placeholder="Type DELETE"
-                    disabled={isDeleting}
-                  />
-
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
-                      Cancel
-                    </AlertDialogCancel>
-
-                    <AlertDialogAction
-                      disabled={deleteConfirmText !== "DELETE" || isDeleting}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        handleDeleteAccount();
-                      }}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isDeleting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Deleting...
-                        </>
-                      ) : (
-                        "Delete Account"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                Back to Workspace
+              </Button>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 }

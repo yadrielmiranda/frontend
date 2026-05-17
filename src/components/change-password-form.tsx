@@ -1,39 +1,57 @@
-'use client';
+"use client";
 
-import { useState } from "react"; // Importamos useState
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Eye, EyeOff } from "lucide-react"; // Importamos Eye y EyeOff
+import {
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+
 import { changePassword } from "@/app/api/auth/me/auth.api";
 
-// Esquema de validación con Zod
-const formSchema = z.object({
-  currentPassword: z.string().min(1, { message: "Current password is required." }),
-  newPassword: z.string().min(8, { message: "New password must be at least 8 characters." }),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match.",
-  path: ["confirmPassword"], // El error se muestra en el campo de confirmación
-});
+const formSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, { message: "Current password is required." }),
+    newPassword: z
+      .string()
+      .min(8, { message: "New password must be at least 8 characters." }),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
 
 type FormData = z.infer<typeof formSchema>;
 
 export function ChangePasswordForm() {
   const router = useRouter();
 
-  // Estados para controlar la visibilidad de cada campo de contraseña
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Estado local para controlar el éxito (ya estaba)
   const [isSuccess, setIsSuccess] = useState(false);
 
   const {
@@ -51,6 +69,7 @@ export function ChangePasswordForm() {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
+
       toast.success(response.message);
 
       setIsSuccess(true);
@@ -64,88 +83,183 @@ export function ChangePasswordForm() {
   const showLoadingState = isSubmitting || isSuccess;
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>Change Password</CardTitle>
-        <CardDescription>
-          Enter your current password and your new password.
+    <Card className="w-full max-w-xl overflow-hidden rounded-3xl border-slate-200 shadow-sm">
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 px-6 py-7 text-white">
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-600 shadow-lg shadow-red-950/30 ring-1 ring-white/15">
+          <KeyRound className="h-6 w-6" />
+        </div>
+
+        <CardTitle className="text-2xl font-bold tracking-tight">
+          Change Password
+        </CardTitle>
+
+        <CardDescription className="mt-2 text-white/65">
+          Update your password to keep your account secure.
         </CardDescription>
-      </CardHeader>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
+        <CardHeader className="border-b bg-slate-50/70">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-xl bg-red-50 p-2 text-red-600">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+
+            <div>
+              <CardTitle className="text-lg">Security verification</CardTitle>
+              <CardDescription>
+                Enter your current password and choose a new one.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-5 pt-6">
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Current Password</Label>
-            <div className="relative"> {/* Contenedor para el input y el icono */}
+
+            <div className="relative">
+              <LockKeyhole className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
               <Input
                 id="currentPassword"
-                type={showCurrentPassword ? "text" : "password"} // Tipo condicional
+                type={showCurrentPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Enter your current password"
+                disabled={showLoadingState}
                 {...register("currentPassword")}
-                className="pr-10" // Añade padding a la derecha
+                className="h-11 pl-10 pr-10"
               />
+
               <button
-                type="button" // Importante: para que no envíe el formulario
-                onClick={() => setShowCurrentPassword(prev => !prev)} // Alterna visibilidad
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
-                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+                type="button"
+                onClick={() => setShowCurrentPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700"
+                aria-label={
+                  showCurrentPassword
+                    ? "Hide current password"
+                    : "Show current password"
+                }
+                tabIndex={-1}
               >
-                {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showCurrentPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
-            {errors.currentPassword && <p className="text-sm text-red-500 mt-1">{errors.currentPassword.message}</p>}
+
+            {errors.currentPassword && (
+              <p className="text-sm text-red-500">
+                {errors.currentPassword.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
-            <div className="relative"> {/* Contenedor para el input y el icono */}
+
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
               <Input
                 id="newPassword"
-                type={showNewPassword ? "text" : "password"} // Tipo condicional
+                type={showNewPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Enter your new password"
+                disabled={showLoadingState}
                 {...register("newPassword")}
-                className="pr-10" // Añade padding a la derecha
+                className="h-11 pl-10 pr-10"
               />
+
               <button
-                type="button" // Importante: para que no envíe el formulario
-                onClick={() => setShowNewPassword(prev => !prev)} // Alterna visibilidad
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
-                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+                type="button"
+                onClick={() => setShowNewPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700"
+                aria-label={
+                  showNewPassword ? "Hide new password" : "Show new password"
+                }
+                tabIndex={-1}
               >
-                {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showNewPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
-            {errors.newPassword && <p className="text-sm text-red-500 mt-1">{errors.newPassword.message}</p>}
+
+            {errors.newPassword && (
+              <p className="text-sm text-red-500">
+                {errors.newPassword.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <div className="relative"> {/* Contenedor para el input y el icono */}
+
+            <div className="relative">
+              <ShieldCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
               <Input
                 id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"} // Tipo condicional
+                type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Confirm your new password"
+                disabled={showLoadingState}
                 {...register("confirmPassword")}
-                className="pr-10" // Añade padding a la derecha
+                className="h-11 pl-10 pr-10"
               />
+
               <button
-                type="button" // Importante: para que no envíe el formulario
-                onClick={() => setShowConfirmPassword(prev => !prev)} // Alterna visibilidad
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"}
-                tabIndex={-1} // CAMBIO: Elimina el botón del orden de tabulación
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700"
+                aria-label={
+                  showConfirmPassword
+                    ? "Hide password confirmation"
+                    : "Show password confirmation"
+                }
+                tabIndex={-1}
               >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
-            {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>}
+
+            {errors.confirmPassword && (
+              <p className="text-sm text-red-500">
+                {errors.confirmPassword.message}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-900">
+              Password requirements
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Use at least 8 characters. A stronger password should include
+              uppercase letters, lowercase letters, numbers, and symbols.
+            </p>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} disabled={showLoadingState}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={showLoadingState}>
-            {showLoadingState && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {showLoadingState ? "Saving..." : "Save Changes"}
+
+        <CardFooter className="flex justify-end border-t bg-slate-50/70 px-6 py-5">
+          <Button
+            type="submit"
+            disabled={showLoadingState}
+            className="w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto"
+          >
+            {showLoadingState && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {showLoadingState ? "Saving..." : "Save Password"}
           </Button>
         </CardFooter>
       </form>

@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  ChevronDown,
+  LogIn,
+  LogOut,
+  User,
+  UserCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +32,33 @@ export function UserDropdown() {
   const { openLoginDialog } = useLoginDialog();
   const router = useRouter();
 
-  // ✅ Control del dropdown (para cerrarlo al navegar)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const displayName = useMemo(() => {
+    if (!user) return "Sign in";
+
+    const fullName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+
+    return fullName || user.username || user.email || "Account";
+  }, [user]);
+
+  const triggerName = useMemo(() => {
+    if (!user) return "Sign in";
+    return user.username || user.firstName || "Account";
+  }, [user]);
+
+  const initials = useMemo(() => {
+    if (!user) return "U";
+
+    const first = user.firstName?.trim()?.[0];
+    const last = user.lastName?.trim()?.[0];
+
+    if (first || last) return `${first ?? ""}${last ?? ""}`.toUpperCase();
+
+    return (user.username?.[0] || user.email?.[0] || "U").toUpperCase();
+  }, [user]);
+
+  const roleName = user?.role?.name;
 
   const handleLogout = async () => {
     try {
@@ -34,16 +67,20 @@ export function UserDropdown() {
       setIsDropdownOpen(false);
       router.push("/");
     } catch (error) {
-      // ⚠️ Log simple
       console.error("Logout error:", error);
     }
   };
 
+  const handleOpenLogin = () => {
+    setIsDropdownOpen(false);
+    openLoginDialog("manual");
+  };
+
   if (isLoading) {
     return (
-      <Button variant="ghost" disabled>
+      <Button variant="ghost" disabled className="gap-2 text-slate-600">
         <User className="h-4 w-4 animate-spin" />
-        <span className="ml-1">Loading...</span>
+        <span className="hidden sm:inline">Loading...</span>
       </Button>
     );
   }
@@ -51,77 +88,128 @@ export function UserDropdown() {
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost">
-          <User className="h-4 w-4" />
-          <span className="ml-1">
-            {isAuthenticated && user ? user.username : "Sign in"}
-          </span>
+        <Button
+          variant="ghost"
+          className={
+            isAuthenticated
+              ? "h-10 gap-2 rounded-full px-2 pr-3 text-slate-800 hover:bg-slate-100"
+              : "h-10 gap-2 rounded-full px-3 text-slate-800 hover:bg-slate-100"
+          }
+        >
+          {isAuthenticated && user ? (
+            <>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-bold text-red-700 ring-1 ring-red-100">
+                {initials}
+              </span>
+
+              <span className="hidden max-w-28 truncate text-sm font-semibold sm:inline">
+                {triggerName}
+              </span>
+
+              <ChevronDown className="hidden h-4 w-4 text-slate-500 sm:block" />
+            </>
+          ) : (
+            <>
+              <User className="h-4 w-4" />
+              <span className="hidden text-sm font-semibold sm:inline">
+                Sign in
+              </span>
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent
+        className="w-72 rounded-2xl border-slate-200 p-2 shadow-xl"
+        align="end"
+        forceMount
+      >
         {isAuthenticated && user ? (
           <>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
+            <DropdownMenuLabel className="p-3 font-normal">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-800 text-sm font-bold text-white shadow-sm">
+                  {initials}
+                </div>
 
-                {/* ✅ Badge de rol */}
-                {user.role?.name && (
-                  <p className="text-xs leading-none text-muted-foreground pt-2">
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
-                      {user.role.name}
-                    </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-950">
+                    {displayName}
                   </p>
-                )}
+
+                  {user.email && (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                  )}
+
+                  {roleName && (
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-700">
+                      <BadgeCheck className="h-3 w-3 text-red-600" />
+                      {roleName}
+                    </div>
+                  )}
+                </div>
               </div>
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
+              className="cursor-pointer gap-2 rounded-lg"
               onClick={() => {
                 setIsDropdownOpen(false);
                 router.push("/profile");
               }}
             >
+              <UserCircle className="h-4 w-4 text-slate-500" />
               Profile
             </DropdownMenuItem>
 
-            {isDealerRole(user.role?.name) && (
+            {isDealerRole(roleName) && (
               <DropdownMenuItem
+                className="cursor-pointer gap-2 rounded-lg"
                 onClick={() => {
                   setIsDropdownOpen(false);
                   router.push("/profile/branding");
                 }}
               >
+                <Building2 className="h-4 w-4 text-slate-500" />
                 My Branding
               </DropdownMenuItem>
             )}
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </DropdownMenuItem>
           </>
         ) : (
           <>
-            <DropdownMenuLabel>Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(e) => {
-                // ✅ Radix: prevenimos cierre automático para controlarlo nosotros
-                e.preventDefault();
+            <DropdownMenuLabel className="p-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-950">Account</p>
+                <p className="text-xs font-normal text-muted-foreground">
+                  Sign in to access your workspace.
+                </p>
+              </div>
+            </DropdownMenuLabel>
 
-                // ✅ Cerramos dropdown y abrimos el modal global
-                setIsDropdownOpen(false);
-                openLoginDialog("manual");
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 rounded-lg"
+              onSelect={(e) => {
+                e.preventDefault();
+                handleOpenLogin();
               }}
             >
+              <LogIn className="h-4 w-4 text-slate-500" />
               Sign in
             </DropdownMenuItem>
           </>

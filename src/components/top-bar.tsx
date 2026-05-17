@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Menu } from "lucide-react";
+import { Menu, FileText, ShoppingBag, Settings } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { NotificationBell } from "./notifications-bell";
@@ -29,6 +29,14 @@ function TopBar() {
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const isEstimatesActive = pathname.startsWith("/estimates");
+  const isOrdersActive = pathname.startsWith("/orders");
+  const isSettingsActive = pathname.startsWith("/settings");
+
+  const navButtonClass = (active: boolean) =>
+    active
+      ? "bg-red-50 text-red-700 hover:bg-red-50 hover:text-red-700"
+      : "text-slate-700 hover:bg-slate-100 hover:text-slate-950";
 
   useEffect(() => {
     setMounted(true);
@@ -40,128 +48,172 @@ function TopBar() {
 
   if (!mounted) {
     return (
-      <header className="sticky top-0 z-50 flex items-center justify-between p-4 bg-white border-b-2 border-red-700 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Authentic Evolution"
-              width={44}
-              height={44}
-              className="h-20 w-auto object-contain"
-              priority
-            />
-            <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
-              Authentic Evolution
-            </h1>
-          </Link>
-        </div>
+      <header className="sticky top-0 z-50 border-b border-red-600 bg-white/95 shadow-sm backdrop-blur">
+        <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="group flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="Authentic Evolution"
+                width={52}
+                height={52}
+                className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
+                priority
+              />
 
-        <div className="flex items-center gap-4">
-          <div className="hidden h-8 w-24 animate-pulse rounded bg-gray-200 md:block" />
-          <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
-          <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200 md:hidden" />
+              <div className="leading-tight">
+                <h1 className="text-xl font-bold tracking-tight text-red-800">
+                  Authentic Evolution
+                </h1>
+                <p className="hidden text-xs font-medium text-slate-500 sm:block">
+                  Impact Windows Portal
+                </p>
+              </div>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden h-8 w-24 animate-pulse rounded bg-gray-200 md:block" />
+            <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
+            <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200 md:hidden" />
+          </div>
         </div>
       </header>
     );
   }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between p-4 bg-white border-b-2 border-red-700 shadow-sm">
-      <div className="flex items-center gap-4">
-        <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="Authentic Evolution"
-            width={44}
-            height={44}
-            className="h-15 w-auto object-contain"
-            priority
-          />
-          <h1 className="text-xl font-bold text-red-800 dark:text-gray-50">
-            Authentic Evolution
-          </h1>
-        </Link>
-      </div>
+    <header className="sticky top-0 z-50 border-b border-red-600 bg-white/95 shadow-sm backdrop-blur">
+      <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="group flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Authentic Evolution"
+              width={52}
+              height={52}
+              className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
+              priority
+            />
 
-      {isAuthenticated && (
-        <nav className="hidden md:flex items-center gap-6">
-          <Button variant="ghost" asChild>
-            <Link href="/estimates">Estimates</Link>
-          </Button>
+            <div className="leading-tight">
+              <h1 className="text-xl font-bold tracking-tight text-red-800">
+                Authentic Evolution
+              </h1>
+              <p className="hidden text-xs font-medium text-slate-500 sm:block">
+                Impact Windows Portal
+              </p>
+            </div>
+          </Link>
+        </div>
 
-          <Button variant="ghost" asChild>
-            <Link href="/orders">Orders</Link>
-          </Button>
+        {isAuthenticated && (
+          <nav className="hidden items-center gap-2 md:flex">
+            <Button
+              variant="ghost"
+              className={navButtonClass(isEstimatesActive)}
+              asChild
+            >
+              <Link href="/estimates">
+                <FileText className="mr-2 h-4 w-4" />
+                Estimates
+              </Link>
+            </Button>
 
-          {canAccessSettings(user?.role?.name) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost">Settings</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <SettingsMenuItems role={user?.role?.name} />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </nav>
-      )}
+            <Button
+              variant="ghost"
+              className={navButtonClass(isOrdersActive)}
+              asChild
+            >
+              <Link href="/orders">
+                <ShoppingBag className="mr-2 h-4 w-4" />
+                Orders
+              </Link>
+            </Button>
 
-      <div className="flex items-center gap-4">
-        {isAuthenticated && <NotificationBell />}
-
-        <UserDropdown />
-
-        <div className="md:hidden">
-          {isAuthenticated && (
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu />
-                </Button>
-              </SheetTrigger>
-
-              <SheetContent side="left">
-                <SheetHeader>
-                  <SheetTitle>Navegación</SheetTitle>
-                </SheetHeader>
-
-                <div className="mt-6 flex flex-col gap-4">
+            {canAccessSettings(user?.role?.name) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start"
-                    asChild
+                    className={navButtonClass(isSettingsActive)}
                   >
-                    <Link href="/estimates">Estimates</Link>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
                   </Button>
+                </DropdownMenuTrigger>
 
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    asChild
-                  >
-                    <Link href="/orders">Orders</Link>
+                <DropdownMenuContent className="w-64" align="center">
+                  <SettingsMenuItems role={user?.role?.name} />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </nav>
+        )}
+
+        <div className="flex items-center gap-4">
+          {isAuthenticated && <NotificationBell />}
+
+          <UserDropdown />
+
+          <div className="md:hidden">
+            {isAuthenticated && (
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu />
                   </Button>
+                </SheetTrigger>
 
-                  {canAccessSettings(user?.role?.name) && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start"
-                        >
-                          Settings
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56">
-                        <SettingsMenuItems role={user?.role?.name} />
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
+                <SheetContent side="left">
+                  <SheetHeader>
+                    <SheetTitle>Navigation</SheetTitle>
+                  </SheetHeader>
+
+                  <div className="mt-6 flex flex-col gap-4">
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${navButtonClass(isEstimatesActive)}`}
+                      asChild
+                    >
+                      <Link href="/estimates">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Estimates
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${navButtonClass(isOrdersActive)}`}
+                      asChild
+                    >
+                      <Link href="/orders">
+                        <ShoppingBag className="mr-2 h-4 w-4" />
+                        Orders
+                      </Link>
+                    </Button>
+
+                    {canAccessSettings(user?.role?.name) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className={`w-full justify-start ${navButtonClass(isSettingsActive)}`}
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            Settings
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56">
+                          <SettingsMenuItems role={user?.role?.name} />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </div>
         </div>
       </div>
     </header>
