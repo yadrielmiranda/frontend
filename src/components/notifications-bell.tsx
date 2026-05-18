@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Bell, CheckCheck, Trash2, X } from "lucide-react";
+import { Bell, Trash2, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmationDialog } from "./delete-conf-dialog";
-import { deleteAllNotifications, deleteNotification, markNotificationAsRead } from "@/app/api/notifications.api";
+import {
+  deleteAllNotifications,
+  deleteNotification,
+  markNotificationAsRead,
+} from "@/app/api/notifications.api";
 import { toast } from "sonner";
 
 export function NotificationBell() {
@@ -21,23 +25,23 @@ export function NotificationBell() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleMarkAsRead = async (id: number) => {
-    const notification = notifications.find(n => n.id === id);
+    const notification = notifications.find((n) => n.id === id);
     if (notification?.isRead) return;
 
     try {
       await markNotificationAsRead(id);
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
     } catch (error) {
-        toast.error("Could not mark as read.");
+      toast.error("Could not mark as read.");
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await deleteNotification(id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
       toast.success("Notification deleted.");
     } catch (error) {
       toast.error("Could not delete the notification.");
@@ -60,11 +64,17 @@ export function NotificationBell() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
+            aria-label="Notifications"
+          >
             <Bell className="h-5 w-5" />
+
             {unreadCount > 0 && (
-              <span className="absolute top-[-5px] right-[-5px] flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white ring-2 ring-slate-950">
+                {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
           </Button>
@@ -75,39 +85,52 @@ export function NotificationBell() {
           {notifications.length > 0 ? (
             <>
               {notifications.map((notification) => (
-                <DropdownMenuItem 
-                    key={notification.id} 
-                    className={`flex items-start gap-2 cursor-pointer ${!notification.isRead ? 'font-bold' : ''}`}
-                    onSelect={(e) => { e.preventDefault(); handleMarkAsRead(notification.id); }}
+                <DropdownMenuItem
+                  key={notification.id}
+                  className={`flex items-start gap-2 cursor-pointer ${!notification.isRead ? "font-bold" : ""}`}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleMarkAsRead(notification.id);
+                  }}
                 >
-                    <div className="flex-grow">
-                        <p className="text-sm whitespace-normal">{notification.message}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(notification.createdAt).toLocaleString()}
-                        </p>
-                    </div>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(notification.id); }}
-                        title="Delete notification"
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
+                  <div className="flex-grow">
+                    <p className="text-sm whitespace-normal">
+                      {notification.message}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(notification.id);
+                    }}
+                    title="Delete notification"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="flex items-center gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                onSelect={(e) => { e.preventDefault(); setShowConfirmDialog(true); }}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowConfirmDialog(true);
+                }}
               >
                 <Trash2 className="h-4 w-4" />
                 <span>Clear All Notifications</span>
               </DropdownMenuItem>
             </>
           ) : (
-            <p className="p-4 text-sm text-center text-muted-foreground">No notifications.</p>
+            <p className="p-4 text-sm text-center text-muted-foreground">
+              No notifications.
+            </p>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
