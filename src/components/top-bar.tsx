@@ -40,6 +40,11 @@ function TopBar() {
       ? "bg-red-600/15 text-red-300 ring-1 ring-red-500/30 hover:bg-red-600/20 hover:text-red-200"
       : "text-white/75 hover:bg-white/10 hover:text-white";
 
+  const mobileNavButtonClass = (active: boolean) =>
+    active
+      ? "bg-red-50 text-red-700 hover:bg-red-50 hover:text-red-700"
+      : "text-slate-700 hover:bg-slate-100 hover:text-slate-950";
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -156,7 +161,7 @@ function TopBar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-xl text-slate-700 hover:bg-slate-100"
+                    className="rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
                   >
                     <Menu />
                   </Button>
@@ -170,7 +175,7 @@ function TopBar() {
                   <div className="mt-6 flex flex-col gap-3">
                     <Button
                       variant="ghost"
-                      className={`w-full justify-start ${navButtonClass(isEstimatesActive)}`}
+                      className={`w-full justify-start ${mobileNavButtonClass(isEstimatesActive)}`}
                       asChild
                     >
                       <Link href="/estimates">
@@ -181,7 +186,7 @@ function TopBar() {
 
                     <Button
                       variant="ghost"
-                      className={`w-full justify-start ${navButtonClass(isOrdersActive)}`}
+                      className={`w-full justify-start ${mobileNavButtonClass(isOrdersActive)}`}
                       asChild
                     >
                       <Link href="/orders">
@@ -195,7 +200,7 @@ function TopBar() {
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
-                            className={`w-full justify-start ${navButtonClass(isSettingsActive)}`}
+                            className={`w-full justify-start ${mobileNavButtonClass(isSettingsActive)}`}
                           >
                             <Settings className="mr-2 h-4 w-4" />
                             Settings
