@@ -240,7 +240,7 @@ export function CardLogin({
               ? "Unlock session"
               : "Sign In"}
         </Button>
-
+        {/*
         {!isUnlock && !isDark && (
           <Button
             type="button"
@@ -252,8 +252,9 @@ export function CardLogin({
             <UserRoundPlus className="mr-2 h-4 w-4" />
             {signUpLabel}
           </Button>
+          
         )}
-
+          */}
         {!isUnlock && isDark && (
           <div className="space-y-2 pt-2">
             <button
@@ -269,6 +270,7 @@ export function CardLogin({
               <ChevronRight className="h-4 w-4" />
             </button>
 
+            {/*
             <button
               type="button"
               onClick={handleSignUpClick}
@@ -281,6 +283,7 @@ export function CardLogin({
               </span>
               <ChevronRight className="h-4 w-4" />
             </button>
+            */}
           </div>
         )}
       </form>
