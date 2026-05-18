@@ -1,15 +1,16 @@
 // src/app/settings/brands/[id]/products/page.tsx
 import Link from "next/link";
-import { getAvailableProductsForBrand, getBrandWithProducts } from "@/app/api/brands.api";
-import { BrandProductsClient } from "./brand-products-client";
+import { notFound } from "next/navigation";
+
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  getAvailableProductsForBrand,
+  getBrandWithProducts,
+} from "@/app/api/brands.api";
+
+import { BrandProductsClient } from "./brand-products-client";
 import { BackLink } from "@/components/navigation/back-link";
+import { PageContainer } from "@/components/layout/page-container";
+import { ContentCard } from "@/components/layout/content-card";
 
 export default async function BrandProductsPage({
   params,
@@ -19,42 +20,52 @@ export default async function BrandProductsPage({
   const { id } = await params;
   const brandId = Number(id);
 
-  // ✅ Cargamos data necesaria
-  const brandData = await getBrandWithProducts(brandId);
-  const allProducts = await getAvailableProductsForBrand(brandId);
+  if (Number.isNaN(brandId)) notFound();
+
+  const [brandData, allProducts] = await Promise.all([
+    getBrandWithProducts(brandId),
+    getAvailableProductsForBrand(brandId),
+  ]);
+
+  if (!brandData) notFound();
 
   return (
-    <div className="container mx-auto py-10">
-      {/* ✅ Header de navegación (Back + breadcrumb) */}
-      <div className="max-w-4xl mx-auto mb-4">
-        <BackLink href="/settings/brands" label="Back to Brands" />
+    <PageContainer size="default">
+      <div className="mx-auto max-w-4xl space-y-4">
+        <div>
+          <BackLink href="/settings/brands" label="Back to Brands" />
 
-        {/* ✅ Breadcrumb simple */}
-        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Settings</span>
-          <span>/</span>
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Settings</span>
+            <span>/</span>
 
-          <Link href="/settings/brands" className="hover:text-foreground">
-            Brands
-          </Link>
+            <Link href="/settings/brands" className="hover:text-foreground">
+              Brands
+            </Link>
 
-          <span>/</span>
-          <span className="text-foreground">{brandData.name}</span>
+            <span>/</span>
+            <span className="font-medium text-foreground">
+              {brandData.name}
+            </span>
+          </div>
         </div>
+
+        <ContentCard className="overflow-hidden p-0">
+          <div className="border-b bg-slate-50/70 px-6 py-5">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+              {brandData.name}
+            </h1>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage the products available for this brand.
+            </p>
+          </div>
+
+          <div className="p-6">
+            <BrandProductsClient brand={brandData} allProducts={allProducts} />
+          </div>
+        </ContentCard>
       </div>
-
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle>{brandData.name}</CardTitle>
-          <CardDescription>
-            Manage the products available for this brand.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <BrandProductsClient brand={brandData} allProducts={allProducts} />
-        </CardContent>
-      </Card>
-    </div>
+    </PageContainer>
   );
 }

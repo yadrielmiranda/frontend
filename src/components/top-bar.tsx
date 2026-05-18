@@ -28,15 +28,17 @@ function TopBar() {
   const { isAuthenticated, user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const pathname = usePathname();
+
   const isEstimatesActive = pathname.startsWith("/estimates");
   const isOrdersActive = pathname.startsWith("/orders");
   const isSettingsActive = pathname.startsWith("/settings");
 
   const navButtonClass = (active: boolean) =>
     active
-      ? "bg-red-50 text-red-700 hover:bg-red-50 hover:text-red-700"
-      : "text-slate-700 hover:bg-slate-100 hover:text-slate-950";
+      ? "bg-red-600/15 text-red-300 ring-1 ring-red-500/30 hover:bg-red-600/20 hover:text-red-200"
+      : "text-white/75 hover:bg-white/10 hover:text-white";
 
   useEffect(() => {
     setMounted(true);
@@ -46,65 +48,56 @@ function TopBar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  const Brand = () => (
+    <Link
+      href="/"
+      className="group flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-white/10"
+    >
+      <Image
+        src="/logo.png"
+        alt="Authentic Evolution"
+        width={52}
+        height={52}
+        className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
+        priority
+      />
+
+      <div className="leading-tight">
+        <h1 className="text-xl font-bold tracking-tight text-white">
+          Authentic Evolution
+        </h1>
+        <p className="hidden text-xs font-medium text-white/50 sm:block">
+          Impact Windows Portal
+        </p>
+      </div>
+    </Link>
+  );
+
   if (!mounted) {
     return (
-      <header className="sticky top-0 z-50 border-b border-red-600 bg-white/95 shadow-sm backdrop-blur">
+      <header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
         <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <Link href="/" className="group flex items-center gap-3">
-              <Image
-                src="/logo.png"
-                alt="Authentic Evolution"
-                width={52}
-                height={52}
-                className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
-                priority
-              />
-
-              <div className="leading-tight">
-                <h1 className="text-xl font-bold tracking-tight text-red-800">
-                  Authentic Evolution
-                </h1>
-                <p className="hidden text-xs font-medium text-slate-500 sm:block">
-                  Impact Windows Portal
-                </p>
-              </div>
-            </Link>
+            <Brand />
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden h-8 w-24 animate-pulse rounded bg-gray-200 md:block" />
-            <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
-            <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200 md:hidden" />
+            <div className="hidden h-9 w-28 animate-pulse rounded-xl bg-slate-200 md:block" />
+            <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200 md:hidden" />
           </div>
         </div>
+
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-red-500 to-transparent" />
       </header>
     );
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-red-600 bg-white/95 shadow-sm backdrop-blur">
+    <header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
       <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
-          <Link href="/" className="group flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Authentic Evolution"
-              width={52}
-              height={52}
-              className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
-              priority
-            />
-
-            <div className="leading-tight">
-              <h1 className="text-xl font-bold tracking-tight text-red-800">
-                Authentic Evolution
-              </h1>
-              <p className="hidden text-xs font-medium text-slate-500 sm:block">
-                Impact Windows Portal
-              </p>
-            </div>
-          </Link>
+          <Brand />
         </div>
 
         {isAuthenticated && (
@@ -151,7 +144,7 @@ function TopBar() {
           </nav>
         )}
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           {isAuthenticated && <NotificationBell />}
 
           <UserDropdown />
@@ -160,7 +153,11 @@ function TopBar() {
             {isAuthenticated && (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-xl text-slate-700 hover:bg-slate-100"
+                  >
                     <Menu />
                   </Button>
                 </SheetTrigger>
@@ -170,7 +167,7 @@ function TopBar() {
                     <SheetTitle>Navigation</SheetTitle>
                   </SheetHeader>
 
-                  <div className="mt-6 flex flex-col gap-4">
+                  <div className="mt-6 flex flex-col gap-3">
                     <Button
                       variant="ghost"
                       className={`w-full justify-start ${navButtonClass(isEstimatesActive)}`}
@@ -204,6 +201,7 @@ function TopBar() {
                             Settings
                           </Button>
                         </DropdownMenuTrigger>
+
                         <DropdownMenuContent className="w-56">
                           <SettingsMenuItems role={user?.role?.name} />
                         </DropdownMenuContent>
@@ -216,6 +214,8 @@ function TopBar() {
           </div>
         </div>
       </div>
+
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
     </header>
   );
 }

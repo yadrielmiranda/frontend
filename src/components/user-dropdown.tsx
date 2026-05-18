@@ -78,9 +78,13 @@ export function UserDropdown() {
 
   if (isLoading) {
     return (
-      <Button variant="ghost" disabled className="gap-2 text-slate-600">
+      <Button
+        variant="ghost"
+        disabled
+        className="text-white/70 hover:bg-white/10 hover:text-white"
+      >
         <User className="h-4 w-4 animate-spin" />
-        <span className="hidden sm:inline">Loading...</span>
+        <span className="ml-1">Loading...</span>
       </Button>
     );
   }
@@ -92,8 +96,8 @@ export function UserDropdown() {
           variant="ghost"
           className={
             isAuthenticated
-              ? "h-10 gap-2 rounded-full px-2 pr-3 text-slate-800 hover:bg-slate-100"
-              : "h-10 gap-2 rounded-full px-3 text-slate-800 hover:bg-slate-100"
+              ? "h-10 gap-2 rounded-full px-2 pr-3 text-white/85 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
+              : "h-10 gap-2 rounded-full px-3 text-white/85 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
           }
         >
           {isAuthenticated && user ? (
