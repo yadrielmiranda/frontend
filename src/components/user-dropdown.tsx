@@ -62,10 +62,13 @@ export function UserDropdown() {
 
   const handleLogout = async () => {
     try {
+      window.dispatchEvent(new Event("auth:manual-logout"));
+
       await logoutUser();
       await revalidate();
+
       setIsDropdownOpen(false);
-      router.push("/");
+      router.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
