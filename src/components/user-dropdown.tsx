@@ -102,7 +102,7 @@ export function UserDropdown() {
         >
           {isAuthenticated && user ? (
             <>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-xs font-bold text-red-700 ring-1 ring-red-100">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-sm ring-1 ring-white/15">
                 {initials}
               </span>
 
@@ -110,7 +110,7 @@ export function UserDropdown() {
                 {triggerName}
               </span>
 
-              <ChevronDown className="hidden h-4 w-4 text-slate-500 sm:block" />
+              <ChevronDown className="hidden h-4 w-4 text-white/60 sm:block" />
             </>
           ) : (
             <>
