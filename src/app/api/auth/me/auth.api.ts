@@ -20,6 +20,23 @@ export interface ChangePasswordData {
   newPassword: string;
 }
 
+export interface ForgotPasswordData {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;  
+}
+
+export interface ResetPasswordData {
+  token: string;
+  password: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 // =======================
 // AUTH
 // =======================
@@ -74,6 +91,28 @@ export function changePassword(data: ChangePasswordData) {
   return apiFetch<{ message: string }>("/api/auth/change-password", {
     method: "PATCH",
     body: data,
+  });
+}
+
+/**
+ * Solicita un link para recuperar contraseña.
+ */
+export function forgotPassword(data: ForgotPasswordData) {
+  return apiFetch<ForgotPasswordResponse>("/api/auth/forgot-password", {
+    method: "POST",
+    body: data,
+    suppressAuthEvent: true,
+  });
+}
+
+/**
+ * Cambia la contraseña usando el token recibido por email.
+ */
+export function resetPassword(data: ResetPasswordData) {
+  return apiFetch<ResetPasswordResponse>("/api/auth/reset-password", {
+    method: "POST",
+    body: data,
+    suppressAuthEvent: true,
   });
 }
 

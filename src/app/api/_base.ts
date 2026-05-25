@@ -108,7 +108,7 @@ async function parseResponse(res: Response) {
   if (ct.includes("application/json")) {
     try {
       return await res.json();
-    } catch {}
+    } catch { }
   }
   return await res.text();
 }
@@ -120,7 +120,9 @@ function isAuthUrl(url: string) {
   return (
     url.includes("/api/auth/refresh") ||
     url.includes("/api/auth/login") ||
-    url.includes("/api/auth/register")
+    url.includes("/api/auth/register") ||
+    url.includes("/api/auth/forgot-password") ||
+    url.includes("/api/auth/reset-password")
   );
 }
 
@@ -316,7 +318,7 @@ export async function apiFetch<T = unknown>(
 
     const payload = await parseResponse(res);
     const message = extractErrorMessage(payload);
-    
+
     throw new ApiError(message, res.status, payload);
   }
 
