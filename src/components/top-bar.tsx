@@ -149,11 +149,7 @@ function TopBar() {
           </nav>
         )}
 
-        <div className="flex items-center gap-3 sm:gap-4">
-          {isAuthenticated && <NotificationBell />}
-
-          <UserDropdown />
-
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="md:hidden">
             {isAuthenticated && (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -162,8 +158,9 @@ function TopBar() {
                     variant="ghost"
                     size="icon"
                     className="rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
+                    aria-label="Open navigation menu"
                   >
-                    <Menu />
+                    <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
 
@@ -217,6 +214,10 @@ function TopBar() {
               </Sheet>
             )}
           </div>
+
+          {isAuthenticated && <NotificationBell />}
+
+          <UserDropdown />
         </div>
       </div>
 
