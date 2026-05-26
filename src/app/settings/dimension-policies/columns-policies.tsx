@@ -43,6 +43,11 @@ export function getPolicyColumns({
       header: "Crystal",
       cell: ({ row }) => row.original.crystalName ?? row.original.idCrystal,
     },
+    {
+      accessorKey: "reinforcementName",
+      header: "Reinforcement",
+      cell: ({ row }) => row.original.reinforcementName ?? "N/A",
+    },
     { accessorKey: "sizeBasis", header: "Basis" },
     { accessorKey: "roundingRule", header: "Rounding" },
     {
@@ -72,7 +77,11 @@ export function getPolicyColumns({
         <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Actions">
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                aria-label="Actions"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -93,7 +102,7 @@ export function getPolicyColumns({
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
                 onSelect={(e) => {
-                  e.preventDefault(); 
+                  e.preventDefault();
                   setOpen(true);
                 }}
               >

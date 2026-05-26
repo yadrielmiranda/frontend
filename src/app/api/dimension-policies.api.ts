@@ -10,6 +10,8 @@ export type PolicyListItem = {
   idSystem: number;
   idConfig: number;
   idCrystal: number;
+  idReinforcementOption?: number | null;
+
   sizeBasis: 'FRAME' | 'DLO';
   roundingRule: 'ROUND_UP_TO_NEXT' | 'NEAREST';
   notes?: string | null;
@@ -18,16 +20,19 @@ export type PolicyListItem = {
   systemName: string;
   configName: string;
   crystalName: string;
+  reinforcementName?: string | null;
 };
 
 export type PolicyDetail = PolicyListItem & {
-  rules?: RuleRow[];   
+  rules?: RuleRow[];
 };
 
 export type CreatePolicyData = {
   idSystem: number;
   idConfig: number;
   idCrystal: number;
+  idReinforcementOption?: number | null;
+
   sizeBasis: 'FRAME' | 'DLO';
   roundingRule: 'ROUND_UP_TO_NEXT' | 'NEAREST';
   notes?: string;
@@ -52,16 +57,39 @@ export function getPolicies(params?: {
   idSystem?: number;
   idConfig?: number;
   idCrystal?: number;
+  idReinforcementOption?: number | null;
   activeOnly?: boolean;
 }) {
   const search = new URLSearchParams();
-  if (params?.idSystem != null) search.append('idSystem', String(params.idSystem));
-  if (params?.idConfig != null) search.append('idConfig', String(params.idConfig));
-  if (params?.idCrystal != null) search.append('idCrystal', String(params.idCrystal));
-  if (params?.activeOnly) search.append('activeOnly', 'true');
+
+  if (params?.idSystem != null) {
+    search.append('idSystem', String(params.idSystem));
+  }
+
+  if (params?.idConfig != null) {
+    search.append('idConfig', String(params.idConfig));
+  }
+
+  if (params?.idCrystal != null) {
+    search.append('idCrystal', String(params.idCrystal));
+  }
+
+  if (params?.idReinforcementOption != null) {
+    search.append(
+      'idReinforcementOption',
+      String(params.idReinforcementOption),
+    );
+  }
+
+  if (params?.activeOnly) {
+    search.append('activeOnly', 'true');
+  }
 
   const qs = search.toString();
-  return apiFetch<PolicyListItem[]>(`/api/dimension-policies${qs ? `?${qs}` : ''}`);
+
+  return apiFetch<PolicyListItem[]>(
+    `/api/dimension-policies${qs ? `?${qs}` : ''}`,
+  );
 }
 
 export function getPolicy(id: number) {

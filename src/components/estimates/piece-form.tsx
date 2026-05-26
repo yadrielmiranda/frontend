@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
+import {
+  getPolicies,
+  type PolicyListItem,
+} from "@/app/api/dimension-policies.api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,6 +232,12 @@ export function PieceForm({
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
   const [isMuntinOpen, setIsMuntinOpen] = useState(true);
 
+  const [dimensionPolicies, setDimensionPolicies] = useState<PolicyListItem[]>(
+    [],
+  );
+  const [isLoadingDimensionPolicies, setIsLoadingDimensionPolicies] =
+    useState(false);
+
   const pieceValues = useWatch({ control });
   const { idProd, idConf, width, height, price } = pieceValues;
   const currentMuntin = pieceValues.muntin ?? null;
@@ -296,7 +306,7 @@ export function PieceForm({
     );
   }, [selectedSystem]);
 
-  const availableCrystals = useMemo(() => {
+  const systemCrystalOptions = useMemo(() => {
     return (selectedSystem?.systemCrystals ?? [])
       .map((item) => item.crystal)
       .filter((crystal): crystal is Crystal => !!crystal);
@@ -435,6 +445,151 @@ export function PieceForm({
         .filter(Boolean),
     [selectedSysConf],
   );
+
+  const reinforcementRequired = availableReinforcementOptions.length > 0;
+
+  const selectedReinforcementOptionId =
+    Number(pieceValues.idReinforcementOption || 0) || null;
+
+  const dimensionPolicyReinforcementId = reinforcementRequired
+    ? selectedReinforcementOptionId
+    : null;
+
+  useEffect(() => {
+    const idSystem = Number(systemId || 0);
+    const idConfig = Number(idConf || 0);
+
+    if (!idSystem || !idConfig) {
+      setDimensionPolicies([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPolicies() {
+      try {
+        setIsLoadingDimensionPolicies(true);
+
+        const policies = await getPolicies({
+          idSystem,
+          idConfig,
+          activeOnly: true,
+        });
+
+        if (!cancelled) {
+          setDimensionPolicies(policies);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDimensionPolicies([]);
+          toast.error("Failed to load rated glass options.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDimensionPolicies(false);
+        }
+      }
+    }
+
+    loadPolicies();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [systemId, idConf]);
+
+  const allowedCrystalIds = useMemo(() => {
+    return new Set(
+      dimensionPolicies
+        .filter(
+          (policy) =>
+            (policy.idReinforcementOption ?? null) ===
+            dimensionPolicyReinforcementId,
+        )
+        .map((policy) => policy.idCrystal),
+    );
+  }, [dimensionPolicies, dimensionPolicyReinforcementId]);
+
+  const availableCrystals = useMemo(() => {
+    if (!systemId || !idConf) {
+      return systemCrystalOptions;
+    }
+
+    if (isLoadingDimensionPolicies) {
+      return [];
+    }
+
+    if (reinforcementRequired && !selectedReinforcementOptionId) {
+      return [];
+    }
+
+    return systemCrystalOptions.filter((crystal) =>
+      allowedCrystalIds.has(crystal.id),
+    );
+  }, [
+    systemId,
+    idConf,
+    systemCrystalOptions,
+    isLoadingDimensionPolicies,
+    reinforcementRequired,
+    selectedReinforcementOptionId,
+    allowedCrystalIds,
+  ]);
+
+  useEffect(() => {
+    if (!systemId || !idConf) return;
+    if (isLocked) return;
+    if (isLoadingDimensionPolicies) return;
+
+    // comentario en español: si la configuración usa reinforcement,
+    // no tocamos el crystal hasta que el usuario tenga un reinforcement seleccionado.
+    if (reinforcementRequired && !selectedReinforcementOptionId) return;
+
+    const currentCrystalId = Number(getValues("idCryst") || 0);
+
+    if (availableCrystals.length === 0) {
+      if (currentCrystalId) {
+        setValue("idCryst", 0, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+
+      return;
+    }
+
+    const currentStillAllowed = availableCrystals.some(
+      (crystal) => crystal.id === currentCrystalId,
+    );
+
+    if (currentStillAllowed) return;
+
+    const defaultCrystalId = Number(selectedSystem?.defaultCrystalId || 0);
+
+    const defaultStillAllowed = availableCrystals.some(
+      (crystal) => crystal.id === defaultCrystalId,
+    );
+
+    const nextCrystalId = defaultStillAllowed
+      ? defaultCrystalId
+      : availableCrystals[0]?.id || 0;
+
+    setValue("idCryst", nextCrystalId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [
+    systemId,
+    idConf,
+    reinforcementRequired,
+    selectedReinforcementOptionId,
+    availableCrystals,
+    selectedSystem?.defaultCrystalId,
+    isLocked,
+    isLoadingDimensionPolicies,
+    getValues,
+    setValue,
+  ]);
 
   const hasOptionsSection =
     screenAllowed ||
@@ -736,6 +891,9 @@ export function PieceForm({
         "qty",
       ];
 
+      if (reinforcementRequired) {
+        fieldsToValidate.push("idReinforcementOption");
+      }
       if (dimensionRequirements.requiresWidth) fieldsToValidate.push("width");
       if (dimensionRequirements.requiresHeight) fieldsToValidate.push("height");
       if (dimensionRequirements.requiresHeightLeft)
@@ -909,6 +1067,7 @@ export function PieceForm({
         idSyst: pieceDtoToSend.idSyst,
         idConf: pieceDtoToSend.idConf,
         idCryst: pieceDtoToSend.idCryst,
+        idReinforcementOption: pieceDtoToSend.idReinforcementOption ?? null,
 
         width: widthNorm,
         height: heightNorm ?? Number(currentValues.height || 0),
@@ -1104,6 +1263,8 @@ export function PieceForm({
                             setValue("idBrand", 0);
                             setValue("idSyst", 0);
                             setValue("idConf", 0);
+                            setValue("idCryst", 0);
+                            setValue("idReinforcementOption", null);
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1140,6 +1301,8 @@ export function PieceForm({
                             field.onChange(Number(v));
                             setValue("idSyst", 0);
                             setValue("idConf", 0);
+                            setValue("idCryst", 0);
+                            setValue("idReinforcementOption", null);
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1182,6 +1345,7 @@ export function PieceForm({
                             field.onChange(nextSystemId);
 
                             setValue("idConf", 0);
+                            setValue("idReinforcementOption", null);
 
                             // mantener color actual si ya existe
                             const currentColor = getValues("idFC");
@@ -1235,7 +1399,10 @@ export function PieceForm({
                       render={({ field }) => (
                         <Select
                           disabled={isLocked || !systemId}
-                          onValueChange={(v) => field.onChange(Number(v))}
+                          onValueChange={(v) => {
+                            field.onChange(Number(v));
+                            setValue("idReinforcementOption", null);
+                          }}
                           value={String(field.value || "0")}
                         >
                           <SelectTrigger className={selectTriggerClass}>
@@ -1480,7 +1647,19 @@ export function PieceForm({
                             render={({ field }) => (
                               <Select
                                 disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
+                                onValueChange={(v) => {
+                                  field.onChange(Number(v));
+
+                                  setValue("idReinforcementOption", Number(v), {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+
+                                  setValue("idCryst", 0, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+                                }}
                                 key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
                                 value={
                                   field.value == null
@@ -1962,6 +2141,10 @@ export function PieceForm({
                           disabled={
                             isLocked ||
                             !systemId ||
+                            !idConf ||
+                            isLoadingDimensionPolicies ||
+                            (reinforcementRequired &&
+                              !selectedReinforcementOptionId) ||
                             availableCrystals.length === 0
                           }
                           onValueChange={(v) => field.onChange(Number(v))}
@@ -1983,6 +2166,29 @@ export function PieceForm({
                     {errors.idCryst && (
                       <p className="mt-1 text-xs text-red-500">Type required</p>
                     )}
+                    {!errors.idCryst &&
+                      systemId &&
+                      idConf &&
+                      reinforcementRequired &&
+                      !selectedReinforcementOptionId && (
+                        <p className="mt-1 text-xs text-amber-600">
+                          Select a Reinforcement option first.
+                        </p>
+                      )}
+
+                    {!errors.idCryst &&
+                      systemId &&
+                      idConf &&
+                      !isLoadingDimensionPolicies &&
+                      (!reinforcementRequired ||
+                        selectedReinforcementOptionId) &&
+                      availableCrystals.length === 0 && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {reinforcementRequired
+                            ? "No rated glass is available for this System + Config + Reinforcement."
+                            : "No rated glass is available for this System + Config."}
+                        </p>
+                      )}
                   </div>
 
                   <div>

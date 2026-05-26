@@ -44,6 +44,7 @@ export interface ValidatePieceRequest {
   idSyst: number;
   idConf: number;
   idCryst: number;
+  idReinforcementOption?: number | null;
 
   width?: number;
   height: number;

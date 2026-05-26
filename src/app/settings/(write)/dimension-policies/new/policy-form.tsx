@@ -33,6 +33,15 @@ type SystemWithConfigs = {
     idSystem: number;
     idConfig: number;
     config: { id: number; conf: string } | null;
+    reinforcementOptions?: {
+      optionId: number;
+      option: {
+        id: number;
+        name: string;
+        isActive: boolean;
+        sortOrder: number;
+      };
+    }[];
   }[];
 };
 
@@ -65,7 +74,7 @@ export function PolicyForm({
 
   const systemOptions: Option[] = useMemo(
     () => systemsWithConfigs.map((s) => ({ value: s.id, label: s.name })),
-    [systemsWithConfigs]
+    [systemsWithConfigs],
   );
 
   const configOptions: Option[] = useMemo(() => {
@@ -77,11 +86,75 @@ export function PolicyForm({
       .map((sc) => ({ value: sc.config!.id, label: sc.config!.conf }));
   }, [form.idSystem, systemsWithConfigs]);
 
+  const selectedSysConf = useMemo(() => {
+    if (!form.idSystem || !form.idConfig) return null;
+
+    const sys = systemsWithConfigs.find((s) => s.id === form.idSystem);
+    if (!sys) return null;
+
+    return (
+      sys.sysconfs.find(
+        (sc) => sc.idSystem === form.idSystem && sc.idConfig === form.idConfig,
+      ) ?? null
+    );
+  }, [form.idSystem, form.idConfig, systemsWithConfigs]);
+
+  const reinforcementOptions: Option[] = useMemo(() => {
+    return (selectedSysConf?.reinforcementOptions ?? [])
+      .filter((link) => link.option?.isActive)
+      .sort((a, b) => {
+        const sortA = a.option?.sortOrder ?? 0;
+        const sortB = b.option?.sortOrder ?? 0;
+
+        if (sortA !== sortB) return sortA - sortB;
+        return (a.option?.name ?? "").localeCompare(b.option?.name ?? "");
+      })
+      .map((link) => ({
+        value: link.optionId,
+        label: link.option.name,
+      }));
+  }, [selectedSysConf]);
+
+  const usesReinforcement = reinforcementOptions.length > 0;
+
   useEffect(() => {
     if (!form.idSystem || !form.idConfig) return;
+
     const stillValid = configOptions.some((c) => c.value === form.idConfig);
-    if (!stillValid) setForm((f) => ({ ...f, idConfig: undefined }));
+
+    if (!stillValid) {
+      setForm((f) => ({
+        ...f,
+        idConfig: undefined,
+        idReinforcementOption: null,
+      }));
+    }
   }, [configOptions, form.idSystem, form.idConfig]);
+
+  useEffect(() => {
+    if (!form.idSystem || !form.idConfig) return;
+
+    if (!usesReinforcement) {
+      if (form.idReinforcementOption != null) {
+        setForm((f) => ({ ...f, idReinforcementOption: null }));
+      }
+      return;
+    }
+
+    const stillValid = reinforcementOptions.some(
+      (option) => option.value === form.idReinforcementOption,
+    );
+
+    if (!stillValid) {
+      setForm((f) => ({ ...f, idReinforcementOption: undefined }));
+    }
+  }, [
+    form.idSystem,
+    form.idConfig,
+    form.idReinforcementOption,
+    usesReinforcement,
+    reinforcementOptions,
+  ]);
 
   const isEdit = Boolean(form.id && form.id !== 0);
 
@@ -91,6 +164,7 @@ export function PolicyForm({
       idSystem: p.idSystem ?? undefined,
       idConfig: p.idConfig ?? undefined,
       idCrystal: p.idCrystal ?? undefined,
+      idReinforcementOption: p.idReinforcementOption ?? null,
       sizeBasis: p.sizeBasis ?? "FRAME",
       roundingRule: p.roundingRule ?? "ROUND_UP_TO_NEXT",
       isActive: p.isActive ?? true,
@@ -109,12 +183,20 @@ export function PolicyForm({
         return;
       }
 
+      if (usesReinforcement && !form.idReinforcementOption) {
+        toast.error("Please select a Reinforcement / Interlock option.");
+        return;
+      }
+
       setBusy(true);
 
       const payload = {
         idSystem: form.idSystem,
         idConfig: form.idConfig,
         idCrystal: form.idCrystal,
+        idReinforcementOption: usesReinforcement
+          ? form.idReinforcementOption
+          : null,
         sizeBasis: form.sizeBasis ?? "FRAME",
         roundingRule: form.roundingRule ?? "ROUND_UP_TO_NEXT",
         notes: form.notes ?? undefined,
@@ -139,7 +221,7 @@ export function PolicyForm({
         msg.toLowerCase().includes("uq_")
       ) {
         toast.error(
-          "A policy already exists for this System + Config + Crystal."
+          "A policy already exists for this System + Config + Crystal + Reinforcement.",
         );
       } else {
         toast.error(err?.message ?? "Failed to save policy.");
@@ -151,7 +233,7 @@ export function PolicyForm({
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <Label>System</Label>
           <Select
@@ -161,6 +243,7 @@ export function PolicyForm({
                 ...f,
                 idSystem: Number(v) || undefined,
                 idConfig: undefined,
+                idReinforcementOption: null,
               }))
             }
             disabled={busy}
@@ -187,6 +270,7 @@ export function PolicyForm({
               setForm((f) => ({
                 ...f,
                 idConfig: Number(v) || undefined,
+                idReinforcementOption: undefined,
               }))
             }
           >
@@ -224,6 +308,43 @@ export function PolicyForm({
             </SelectTrigger>
             <SelectContent>
               {crystals.map((o) => (
+                <SelectItem key={o.value} value={String(o.value)}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Reinforcement</Label>
+          <Select
+            value={
+              form.idReinforcementOption != null
+                ? String(form.idReinforcementOption)
+                : ""
+            }
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                idReinforcementOption: Number(v) || undefined,
+              }))
+            }
+            disabled={!usesReinforcement || busy}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  !form.idSystem || !form.idConfig
+                    ? "Select config first..."
+                    : usesReinforcement
+                      ? "Select option..."
+                      : "Not used"
+                }
+              />
+            </SelectTrigger>
+
+            <SelectContent>
+              {reinforcementOptions.map((o) => (
                 <SelectItem key={o.value} value={String(o.value)}>
                   {o.label}
                 </SelectItem>
