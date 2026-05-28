@@ -111,3 +111,26 @@ export function recalculateEstimate(id: number) {
     method: "POST",
   });
 }
+
+export type EstimatePublicTokenResponse = {
+  token: string;
+  enabled: boolean;
+};
+
+export function getOrCreateEstimatePublicToken(id: number) {
+  return apiFetch<EstimatePublicTokenResponse>(
+    `/api/estimates/${id}/public-token`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function getPublicEstimate(token: string) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/public/estimates/${token}`,
+    {
+      cache: "no-store",
+    },
+  );
+}

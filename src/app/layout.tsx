@@ -50,7 +50,7 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
         </Providers>
 
-        {/* ✅ Toaster abajo para que no tape dropdowns */}
+        {/* Toaster abajo para que no tape dropdowns */}
         <Toaster richColors position="bottom-left" />
       </body>
     </html>

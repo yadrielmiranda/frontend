@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EstimateWithRelations } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Printer, Eye, X } from "lucide-react";
+import { Printer, Eye, X, Copy, Share2 } from "lucide-react";
 import { BackLink } from "@/components/navigation/back-link";
 
 import { EstimateReportShell } from "./parts/estimate-report-shell";
@@ -12,6 +12,8 @@ import { EstimateViewDealerInternal } from "./views/estimate-view-dealer-interna
 import { EstimateViewAdmin } from "./views/estimate-view-admin";
 import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
 import { isDealerRole } from "@/lib/rbac";
+import { toast } from "sonner";
+import { getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
 
 import {
   Dialog,
@@ -49,11 +51,98 @@ export function EstimateDetails({
   // Ref del contenido que vamos a imprimir (HTML/SVG)
   const printRef = useRef<HTMLDivElement | null>(null);
 
-  // Link público para compartir (solo dealer public)
-  const publicLink = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}${window.location.pathname}?view=public`;
-  }, []);
+  const copyTextToClipboard = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    // comentario en español: fallback para HTTP/IP local donde clipboard puede venir undefined
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const copied = document.execCommand("copy");
+    textarea.remove();
+
+    if (!copied) {
+      throw new Error("Could not copy customer link.");
+    }
+  };
+
+  const handleCopyPublicLink = async () => {
+    try {
+      const response = await getOrCreateEstimatePublicToken(estimate.id);
+
+      if (!response.token) {
+        toast.error("Could not generate customer link.");
+        return;
+      }
+
+      const url = `${window.location.origin}/public/estimates/${response.token}`;
+
+      await copyTextToClipboard(url);
+
+      toast.success("Customer link copied.");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const handleSharePublicLink = async () => {
+    try {
+      const response = await getOrCreateEstimatePublicToken(estimate.id);
+
+      if (!response.token) {
+        toast.error("Could not generate customer link.");
+        return;
+      }
+
+      const url = `${window.location.origin}/public/estimates/${response.token}`;
+
+      const shareData = {
+        title: `Estimate #${estimate.number}`,
+        text: `Please review estimate #${estimate.number}.`,
+        url,
+      };
+
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      
+      // fallback para desktop sin Web Share API: abrir email.
+      const subject = `Estimate #${estimate.number}`;
+      const body = [
+        `Hello,`,
+        ``,
+        `Please review estimate #${estimate.number} using the link below:`,
+        ``,
+        url,
+        ``,
+        `Thank you.`,
+      ].join("\n");
+
+      const mailtoUrl = `mailto:?subject=${encodeURIComponent(
+        subject,
+      )}&body=${encodeURIComponent(body)}`;
+
+      window.location.href = mailtoUrl;
+    } catch (error) {
+      // comentario en español: si el usuario cancela el share nativo, no mostramos error.
+      if ((error as Error).name === "AbortError") return;
+
+      toast.error((error as Error).message);
+    }
+  };
 
   // ================
   // Selector de vista
@@ -213,19 +302,32 @@ export function EstimateDetails({
         </div>
 
         {canUseDealerPublicView && isPublicView && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-md text-sm print:hidden">
-            <p>
-              You are viewing the customer version of this report.{" "}
-              <a
-                href={publicLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold underline"
-              >
-                Open this link in a new tab
-              </a>{" "}
-              to share it.
-            </p>
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 print:hidden">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                You are viewing the customer version of this report. Share the
+                public customer link so your customer can review this estimate
+                without logging in.
+              </p>
+
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopyPublicLink}
+                  title="Copy customer link"
+                  aria-label="Copy customer link"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+
+                <Button type="button" size="sm" onClick={handleSharePublicLink}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
