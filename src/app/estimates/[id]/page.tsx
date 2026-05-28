@@ -2,11 +2,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getEstimate } from "@/app/api/estimates.api";
 import { getCurrentUser } from "@/lib/session";
-import {
-  EstimateDetails,
-  DealerPublicContent ,
-} from "@/components/estimates/estimate-details";
-import { isApiError } from "@/app/api/_base"; 
+import { EstimateDetails } from "@/components/estimates/estimate-details";
+import { isApiError } from "@/app/api/_base";
+import { isAdminRole, isOperatorRole, isDealerRole } from "@/lib/rbac";
 
 export default async function EstimateDetailPage({
   params,
@@ -39,30 +37,27 @@ export default async function EstimateDetailPage({
   if (!estimate) {
     notFound();
   }
-
-  if (resolvedSearchParams.view === "public") {
-    if (estimate.user.role.name === "dealer") {
-      return <DealerPublicContent  estimate={estimate} />;
-    } else {
-      return redirect(`/estimates/${estimate.id}`);  // redirige a la vista normal si no es dealer
-    }
-  }
-
-  if (!user) {
-    return notFound();
-  }
-
+ 
   const role = user.role.name;
 
-  const isPrivileged = role === "admin" || role === "operator";
+  const isPrivileged = isAdminRole(role) || isOperatorRole(role);
   const isOwner = user.id === estimate.idUser;
 
   if (!isPrivileged && !isOwner) {
     return notFound();
   }
 
-  // Pasamos el rol del usuario al componente cliente
+  const initialPublicView = resolvedSearchParams.view === "public";
+
+  if (initialPublicView && !isDealerRole(estimate.user.role.name)) {
+    return redirect(`/estimates/${estimate.id}`);
+  }
+
   return (
-    <EstimateDetails estimate={estimate} userRole={user.role.name} />
+    <EstimateDetails
+      estimate={estimate}
+      userRole={user.role.name}
+      initialPublicView={initialPublicView}
+    />
   );
 }

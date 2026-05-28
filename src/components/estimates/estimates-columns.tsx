@@ -15,6 +15,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 
 import { deleteEstimate, recalculateEstimate } from "@/app/api/estimates.api";
@@ -186,6 +189,8 @@ export const getEstimateColumns = (
 
         const isOwner = currentUser?.id === estimate.idUser;
         const showOwnerActions = isOwner;
+        const isDealer = currentUser?.role?.name === "dealer";
+
         const isActive = statusLower === "active";
         const isExpired = statusLower === "expired";
         const isOrdered = statusLower === "ordered" || !!estimate.order;
@@ -243,9 +248,31 @@ export const getEstimateColumns = (
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
-                <DropdownMenuItem asChild>
-                  <Link href={`/estimates/${estimate.id}`}>View Details</Link>
-                </DropdownMenuItem>
+                {isDealer ? (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      View Details
+                    </DropdownMenuSubTrigger>
+
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/estimates/${estimate.id}`}>
+                          Dealer View
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem asChild>
+                        <Link href={`/estimates/${estimate.id}?view=public`}>
+                          Customer View
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/estimates/${estimate.id}`}>View Details</Link>
+                  </DropdownMenuItem>
+                )}
 
                 {showOwnerActions && canEdit && (
                   <DropdownMenuItem asChild>

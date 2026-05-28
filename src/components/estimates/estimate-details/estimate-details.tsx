@@ -11,6 +11,7 @@ import { EstimateViewClient } from "./views/estimate-view-client";
 import { EstimateViewDealerInternal } from "./views/estimate-view-dealer-internal";
 import { EstimateViewAdmin } from "./views/estimate-view-admin";
 import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
+import { isDealerRole } from "@/lib/rbac";
 
 import {
   Dialog,
@@ -26,16 +27,26 @@ import {
 export function EstimateDetails({
   estimate,
   userRole,
+  initialPublicView = false,
 }: {
   estimate: EstimateWithRelations;
   userRole: string;
+  initialPublicView?: boolean;
 }) {
-  const [isPublicView, setIsPublicView] = useState(false);
+  const ownerRole = estimate.user?.role?.name ?? null;
+
+  // la vista pública solo aplica cuando el usuario actual es dealer
+  // y el estimate también pertenece a un dealer.
+  const canUseDealerPublicView =
+    isDealerRole(userRole) && isDealerRole(ownerRole);
+
+  const [isPublicView, setIsPublicView] = useState(
+    () => initialPublicView && canUseDealerPublicView,
+  );
+
   const [printOpen, setPrintOpen] = useState(false);
 
-  const isDealer = userRole === "dealer";
-
-  // ✅ Ref del contenido que vamos a imprimir (HTML/SVG)
+  // Ref del contenido que vamos a imprimir (HTML/SVG)
   const printRef = useRef<HTMLDivElement | null>(null);
 
   // Link público para compartir (solo dealer public)
@@ -48,7 +59,7 @@ export function EstimateDetails({
   // Selector de vista
   // ================
   const viewContent = useMemo(() => {
-    if (isDealer && isPublicView) {
+    if (canUseDealerPublicView && isPublicView) {
       return <EstimateViewDealerPublic estimate={estimate} />;
     }
 
@@ -62,7 +73,7 @@ export function EstimateDetails({
       default:
         return <EstimateViewClient estimate={estimate} />;
     }
-  }, [estimate, isDealer, isPublicView, userRole]);
+  }, [estimate, canUseDealerPublicView, isPublicView, userRole]);
 
   const handleOpenPrintPreview = () => setPrintOpen(true);
 
@@ -163,7 +174,9 @@ export function EstimateDetails({
   // Limpieza “por si acaso” al desmontar (evitar iframes huérfanos en edge cases)
   useEffect(() => {
     return () => {
-      const iframes = Array.from(document.querySelectorAll("iframe[aria-hidden='true']"));
+      const iframes = Array.from(
+        document.querySelectorAll("iframe[aria-hidden='true']"),
+      );
       for (const f of iframes) {
         try {
           // Solo removemos los 0x0 invisibles (nuestros)
@@ -183,8 +196,11 @@ export function EstimateDetails({
           <BackLink href="/estimates" label="Back to Estimates" />
 
           <div className="flex items-center gap-2">
-            {isDealer && (
-              <Button variant="ghost" onClick={() => setIsPublicView((v) => !v)}>
+            {canUseDealerPublicView && (
+              <Button
+                variant="ghost"
+                onClick={() => setIsPublicView((v) => !v)}
+              >
                 <Eye className="mr-2 h-4 w-4" />
                 {isPublicView ? "View My Report" : "Customer View"}
               </Button>
@@ -196,7 +212,7 @@ export function EstimateDetails({
           </div>
         </div>
 
-        {isDealer && isPublicView && (
+        {canUseDealerPublicView && isPublicView && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-md text-sm print:hidden">
             <p>
               You are viewing the customer version of this report.{" "}
@@ -214,7 +230,9 @@ export function EstimateDetails({
         )}
 
         {/* ✅ Vista normal */}
-        <EstimateReportShell estimate={estimate}>{viewContent}</EstimateReportShell>
+        <EstimateReportShell estimate={estimate}>
+          {viewContent}
+        </EstimateReportShell>
 
         {/* =============================
             PRINT PREVIEW MODAL (HTML/SVG)
