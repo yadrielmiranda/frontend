@@ -149,6 +149,20 @@ export const getEstimateColumns = (
         <div className="text-center">{row.original.user?.username ?? "—"}</div>
       ),
     },
+    ...(showInternalProfit
+      ? [
+          {
+            id: "createdByRole",
+            accessorFn: (row) => row.user?.role?.name ?? "",
+            header: () => <div className="text-center">Role</div>,
+            cell: ({ row }) => (
+              <div className="text-center capitalize">
+                {row.original.user?.role?.name ?? "—"}
+              </div>
+            ),
+          } satisfies ColumnDef<EstimateWithRelations>,
+        ]
+      : []),
     {
       id: "status",
       header: "Status",
