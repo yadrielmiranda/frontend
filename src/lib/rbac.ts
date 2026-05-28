@@ -15,6 +15,13 @@ export const canEditSettings = (role?: RoleName | string | null) =>
 export const canSetCustomerOnEstimate = (role?: RoleName | string | null) => // admin, operator, dealer pueden hacerlo
   role === "admin" || role === "operator" || role === "dealer";
 
+export const canViewDealerEstimateProfit = (
+  role?: RoleName | string | null,
+) => role === "admin" || role === "operator" || role === "dealer";
+
+export const canViewInternalEstimateProfit = (
+  role?: RoleName | string | null,
+) => role === "admin" || role === "operator";
 
 export const isAdminRole = (role?: RoleName | string | null) => role === "admin";
 export const isOperatorRole = (role?: RoleName | string | null) => role === "operator";
