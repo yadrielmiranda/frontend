@@ -29,6 +29,17 @@ type Option = { value: number; label: string };
 type SystemWithConfigs = {
   id: number;
   name: string;
+
+  systemCrystals?: {
+    idCrystal: number;
+    sortOrder?: number | null;
+    crystal: {
+      id: number;
+      glass: string;
+      isActive?: boolean;
+    };
+  }[];
+
   sysconfs: {
     idSystem: number;
     idConfig: number;
@@ -50,7 +61,6 @@ type Policy = PolicyDetail;
 type PolicyFormProps = {
   initial?: Policy;
   systemsWithConfigs: SystemWithConfigs[];
-  crystals: Option[];
 };
 
 const defaults: Partial<Policy> = {
@@ -59,11 +69,7 @@ const defaults: Partial<Policy> = {
   roundingRule: "ROUND_UP_TO_NEXT",
 };
 
-export function PolicyForm({
-  initial,
-  systemsWithConfigs,
-  crystals,
-}: PolicyFormProps) {
+export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<Partial<Policy>>(initial ?? defaults);
   const [busy, setBusy] = useState(false);
@@ -77,6 +83,27 @@ export function PolicyForm({
     [systemsWithConfigs],
   );
 
+  const selectedSystem = useMemo(() => {
+    if (!form.idSystem) return null;
+    return systemsWithConfigs.find((s) => s.id === form.idSystem) ?? null;
+  }, [form.idSystem, systemsWithConfigs]);
+
+  const crystalOptions: Option[] = useMemo(() => {
+    return (selectedSystem?.systemCrystals ?? [])
+      .filter((link) => link.crystal && link.crystal.isActive !== false)
+      .sort((a, b) => {
+        const sortA = a.sortOrder ?? 0;
+        const sortB = b.sortOrder ?? 0;
+
+        if (sortA !== sortB) return sortA - sortB;
+        return (a.crystal?.glass ?? "").localeCompare(b.crystal?.glass ?? "");
+      })
+      .map((link) => ({
+        value: link.idCrystal,
+        label: link.crystal.glass,
+      }));
+  }, [selectedSystem]);
+
   const configOptions: Option[] = useMemo(() => {
     if (!form.idSystem) return [];
     const sys = systemsWithConfigs.find((s) => s.id === form.idSystem);
@@ -87,17 +114,14 @@ export function PolicyForm({
   }, [form.idSystem, systemsWithConfigs]);
 
   const selectedSysConf = useMemo(() => {
-    if (!form.idSystem || !form.idConfig) return null;
-
-    const sys = systemsWithConfigs.find((s) => s.id === form.idSystem);
-    if (!sys) return null;
+    if (!selectedSystem || !form.idSystem || !form.idConfig) return null;
 
     return (
-      sys.sysconfs.find(
+      selectedSystem.sysconfs.find(
         (sc) => sc.idSystem === form.idSystem && sc.idConfig === form.idConfig,
       ) ?? null
     );
-  }, [form.idSystem, form.idConfig, systemsWithConfigs]);
+  }, [selectedSystem, form.idSystem, form.idConfig]);
 
   const reinforcementOptions: Option[] = useMemo(() => {
     return (selectedSysConf?.reinforcementOptions ?? [])
@@ -130,6 +154,25 @@ export function PolicyForm({
       }));
     }
   }, [configOptions, form.idSystem, form.idConfig]);
+
+  useEffect(() => {
+    if (!form.idSystem) {
+      if (form.idCrystal != null) {
+        setForm((f) => ({ ...f, idCrystal: undefined }));
+      }
+      return;
+    }
+
+    if (!form.idCrystal) return;
+
+    const stillValid = crystalOptions.some(
+      (crystal) => crystal.value === form.idCrystal,
+    );
+
+    if (!stillValid) {
+      setForm((f) => ({ ...f, idCrystal: undefined }));
+    }
+  }, [form.idSystem, form.idCrystal, crystalOptions]);
 
   useEffect(() => {
     if (!form.idSystem || !form.idConfig) return;
@@ -180,6 +223,15 @@ export function PolicyForm({
     try {
       if (!form.idSystem || !form.idConfig || !form.idCrystal) {
         toast.error("Please select System, Config, and Crystal.");
+        return;
+      }
+
+      const crystalBelongsToSystem = crystalOptions.some(
+        (crystal) => crystal.value === form.idCrystal,
+      );
+
+      if (!crystalBelongsToSystem) {
+        toast.error("The selected Crystal is not associated with this System.");
         return;
       }
 
@@ -243,6 +295,7 @@ export function PolicyForm({
                 ...f,
                 idSystem: Number(v) || undefined,
                 idConfig: undefined,
+                idCrystal: undefined,
                 idReinforcementOption: null,
               }))
             }
@@ -301,13 +354,22 @@ export function PolicyForm({
                 idCrystal: Number(v) || undefined,
               }))
             }
-            disabled={busy}
+            disabled={!form.idSystem || busy || crystalOptions.length === 0}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select crystal..." />
+              <SelectValue
+                placeholder={
+                  !form.idSystem
+                    ? "Select system first..."
+                    : crystalOptions.length > 0
+                      ? "Select crystal..."
+                      : "No crystals for this system"
+                }
+              />
             </SelectTrigger>
+
             <SelectContent>
-              {crystals.map((o) => (
+              {crystalOptions.map((o) => (
                 <SelectItem key={o.value} value={String(o.value)}>
                   {o.label}
                 </SelectItem>
