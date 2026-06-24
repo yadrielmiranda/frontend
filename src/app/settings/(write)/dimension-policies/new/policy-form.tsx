@@ -282,11 +282,12 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
       setBusy(false);
     }
   };
+  const selectTriggerClass = "w-full min-w-0 [&>span]:truncate";
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+        <div className="min-w-0 xl:col-span-3">
           <Label>System</Label>
           <Select
             value={form.idSystem ? String(form.idSystem) : ""}
@@ -301,7 +302,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             }
             disabled={busy}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue placeholder="Select system..." />
             </SelectTrigger>
             <SelectContent>
@@ -314,7 +315,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
           </Select>
         </div>
 
-        <div>
+        <div className="min-w-0 xl:col-span-2">
           <Label>Config</Label>
           <Select
             value={form.idConfig ? String(form.idConfig) : ""}
@@ -327,7 +328,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
               }))
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue
                 placeholder={
                   form.idSystem ? "Select config..." : "Select system first..."
@@ -344,7 +345,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
           </Select>
         </div>
 
-        <div>
+        <div className="min-w-0 xl:col-span-4">
           <Label>Crystal</Label>
           <Select
             value={form.idCrystal ? String(form.idCrystal) : ""}
@@ -356,7 +357,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             }
             disabled={!form.idSystem || busy || crystalOptions.length === 0}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue
                 placeholder={
                   !form.idSystem
@@ -377,7 +378,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="min-w-0 xl:col-span-3">
           <Label>Reinforcement</Label>
           <Select
             value={
@@ -393,7 +394,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             }
             disabled={!usesReinforcement || busy}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue
                 placeholder={
                   !form.idSystem || !form.idConfig
@@ -426,7 +427,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             }
             disabled={busy}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -448,7 +449,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
             }
             disabled={busy}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerClass}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

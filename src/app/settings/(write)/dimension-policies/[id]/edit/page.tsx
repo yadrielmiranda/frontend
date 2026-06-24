@@ -1,5 +1,5 @@
 // src/app/settings/dimension-policies/[id]/edit/page.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormPageShell } from "@/components/layout/form-page-shell";
 
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getPolicy } from "@/app/api/dimension-policies.api";
@@ -21,23 +21,21 @@ export default async function EditPolicyPage({
   ]);
 
   return (
-    <div className="max-w-5xl mx-auto py-10 space-y-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit Policy #{policy.id}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PolicyForm
-            initial={policy}
-            systemsWithConfigs={systemsWithConfigs}
-          />
-        </CardContent>
-      </Card>
+    <FormPageShell
+      backHref="/settings/dimension-policies"
+      backLabel="Back to Dimension Policies"
+      title={`Edit Policy #${policy.id}`}
+      description="Update the selected System, Config, Crystal, Reinforcement, rounding, and rules."
+      maxWidth="max-w-5xl"
+    >
+      <div className="space-y-8">
+        <PolicyForm initial={policy} systemsWithConfigs={systemsWithConfigs} />
 
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Rules</h2>
-        <RulesEditor idPolicy={policy.id} initialRows={policy.rules ?? []} />
-      </section>
-    </div>
+        <section className="space-y-3 border-t pt-6">
+          <h2 className="text-xl font-semibold">Rules</h2>
+          <RulesEditor idPolicy={policy.id} initialRows={policy.rules ?? []} />
+        </section>
+      </div>
+    </FormPageShell>
   );
 }
