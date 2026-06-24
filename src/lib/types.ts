@@ -95,6 +95,7 @@ export interface Config {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  requiresSashHeight?: boolean;
   muntinLayout?: ConfigMuntinLayoutItem[] | null;
   prod?: Product;
 }
@@ -178,6 +179,7 @@ export interface Piece {
   heightLeft?: string | null;
   heightRight?: string | null;
   legHeight?: string | null;
+  sashHeight?: string | null;
 
   doorWidth?: string | null;
   leftSideliteWidth?: string | null;
@@ -476,6 +478,7 @@ export interface CreatePieceData {
   heightLeft?: string | null;
   heightRight?: string | null;
   legHeight?: string | null;
+  sashHeight?: string | null;
 
   doorWidth?: string | null;
   leftSideliteWidth?: string | null;

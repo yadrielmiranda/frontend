@@ -15,6 +15,7 @@ export type CreateConfigData = {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  requiresSashHeight?: boolean;
   muntinLayout?: ConfigMuntinLayoutItemData[];
 };
 

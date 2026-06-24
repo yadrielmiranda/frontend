@@ -83,6 +83,7 @@ type SystemConfigLink = {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  requiresSashHeight?: boolean;
   requiresDoorWidth?: boolean;
   requiresLeftSideliteWidth?: boolean;
   requiresRightSideliteWidth?: boolean;
@@ -200,6 +201,7 @@ export function PieceForm({
       heightLeft: initialData.heightLeft ?? "",
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
+      sashHeight: initialData.sashHeight ?? "",
       doorWidth: initialData.doorWidth ?? "",
       leftSideliteWidth: initialData.leftSideliteWidth ?? "",
       rightSideliteWidth: initialData.rightSideliteWidth ?? "",
@@ -386,6 +388,7 @@ export function PieceForm({
         requiresHeightLeft: !!selectedConfig?.requiresHeightLeft,
         requiresHeightRight: !!selectedConfig?.requiresHeightRight,
         requiresLegHeight: !!selectedConfig?.requiresLegHeight,
+        requiresSashHeight: !!selectedConfig?.requiresSashHeight,
 
         requiresDoorWidth: false,
         requiresLeftSideliteWidth: false,
@@ -403,6 +406,7 @@ export function PieceForm({
       requiresHeightLeft: !!selectedSysConf?.requiresHeightLeft,
       requiresHeightRight: !!selectedSysConf?.requiresHeightRight,
       requiresLegHeight: !!selectedSysConf?.requiresLegHeight,
+      requiresSashHeight: false,
 
       requiresDoorWidth: !!selectedSysConf?.requiresDoorWidth,
       requiresLeftSideliteWidth: !!selectedSysConf?.requiresLeftSideliteWidth,
@@ -416,6 +420,17 @@ export function PieceForm({
 
   const screenAllowed = selectedSysConf?.allowScreen ?? false;
   const highBottomAllowed = selectedSystem?.allowHighBottom === true;
+
+  const requiresSashHeight = dimensionRequirements.requiresSashHeight === true;
+
+  useEffect(() => {
+    if (!requiresSashHeight && getValues("sashHeight")) {
+      setValue("sashHeight", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [requiresSashHeight, getValues, setValue]);
 
   useEffect(() => {
     if (!highBottomAllowed) {
@@ -924,6 +939,8 @@ export function PieceForm({
         fieldsToValidate.push("heightRight");
       if (dimensionRequirements.requiresLegHeight)
         fieldsToValidate.push("legHeight");
+      if (dimensionRequirements.requiresSashHeight)
+        fieldsToValidate.push("sashHeight");
 
       if (dimensionRequirements.requiresDoorWidth)
         fieldsToValidate.push("doorWidth");
@@ -980,6 +997,40 @@ export function PieceForm({
         ? normalizeInchesToEighthStep(currentValues.legHeight, "Leg Height", 1)
         : undefined;
 
+      const sashHeightNorm = dimensionRequirements.requiresSashHeight
+        ? normalizeInchesToEighthStep(
+            currentValues.sashHeight,
+            "Sash Height",
+            1,
+          )
+        : undefined;
+
+      if (sashHeightNorm !== undefined) {
+        if (sashHeightNorm < 19.625) {
+          toast.error("Sash Height cannot be less than 19.625 inches.");
+          return;
+        }
+
+        const totalHeightForSash =
+          heightNorm !== undefined
+            ? heightNorm
+            : Number(currentValues.height || 0);
+
+        if (!Number.isFinite(totalHeightForSash) || totalHeightForSash <= 0) {
+          toast.error("Height is required to validate Sash Height.");
+          return;
+        }
+
+        const maxSashHeight = totalHeightForSash / 2;
+
+        if (sashHeightNorm > maxSashHeight) {
+          toast.error(
+            `Sash Height cannot be greater than half of the total height (${maxSashHeight.toFixed(3)} inches).`,
+          );
+          return;
+        }
+      }
+
       const doorWidthNorm = dimensionRequirements.requiresDoorWidth
         ? normalizeInchesToEighthStep(currentValues.doorWidth, "Door Width", 1)
         : undefined;
@@ -1010,6 +1061,8 @@ export function PieceForm({
         setValue("heightRight", String(heightRightNorm));
       if (legHeightNorm !== undefined)
         setValue("legHeight", String(legHeightNorm));
+      if (sashHeightNorm !== undefined)
+        setValue("sashHeight", String(sashHeightNorm));
       if (doorWidthNorm !== undefined) {
         setValue("doorWidth", String(doorWidthNorm));
       }
@@ -1037,6 +1090,8 @@ export function PieceForm({
           heightRightNorm !== undefined ? String(heightRightNorm) : undefined,
         legHeight:
           legHeightNorm !== undefined ? String(legHeightNorm) : undefined,
+        sashHeight:
+          sashHeightNorm !== undefined ? String(sashHeightNorm) : undefined,
         doorWidth:
           doorWidthNorm !== undefined ? String(doorWidthNorm) : undefined,
         leftSideliteWidth:
@@ -1299,6 +1354,7 @@ export function PieceForm({
                             setValue("idReinforcementOption", null);
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
+                            setValue("sashHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1339,6 +1395,7 @@ export function PieceForm({
                             setValue("idReinforcementOption", null);
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
+                            setValue("sashHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1384,6 +1441,7 @@ export function PieceForm({
                             setValue("idReinforcementOption", null);
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
+                            setValue("sashHeight", "");
 
                             // mantener color actual si ya existe
                             const currentColor = getValues("idFC");
@@ -1440,6 +1498,7 @@ export function PieceForm({
                           onValueChange={(v) => {
                             field.onChange(Number(v));
                             setValue("idReinforcementOption", null);
+                            setValue("sashHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1860,6 +1919,49 @@ export function PieceForm({
                                 {errors.height.message}
                               </p>
                             )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresSashHeight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Sash Height (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("sashHeight", {
+                                required: "Sash Height is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Sash Height",
+                                    1,
+                                  );
+                                  setValue("sashHeight", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.sashHeight && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.sashHeight.message}
+                              </p>
+                            )}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Min 19.625″. Cannot exceed half of total height.
+                            </p>
                           </div>
                         )}
 

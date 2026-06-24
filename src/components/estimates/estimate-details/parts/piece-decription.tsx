@@ -108,6 +108,10 @@ export function buildPieceDescriptionLines(
   if (piece.heightRight != null) {
     sizeParts.push(`HR ${formatInchesFromEighthStep(piece.heightRight)}`);
   }
+  if (piece.sashHeight != null) {
+    sizeParts.push(`Sash ${formatInchesFromEighthStep(piece.sashHeight)}`);
+  }
+
   if (piece.legHeight != null) {
     sizeParts.push(`Leg ${formatInchesFromEighthStep(piece.legHeight)}`);
   }

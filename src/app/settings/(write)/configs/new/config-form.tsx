@@ -36,6 +36,7 @@ interface ConfigBase {
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
+  requiresSashHeight?: boolean;
   muntinLayout?: ConfigMuntinLayoutItem[] | null;
 }
 
@@ -90,6 +91,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       requiresHeightLeft: config?.requiresHeightLeft ?? false,
       requiresHeightRight: config?.requiresHeightRight ?? false,
       requiresLegHeight: config?.requiresLegHeight ?? false,
+      requiresSashHeight: config?.requiresSashHeight ?? false,
       muntinLayout: defaultLayout,
     },
   });
@@ -141,6 +143,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         requiresHeightLeft: Boolean(data.requiresHeightLeft),
         requiresHeightRight: Boolean(data.requiresHeightRight),
         requiresLegHeight: Boolean(data.requiresLegHeight),
+        requiresSashHeight: Boolean(data.requiresSashHeight),
         muntinLayout: normalizedLayout,
       };
 
@@ -302,6 +305,20 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
                   onCheckedChange={field.onChange}
                 />
                 <Label htmlFor="requiresLegHeight">Leg Height</Label>
+              </div>
+            )}
+          />
+          <Controller
+            name="requiresSashHeight"
+            control={control}
+            render={({ field }) => (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="requiresSashHeight"
+                  checked={Boolean(field.value)}
+                  onCheckedChange={field.onChange}
+                />
+                <Label htmlFor="requiresSashHeight">Sash Height</Label>
               </div>
             )}
           />

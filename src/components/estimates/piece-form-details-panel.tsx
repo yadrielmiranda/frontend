@@ -118,6 +118,7 @@ export function PieceFormDetailsPanel({
   const height = formatDimension(piece.height);
   const heightLeft = formatDimension(piece.heightLeft);
   const heightRight = formatDimension(piece.heightRight);
+  const sashHeight = formatDimension(piece.sashHeight);
   const legHeight = formatDimension(piece.legHeight);
 
   const dpPlus = piece.dpPosPsf == null ? null : formatPsf(piece.dpPosPsf, 1);
@@ -165,6 +166,13 @@ export function PieceFormDetailsPanel({
               <strong>Height Right:</strong> {heightRight}
             </p>
           )}
+
+          {sashHeight && (
+            <p>
+              <strong>Sash Height:</strong> {sashHeight}
+            </p>
+          )}
+
           {legHeight && (
             <p>
               <strong>Leg Height:</strong> {legHeight}

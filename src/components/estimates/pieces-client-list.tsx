@@ -109,12 +109,18 @@ export function PiecesClientList({
               ? formatInchesFromEighthStep(currentPieceData.height)
               : "?";
 
+            const sashTxt = currentPieceData.sashHeight
+              ? formatInchesFromEighthStep(currentPieceData.sashHeight)
+              : null;
+
             const descriptionParts: string[] = [];
 
             if (product?.name) descriptionParts.push(product.name);
 
             if (currentPieceData.width || currentPieceData.height) {
-              descriptionParts.push(`${wTxt} W x ${hTxt} H`);
+              descriptionParts.push(
+                `${wTxt} W x ${hTxt} H${sashTxt ? ` / Sash ${sashTxt}` : ""}`,
+              );
             }
 
             if (currentPieceData.heightLeft) {
