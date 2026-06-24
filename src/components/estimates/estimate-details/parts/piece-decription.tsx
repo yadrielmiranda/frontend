@@ -11,7 +11,8 @@ function getOptionName(value: unknown): string | null {
   const obj = value as Record<string, unknown>;
 
   if (typeof obj.name === "string" && obj.name.trim()) return obj.name.trim();
-  if (typeof obj.label === "string" && obj.label.trim()) return obj.label.trim();
+  if (typeof obj.label === "string" && obj.label.trim())
+    return obj.label.trim();
 
   return null;
 }
@@ -59,8 +60,8 @@ function buildGridLine(piece: PieceWithRelations): string {
           typeof panel?.panelLabel === "string" && panel.panelLabel.trim()
             ? panel.panelLabel.trim()
             : typeof panel?.panelCode === "string" && panel.panelCode.trim()
-            ? panel.panelCode.trim()
-            : `Panel ${panel?.panelIndex ?? ""}`.trim();
+              ? panel.panelCode.trim()
+              : `Panel ${panel?.panelIndex ?? ""}`.trim();
 
         const h = Number(panel?.horizontalLites ?? 1);
         const v = Number(panel?.verticalLites ?? 1);
@@ -69,7 +70,9 @@ function buildGridLine(piece: PieceWithRelations): string {
       })
       .join(" | ");
 
-    return panelDetails ? `Grid: ${patternName} - ${panelDetails}` : `Grid: ${patternName}`;
+    return panelDetails
+      ? `Grid: ${patternName} - ${panelDetails}`
+      : `Grid: ${patternName}`;
   }
 
   return "Grid: Yes";
@@ -79,7 +82,9 @@ function buildGridLine(piece: PieceWithRelations): string {
  * Construye las líneas de descripción “profesional” de una pieza
  * (igual para vista interna y vista pública).
  */
-export function buildPieceDescriptionLines(piece: PieceWithRelations): string[] {
+export function buildPieceDescriptionLines(
+  piece: PieceWithRelations,
+): string[] {
   const p = piece as any;
 
   const header = [
@@ -92,7 +97,8 @@ export function buildPieceDescriptionLines(piece: PieceWithRelations): string[] 
     .join(" ");
 
   const w = piece.width != null ? formatInchesFromEighthStep(piece.width) : "?";
-  const h = piece.height != null ? formatInchesFromEighthStep(piece.height) : "?";
+  const h =
+    piece.height != null ? formatInchesFromEighthStep(piece.height) : "?";
 
   const sizeParts: string[] = [`${w} x ${h}`];
 
@@ -136,33 +142,37 @@ export function buildPieceDescriptionLines(piece: PieceWithRelations): string[] 
     detailLines.push(`Preparation: ${preparationName}`);
   }
 
-  const sillName =
-    getOptionName(p.sillOption) ??
-    getOptionName(p.sill);
+  const sillName = getOptionName(p.sillOption) ?? getOptionName(p.sill);
 
   if (sillName) {
     detailLines.push(`Sill: ${sillName}`);
   }
 
   const reinforcementName =
-    getOptionName(p.reinforcementOption) ??
-    getOptionName(p.reinforcement);
+    getOptionName(p.reinforcementOption) ?? getOptionName(p.reinforcement);
 
   if (reinforcementName) {
     detailLines.push(`Reinforcement: ${reinforcementName}`);
   }
 
   detailLines.push(`Screen: ${piece.screen ? "Yes" : "No"}`);
+
+  if (piece.highBottom) {
+    detailLines.push("High Bottom: Yes");
+  }
+
   detailLines.push(buildGridLine(piece));
   detailLines.push(`Privacy: ${piece.privacy ? "Yes" : "No"}`);
 
   const pos = p.dpPosPsf;
   const neg = p.dpNegPsf;
   const psfLine =
-    pos != null && neg != null ? `PSF: ${formatPsf(pos)} ${formatPsf(neg)}` : "";
+    pos != null && neg != null
+      ? `PSF: ${formatPsf(pos)} ${formatPsf(neg)}`
+      : "";
 
   return [header, sizeLine, glassLine, ...detailLines, psfLine].filter(
-    (l) => l && l.trim() !== ""
+    (l) => l && l.trim() !== "",
   );
 }
 

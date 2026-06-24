@@ -188,6 +188,12 @@ export function PieceFormDetailsPanel({
             <strong>Screen:</strong> {piece.screen ? "Yes" : "No"}
           </p>
 
+          {piece.highBottom && (
+            <p>
+              <strong>High Bottom:</strong> Yes
+            </p>
+          )}
+
           {activeName && (
             <p>
               <strong>Active:</strong> {activeName}

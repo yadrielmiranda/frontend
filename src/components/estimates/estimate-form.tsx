@@ -149,6 +149,12 @@ export function EstimateForm({
                 ? null
                 : Number(p.dpNegPsf),
 
+            highBottom: p.highBottom ?? false,
+            highBottomPercent:
+              p.highBottomPercent === null || p.highBottomPercent === undefined
+                ? null
+                : Number(p.highBottomPercent),
+
             // ✅ clave: usar pieceMuntin real del backend
             muntin: mapPieceMuntinToForm(p),
 
@@ -495,6 +501,8 @@ export function EstimateForm({
       customerSubtotal: 0,
       dpPosPsf: null,
       dpNegPsf: null,
+      highBottom: pieceToDuplicate.highBottom ?? false,
+      highBottomPercent: null,
     };
 
     setEditingPieceIndex(null);
@@ -543,6 +551,7 @@ export function EstimateForm({
           privacy: p.privacy,
           idCoat: Number(p.idCoat),
           screen: p.screen,
+          highBottom: p.highBottom === true,
 
           idActiveOption: p.idActiveOption ? Number(p.idActiveOption) : null,
           idPreparationOption: p.idPreparationOption
@@ -652,6 +661,8 @@ export function EstimateForm({
       idCryst: 0,
       privacy: false,
       screen: false,
+      highBottom: false,
+      highBottomPercent: null,
 
       idActiveOption: null,
       idPreparationOption: null,

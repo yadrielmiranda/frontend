@@ -33,6 +33,7 @@ export interface Brand {
   id: number;
   name: string;
   isActive: boolean;
+  highBottomPercent?: number | null;
 }
 
 export interface Product {
@@ -55,6 +56,7 @@ export interface System {
   idBrand: number;
   brandProduct: BrandProduct;
   isActive: boolean;
+  allowHighBottom: boolean;
 
   defaultCrystalId?: number | null;
   systemCrystals?: {
@@ -190,6 +192,8 @@ export interface Piece {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
+  highBottom: boolean;
+  highBottomPercent?: number | null;
   idActiveOption?: number | null;
   idPreparationOption?: number | null;
   idSillOption?: number | null;
@@ -412,11 +416,13 @@ export type UpdateProductData = {
 
 export type CreateBrandData = {
   name: string;
+  highBottomPercent?: number | null;
 };
 
 export type UpdateBrandData = {
   name?: string;
   isActive?: boolean;
+  highBottomPercent?: number | null;
 };
 
 export type CreateFrameColorData = {
@@ -484,6 +490,7 @@ export interface CreatePieceData {
   privacy: boolean;
   idCoat: number;
   screen: boolean;
+  highBottom?: boolean;
 
   idActiveOption?: number | null;
   idPreparationOption?: number | null;

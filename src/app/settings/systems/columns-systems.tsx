@@ -46,6 +46,25 @@ export function getSystemColumns({
       header: "Product",
     },
     {
+      accessorKey: "allowHighBottom",
+      header: "High Bottom",
+      cell: ({ row }) => {
+        const allowHighBottom = row.original.allowHighBottom;
+
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              allowHighBottom
+                ? "bg-blue-100 text-blue-800"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {allowHighBottom ? "Allowed" : "Not Allowed"}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: "isActive",
       header: "Status",
       cell: ({ row }) => {

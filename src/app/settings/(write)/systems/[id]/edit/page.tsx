@@ -24,7 +24,10 @@ export default async function EditSystemPage({
   // Comentario en español: validación simple del parámetro
   if (Number.isNaN(systemId)) notFound();
 
-  const [system, brands] = await Promise.all([getSystem(systemId), getBrands()]);
+  const [system, brands] = await Promise.all([
+    getSystem(systemId),
+    getBrands(),
+  ]);
 
   // Comentario en español: si no existe, 404 limpio
   if (!system) notFound();
@@ -39,7 +42,9 @@ export default async function EditSystemPage({
       <Card className="max-w-lg mx-auto">
         <CardHeader>
           <CardTitle>Edit System</CardTitle>
-          <CardDescription>Update the system details.</CardDescription>
+          <CardDescription>
+            Update the system details and High Bottom availability.
+          </CardDescription>
         </CardHeader>
 
         <CardContent>

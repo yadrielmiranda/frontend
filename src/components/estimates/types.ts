@@ -26,6 +26,9 @@ export interface PieceFormValues extends CreatePieceData {
   dpNegPsf: number | null;
   muntin?: PieceMuntin | null;
 
+  highBottom?: boolean;
+  highBottomPercent?: number | null;
+
   idActiveOption?: number | null;
   idPreparationOption?: number | null;
   idSillOption?: number | null;

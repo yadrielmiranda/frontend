@@ -24,9 +24,10 @@ import {
 
 type FormValues = {
   name: string;
-  idBrand: string; // Guardamos como string para el select, convertiremos a number al enviar
+  idBrand: string;
   idProduct: string;
   isActive: boolean;
+  allowHighBottom: boolean;
 };
 
 interface SystemFormProps {
@@ -57,6 +58,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       idBrand: system?.idBrand ? String(system.idBrand) : "",
       idProduct: system?.idProduct ? String(system.idProduct) : "",
       isActive: system?.isActive ?? true,
+      allowHighBottom: system?.allowHighBottom ?? false,
     },
   });
 
@@ -109,6 +111,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       name: data.name.trim(),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
+      allowHighBottom: Boolean(data.allowHighBottom),
       ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
     };
 
@@ -217,6 +220,28 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           <p className="text-sm text-destructive">{errors.idProduct.message}</p>
         )}
       </div>
+
+      <Controller
+        name="allowHighBottom"
+        control={control}
+        render={({ field }) => (
+          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Checkbox
+              checked={field.value}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+              disabled={showLoadingState}
+            />
+
+            <span className="space-y-0.5">
+              <span className="block font-medium">Allow High Bottom</span>
+              <span className="block text-xs text-muted-foreground">
+                Enables the High Bottom option for all configurations in this
+                system.
+              </span>
+            </span>
+          </label>
+        )}
+      />
 
       {isEdit && (
         <label className="flex items-center gap-2 rounded-md border p-3 text-sm">

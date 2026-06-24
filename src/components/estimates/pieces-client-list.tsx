@@ -77,9 +77,7 @@ export function PiecesClientList({
             <th className="px-4 py-2 text-left font-semibold">Mark</th>
             <th className="px-4 py-2 text-left font-semibold">Description</th>
             <th className="px-4 py-2 text-right font-semibold">Qty</th>
-            <th className="px-4 py-2 text-right font-semibold">
-              Price (unit)
-            </th>
+            <th className="px-4 py-2 text-right font-semibold">Price (unit)</th>
             <th className="px-4 py-2 text-right font-semibold">Subtotal</th>
             <th className="px-4 py-2 text-right font-semibold">Actions</th>
           </tr>
@@ -168,7 +166,15 @@ export function PiecesClientList({
                   </td>
 
                   <td className="px-4 py-2 align-middle text-gray-700">
-                    {description}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{description}</span>
+
+                      {currentPieceData.highBottom && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          High Bottom
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="px-4 py-2 align-middle text-right">{qty}</td>

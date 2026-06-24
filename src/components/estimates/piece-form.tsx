@@ -218,6 +218,8 @@ export function PieceForm({
       customerSubtotal: initialData.customerSubtotal ?? 0,
       dpPosPsf: initialData.dpPosPsf ?? null,
       dpNegPsf: initialData.dpNegPsf ?? null,
+      highBottom: initialData.highBottom ?? false,
+      highBottomPercent: initialData.highBottomPercent ?? null,
     },
   });
 
@@ -413,6 +415,25 @@ export function PieceForm({
   }, [isStandardDimensionMode, selectedConfig, selectedSysConf]);
 
   const screenAllowed = selectedSysConf?.allowScreen ?? false;
+  const highBottomAllowed = selectedSystem?.allowHighBottom === true;
+
+  useEffect(() => {
+    if (!highBottomAllowed) {
+      if (getValues("highBottom")) {
+        setValue("highBottom", false, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+
+      if (getValues("highBottomPercent") != null) {
+        setValue("highBottomPercent", null, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
+  }, [highBottomAllowed, getValues, setValue]);
 
   const availableActiveOptions = useMemo(
     () =>
@@ -592,6 +613,7 @@ export function PieceForm({
   ]);
 
   const hasOptionsSection =
+    highBottomAllowed ||
     screenAllowed ||
     availableActiveOptions.length > 0 ||
     availablePreparationOptions.length > 0 ||
@@ -1042,6 +1064,9 @@ export function PieceForm({
         privacy: currentValues.privacy,
         idCoat: Number(currentValues.idCoat),
         screen: currentValues.screen,
+        highBottom: highBottomAllowed
+          ? currentValues.highBottom === true
+          : false,
 
         idActiveOption: currentValues.idActiveOption
           ? Number(currentValues.idActiveOption)
@@ -1140,6 +1165,13 @@ export function PieceForm({
       setValue("price", unitPrice);
       setValue("subtotal", lineSubtotal);
       setValue("netProfitD", dealerProfitLine);
+      setValue("highBottom", calculated.highBottom === true, {
+        shouldDirty: true,
+      });
+
+      setValue("highBottomPercent", calculated.highBottomPercent ?? null, {
+        shouldDirty: true,
+      });
       setValue("customerSubtotal", customerSubtotalLine);
       setValue("customerPrice", customerUnitPrice);
       setValue("total", customerSubtotalLine);
@@ -1265,6 +1297,8 @@ export function PieceForm({
                             setValue("idConf", 0);
                             setValue("idCryst", 0);
                             setValue("idReinforcementOption", null);
+                            setValue("highBottom", false);
+                            setValue("highBottomPercent", null);
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1303,6 +1337,8 @@ export function PieceForm({
                             setValue("idConf", 0);
                             setValue("idCryst", 0);
                             setValue("idReinforcementOption", null);
+                            setValue("highBottom", false);
+                            setValue("highBottomPercent", null);
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1346,6 +1382,8 @@ export function PieceForm({
 
                             setValue("idConf", 0);
                             setValue("idReinforcementOption", null);
+                            setValue("highBottom", false);
+                            setValue("highBottomPercent", null);
 
                             // mantener color actual si ya existe
                             const currentColor = getValues("idFC");
@@ -1473,6 +1511,38 @@ export function PieceForm({
                   <div
                     className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
                   >
+                    {highBottomAllowed && (
+                      <div className="flex flex-col gap-2">
+                        <Controller
+                          name="highBottom"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={`highBottom-${index}`}
+                                checked={field.value === true}
+                                onCheckedChange={(v) =>
+                                  field.onChange(v === true)
+                                }
+                                disabled={isLocked}
+                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                              />
+
+                              <Label
+                                htmlFor={`highBottom-${index}`}
+                                className="cursor-pointer select-none text-sm"
+                              >
+                                High Bottom
+                              </Label>
+                            </div>
+                          )}
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                          Applies High Bottom to this piece.
+                        </p>
+                      </div>
+                    )}
                     {screenAllowed && (
                       <div className="flex flex-col gap-2">
                         <Controller

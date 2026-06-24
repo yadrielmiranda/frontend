@@ -24,7 +24,7 @@ export default async function EditBrandPage({
       backHref="/settings/brands"
       backLabel="Back to Brands"
       title="Edit Brand"
-      description="Update the brand name and status."
+      description="Update the brand name, High Bottom percentage, and status."
       maxWidth="max-w-xl"
     >
       <BrandForm brand={brand} />

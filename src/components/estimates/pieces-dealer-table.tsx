@@ -146,12 +146,21 @@ export function PiecesDealerTable({
                   </td>
 
                   <td className="px-4 py-2 align-middle text-gray-700">
-                    {description}{" "}
-                    {qty > 1 && (
-                      <span className="text-xs text-gray-500">
-                        (Qty: {qty})
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{description}</span>
+
+                      {currentPieceData.highBottom && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          High Bottom
+                        </span>
+                      )}
+
+                      {qty > 1 && (
+                        <span className="text-xs text-gray-500">
+                          (Qty: {qty})
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="px-4 py-2 align-middle text-right">{qty}</td>

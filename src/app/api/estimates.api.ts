@@ -8,6 +8,8 @@ import type {
 
 export interface CalculatedPiece extends CreatePieceData {
   id?: number;
+  highBottom?: boolean;
+  highBottomPercent?: number | null;
   rate: number;
   price: number;
   markup: number;

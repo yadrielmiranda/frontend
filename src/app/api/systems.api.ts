@@ -12,6 +12,7 @@ export type SystemData = {
   idBrand: number;
   idProduct: number;
   isActive?: boolean;
+  allowHighBottom?: boolean;
 };
 
 export type UpdateSystemData = Partial<SystemData>;

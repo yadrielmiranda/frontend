@@ -16,7 +16,26 @@ import { Label } from "@/components/ui/label";
 type FormData = {
   name: string;
   isActive: boolean;
+  highBottomPercent: string;
 };
+
+function normalizeHighBottomPercent(value: string): number | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+
+  if (!Number.isFinite(parsed)) {
+    throw new Error("High Bottom % must be a valid number.");
+  }
+
+  if (parsed < 0) {
+    throw new Error("High Bottom % cannot be negative.");
+  }
+
+  return parsed;
+}
 
 export function BrandForm({ brand }: { brand?: Brand }) {
   const router = useRouter();
@@ -33,21 +52,33 @@ export function BrandForm({ brand }: { brand?: Brand }) {
     defaultValues: {
       name: brand?.name || "",
       isActive: brand?.isActive ?? true,
+      highBottomPercent:
+        brand?.highBottomPercent == null
+          ? ""
+          : String(Number(brand.highBottomPercent)),
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const highBottomPercent = normalizeHighBottomPercent(
+        data.highBottomPercent,
+      );
+
       if (isEdit) {
         await updateBrand(Number(params.id), {
           name: data.name,
           isActive: data.isActive,
+          highBottomPercent,
         });
+
         toast.success("Brand updated successfully.");
       } else {
         await createBrand({
           name: data.name,
+          highBottomPercent,
         });
+
         toast.success("Brand created successfully.");
       }
 
@@ -79,6 +110,45 @@ export function BrandForm({ brand }: { brand?: Brand }) {
 
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name.message}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="highBottomPercent">High Bottom %</Label>
+          <Input
+            id="highBottomPercent"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Example: 8"
+            autoComplete="off"
+            {...register("highBottomPercent", {
+              validate: (value) => {
+                if (!value.trim()) return true;
+
+                const parsed = Number(value);
+
+                if (!Number.isFinite(parsed)) {
+                  return "High Bottom % must be a valid number.";
+                }
+
+                if (parsed < 0) {
+                  return "High Bottom % cannot be negative.";
+                }
+
+                return true;
+              },
+            })}
+          />
+
+          {errors.highBottomPercent ? (
+            <p className="text-sm text-destructive">
+              {errors.highBottomPercent.message}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Leave empty when this brand does not have a High Bottom surcharge.
+            </p>
           )}
         </div>
 
