@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -23,6 +25,7 @@ import {
   updatePolicy,
   type PolicyDetail,
 } from "@/app/api/dimension-policies.api";
+import { groupConfigsByCategory } from "@/lib/config-groups";
 
 type Option = { value: number; label: string };
 
@@ -43,7 +46,16 @@ type SystemWithConfigs = {
   sysconfs: {
     idSystem: number;
     idConfig: number;
-    config: { id: number; conf: string } | null;
+    config: {
+      id: number;
+      conf: string;
+      categoryId?: number | null;
+      category?: {
+        id: number;
+        name: string;
+        sortOrder?: number | null;
+      } | null;
+    } | null;
     reinforcementOptions?: {
       optionId: number;
       option: {
@@ -104,14 +116,23 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
       }));
   }, [selectedSystem]);
 
-  const configOptions: Option[] = useMemo(() => {
+  const configOptions = useMemo(() => {
     if (!form.idSystem) return [];
+
     const sys = systemsWithConfigs.find((s) => s.id === form.idSystem);
     if (!sys) return [];
+
     return sys.sysconfs
-      .filter((sc) => !!sc.config)
-      .map((sc) => ({ value: sc.config!.id, label: sc.config!.conf }));
+      .map((sc) => sc.config)
+      .filter((config): config is NonNullable<typeof config> =>
+        Boolean(config),
+      );
   }, [form.idSystem, systemsWithConfigs]);
+
+  const groupedConfigs = useMemo(
+    () => groupConfigsByCategory(configOptions),
+    [configOptions],
+  );
 
   const selectedSysConf = useMemo(() => {
     if (!selectedSystem || !form.idSystem || !form.idConfig) return null;
@@ -144,7 +165,9 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
   useEffect(() => {
     if (!form.idSystem || !form.idConfig) return;
 
-    const stillValid = configOptions.some((c) => c.value === form.idConfig);
+    const stillValid = configOptions.some(
+      (config) => config.id === form.idConfig,
+    );
 
     if (!stillValid) {
       setForm((f) => ({
@@ -236,7 +259,7 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
       }
 
       if (usesReinforcement && !form.idReinforcementOption) {
-        toast.error("Please select a Reinforcement / Interlock option.");
+        toast.error("Please select a Reinforcement option.");
         return;
       }
 
@@ -336,11 +359,35 @@ export function PolicyForm({ initial, systemsWithConfigs }: PolicyFormProps) {
               />
             </SelectTrigger>
             <SelectContent>
-              {configOptions.map((o) => (
-                <SelectItem key={o.value} value={String(o.value)}>
-                  {o.label}
-                </SelectItem>
-              ))}
+              {!groupedConfigs.hasCategories ? (
+                configOptions.map((config) => (
+                  <SelectItem key={config.id} value={String(config.id)}>
+                    {config.conf}
+                  </SelectItem>
+                ))
+              ) : (
+                <>
+                  {groupedConfigs.uncategorized.map((config) => (
+                    <SelectItem key={config.id} value={String(config.id)}>
+                      {config.conf}
+                    </SelectItem>
+                  ))}
+
+                  {groupedConfigs.groups.map((group) => (
+                    <SelectGroup key={group.key}>
+                      <SelectLabel className="font-bold text-slate-900">
+                        {group.name}
+                      </SelectLabel>
+
+                      {group.items.map((config) => (
+                        <SelectItem key={config.id} value={String(config.id)}>
+                          {config.conf}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>

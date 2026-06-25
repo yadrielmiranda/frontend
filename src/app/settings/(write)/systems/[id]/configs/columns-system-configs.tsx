@@ -28,16 +28,24 @@ import {
 
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-type AvailableConfig = { id: number; conf: string };
-type AssociatedConfig = { id: number; conf: string; allowScreen: boolean };
+import type { Config } from "@/lib/types";
+
+export type AvailableConfig = Pick<
+  Config,
+  "id" | "conf" | "categoryId" | "category"
+>;
+
+export type AssociatedConfig = AvailableConfig & {
+  allowScreen: boolean;
+};
 
 export const getAssociatedConfigsColumns = (
   systemId: number,
   handleRemove: (configId: number) => Promise<void>,
   handleToggleAllowScreen: (
     configId: number,
-    allowScreen: boolean
-  ) => Promise<void>
+    allowScreen: boolean,
+  ) => Promise<void>,
 ): ColumnDef<AssociatedConfig>[] => [
   {
     accessorKey: "conf",
@@ -149,8 +157,15 @@ export const getAssociatedConfigsColumns = (
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" asChild aria-label="Manage options">
-                  <Link href={`/settings/systems/${systemId}/configs/${config.id}/options`}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  aria-label="Manage options"
+                >
+                  <Link
+                    href={`/settings/systems/${systemId}/configs/${config.id}/options`}
+                  >
                     <Settings2 className="h-4 w-4 text-blue-600" />
                   </Link>
                 </Button>
@@ -191,7 +206,7 @@ export const getAssociatedConfigsColumns = (
 ];
 
 export const getAvailableConfigsColumns = (
-  handleAdd: (configId: number) => Promise<void>
+  handleAdd: (configId: number) => Promise<void>,
 ): ColumnDef<AvailableConfig>[] => [
   {
     accessorKey: "conf",

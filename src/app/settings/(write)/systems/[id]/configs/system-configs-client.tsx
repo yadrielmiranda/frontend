@@ -1,12 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, PackageOpen } from "lucide-react";
+import {
+  Plus,
+  PackageOpen,
+  PlusCircle,
+  Settings2,
+  XCircle,
+} from "lucide-react";
 
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -21,19 +31,361 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 import {
   addConfigToSystem,
   removeConfigFromSystem,
   updateSystemConfig,
 } from "@/app/api/systems.api";
-import {
-  getAssociatedConfigsColumns,
-  getAvailableConfigsColumns,
-} from "./columns-system-configs";
 
-type AvailableConfig = { id: number; conf: string };
-type AssociatedConfig = { id: number; conf: string; allowScreen: boolean };
+import type {
+  AssociatedConfig,
+  AvailableConfig,
+} from "./columns-system-configs";
+import { groupConfigsByCategory } from "@/lib/config-groups";
+
+function AvailableConfigsGroupedList({
+  configs,
+  onAdd,
+}: {
+  configs: AvailableConfig[];
+  onAdd: (configId: number) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredConfigs = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return configs;
+
+    return configs.filter((config) => {
+      const configName = config.conf.toLowerCase();
+      const categoryName = config.category?.name?.toLowerCase() ?? "";
+
+      return configName.includes(term) || categoryName.includes(term);
+    });
+  }, [configs, search]);
+
+  const groupedConfigs = useMemo(
+    () => groupConfigsByCategory(filteredConfigs),
+    [filteredConfigs],
+  );
+
+  const renderConfigRow = (config: AvailableConfig) => (
+    <div
+      key={config.id}
+      className="grid grid-cols-[1fr_90px] items-center border-b px-3 py-3 last:border-b-0"
+    >
+      <div className="text-sm">{config.conf}</div>
+
+      <div className="flex justify-end">
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onAdd(config.id)}
+                aria-label="Add config"
+              >
+                <PlusCircle className="h-4 w-4 text-green-600" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-md border">
+      <div className="border-b p-3">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search configs..."
+          autoComplete="off"
+        />
+      </div>
+
+      <div className="grid grid-cols-[1fr_90px] border-b bg-muted/40 px-3 py-3 text-xs font-semibold uppercase text-muted-foreground">
+        <div>Available Config</div>
+        <div className="text-right">Action</div>
+      </div>
+
+      {filteredConfigs.length === 0 ? (
+        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+          No configs found.
+        </div>
+      ) : !groupedConfigs.hasCategories ? (
+        <div>{filteredConfigs.map(renderConfigRow)}</div>
+      ) : (
+        <div>
+          {groupedConfigs.uncategorized.map(renderConfigRow)}
+
+          {groupedConfigs.groups.map((group) => (
+            <div key={group.key}>
+              <div className="border-b bg-slate-50 px-3 py-2 text-sm font-bold text-slate-900">
+                {group.name}
+              </div>
+
+              {group.items.map(renderConfigRow)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssociatedConfigRow({
+  systemId,
+  config,
+  onRemove,
+  onToggleAllowScreen,
+}: {
+  systemId: number;
+  config: AssociatedConfig;
+  onRemove: (configId: number) => Promise<void>;
+  onToggleAllowScreen: (
+    configId: number,
+    allowScreen: boolean,
+  ) => Promise<void>;
+}) {
+  const [checked, setChecked] = useState(config.allowScreen);
+  const [isSaving, setIsSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingValue, setPendingValue] = useState<boolean | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const switchId = `allow-screen-${config.id}`;
+  const isEnabling = pendingValue === true;
+
+  const requestToggle = (nextValue: boolean) => {
+    if (isSaving) return;
+
+    setPendingValue(nextValue);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    if (pendingValue === null) return;
+
+    const nextValue = pendingValue;
+    const previousValue = checked;
+
+    setConfirmOpen(false);
+    setChecked(nextValue);
+    setIsSaving(true);
+
+    try {
+      await onToggleAllowScreen(config.id, nextValue);
+    } catch {
+      setChecked(previousValue);
+    } finally {
+      setIsSaving(false);
+      setPendingValue(null);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-[1fr_220px_120px] items-center border-b px-3 py-3 last:border-b-0">
+      <div className="text-sm">{config.conf}</div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          id={switchId}
+          checked={checked}
+          disabled={isSaving}
+          onCheckedChange={requestToggle}
+          aria-label={`Toggle screen for config ${config.conf}`}
+        />
+
+        <Label htmlFor={switchId} className="text-sm font-normal">
+          {checked ? "Allowed" : "Not allowed"}
+        </Label>
+      </div>
+
+      <div className="flex justify-end gap-1">
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                aria-label="Manage options"
+              >
+                <Link
+                  href={`/settings/systems/${systemId}/configs/${config.id}/options`}
+                >
+                  <Settings2 className="h-4 w-4 text-blue-600" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Manage Options</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+                aria-label="Remove config"
+              >
+                <XCircle className="h-4 w-4 text-destructive" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Remove</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isEnabling
+                ? `Allow screen for config ${config.conf}?`
+                : `Disable screen for config ${config.conf}?`}
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              {isEnabling
+                ? "This config will allow screen when creating estimates."
+                : "This config will no longer allow screen when creating estimates."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setConfirmOpen(false);
+                setPendingValue(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+
+            <AlertDialogAction onClick={handleConfirm}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DeleteConfirmationDialog
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={async () => {
+          await onRemove(config.id);
+          setDeleteOpen(false);
+        }}
+        itemName={`config "${config.conf}"`}
+      />
+    </div>
+  );
+}
+
+function AssociatedConfigsGroupedList({
+  systemId,
+  configs,
+  onRemove,
+  onToggleAllowScreen,
+}: {
+  systemId: number;
+  configs: AssociatedConfig[];
+  onRemove: (configId: number) => Promise<void>;
+  onToggleAllowScreen: (
+    configId: number,
+    allowScreen: boolean,
+  ) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredConfigs = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return configs;
+
+    return configs.filter((config) => {
+      const configName = config.conf.toLowerCase();
+      const categoryName = config.category?.name?.toLowerCase() ?? "";
+
+      return configName.includes(term) || categoryName.includes(term);
+    });
+  }, [configs, search]);
+
+  const groupedConfigs = useMemo(
+    () => groupConfigsByCategory(filteredConfigs),
+    [filteredConfigs],
+  );
+
+  const renderConfigRow = (config: AssociatedConfig) => (
+    <AssociatedConfigRow
+      key={config.id}
+      systemId={systemId}
+      config={config}
+      onRemove={onRemove}
+      onToggleAllowScreen={onToggleAllowScreen}
+    />
+  );
+
+  return (
+    <div className="rounded-md border">
+      <div className="border-b p-3">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Filter associated configs..."
+          autoComplete="off"
+        />
+      </div>
+
+      <div className="grid grid-cols-[1fr_220px_120px] border-b bg-muted/40 px-3 py-3 text-xs font-semibold uppercase text-muted-foreground">
+        <div>Associated Config</div>
+        <div>Screen</div>
+        <div className="text-right">Action</div>
+      </div>
+
+      {filteredConfigs.length === 0 ? (
+        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+          No associated configs found.
+        </div>
+      ) : !groupedConfigs.hasCategories ? (
+        <div>{filteredConfigs.map(renderConfigRow)}</div>
+      ) : (
+        <div>
+          {groupedConfigs.uncategorized.map(renderConfigRow)}
+
+          {groupedConfigs.groups.map((group) => (
+            <div key={group.key}>
+              <div className="border-b bg-slate-50 px-3 py-2 text-sm font-bold text-slate-900">
+                {group.name}
+              </div>
+
+              {group.items.map(renderConfigRow)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface SystemConfigsClientProps {
   systemId: number;
@@ -73,7 +425,11 @@ export function SystemConfigsClient({
       () => addConfigToSystem(systemId, configId),
       "Config linked successfully.",
       "Error linking config.",
-    );    
+    );
+
+    if (ok) {
+      setIsAddDialogOpen(false);
+    }
   };
 
   const handleRemove = async (configId: number) => {
@@ -100,33 +456,16 @@ export function SystemConfigsClient({
     [initialAvailableConfigs],
   );
 
-  const associatedColumns = useMemo(
-    () =>
-      getAssociatedConfigsColumns(
-        systemId,
-        handleRemove,
-        handleToggleAllowScreen,
-      ),
-    [systemId],
-  );
-
-  const availableColumns = useMemo(
-    () => getAvailableConfigsColumns(handleAdd),
-    [],
-  );
-
   const hasAssociated = initialAssociatedConfigs.length > 0;
   const hasAvailable = availableConfigs.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Header action */}
       <div className="flex justify-end">
         <TooltipProvider>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <Tooltip>
               <TooltipTrigger asChild>
-                {/* span necesario porque Button disabled no dispara hover */}
                 <span>
                   <DialogTrigger asChild>
                     <Button
@@ -160,11 +499,9 @@ export function SystemConfigsClient({
               </DialogHeader>
 
               {hasAvailable ? (
-                <DataTable
-                  columns={availableColumns}
-                  data={availableConfigs}
-                  filterColumnId="conf"
-                  filterPlaceholder="Search configs..."
+                <AvailableConfigsGroupedList
+                  configs={availableConfigs}
+                  onAdd={handleAdd}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center rounded-md border border-dashed p-10 text-center">
@@ -182,7 +519,6 @@ export function SystemConfigsClient({
         </TooltipProvider>
       </div>
 
-      {/* Associated list */}
       <div>
         <h3 className="text-lg font-medium">Associated Configs</h3>
 
@@ -204,12 +540,12 @@ export function SystemConfigsClient({
             </Button>
           </div>
         ) : (
-          <div className="mt-2 rounded-md border">
-            <DataTable
-              columns={associatedColumns}
-              data={initialAssociatedConfigs}
-              filterColumnId="conf"
-              filterPlaceholder="Filter associated configs..."
+          <div className="mt-2">
+            <AssociatedConfigsGroupedList
+              systemId={systemId}
+              configs={initialAssociatedConfigs}
+              onRemove={handleRemove}
+              onToggleAllowScreen={handleToggleAllowScreen}
             />
           </div>
         )}

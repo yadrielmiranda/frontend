@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { getSystemWithConfigs, getAvailableConfigs } from "@/app/api/systems.api";
+import {
+  getSystemWithConfigs,
+  getAvailableConfigs,
+} from "@/app/api/systems.api";
 import { SystemConfigsClient } from "./system-configs-client";
 
 import { BackLink } from "@/components/navigation/back-link";
@@ -28,6 +31,8 @@ export default async function ManageSystemConfigsPage({
   const associatedConfigs = systemData.sysconfs.map((sc: any) => ({
     id: sc.config.id,
     conf: sc.config.conf,
+    categoryId: sc.config.categoryId ?? null,
+    category: sc.config.category ?? null,
     allowScreen: sc.allowScreen,
   }));
 

@@ -5,29 +5,34 @@ import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import {
   CreatePricingRuleData,
   PricingRule,
   ProductWithBrands,
   SystemWithConfigs,
   Crystal,
-} from "@/lib/types"; // Asegúrate de que tu /api/types tenga PricingRule
+  Config,
+} from "@/lib/types";
 import {
   createPricingRule,
   updatePricingRule,
 } from "@/app/api/pricing-rules.api";
+import { groupConfigsByCategory } from "@/lib/config-groups";
 
-// --- Tipos y Props ---
 type PricingRuleFormValues = Omit<
   CreatePricingRuleData,
   "costoA" | "costoB" | "costoC"
@@ -58,7 +63,7 @@ export function PricingRuleForm({
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting, isValid },
+    formState: { isSubmitting, isValid },
   } = useForm<PricingRuleFormValues>({
     mode: "onBlur",
     defaultValues: {
@@ -81,9 +86,11 @@ export function PricingRuleForm({
 
   const availableBrands = useMemo(() => {
     if (!productId) return [];
+
     const selectedProduct = productsWithBrands.find(
-      (p) => p.id === Number(productId)
+      (product) => product.id === Number(productId),
     );
+
     return selectedProduct
       ? selectedProduct.brandProducts.map((bp) => bp.brand)
       : [];
@@ -91,20 +98,32 @@ export function PricingRuleForm({
 
   const availableSystems = useMemo(() => {
     if (!productId || !brandId) return [];
+
     return systemsWithConfigs.filter(
       (system) =>
         system.idProduct === Number(productId) &&
-        system.idBrand === Number(brandId)
+        system.idBrand === Number(brandId),
     );
   }, [productId, brandId, systemsWithConfigs]);
 
-  const availableConfigs = useMemo(() => {
+  const availableConfigs = useMemo<Config[]>(() => {
     if (!systemId) return [];
+
     const selectedSystem = systemsWithConfigs.find(
-      (s) => s.id === Number(systemId)
+      (system) => system.id === Number(systemId),
     );
-    return selectedSystem ? selectedSystem.sysconfs.map((sc) => sc.config) : [];
+
+    return selectedSystem
+      ? selectedSystem.sysconfs
+          .map((sysconf) => sysconf.config)
+          .filter((config): config is Config => Boolean(config))
+      : [];
   }, [systemId, systemsWithConfigs]);
+
+  const groupedConfigs = useMemo(
+    () => groupConfigsByCategory(availableConfigs),
+    [availableConfigs],
+  );
 
   const onSubmit = handleSubmit(async (data) => {
     const dataToSend = {
@@ -122,7 +141,8 @@ export function PricingRuleForm({
         await createPricingRule(dataToSend);
         toast.success("Pricing rule created successfully!");
       }
-      router.push("/settings/pricing-rules");      
+
+      router.push("/settings/pricing-rules");
     } catch (error) {
       toast.error((error as Error).message);
     }
@@ -131,7 +151,6 @@ export function PricingRuleForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* SELECTS */}
         <div>
           <Label>Product</Label>
           <Controller
@@ -140,8 +159,8 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => {
-                  field.onChange(Number(v));
+                onValueChange={(value) => {
+                  field.onChange(Number(value));
                   setValue("idBrand", 0);
                   setValue("idSystem", 0);
                   setValue("idConfig", 0);
@@ -151,10 +170,11 @@ export function PricingRuleForm({
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
+
                 <SelectContent>
-                  {productsWithBrands.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name}
+                  {productsWithBrands.map((product) => (
+                    <SelectItem key={product.id} value={String(product.id)}>
+                      {product.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -162,6 +182,7 @@ export function PricingRuleForm({
             )}
           />
         </div>
+
         <div>
           <Label>Brand</Label>
           <Controller
@@ -170,8 +191,8 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => {
-                  field.onChange(Number(v));
+                onValueChange={(value) => {
+                  field.onChange(Number(value));
                   setValue("idSystem", 0);
                   setValue("idConfig", 0);
                 }}
@@ -181,10 +202,11 @@ export function PricingRuleForm({
                 <SelectTrigger>
                   <SelectValue placeholder="Select product..." />
                 </SelectTrigger>
+
                 <SelectContent>
-                  {availableBrands.map((b) => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.name}
+                  {availableBrands.map((brand) => (
+                    <SelectItem key={brand.id} value={String(brand.id)}>
+                      {brand.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -192,6 +214,7 @@ export function PricingRuleForm({
             )}
           />
         </div>
+
         <div>
           <Label>System</Label>
           <Controller
@@ -200,8 +223,8 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => {
-                  field.onChange(Number(v));
+                onValueChange={(value) => {
+                  field.onChange(Number(value));
                   setValue("idConfig", 0);
                 }}
                 value={String(field.value)}
@@ -210,10 +233,11 @@ export function PricingRuleForm({
                 <SelectTrigger>
                   <SelectValue placeholder="Select brand..." />
                 </SelectTrigger>
+
                 <SelectContent>
-                  {availableSystems.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
+                  {availableSystems.map((system) => (
+                    <SelectItem key={system.id} value={String(system.id)}>
+                      {system.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -221,6 +245,7 @@ export function PricingRuleForm({
             )}
           />
         </div>
+
         <div>
           <Label>Configuration</Label>
           <Controller
@@ -229,24 +254,53 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => field.onChange(Number(v))}
+                onValueChange={(value) => field.onChange(Number(value))}
                 value={String(field.value)}
                 disabled={!systemId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select system..." />
                 </SelectTrigger>
+
                 <SelectContent>
-                  {availableConfigs.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.conf}
-                    </SelectItem>
-                  ))}
+                  {!groupedConfigs.hasCategories ? (
+                    availableConfigs.map((config) => (
+                      <SelectItem key={config.id} value={String(config.id)}>
+                        {config.conf}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      {groupedConfigs.uncategorized.map((config) => (
+                        <SelectItem key={config.id} value={String(config.id)}>
+                          {config.conf}
+                        </SelectItem>
+                      ))}
+
+                      {groupedConfigs.groups.map((group) => (
+                        <SelectGroup key={group.key}>
+                          <SelectLabel className="font-bold text-slate-900">
+                            {group.name}
+                          </SelectLabel>
+
+                          {group.items.map((config) => (
+                            <SelectItem
+                              key={config.id}
+                              value={String(config.id)}
+                            >
+                              {config.conf}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             )}
           />
         </div>
+
         <div>
           <Label>Crystal</Label>
           <Controller
@@ -255,16 +309,17 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => field.onChange(Number(v))}
+                onValueChange={(value) => field.onChange(Number(value))}
                 value={String(field.value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
+
                 <SelectContent>
-                  {crystals.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.glass}
+                  {crystals.map((crystal) => (
+                    <SelectItem key={crystal.id} value={String(crystal.id)}>
+                      {crystal.glass}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -285,6 +340,7 @@ export function PricingRuleForm({
               )}
             />
           </div>
+
           <div>
             <Label>Perimeter Cost</Label>
             <Controller
@@ -296,6 +352,7 @@ export function PricingRuleForm({
               )}
             />
           </div>
+
           <div>
             <Label>Fixed Cost</Label>
             <Controller
@@ -314,6 +371,7 @@ export function PricingRuleForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
+
         <Button
           type="submit"
           variant="green"
