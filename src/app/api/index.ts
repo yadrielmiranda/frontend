@@ -20,6 +20,7 @@ export * from './roles.api';
 export * from './systems.api';
 export * from './tints.api';
 export * from './users.api';
+export * from "./config-categories.api";
 
 // auth (cliente)
 // ⚠️ NO re-exportes route handlers (route.ts). Solo el wrapper de cliente:

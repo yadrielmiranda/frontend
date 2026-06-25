@@ -23,35 +23,36 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { deleteConfig } from "@/app/api/configs.api";
-import type { Config } from "@/lib/types";
+import { deleteConfigCategory } from "@/app/api/config-categories.api";
+import type { ConfigCategory } from "@/lib/types";
 
-export function getConfigColumns({
+export function getConfigCategoryColumns({
   canEdit,
 }: {
   canEdit: boolean;
-}): ColumnDef<Config>[] {
-  const cols: ColumnDef<Config>[] = [
+}): ColumnDef<ConfigCategory>[] {
+  const cols: ColumnDef<ConfigCategory>[] = [
     {
-      accessorKey: "conf",
-      header: "Config",
+      accessorKey: "name",
+      header: "Name",
     },
     {
-      id: "category",
-      header: "Category",
+      id: "product",
+      header: "Product",
       cell: ({ row }) => {
-        const category = row.original.category;
-
-        return category ? (
-          <span>{category.name}</span>
-        ) : (
-          <span className="text-muted-foreground">No category</span>
-        );
+        return row.original.product?.name ?? "—";
       },
     },
     {
-      accessorKey: "prod.name",
-      header: "Product",
+      accessorKey: "sortOrder",
+      header: "Sort",
+    },
+    {
+      id: "configs",
+      header: "Configs",
+      cell: ({ row }) => {
+        return row.original._count?.configs ?? 0;
+      },
     },
     {
       accessorKey: "isActive",
@@ -74,18 +75,17 @@ export function getConfigColumns({
     },
   ];
 
-  // ✅ si no puede editar, no mostramos actions
   if (!canEdit) return cols;
 
   cols.push({
     id: "actions",
     cell: ({ row }) => {
-      const config = row.original;
+      const category = row.original;
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
       const handleDelete = async () => {
-        await deleteConfig(config.id);
+        await deleteConfigCategory(category.id);
         setShowDeleteConfirm(false);
         router.refresh();
       };
@@ -115,8 +115,8 @@ export function getConfigColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/configs/${config.id}/edit`}>
-                  Edit Config
+                <Link href={`/settings/config-categories/${category.id}/edit`}>
+                  Edit Category
                 </Link>
               </DropdownMenuItem>
 
@@ -138,7 +138,7 @@ export function getConfigColumns({
             isOpen={showDeleteConfirm}
             onClose={() => setShowDeleteConfirm(false)}
             onConfirm={handleDelete}
-            itemName={`config "${config.conf}"`}
+            itemName={`category "${category.name}"`}
           />
         </div>
       );

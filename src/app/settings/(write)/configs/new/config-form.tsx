@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   useForm,
@@ -24,21 +24,25 @@ import {
 } from "@/components/ui/select";
 
 import { createConfig, updateConfig } from "@/app/api/configs.api";
-import type { Product, ConfigMuntinLayoutItem } from "@/lib/types";
+import { getConfigCategoriesByProduct } from "@/app/api/config-categories.api";
+import type { Config, ConfigCategory, Product } from "@/lib/types";
 
-interface ConfigBase {
-  id?: number;
-  conf: string;
-  idProduct: number;
-  isActive: boolean;
-  requiresWidth?: boolean;
-  requiresHeight?: boolean;
-  requiresHeightLeft?: boolean;
-  requiresHeightRight?: boolean;
-  requiresLegHeight?: boolean;
-  requiresSashHeight?: boolean;
-  muntinLayout?: ConfigMuntinLayoutItem[] | null;
-}
+type ConfigBase = Pick<
+  Config,
+  | "id"
+  | "conf"
+  | "idProduct"
+  | "categoryId"
+  | "category"
+  | "isActive"
+  | "requiresWidth"
+  | "requiresHeight"
+  | "requiresHeightLeft"
+  | "requiresHeightRight"
+  | "requiresLegHeight"
+  | "requiresSashHeight"
+  | "muntinLayout"
+>;
 
 type LayoutFormItem = {
   panelIndex: number;
@@ -46,9 +50,17 @@ type LayoutFormItem = {
   panelCode?: string;
 };
 
-type FormValues = Omit<ConfigBase, "id" | "idProduct" | "muntinLayout"> & {
+type FormValues = {
+  conf: string;
   idProduct: string;
+  categoryId: string;
   isActive: boolean;
+  requiresWidth?: boolean;
+  requiresHeight?: boolean;
+  requiresHeightLeft?: boolean;
+  requiresHeightRight?: boolean;
+  requiresLegHeight?: boolean;
+  requiresSashHeight?: boolean;
   muntinLayout: LayoutFormItem[];
 };
 
@@ -60,7 +72,10 @@ interface ConfigFormProps {
 export function ConfigForm({ config, products }: ConfigFormProps) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+
   const [isSuccess, setIsSuccess] = useState(false);
+  const [categories, setCategories] = useState<ConfigCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   const isEdit = Boolean(params.id);
 
@@ -85,6 +100,10 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
     defaultValues: {
       conf: config?.conf || "",
       idProduct: config ? String(config.idProduct) : "",
+      categoryId:
+        config?.categoryId !== undefined && config.categoryId !== null
+          ? String(config.categoryId)
+          : "none",
       isActive: config?.isActive ?? true,
       requiresWidth: config?.requiresWidth ?? false,
       requiresHeight: config?.requiresHeight ?? false,
@@ -102,6 +121,55 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
   });
 
   const watchedLayout = watch("muntinLayout");
+  const selectedProductId = watch("idProduct");
+  const selectedCategoryId = watch("categoryId");
+
+  useEffect(() => {
+    if (!selectedProductId) {
+      setCategories([]);
+      setValue("categoryId", "none", { shouldDirty: false });
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadCategories() {
+      try {
+        setLoadingCategories(true);
+
+        const data = await getConfigCategoriesByProduct(
+          Number(selectedProductId),
+        );
+
+        if (cancelled) return;
+
+        setCategories(data);
+
+        if (
+          selectedCategoryId !== "none" &&
+          !data.some((category) => String(category.id) === selectedCategoryId)
+        ) {
+          setValue("categoryId", "none", { shouldDirty: true });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setCategories([]);
+          toast.error("Could not load config categories.");
+          console.error("Error loading config categories:", err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCategories(false);
+        }
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProductId, selectedCategoryId, setValue]);
 
   const addPanel = () => {
     append({
@@ -137,6 +205,10 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       const payload = {
         conf: data.conf.trim(),
         idProduct: Number(data.idProduct),
+        categoryId:
+          data.categoryId && data.categoryId !== "none"
+            ? Number(data.categoryId)
+            : null,
         ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
         requiresWidth: Boolean(data.requiresWidth),
         requiresHeight: Boolean(data.requiresHeight),
@@ -189,7 +261,13 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
           control={control}
           rules={{ required: "You must select a product." }}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select
+              value={field.value}
+              onValueChange={(value) => {
+                field.onChange(value);
+                setValue("categoryId", "none", { shouldDirty: true });
+              }}
+            >
               <SelectTrigger id="product">
                 <SelectValue placeholder="Select a product" />
               </SelectTrigger>
@@ -206,6 +284,45 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         {errors.idProduct && (
           <p className="text-sm text-destructive">{errors.idProduct.message}</p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="category">Category</Label>
+        <Controller
+          name="categoryId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value}
+              onValueChange={field.onChange}
+              disabled={!selectedProductId || loadingCategories}
+            >
+              <SelectTrigger id="category">
+                <SelectValue
+                  placeholder={
+                    loadingCategories
+                      ? "Loading categories..."
+                      : "Select a category"
+                  }
+                />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="none">No category</SelectItem>
+
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+
+        <p className="text-xs text-muted-foreground">
+          Optional. Used to group configs in selectors.
+        </p>
       </div>
 
       {isEdit && (
@@ -308,6 +425,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               </div>
             )}
           />
+
           <Controller
             name="requiresSashHeight"
             control={control}

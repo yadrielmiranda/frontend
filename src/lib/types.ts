@@ -42,6 +42,21 @@ export interface Product {
   isActive: boolean;
 }
 
+export interface ConfigCategory {
+  id: number;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  idProduct: number;
+  createdAt?: string;
+  updatedAt?: string;
+
+  product?: Product;
+  _count?: {
+    configs: number;
+  };
+}
+
 export interface BrandProduct {
   idBrand: number;
   idProduct: number;
@@ -89,13 +104,19 @@ export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
 export interface Config {
   id: number;
   conf: string;
+  idProduct: number;
   isActive: boolean;
+
+  categoryId?: number | null;
+  category?: ConfigCategory | null;
+
   requiresWidth?: boolean;
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
+
   muntinLayout?: ConfigMuntinLayoutItem[] | null;
   prod?: Product;
 }
@@ -297,7 +318,12 @@ export interface PricingRule {
   brand?: { name: string };
   product?: { name: string };
   system?: { name: string };
-  config?: { conf: string };
+  config?: {
+    id?: number;
+    conf: string;
+    categoryId?: number | null;
+    category?: ConfigCategory | null;
+  };
   crystal?: { glass: string };
 }
 

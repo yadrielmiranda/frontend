@@ -26,6 +26,7 @@ import {
   Sparkles,
   SquareStack,
   SwatchBook,
+  Tags,
   Users,
   Wrench,
 } from "lucide-react";
@@ -74,6 +75,13 @@ export function SettingsMenuItems({
         <Link href="/settings/configs">
           <Layers className={iconClass} />
           Configs
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/config-categories">
+          <Tags className={iconClass} />
+          Config Categories
         </Link>
       </DropdownMenuItem>
 

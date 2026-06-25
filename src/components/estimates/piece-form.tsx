@@ -23,7 +23,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -321,6 +323,58 @@ export function PieceForm({
       .map((sc) => sc.config)
       .filter((c): c is Config => !!c);
   }, [availableSysConfs]);
+
+  const groupedConfigs = useMemo(() => {
+    const uncategorized: Config[] = [];
+    const groups = new Map<
+      string,
+      {
+        key: string;
+        name: string;
+        sortOrder: number;
+        configs: Config[];
+      }
+    >();
+
+    for (const config of availableConfigs) {
+      const category = config.category;
+
+      if (!category?.id || !category.name) {
+        uncategorized.push(config);
+        continue;
+      }
+
+      const key = String(category.id);
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          name: category.name,
+          sortOrder: Number(category.sortOrder ?? 0),
+          configs: [],
+        });
+      }
+
+      groups.get(key)!.configs.push(config);
+    }
+
+    const sortConfigs = (items: Config[]) =>
+      [...items].sort((a, b) => a.conf.localeCompare(b.conf));
+
+    return {
+      hasCategories: groups.size > 0,
+      uncategorized: sortConfigs(uncategorized),
+      groups: Array.from(groups.values())
+        .map((group) => ({
+          ...group,
+          configs: sortConfigs(group.configs),
+        }))
+        .sort((a, b) => {
+          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+          return a.name.localeCompare(b.name);
+        }),
+    };
+  }, [availableConfigs]);
 
   const selectedConfig = useMemo(() => {
     if (!idConf) return null;
@@ -1506,11 +1560,44 @@ export function PieceForm({
                             <SelectValue placeholder="Select configuration" />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableConfigs.map((c) => (
-                              <SelectItem key={c.id} value={String(c.id)}>
-                                {c.conf}
-                              </SelectItem>
-                            ))}
+                            {!groupedConfigs.hasCategories ? (
+                              availableConfigs.map((config) => (
+                                <SelectItem
+                                  key={config.id}
+                                  value={String(config.id)}
+                                >
+                                  {config.conf}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <>
+                                {groupedConfigs.uncategorized.map((config) => (
+                                  <SelectItem
+                                    key={config.id}
+                                    value={String(config.id)}
+                                  >
+                                    {config.conf}
+                                  </SelectItem>
+                                ))}
+
+                                {groupedConfigs.groups.map((group) => (
+                                  <SelectGroup key={group.key}>
+                                    <SelectLabel className="font-bold text-slate-900">
+                                      {group.name}
+                                    </SelectLabel>
+
+                                    {group.configs.map((config) => (
+                                      <SelectItem
+                                        key={config.id}
+                                        value={String(config.id)}
+                                      >
+                                        {config.conf}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                ))}
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                       )}
