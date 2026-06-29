@@ -124,6 +124,17 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
   const selectedProductId = watch("idProduct");
   const selectedCategoryId = watch("categoryId");
 
+  const selectedProduct = useMemo(() => {
+    if (!selectedProductId) return null;
+
+    return (
+      products.find((product) => product.id === Number(selectedProductId)) ??
+      null
+    );
+  }, [products, selectedProductId]);
+
+  const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
+
   useEffect(() => {
     if (!selectedProductId) {
       setCategories([]);
@@ -171,6 +182,45 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
     };
   }, [selectedProductId, selectedCategoryId, setValue]);
 
+  useEffect(() => {
+    if (!isLinearMaterial) return;
+
+    setValue("requiresWidth", true, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("requiresHeight", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("requiresHeightLeft", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("requiresHeightRight", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("requiresLegHeight", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("requiresSashHeight", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setValue("muntinLayout", [], {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [isLinearMaterial, setValue]);
+
   const addPanel = () => {
     append({
       panelIndex: fields.length + 1,
@@ -210,13 +260,21 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
             ? Number(data.categoryId)
             : null,
         ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
-        requiresWidth: Boolean(data.requiresWidth),
-        requiresHeight: Boolean(data.requiresHeight),
-        requiresHeightLeft: Boolean(data.requiresHeightLeft),
-        requiresHeightRight: Boolean(data.requiresHeightRight),
-        requiresLegHeight: Boolean(data.requiresLegHeight),
-        requiresSashHeight: Boolean(data.requiresSashHeight),
-        muntinLayout: normalizedLayout,
+        requiresWidth: isLinearMaterial ? true : Boolean(data.requiresWidth),
+        requiresHeight: isLinearMaterial ? false : Boolean(data.requiresHeight),
+        requiresHeightLeft: isLinearMaterial
+          ? false
+          : Boolean(data.requiresHeightLeft),
+        requiresHeightRight: isLinearMaterial
+          ? false
+          : Boolean(data.requiresHeightRight),
+        requiresLegHeight: isLinearMaterial
+          ? false
+          : Boolean(data.requiresLegHeight),
+        requiresSashHeight: isLinearMaterial
+          ? false
+          : Boolean(data.requiresSashHeight),
+        muntinLayout: isLinearMaterial ? [] : normalizedLayout,
       };
 
       if (isEdit && config?.id) {
@@ -358,8 +416,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresWidth"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? true : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(true);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresWidth">Width</Label>
               </div>
@@ -373,8 +439,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresHeight"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresHeight">Height</Label>
               </div>
@@ -388,8 +462,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresHeightLeft"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresHeightLeft">Height Left</Label>
               </div>
@@ -403,8 +485,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresHeightRight"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresHeightRight">Height Right</Label>
               </div>
@@ -418,8 +508,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresLegHeight"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresLegHeight">Leg Height</Label>
               </div>
@@ -433,8 +531,16 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requiresSashHeight"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={field.onChange}
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresSashHeight">Sash Height</Label>
               </div>
@@ -443,79 +549,86 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-md border p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Muntin Layout</p>
-            <p className="text-sm text-muted-foreground">
-              Define the panel structure for this configuration.
-            </p>
+      {!isLinearMaterial && (
+        <div className="space-y-3 rounded-md border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Muntin Layout</p>
+              <p className="text-sm text-muted-foreground">
+                Define the panel structure for this configuration.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addPanel}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Panel
+            </Button>
           </div>
 
-          <Button type="button" variant="outline" size="sm" onClick={addPanel}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Panel
-          </Button>
+          {fields.length === 0 ? (
+            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              No panels defined yet. Add the layout for this configuration.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="grid grid-cols-12 gap-3 items-end rounded-md border p-3"
+                >
+                  <div className="col-span-2">
+                    <Label>Index</Label>
+                    <Input value={index + 1} disabled readOnly />
+                  </div>
+
+                  <div className="col-span-3">
+                    <Label htmlFor={`muntinLayout.${index}.panelCode`}>
+                      Panel Code
+                    </Label>
+                    <Input
+                      id={`muntinLayout.${index}.panelCode`}
+                      placeholder="X, O, T, B..."
+                      {...register(`muntinLayout.${index}.panelCode` as const)}
+                    />
+                  </div>
+
+                  <div className="col-span-5">
+                    <Label htmlFor={`muntinLayout.${index}.panelLabel`}>
+                      Panel Label
+                    </Label>
+                    <Input
+                      id={`muntinLayout.${index}.panelLabel`}
+                      placeholder="Left Sash, Right Fixed..."
+                      {...register(`muntinLayout.${index}.panelLabel` as const)}
+                    />
+                  </div>
+
+                  <div className="col-span-2 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removePanel(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+            Examples: XO = panel 1: X, panel 2: O. Single Hung = panel 1: T,
+            panel 2: B.
+          </div>
         </div>
-
-        {fields.length === 0 ? (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            No panels defined yet. Add the layout for this configuration.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="grid grid-cols-12 gap-3 items-end rounded-md border p-3"
-              >
-                <div className="col-span-2">
-                  <Label>Index</Label>
-                  <Input value={index + 1} disabled readOnly />
-                </div>
-
-                <div className="col-span-3">
-                  <Label htmlFor={`muntinLayout.${index}.panelCode`}>
-                    Panel Code
-                  </Label>
-                  <Input
-                    id={`muntinLayout.${index}.panelCode`}
-                    placeholder="X, O, T, B..."
-                    {...register(`muntinLayout.${index}.panelCode` as const)}
-                  />
-                </div>
-
-                <div className="col-span-5">
-                  <Label htmlFor={`muntinLayout.${index}.panelLabel`}>
-                    Panel Label
-                  </Label>
-                  <Input
-                    id={`muntinLayout.${index}.panelLabel`}
-                    placeholder="Left Sash, Right Fixed..."
-                    {...register(`muntinLayout.${index}.panelLabel` as const)}
-                  />
-                </div>
-
-                <div className="col-span-2 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removePanel(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-          Examples: XO = panel 1: X, panel 2: O. Single Hung = panel 1: T, panel
-          2: B.
-        </div>
-      </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>

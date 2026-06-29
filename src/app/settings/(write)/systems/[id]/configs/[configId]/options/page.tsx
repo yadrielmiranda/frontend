@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
 import {
   getSystemConfigOptionsForManage,
+  getSystemWithConfigs,
 } from "@/app/api/systems.api";
 
 import { BackLink } from "@/components/navigation/back-link";
@@ -14,8 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SystemConfigOptionsClient } from "./system-config-options-client";
-
-
 
 export default async function SystemConfigOptionsPage({
   params,
@@ -29,8 +27,14 @@ export default async function SystemConfigOptionsPage({
 
   if (Number.isNaN(systemId) || Number.isNaN(parsedConfigId)) notFound();
 
-  const data = await getSystemConfigOptionsForManage(systemId, parsedConfigId);
+  const [data, systemData] = await Promise.all([
+    getSystemConfigOptionsForManage(systemId, parsedConfigId),
+    getSystemWithConfigs(systemId),
+  ]);
   if (!data) notFound();
+
+  const isLinearMaterial =
+    systemData.brandProduct?.product?.kind === "LINEAR_MATERIAL";
 
   return (
     <div className="container mx-auto py-10">
@@ -73,7 +77,15 @@ export default async function SystemConfigOptionsPage({
         </CardHeader>
 
         <CardContent>
-          <SystemConfigOptionsClient data={data} />
+          {isLinearMaterial ? (
+            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Linear Material configurations use fixed settings: Width only, no
+              screen, no door options, no sill options, and no reinforcement
+              options.
+            </div>
+          ) : (
+            <SystemConfigOptionsClient data={data} />
+          )}
         </CardContent>
       </Card>
     </div>

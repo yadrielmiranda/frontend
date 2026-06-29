@@ -248,12 +248,18 @@ export function PieceForm({
   const { idProd, idConf, width, height, price } = pieceValues;
   const currentMuntin = pieceValues.muntin ?? null;
 
-  const { productName } = useMemo(() => {
+  const { productName, selectedProduct } = useMemo(() => {
     const product = idProd
       ? props.productsWithBrands.find((p) => p.id === Number(idProd))
       : undefined;
-    return { productName: product?.name };
+
+    return {
+      productName: product?.name,
+      selectedProduct: product ?? null,
+    };
   }, [idProd, props.productsWithBrands]);
+
+  const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
 
   const [brandId, systemId] = useWatch({
     control,
@@ -295,16 +301,17 @@ export function PieceForm({
 
   useEffect(() => {
     if (!selectedSystem) return;
+    if (isLinearMaterial) return;
 
     const currentCrystal = getValues("idCryst");
 
-    // ✅ solo setear si está vacío o en 0
+    // solo setear si está vacío o en 0
     if (!currentCrystal || currentCrystal === 0) {
       setValue("idCryst", Number(selectedSystem.defaultCrystalId) || 0, {
         shouldDirty: false,
       });
     }
-  }, [systemId]);
+  }, [systemId, selectedSystem, isLinearMaterial, getValues, setValue]);
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -435,6 +442,25 @@ export function PieceForm({
   const isStandardDimensionMode = dimensionMode === "STANDARD";
 
   const dimensionRequirements = useMemo(() => {
+    if (isLinearMaterial) {
+      return {
+        requiresWidth: !!selectedSysConf?.requiresWidth,
+        requiresHeight: false,
+        requiresHeightLeft: false,
+        requiresHeightRight: false,
+        requiresLegHeight: false,
+        requiresSashHeight: false,
+
+        requiresDoorWidth: false,
+        requiresLeftSideliteWidth: false,
+        requiresRightSideliteWidth: false,
+        requiresLeftPanels: false,
+        requiresRightPanels: false,
+        requiresPanelCount: false,
+        requiresHorizontalHeights: false,
+      };
+    }
+
     if (isStandardDimensionMode) {
       return {
         requiresWidth: !!selectedConfig?.requiresWidth,
@@ -470,11 +496,20 @@ export function PieceForm({
       requiresPanelCount: !!selectedSysConf?.requiresPanelCount,
       requiresHorizontalHeights: !!selectedSysConf?.requiresHorizontalHeights,
     };
-  }, [isStandardDimensionMode, selectedConfig, selectedSysConf]);
+  }, [
+    isStandardDimensionMode,
+    selectedConfig,
+    selectedSysConf,
+    isLinearMaterial,
+  ]);
 
-  const screenAllowed = selectedSysConf?.allowScreen ?? false;
-  const highBottomAllowed = selectedSystem?.allowHighBottom === true;
+  const screenAllowed = isLinearMaterial
+    ? false
+    : (selectedSysConf?.allowScreen ?? false);
 
+  const highBottomAllowed = isLinearMaterial
+    ? false
+    : selectedSystem?.allowHighBottom === true;
   const requiresSashHeight = dimensionRequirements.requiresSashHeight === true;
 
   useEffect(() => {
@@ -546,6 +581,12 @@ export function PieceForm({
     : null;
 
   useEffect(() => {
+    if (isLinearMaterial) {
+      setDimensionPolicies([]);
+      setIsLoadingDimensionPolicies(false);
+      return;
+    }
+
     const idSystem = Number(systemId || 0);
     const idConfig = Number(idConf || 0);
 
@@ -586,7 +627,7 @@ export function PieceForm({
     return () => {
       cancelled = true;
     };
-  }, [systemId, idConf]);
+  }, [systemId, idConf, isLinearMaterial]);
 
   const allowedCrystalIds = useMemo(() => {
     return new Set(
@@ -601,6 +642,10 @@ export function PieceForm({
   }, [dimensionPolicies, dimensionPolicyReinforcementId]);
 
   const availableCrystals = useMemo(() => {
+    if (isLinearMaterial) {
+      return [];
+    }
+
     if (!systemId || !idConf) {
       return systemCrystalOptions;
     }
@@ -624,6 +669,7 @@ export function PieceForm({
     reinforcementRequired,
     selectedReinforcementOptionId,
     allowedCrystalIds,
+    isLinearMaterial,
   ]);
 
   useEffect(() => {
@@ -671,6 +717,7 @@ export function PieceForm({
   }, [
     systemId,
     idConf,
+    isLinearMaterial,
     reinforcementRequired,
     selectedReinforcementOptionId,
     availableCrystals,
@@ -682,12 +729,13 @@ export function PieceForm({
   ]);
 
   const hasOptionsSection =
-    highBottomAllowed ||
-    screenAllowed ||
-    availableActiveOptions.length > 0 ||
-    availablePreparationOptions.length > 0 ||
-    availableSillOptions.length > 0 ||
-    availableReinforcementOptions.length > 0;
+    !isLinearMaterial &&
+    (highBottomAllowed ||
+      screenAllowed ||
+      availableActiveOptions.length > 0 ||
+      availablePreparationOptions.length > 0 ||
+      availableSillOptions.length > 0 ||
+      availableReinforcementOptions.length > 0);
 
   const selectedPattern = useMemo(() => {
     const patternId = Number(pieceValues.muntin?.idPattern || 0);
@@ -777,8 +825,7 @@ export function PieceForm({
       "item-frame",
       ...(hasOptionsSection ? ["item-options"] : []),
       "item-size",
-      "item-glass",
-      "item-muntin",
+      ...(!isLinearMaterial ? ["item-glass", "item-muntin"] : []),
       "item-details",
     ];
 
@@ -789,7 +836,7 @@ export function PieceForm({
       }
       return defaultItems;
     });
-  }, [hasOptionsSection, initialData.price]);
+  }, [hasOptionsSection, initialData.price, isLinearMaterial]);
 
   useEffect(() => {
     const currentConfigId = Number(idConf || 0);
@@ -810,6 +857,27 @@ export function PieceForm({
     }
 
     if (!selectedConfig) return;
+
+    if (isLinearMaterial) {
+      previousConfigIdRef.current = currentConfigId;
+
+      setValue("screen", false, { shouldDirty: true });
+      setValue("privacy", false, { shouldDirty: true });
+      setValue("highBottom", false, { shouldDirty: true });
+      setValue("highBottomPercent", null, { shouldDirty: true });
+
+      setValue("idCryst", 0, { shouldDirty: true, shouldValidate: false });
+      setValue("idTint", 0, { shouldDirty: true, shouldValidate: false });
+      setValue("idCoat", 0, { shouldDirty: true, shouldValidate: false });
+
+      setValue("muntin", null, { shouldDirty: true });
+      setValue("idActiveOption", null, { shouldDirty: true });
+      setValue("idPreparationOption", null, { shouldDirty: true });
+      setValue("idSillOption", null, { shouldDirty: true });
+      setValue("idReinforcementOption", null, { shouldDirty: true });
+
+      return;
+    }
 
     if (previousConfigIdRef.current === currentConfigId) {
       if (!screenAllowed && getValues("screen")) {
@@ -879,6 +947,7 @@ export function PieceForm({
   }, [
     idConf,
     selectedConfig,
+    isLinearMaterial,
     screenAllowed,
     hasMuntinLayout,
     defaultMuntinPattern?.id,
@@ -976,13 +1045,14 @@ export function PieceForm({
         "idSyst",
         "idConf",
         "idFC",
-        "idCryst",
-        "idTint",
-        "idCoat",
         "qty",
       ];
 
-      if (reinforcementRequired) {
+      if (!isLinearMaterial) {
+        fieldsToValidate.push("idCryst", "idTint", "idCoat");
+      }
+
+      if (!isLinearMaterial && reinforcementRequired) {
         fieldsToValidate.push("idReinforcementOption");
       }
       if (dimensionRequirements.requiresWidth) fieldsToValidate.push("width");
@@ -1168,95 +1238,117 @@ export function PieceForm({
         horizontalHeights: dimensionRequirements.requiresHorizontalHeights
           ? (currentValues.horizontalHeights ?? [])
           : undefined,
-        idCryst: Number(currentValues.idCryst),
-        idTint: Number(currentValues.idTint),
-        privacy: currentValues.privacy,
-        idCoat: Number(currentValues.idCoat),
-        screen: currentValues.screen,
-        highBottom: highBottomAllowed
-          ? currentValues.highBottom === true
-          : false,
+        idCryst: isLinearMaterial ? null : Number(currentValues.idCryst),
+        idTint: isLinearMaterial ? null : Number(currentValues.idTint),
+        privacy: isLinearMaterial ? false : Boolean(currentValues.privacy),
+        idCoat: isLinearMaterial ? null : Number(currentValues.idCoat),
+        screen: isLinearMaterial ? false : Boolean(currentValues.screen),
+        highBottom:
+          !isLinearMaterial && highBottomAllowed
+            ? currentValues.highBottom === true
+            : false,
 
-        idActiveOption: currentValues.idActiveOption
-          ? Number(currentValues.idActiveOption)
-          : undefined,
-        idPreparationOption: currentValues.idPreparationOption
-          ? Number(currentValues.idPreparationOption)
-          : undefined,
-        idSillOption: currentValues.idSillOption
-          ? Number(currentValues.idSillOption)
-          : undefined,
-        idReinforcementOption: currentValues.idReinforcementOption
-          ? Number(currentValues.idReinforcementOption)
-          : undefined,
+        idActiveOption: isLinearMaterial
+          ? null
+          : currentValues.idActiveOption
+            ? Number(currentValues.idActiveOption)
+            : undefined,
+        idPreparationOption: isLinearMaterial
+          ? null
+          : currentValues.idPreparationOption
+            ? Number(currentValues.idPreparationOption)
+            : undefined,
+        idSillOption: isLinearMaterial
+          ? null
+          : currentValues.idSillOption
+            ? Number(currentValues.idSillOption)
+            : undefined,
+        idReinforcementOption: isLinearMaterial
+          ? null
+          : currentValues.idReinforcementOption
+            ? Number(currentValues.idReinforcementOption)
+            : undefined,
 
-        muntin: currentValues.muntin ?? null,
+        muntin: isLinearMaterial ? null : (currentValues.muntin ?? null),
         qty: Number(currentValues.qty),
         dealerMarkup: props.canUseCustomerPricing
           ? Number(currentValues.dealerMarkup || 0)
           : undefined,
       };
 
-      const precheck = await validatePiece({
-        idSyst: pieceDtoToSend.idSyst,
-        idConf: pieceDtoToSend.idConf,
-        idCryst: pieceDtoToSend.idCryst,
-        idReinforcementOption: pieceDtoToSend.idReinforcementOption ?? null,
+      if (!isLinearMaterial) {
+        const idCrystForPreview = Number(pieceDtoToSend.idCryst);
 
-        width: widthNorm,
-        height: heightNorm ?? Number(currentValues.height || 0),
-        heightLeft: heightLeftNorm,
-        heightRight: heightRightNorm,
-        legHeight: legHeightNorm,
-
-        doorWidth: doorWidthNorm,
-        leftSideliteWidth: leftSideliteWidthNorm,
-        rightSideliteWidth: rightSideliteWidthNorm,
-        leftPanels: pieceDtoToSend.leftPanels ?? undefined,
-        rightPanels: pieceDtoToSend.rightPanels ?? undefined,
-        panelCount: pieceDtoToSend.panelCount ?? undefined,
-        horizontalHeights: pieceDtoToSend.horizontalHeights ?? undefined,
-      });
-
-      if (!precheck.ok) {
-        if (precheck.reason === "NOT_RATED") {
-          toast.error(
-            precheck.note ||
-              "No dimension policy exists for this System + Config + Crystal combination.",
-          );
-        } else if (precheck.reason === "OVERSIZE") {
-          const belowMin = precheck.belowMinimum;
-          if (belowMin) {
-            const minW =
-              precheck.suggestion?.minWidthIn ??
-              precheck.suggestion?.maxWidthIn ??
-              null;
-            const minH =
-              precheck.suggestion?.minHeightIn ??
-              precheck.suggestion?.maxHeightIn ??
-              null;
-            const sW = minW != null ? `${minW}″` : "—";
-            const sH = minH != null ? `${minH}″` : "—";
-            toast.error(
-              precheck.note
-                ? `${precheck.note}. Minimum allowed size: W=${sW}, H=${sH}.`
-                : `Please review the dimensions. Minimum allowed size: W=${sW}, H=${sH}.`,
-            );
-          } else {
-            const maxW = precheck.suggestion?.maxWidthIn ?? null;
-            const maxH = precheck.suggestion?.maxHeightIn ?? null;
-            const sW = maxW != null ? `${maxW}″` : "—";
-            const sH = maxH != null ? `${maxH}″` : "—";
-            toast.error(
-              precheck.note
-                ? `${precheck.note}. Maximum allowed size: W=${sW}, H=${sH}.`
-                : `Please review the dimensions. Maximum allowed size: W=${sW}, H=${sH}.`,
-            );
-          }
-        } else {
-          toast.error("Dimension validation failed.");
+        if (!Number.isFinite(idCrystForPreview) || idCrystForPreview <= 0) {
+          toast.error("Please select a valid glass type.");
+          return;
         }
-        return;
+
+        const precheck = await validatePiece({
+          idSyst: pieceDtoToSend.idSyst,
+          idConf: pieceDtoToSend.idConf,
+          idCryst: idCrystForPreview,
+          idReinforcementOption: pieceDtoToSend.idReinforcementOption ?? null,
+
+          width: widthNorm,
+          height: heightNorm ?? Number(currentValues.height || 0),
+          heightLeft: heightLeftNorm,
+          heightRight: heightRightNorm,
+          legHeight: legHeightNorm,
+
+          doorWidth: doorWidthNorm,
+          leftSideliteWidth: leftSideliteWidthNorm,
+          rightSideliteWidth: rightSideliteWidthNorm,
+          leftPanels: pieceDtoToSend.leftPanels ?? undefined,
+          rightPanels: pieceDtoToSend.rightPanels ?? undefined,
+          panelCount: pieceDtoToSend.panelCount ?? undefined,
+          horizontalHeights: pieceDtoToSend.horizontalHeights ?? undefined,
+        });
+
+        if (!precheck.ok) {
+          if (precheck.reason === "NOT_RATED") {
+            toast.error(
+              precheck.note ||
+                "No dimension policy exists for this System + Config + Crystal combination.",
+            );
+          } else if (precheck.reason === "OVERSIZE") {
+            const belowMin = precheck.belowMinimum;
+
+            if (belowMin) {
+              const minW =
+                precheck.suggestion?.minWidthIn ??
+                precheck.suggestion?.maxWidthIn ??
+                null;
+              const minH =
+                precheck.suggestion?.minHeightIn ??
+                precheck.suggestion?.maxHeightIn ??
+                null;
+              const sW = minW != null ? `${minW}″` : "—";
+              const sH = minH != null ? `${minH}″` : "—";
+
+              toast.error(
+                precheck.note
+                  ? `${precheck.note}. Minimum allowed size: W=${sW}, H=${sH}.`
+                  : `Please review the dimensions. Minimum allowed size: W=${sW}, H=${sH}.`,
+              );
+            } else {
+              const maxW = precheck.suggestion?.maxWidthIn ?? null;
+              const maxH = precheck.suggestion?.maxHeightIn ?? null;
+              const sW = maxW != null ? `${maxW}″` : "—";
+              const sH = maxH != null ? `${maxH}″` : "—";
+
+              toast.error(
+                precheck.note
+                  ? `${precheck.note}. Maximum allowed size: W=${sW}, H=${sH}.`
+                  : `Please review the dimensions. Maximum allowed size: W=${sW}, H=${sH}.`,
+              );
+            }
+          } else {
+            toast.error("Dimension validation failed.");
+          }
+
+          return;
+        }
       }
 
       const calculated = await calculatePiece(pieceDtoToSend);
@@ -1513,10 +1605,14 @@ export function PieceForm({
                               }
                             }
 
-                            setValue(
-                              "idCryst",
-                              Number(nextSystem?.defaultCrystalId) || 0,
-                            );
+                            if (isLinearMaterial) {
+                              setValue("idCryst", 0);
+                            } else {
+                              setValue(
+                                "idCryst",
+                                Number(nextSystem?.defaultCrystalId) || 0,
+                              );
+                            }
                           }}
                           value={String(field.value || "0")}
                         >
@@ -2379,321 +2475,331 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="item-glass">
-              <AccordionTrigger className="font-semibold text-base">
-                Glass
-              </AccordionTrigger>
-              <AccordionContent>
-                <div
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
-                    isLocked ? "opacity-70" : ""
-                  }`}
-                >
-                  <div>
-                    <Label className={fieldLabelClass}>Type</Label>
-                    <Controller
-                      name="idCryst"
-                      control={control}
-                      rules={{ required: true, min: 1 }}
-                      render={({ field }) => (
-                        <Select
-                          disabled={
-                            isLocked ||
-                            !systemId ||
-                            !idConf ||
-                            isLoadingDimensionPolicies ||
-                            (reinforcementRequired &&
-                              !selectedReinforcementOptionId) ||
-                            availableCrystals.length === 0
-                          }
-                          onValueChange={(v) => field.onChange(Number(v))}
-                          value={String(field.value || "0")}
-                        >
-                          <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select glass type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableCrystals.map((c) => (
-                              <SelectItem key={c.id} value={String(c.id)}>
-                                {c.glass}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    {errors.idCryst && (
-                      <p className="mt-1 text-xs text-red-500">Type required</p>
-                    )}
-                    {!errors.idCryst &&
-                      systemId &&
-                      idConf &&
-                      reinforcementRequired &&
-                      !selectedReinforcementOptionId && (
-                        <p className="mt-1 text-xs text-amber-600">
-                          Select a Reinforcement option first.
-                        </p>
-                      )}
-
-                    {!errors.idCryst &&
-                      systemId &&
-                      idConf &&
-                      !isLoadingDimensionPolicies &&
-                      (!reinforcementRequired ||
-                        selectedReinforcementOptionId) &&
-                      availableCrystals.length === 0 && (
-                        <p className="mt-1 text-xs text-red-500">
-                          {reinforcementRequired
-                            ? "No rated glass is available for this System + Config + Reinforcement."
-                            : "No rated glass is available for this System + Config."}
-                        </p>
-                      )}
-                  </div>
-
-                  <div>
-                    <Label className={fieldLabelClass}>Tint</Label>
-                    <Controller
-                      name="idTint"
-                      control={control}
-                      rules={{ required: true, min: 1 }}
-                      render={({ field }) => (
-                        <Select
-                          disabled={isLocked}
-                          onValueChange={(v) => field.onChange(Number(v))}
-                          value={String(field.value || "0")}
-                        >
-                          <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select tint" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {props.tints.map((t) => (
-                              <SelectItem key={t.id} value={String(t.id)}>
-                                {t.color}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    {errors.idTint && (
-                      <p className="mt-1 text-xs text-red-500">Tint required</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className={fieldLabelClass}>Coating</Label>
-                    <Controller
-                      name="idCoat"
-                      control={control}
-                      rules={{ required: true, min: 1 }}
-                      render={({ field }) => (
-                        <Select
-                          disabled={isLocked}
-                          onValueChange={(v) => field.onChange(Number(v))}
-                          value={String(field.value || "0")}
-                        >
-                          <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select coating" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {props.coatings.map((c) => (
-                              <SelectItem key={c.id} value={String(c.id)}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    {errors.idCoat && (
-                      <p className="mt-1 text-xs text-red-500">
-                        Coating required
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-end">
-                    <Controller
-                      name="privacy"
-                      control={control}
-                      render={({ field }) => (
-                        <div className="inline-flex h-11 items-center gap-3 rounded-md px-1">
-                          <Checkbox
-                            id={`privacy-${index}`}
-                            checked={!!field.value}
-                            onCheckedChange={(v) => field.onChange(Boolean(v))}
-                            disabled={isLocked}
-                            className="h-4 w-4 border-2 border-slate-500 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                          />
-                          <Label
-                            htmlFor={`privacy-${index}`}
-                            className="cursor-pointer text-sm font-medium text-slate-800"
-                          >
-                            Privacy
-                          </Label>
-                        </div>
-                      )}
-                    />
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <div className="border-b last:border-b-0">
-              <button
-                type="button"
-                onClick={() => setIsMuntinOpen((prev) => !prev)}
-                className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
-              >
-                <span className="text-base font-semibold">Muntin</span>
-
-                <ChevronDownIcon
-                  className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
-                    isMuntinOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {isMuntinOpen && (
-                <div className="pb-4 text-sm">
-                  {!selectedConfig ? (
-                    <p className="text-sm text-muted-foreground pt-2">
-                      Select a configuration first to configure muntin.
-                    </p>
-                  ) : !currentMuntin ? (
-                    <p className="text-sm text-muted-foreground pt-2">
-                      Muntin will be initialized automatically for this
-                      configuration.
-                    </p>
-                  ) : (
-                    <div
-                      className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                          <Label className={fieldLabelClass}>Pattern</Label>
+            {!isLinearMaterial && (
+              <AccordionItem value="item-glass">
+                <AccordionTrigger className="font-semibold text-base">
+                  Glass
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div
+                    className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
+                      isLocked ? "opacity-70" : ""
+                    }`}
+                  >
+                    <div>
+                      <Label className={fieldLabelClass}>Type</Label>
+                      <Controller
+                        name="idCryst"
+                        control={control}
+                        rules={{ required: true, min: 1 }}
+                        render={({ field }) => (
                           <Select
-                            disabled={isLocked}
-                            value={String(currentMuntin.idPattern || "")}
-                            onValueChange={handleMuntinPatternChange}
+                            disabled={
+                              isLocked ||
+                              !systemId ||
+                              !idConf ||
+                              isLoadingDimensionPolicies ||
+                              (reinforcementRequired &&
+                                !selectedReinforcementOptionId) ||
+                              availableCrystals.length === 0
+                            }
+                            onValueChange={(v) => field.onChange(Number(v))}
+                            value={String(field.value || "0")}
                           >
                             <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select pattern..." />
+                              <SelectValue placeholder="Select glass type" />
                             </SelectTrigger>
                             <SelectContent>
-                              {activeMuntinPatterns.map((pattern) => (
-                                <SelectItem
-                                  key={pattern.id}
-                                  value={String(pattern.id)}
-                                >
-                                  {pattern.name}
+                              {availableCrystals.map((c) => (
+                                <SelectItem key={c.id} value={String(c.id)}>
+                                  {c.glass}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
+                        )}
+                      />
+                      {errors.idCryst && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Type required
+                        </p>
+                      )}
+                      {!errors.idCryst &&
+                        systemId &&
+                        idConf &&
+                        reinforcementRequired &&
+                        !selectedReinforcementOptionId && (
+                          <p className="mt-1 text-xs text-amber-600">
+                            Select a Reinforcement option first.
+                          </p>
+                        )}
 
-                        {patternRequiresLites && hasMuntinLayout && (
+                      {!errors.idCryst &&
+                        systemId &&
+                        idConf &&
+                        !isLoadingDimensionPolicies &&
+                        (!reinforcementRequired ||
+                          selectedReinforcementOptionId) &&
+                        availableCrystals.length === 0 && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {reinforcementRequired
+                              ? "No rated glass is available for this System + Config + Reinforcement."
+                              : "No rated glass is available for this System + Config."}
+                          </p>
+                        )}
+                    </div>
+
+                    <div>
+                      <Label className={fieldLabelClass}>Tint</Label>
+                      <Controller
+                        name="idTint"
+                        control={control}
+                        rules={{ required: true, min: 1 }}
+                        render={({ field }) => (
+                          <Select
+                            disabled={isLocked}
+                            onValueChange={(v) => field.onChange(Number(v))}
+                            value={String(field.value || "0")}
+                          >
+                            <SelectTrigger className={selectTriggerClass}>
+                              <SelectValue placeholder="Select tint" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {props.tints.map((t) => (
+                                <SelectItem key={t.id} value={String(t.id)}>
+                                  {t.color}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.idTint && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Tint required
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label className={fieldLabelClass}>Coating</Label>
+                      <Controller
+                        name="idCoat"
+                        control={control}
+                        rules={{ required: true, min: 1 }}
+                        render={({ field }) => (
+                          <Select
+                            disabled={isLocked}
+                            onValueChange={(v) => field.onChange(Number(v))}
+                            value={String(field.value || "0")}
+                          >
+                            <SelectTrigger className={selectTriggerClass}>
+                              <SelectValue placeholder="Select coating" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {props.coatings.map((c) => (
+                                <SelectItem key={c.id} value={String(c.id)}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.idCoat && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Coating required
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-end">
+                      <Controller
+                        name="privacy"
+                        control={control}
+                        render={({ field }) => (
+                          <div className="inline-flex h-11 items-center gap-3 rounded-md px-1">
+                            <Checkbox
+                              id={`privacy-${index}`}
+                              checked={!!field.value}
+                              onCheckedChange={(v) =>
+                                field.onChange(Boolean(v))
+                              }
+                              disabled={isLocked}
+                              className="h-4 w-4 border-2 border-slate-500 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                            />
+                            <Label
+                              htmlFor={`privacy-${index}`}
+                              className="cursor-pointer text-sm font-medium text-slate-800"
+                            >
+                              Privacy
+                            </Label>
+                          </div>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {!isLinearMaterial && (
+              <div className="border-b last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => setIsMuntinOpen((prev) => !prev)}
+                  className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
+                >
+                  <span className="text-base font-semibold">Muntin</span>
+
+                  <ChevronDownIcon
+                    className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
+                      isMuntinOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isMuntinOpen && (
+                  <div className="pb-4 text-sm">
+                    {!selectedConfig ? (
+                      <p className="text-sm text-muted-foreground pt-2">
+                        Select a configuration first to configure muntin.
+                      </p>
+                    ) : !currentMuntin ? (
+                      <p className="text-sm text-muted-foreground pt-2">
+                        Muntin will be initialized automatically for this
+                        configuration.
+                      </p>
+                    ) : (
+                      <div
+                        className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           <div>
-                            <Label className={fieldLabelClass}>Type</Label>
+                            <Label className={fieldLabelClass}>Pattern</Label>
                             <Select
                               disabled={isLocked}
-                              value={
-                                currentMuntin?.idType
-                                  ? String(currentMuntin.idType)
-                                  : undefined
-                              }
-                              onValueChange={handleMuntinTypeChange}
+                              value={String(currentMuntin.idPattern || "")}
+                              onValueChange={handleMuntinPatternChange}
                             >
                               <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select type..." />
+                                <SelectValue placeholder="Select pattern..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {activeMuntinTypes.map((type) => (
+                                {activeMuntinPatterns.map((pattern) => (
                                   <SelectItem
-                                    key={type.id}
-                                    value={String(type.id)}
+                                    key={pattern.id}
+                                    value={String(pattern.id)}
                                   >
-                                    {type.name}
+                                    {pattern.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </div>
+
+                          {patternRequiresLites && hasMuntinLayout && (
+                            <div>
+                              <Label className={fieldLabelClass}>Type</Label>
+                              <Select
+                                disabled={isLocked}
+                                value={
+                                  currentMuntin?.idType
+                                    ? String(currentMuntin.idType)
+                                    : undefined
+                                }
+                                onValueChange={handleMuntinTypeChange}
+                              >
+                                <SelectTrigger className={selectTriggerClass}>
+                                  <SelectValue placeholder="Select type..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {activeMuntinTypes.map((type) => (
+                                    <SelectItem
+                                      key={type.id}
+                                      value={String(type.id)}
+                                    >
+                                      {type.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+
+                        {!patternRequiresLites ? (
+                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                            This pattern does not use lites. Full view will be
+                            shown.
+                          </div>
+                        ) : !hasMuntinLayout ? (
+                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                            This configuration supports Full View only.
+                          </div>
+                        ) : currentMuntinPanels.length === 0 ? (
+                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                            This configuration does not define a muntin panel
+                            layout.
+                          </div>
+                        ) : (
+                          <div className="rounded-md border border-slate-200 overflow-hidden">
+                            <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                              <div>Panel</div>
+                              <div>Horizontal</div>
+                              <div>Vertical</div>
+                            </div>
+
+                            <div className="divide-y divide-slate-200 bg-white">
+                              {currentMuntinPanels.map((panel) => (
+                                <div
+                                  key={panel.panelIndex}
+                                  className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                                >
+                                  <div className="font-medium text-slate-700">
+                                    {panel.panelLabel}
+                                  </div>
+
+                                  <Input
+                                    className={inputClass}
+                                    type="number"
+                                    min={1}
+                                    disabled={isLocked}
+                                    value={panel.horizontalLites}
+                                    onChange={(e) =>
+                                      handleMuntinPanelChange(
+                                        panel.panelIndex,
+                                        "horizontalLites",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+
+                                  <Input
+                                    className={inputClass}
+                                    type="number"
+                                    min={1}
+                                    disabled={isLocked}
+                                    value={panel.verticalLites}
+                                    onChange={(e) =>
+                                      handleMuntinPanelChange(
+                                        panel.panelIndex,
+                                        "verticalLites",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
-
-                      {!patternRequiresLites ? (
-                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                          This pattern does not use lites. Full view will be
-                          shown.
-                        </div>
-                      ) : !hasMuntinLayout ? (
-                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                          This configuration supports Full View only.
-                        </div>
-                      ) : currentMuntinPanels.length === 0 ? (
-                        <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                          This configuration does not define a muntin panel
-                          layout.
-                        </div>
-                      ) : (
-                        <div className="rounded-md border border-slate-200 overflow-hidden">
-                          <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                            <div>Panel</div>
-                            <div>Horizontal</div>
-                            <div>Vertical</div>
-                          </div>
-
-                          <div className="divide-y divide-slate-200 bg-white">
-                            {currentMuntinPanels.map((panel) => (
-                              <div
-                                key={panel.panelIndex}
-                                className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
-                              >
-                                <div className="font-medium text-slate-700">
-                                  {panel.panelLabel}
-                                </div>
-
-                                <Input
-                                  className={inputClass}
-                                  type="number"
-                                  min={1}
-                                  disabled={isLocked}
-                                  value={panel.horizontalLites}
-                                  onChange={(e) =>
-                                    handleMuntinPanelChange(
-                                      panel.panelIndex,
-                                      "horizontalLites",
-                                      e.target.value,
-                                    )
-                                  }
-                                />
-
-                                <Input
-                                  className={inputClass}
-                                  type="number"
-                                  min={1}
-                                  disabled={isLocked}
-                                  value={panel.verticalLites}
-                                  onChange={(e) =>
-                                    handleMuntinPanelChange(
-                                      panel.panelIndex,
-                                      "verticalLites",
-                                      e.target.value,
-                                    )
-                                  }
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <AccordionItem value="item-details">
               <AccordionTrigger className="font-semibold text-base">

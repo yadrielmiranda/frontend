@@ -152,11 +152,13 @@ function AvailableConfigsGroupedList({
 
 function AssociatedConfigRow({
   systemId,
+  isLinearMaterial,
   config,
   onRemove,
   onToggleAllowScreen,
 }: {
   systemId: number;
+  isLinearMaterial: boolean;
   config: AssociatedConfig;
   onRemove: (configId: number) => Promise<void>;
   onToggleAllowScreen: (
@@ -205,39 +207,47 @@ function AssociatedConfigRow({
       <div className="text-sm">{config.conf}</div>
 
       <div className="flex items-center gap-3">
-        <Switch
-          id={switchId}
-          checked={checked}
-          disabled={isSaving}
-          onCheckedChange={requestToggle}
-          aria-label={`Toggle screen for config ${config.conf}`}
-        />
+        {isLinearMaterial ? (
+          <span className="text-sm text-muted-foreground">Not applicable</span>
+        ) : (
+          <>
+            <Switch
+              id={switchId}
+              checked={checked}
+              disabled={isSaving}
+              onCheckedChange={requestToggle}
+              aria-label={`Toggle screen for config ${config.conf}`}
+            />
 
-        <Label htmlFor={switchId} className="text-sm font-normal">
-          {checked ? "Allowed" : "Not allowed"}
-        </Label>
+            <Label htmlFor={switchId} className="text-sm font-normal">
+              {checked ? "Allowed" : "Not allowed"}
+            </Label>
+          </>
+        )}
       </div>
 
       <div className="flex justify-end gap-1">
-        <TooltipProvider delayDuration={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                aria-label="Manage options"
-              >
-                <Link
-                  href={`/settings/systems/${systemId}/configs/${config.id}/options`}
+        {!isLinearMaterial && (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  aria-label="Manage options"
                 >
-                  <Settings2 className="h-4 w-4 text-blue-600" />
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Manage Options</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                  <Link
+                    href={`/settings/systems/${systemId}/configs/${config.id}/options`}
+                  >
+                    <Settings2 className="h-4 w-4 text-blue-600" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Manage Options</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         <TooltipProvider delayDuration={150}>
           <Tooltip>
@@ -304,11 +314,13 @@ function AssociatedConfigRow({
 
 function AssociatedConfigsGroupedList({
   systemId,
+  isLinearMaterial,
   configs,
   onRemove,
   onToggleAllowScreen,
 }: {
   systemId: number;
+  isLinearMaterial: boolean;
   configs: AssociatedConfig[];
   onRemove: (configId: number) => Promise<void>;
   onToggleAllowScreen: (
@@ -339,6 +351,7 @@ function AssociatedConfigsGroupedList({
     <AssociatedConfigRow
       key={config.id}
       systemId={systemId}
+      isLinearMaterial={isLinearMaterial}
       config={config}
       onRemove={onRemove}
       onToggleAllowScreen={onToggleAllowScreen}
@@ -390,6 +403,7 @@ function AssociatedConfigsGroupedList({
 interface SystemConfigsClientProps {
   systemId: number;
   systemName: string;
+  isLinearMaterial?: boolean;
   initialAssociatedConfigs: AssociatedConfig[];
   initialAvailableConfigs: AvailableConfig[];
 }
@@ -397,6 +411,7 @@ interface SystemConfigsClientProps {
 export function SystemConfigsClient({
   systemId,
   systemName,
+  isLinearMaterial = false,
   initialAssociatedConfigs,
   initialAvailableConfigs,
 }: SystemConfigsClientProps) {
@@ -543,6 +558,7 @@ export function SystemConfigsClient({
           <div className="mt-2">
             <AssociatedConfigsGroupedList
               systemId={systemId}
+              isLinearMaterial={isLinearMaterial}
               configs={initialAssociatedConfigs}
               onRemove={handleRemove}
               onToggleAllowScreen={handleToggleAllowScreen}

@@ -40,7 +40,13 @@ export interface Product {
   id: number;
   name: string;
   isActive: boolean;
+  kind: ProductKind;
+  pricingMode: PricingMode;
 }
+
+export type ProductKind = "GLAZED_UNIT" | "LINEAR_MATERIAL";
+
+export type PricingMode = "AREA_PERIMETER" | "LINEAR_INCH";
 
 export interface ConfigCategory {
   id: number;
@@ -210,10 +216,10 @@ export interface Piece {
   panelCount?: number | null;
   horizontalHeights?: number[] | null;
 
-  idCryst: number;
-  idTint: number;
+  idCryst?: number | null;
+  idTint?: number | null;
   privacy: boolean;
-  idCoat: number;
+  idCoat?: number | null;
   screen: boolean;
   highBottom: boolean;
   highBottomPercent?: number | null;
@@ -327,6 +333,38 @@ export interface PricingRule {
   crystal?: { glass: string };
 }
 
+export interface LinearPricingRule {
+  id: number;
+  idBrand: number;
+  idProduct: number;
+  idSystem: number;
+  idConfig: number;
+
+  costPerInch: number;
+  minLengthIn: number;
+  maxLengthIn: number;
+
+  brand?: Brand;
+  product?: Product;
+  system?: System;
+  config?: Config;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CreateLinearPricingRuleData = {
+  idBrand: number;
+  idProduct: number;
+  idSystem: number;
+  idConfig: number;
+  costPerInch: number;
+  minLengthIn?: number;
+  maxLengthIn?: number;
+};
+
+export type UpdateLinearPricingRuleData = Partial<CreateLinearPricingRuleData>;
+
 // --- Tipos con Relaciones (Para Obtener y Mostrar Datos) ---
 
 export interface PieceMuntinPanelRelation {
@@ -360,9 +398,9 @@ export interface PieceWithRelations extends Piece {
   syst: System;
   conf: Config;
   fColor: FrameColor;
-  cryst: Crystal;
-  tin: Tint;
-  coat: Coating;
+  cryst: Crystal | null;
+  tin: Tint | null;
+  coat: Coating | null;
 
   activeOption?: ActiveOption | null;
   preparationOption?: PreparationOption | null;
@@ -435,11 +473,15 @@ export type OrderWithRelations = Order & {
 
 export type CreateProductData = {
   name: string;
+  kind?: ProductKind;
+  pricingMode?: PricingMode;
 };
 
 export type UpdateProductData = {
   name?: string;
   isActive?: boolean;
+  kind?: ProductKind;
+  pricingMode?: PricingMode;
 };
 
 export type CreateBrandData = {
@@ -514,11 +556,11 @@ export interface CreatePieceData {
   panelCount?: number | null;
   horizontalHeights?: number[] | null;
 
-  idCryst: number;
-  idTint: number;
-  privacy: boolean;
-  idCoat: number;
-  screen: boolean;
+  idCryst?: number | null;
+  idTint?: number | null;
+  privacy?: boolean;
+  idCoat?: number | null;
+  screen?: boolean;
   highBottom?: boolean;
 
   idActiveOption?: number | null;

@@ -36,6 +36,9 @@ export default async function ManageSystemConfigsPage({
     allowScreen: sc.allowScreen,
   }));
 
+  const isLinearMaterial =
+    systemData.brandProduct?.product?.kind === "LINEAR_MATERIAL";
+
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-4xl mx-auto mb-4">
@@ -69,6 +72,7 @@ export default async function ManageSystemConfigsPage({
           <SystemConfigsClient
             systemId={systemId}
             systemName={systemData.name}
+            isLinearMaterial={isLinearMaterial}
             initialAssociatedConfigs={associatedConfigs}
             initialAvailableConfigs={availableConfigs}
           />

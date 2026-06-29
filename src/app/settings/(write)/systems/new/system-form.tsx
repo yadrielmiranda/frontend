@@ -32,7 +32,7 @@ type FormValues = {
 
 interface SystemFormProps {
   brands: Brand[];
-  system?: System; // Si se pasa el sistema, el formulario se comporta como edit. Si no, como creación.
+  system?: System;
 }
 
 export function SystemForm({ brands, system }: SystemFormProps) {
@@ -63,13 +63,33 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   });
 
   const watchedBrandId = watch("idBrand");
+  const watchedProductId = watch("idProduct");
+  const watchedAllowHighBottom = watch("allowHighBottom");
+
   const showLoadingState = isSubmitting || isSuccess;
 
-  // Comentario en español: cacheamos el brand inicial para decidir cuándo resetear product
   const initialBrandId = useMemo(
     () => (system?.idBrand ? String(system.idBrand) : ""),
     [system?.idBrand],
   );
+
+  const selectedProduct = useMemo(() => {
+    const productId = Number(watchedProductId);
+    if (!productId) return null;
+
+    return (
+      availableProducts.find((product) => product.id === productId) ??
+      (system?.idProduct === productId ? system.brandProduct?.product : null) ??
+      null
+    );
+  }, [
+    availableProducts,
+    watchedProductId,
+    system?.idProduct,
+    system?.brandProduct?.product,
+  ]);
+
+  const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
 
   useEffect(() => {
     const fetchProductsForBrand = async () => {
@@ -79,6 +99,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       }
 
       setIsProductLoading(true);
+
       try {
         const brandWithProducts = await getBrandWithProducts(
           Number(watchedBrandId),
@@ -87,6 +108,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         const products = brandWithProducts.brandProducts.map(
           (bp: any) => bp.product,
         );
+
         setAvailableProducts(products);
       } catch (err) {
         console.error("Error fetching products for brand:", err);
@@ -98,7 +120,6 @@ export function SystemForm({ brands, system }: SystemFormProps) {
 
     fetchProductsForBrand();
 
-    // Comentario en español: si cambió la marca (respecto a la inicial), reseteamos el producto
     if (watchedBrandId && watchedBrandId !== initialBrandId) {
       setValue("idProduct", "", { shouldDirty: true });
     }
@@ -106,12 +127,18 @@ export function SystemForm({ brands, system }: SystemFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedBrandId]);
 
+  useEffect(() => {
+    if (isLinearMaterial && watchedAllowHighBottom) {
+      setValue("allowHighBottom", false, { shouldDirty: true });
+    }
+  }, [isLinearMaterial, watchedAllowHighBottom, setValue]);
+
   const onSubmit = handleSubmit(async (data) => {
     const payload = {
       name: data.name.trim(),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
-      allowHighBottom: Boolean(data.allowHighBottom),
+      allowHighBottom: isLinearMaterial ? false : Boolean(data.allowHighBottom),
       ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
     };
 
@@ -136,7 +163,6 @@ export function SystemForm({ brands, system }: SystemFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {/* Name */}
       <div className="flex flex-col space-y-1.5">
         <Label htmlFor="name">System Name</Label>
         <Input
@@ -144,14 +170,17 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           placeholder="e.g. Sliding Series 100"
           autoComplete="off"
           disabled={showLoadingState}
-          {...register("name", { required: "System name is required." })}
+          {...register("name", {
+            required: "System name is required.",
+            validate: (value) =>
+              value.trim().length > 0 || "System name is required.",
+          })}
         />
         {errors.name && (
           <p className="text-sm text-destructive">{errors.name.message}</p>
         )}
       </div>
 
-      {/* Brand */}
       <div className="flex flex-col space-y-1.5">
         <Label htmlFor="brand">Brand</Label>
         <Controller
@@ -182,7 +211,6 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         )}
       </div>
 
-      {/* Product */}
       <div className="flex flex-col space-y-1.5">
         <Label htmlFor="product">Product</Label>
         <Controller
@@ -219,42 +247,50 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         {errors.idProduct && (
           <p className="text-sm text-destructive">{errors.idProduct.message}</p>
         )}
+
+        {isLinearMaterial && (
+          <p className="text-xs text-muted-foreground">
+            Linear Material systems do not support High Bottom.
+          </p>
+        )}
       </div>
 
-      <Controller
-        name="allowHighBottom"
-        control={control}
-        render={({ field }) => (
-          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-            <Checkbox
-              checked={field.value}
-              onCheckedChange={(checked) => field.onChange(checked === true)}
-              disabled={showLoadingState}
-            />
+      {!isLinearMaterial && (
+        <Controller
+          name="allowHighBottom"
+          control={control}
+          render={({ field }) => (
+            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+                disabled={showLoadingState}
+              />
 
-            <span className="space-y-0.5">
-              <span className="block font-medium">Allow High Bottom</span>
-              <span className="block text-xs text-muted-foreground">
-                Enables the High Bottom option for all configurations in this
-                system.
+              <span className="space-y-0.5">
+                <span className="block font-medium">Allow High Bottom</span>
+                <span className="block text-xs text-muted-foreground">
+                  Enables the High Bottom option for all configurations in this
+                  system.
+                </span>
               </span>
-            </span>
-          </label>
-        )}
-      />
+            </label>
+          )}
+        />
+      )}
 
       {isEdit && (
         <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
           <input
             type="checkbox"
             className="h-4 w-4"
+            disabled={showLoadingState}
             {...register("isActive")}
           />
           <span>Active</span>
         </label>
       )}
 
-      {/* Footer */}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel

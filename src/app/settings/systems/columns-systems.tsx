@@ -92,6 +92,9 @@ export function getSystemColumns({
     id: "actions",
     cell: ({ row }) => {
       const system = row.original;
+      const isLinearMaterial =
+        system.brandProduct?.product?.kind === "LINEAR_MATERIAL";
+
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
       const router = useRouter();
 
@@ -136,14 +139,16 @@ export function getSystemColumns({
                   Manage Configs
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/settings/systems/${system.id}/crystals`}>
-                  Manage Glass
-                </Link>
-              </DropdownMenuItem>
+              {!isLinearMaterial && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/settings/systems/${system.id}/crystals`}>
+                    Manage Glass
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link href={`/settings/systems/${system.id}/frame-colors`}>
-                  Manage Frame Colors
+                  {isLinearMaterial ? "Manage Colors" : "Manage Frame Colors"}
                 </Link>
               </DropdownMenuItem>
 
