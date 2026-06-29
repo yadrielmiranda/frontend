@@ -278,8 +278,10 @@ export function PieceForm({
 
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
+
     return props.systemsWithConfigs.filter(
       (system) =>
+        system.isActive === true &&
         system.idProduct === Number(idProd) &&
         system.idBrand === Number(brandId),
     );
@@ -328,7 +330,7 @@ export function PieceForm({
   const availableConfigs = useMemo(() => {
     return availableSysConfs
       .map((sc) => sc.config)
-      .filter((c): c is Config => !!c);
+      .filter((c): c is Config => Boolean(c) && c.isActive === true);
   }, [availableSysConfs]);
 
   const groupedConfigs = useMemo(() => {
