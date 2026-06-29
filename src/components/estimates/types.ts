@@ -39,6 +39,7 @@ export interface PieceFormValues extends CreatePieceData {
   legHeight?: string | null;
 
   doorWidth?: string | null;
+  doorHeight?: string | null;
   leftSideliteWidth?: string | null;
   rightSideliteWidth?: string | null;
   leftPanels?: number | null;

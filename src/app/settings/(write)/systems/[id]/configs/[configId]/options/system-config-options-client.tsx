@@ -80,6 +80,7 @@ type DimensionRequirementKey =
   | "requiresHeightRight"
   | "requiresLegHeight"
   | "requiresDoorWidth"
+  | "requiresDoorHeight"
   | "requiresLeftSideliteWidth"
   | "requiresRightSideliteWidth"
   | "requiresLeftPanels"
@@ -108,7 +109,7 @@ const dimensionRequirementLabels: {
   },
   {
     key: "requiresHeight",
-    label: "Height",
+    label: "Height / Opening Height",
     description: "Main height required for this configuration.",
   },
   {
@@ -130,6 +131,12 @@ const dimensionRequirementLabels: {
     key: "requiresDoorWidth",
     label: "Door Width",
     description: "Door panel width required for door systems.",
+  },
+  {
+    key: "requiresDoorHeight",
+    label: "Door Height",
+    description:
+      "Door panel height required for door systems with transom or separate door height.",
   },
   {
     key: "requiresLeftSideliteWidth",
@@ -172,6 +179,7 @@ const buildInitialRequirements = (
   requiresHeightRight: data.requiresHeightRight ?? false,
   requiresLegHeight: data.requiresLegHeight ?? false,
   requiresDoorWidth: data.requiresDoorWidth ?? false,
+  requiresDoorHeight: data.requiresDoorHeight ?? false,
   requiresLeftSideliteWidth: data.requiresLeftSideliteWidth ?? false,
   requiresRightSideliteWidth: data.requiresRightSideliteWidth ?? false,
   requiresLeftPanels: data.requiresLeftPanels ?? false,
@@ -187,6 +195,7 @@ const emptyRequirements: DimensionRequirementsState = {
   requiresHeightRight: false,
   requiresLegHeight: false,
   requiresDoorWidth: false,
+  requiresDoorHeight: false,
   requiresLeftSideliteWidth: false,
   requiresRightSideliteWidth: false,
   requiresLeftPanels: false,
@@ -269,7 +278,7 @@ function DimensionSettingsCard({
             </div>
 
             <Switch
-              checked={requirements[item.key]}              
+              checked={requirements[item.key]}
               onCheckedChange={(checked) =>
                 onRequirementChange(item.key, checked)
               }

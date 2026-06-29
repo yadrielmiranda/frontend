@@ -40,6 +40,7 @@ export type UpdateSystemConfigOptionsData = {
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
   requiresDoorWidth?: boolean;
+  requiresDoorHeight?: boolean;
   requiresLeftSideliteWidth?: boolean;
   requiresRightSideliteWidth?: boolean;
   requiresLeftPanels?: boolean;
@@ -99,6 +100,7 @@ export type SystemConfigOptionsManage = {
   requiresHeightRight: boolean;
   requiresLegHeight: boolean;
   requiresDoorWidth: boolean;
+  requiresDoorHeight: boolean;
   requiresLeftSideliteWidth: boolean;
   requiresRightSideliteWidth: boolean;
   requiresLeftPanels: boolean;

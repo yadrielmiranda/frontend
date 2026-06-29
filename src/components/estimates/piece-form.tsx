@@ -87,6 +87,7 @@ type SystemConfigLink = {
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
   requiresDoorWidth?: boolean;
+  requiresDoorHeight?: boolean;
   requiresLeftSideliteWidth?: boolean;
   requiresRightSideliteWidth?: boolean;
   requiresLeftPanels?: boolean;
@@ -205,6 +206,7 @@ export function PieceForm({
       legHeight: initialData.legHeight ?? "",
       sashHeight: initialData.sashHeight ?? "",
       doorWidth: initialData.doorWidth ?? "",
+      doorHeight: initialData.doorHeight ?? "",
       leftSideliteWidth: initialData.leftSideliteWidth ?? "",
       rightSideliteWidth: initialData.rightSideliteWidth ?? "",
       leftPanels: initialData.leftPanels ?? null,
@@ -465,6 +467,7 @@ export function PieceForm({
         requiresSashHeight: false,
 
         requiresDoorWidth: false,
+        requiresDoorHeight: false,
         requiresLeftSideliteWidth: false,
         requiresRightSideliteWidth: false,
         requiresLeftPanels: false,
@@ -484,6 +487,7 @@ export function PieceForm({
         requiresSashHeight: !!selectedConfig?.requiresSashHeight,
 
         requiresDoorWidth: false,
+        requiresDoorHeight: false,
         requiresLeftSideliteWidth: false,
         requiresRightSideliteWidth: false,
         requiresLeftPanels: false,
@@ -502,6 +506,7 @@ export function PieceForm({
       requiresSashHeight: false,
 
       requiresDoorWidth: !!selectedSysConf?.requiresDoorWidth,
+      requiresDoorHeight: !!selectedSysConf?.requiresDoorHeight,
       requiresLeftSideliteWidth: !!selectedSysConf?.requiresLeftSideliteWidth,
       requiresRightSideliteWidth: !!selectedSysConf?.requiresRightSideliteWidth,
       requiresLeftPanels: !!selectedSysConf?.requiresLeftPanels,
@@ -525,6 +530,14 @@ export function PieceForm({
     : selectedSystem?.allowHighBottom === true;
   const requiresSashHeight = dimensionRequirements.requiresSashHeight === true;
 
+  const widthLabel = dimensionRequirements.requiresDoorWidth
+    ? "Opening Width"
+    : "Width";
+
+  const heightLabel = dimensionRequirements.requiresDoorHeight
+    ? "Opening Height"
+    : "Height";
+
   useEffect(() => {
     if (!requiresSashHeight && getValues("sashHeight")) {
       setValue("sashHeight", "", {
@@ -533,6 +546,15 @@ export function PieceForm({
       });
     }
   }, [requiresSashHeight, getValues, setValue]);
+
+  useEffect(() => {
+    if (!dimensionRequirements.requiresDoorHeight && getValues("doorHeight")) {
+      setValue("doorHeight", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [dimensionRequirements.requiresDoorHeight, getValues, setValue]);
 
   useEffect(() => {
     if (!highBottomAllowed) {
@@ -1081,6 +1103,8 @@ export function PieceForm({
 
       if (dimensionRequirements.requiresDoorWidth)
         fieldsToValidate.push("doorWidth");
+      if (dimensionRequirements.requiresDoorHeight)
+        fieldsToValidate.push("doorHeight");
       if (dimensionRequirements.requiresLeftSideliteWidth)
         fieldsToValidate.push("leftSideliteWidth");
       if (dimensionRequirements.requiresRightSideliteWidth)
@@ -1107,11 +1131,11 @@ export function PieceForm({
       }
 
       const widthNorm = dimensionRequirements.requiresWidth
-        ? normalizeInchesToEighthStep(currentValues.width, "Width", 1)
+        ? normalizeInchesToEighthStep(currentValues.width, widthLabel, 1)
         : undefined;
 
       const heightNorm = dimensionRequirements.requiresHeight
-        ? normalizeInchesToEighthStep(currentValues.height, "Height", 1)
+        ? normalizeInchesToEighthStep(currentValues.height, heightLabel, 1)
         : undefined;
 
       const heightLeftNorm = dimensionRequirements.requiresHeightLeft
@@ -1154,7 +1178,7 @@ export function PieceForm({
             : Number(currentValues.height || 0);
 
         if (!Number.isFinite(totalHeightForSash) || totalHeightForSash <= 0) {
-          toast.error("Height is required to validate Sash Height.");
+          toast.error(`${heightLabel} is required to validate Sash Height.`);
           return;
         }
 
@@ -1171,6 +1195,34 @@ export function PieceForm({
       const doorWidthNorm = dimensionRequirements.requiresDoorWidth
         ? normalizeInchesToEighthStep(currentValues.doorWidth, "Door Width", 1)
         : undefined;
+
+      const doorHeightNorm = dimensionRequirements.requiresDoorHeight
+        ? normalizeInchesToEighthStep(
+            currentValues.doorHeight,
+            "Door Height",
+            1,
+          )
+        : undefined;
+
+      if (doorHeightNorm !== undefined) {
+        const openingHeightForDoor =
+          heightNorm !== undefined
+            ? heightNorm
+            : Number(currentValues.height || 0);
+
+        if (
+          !Number.isFinite(openingHeightForDoor) ||
+          openingHeightForDoor <= 0
+        ) {
+          toast.error(`${heightLabel} is required to validate Door Height.`);
+          return;
+        }
+
+        if (doorHeightNorm > openingHeightForDoor) {
+          toast.error(`Door Height cannot be greater than ${heightLabel}.`);
+          return;
+        }
+      }
 
       const leftSideliteWidthNorm =
         dimensionRequirements.requiresLeftSideliteWidth
@@ -1204,6 +1256,10 @@ export function PieceForm({
         setValue("doorWidth", String(doorWidthNorm));
       }
 
+      if (doorHeightNorm !== undefined) {
+        setValue("doorHeight", String(doorHeightNorm));
+      }
+
       if (leftSideliteWidthNorm !== undefined) {
         setValue("leftSideliteWidth", String(leftSideliteWidthNorm));
       }
@@ -1231,6 +1287,8 @@ export function PieceForm({
           sashHeightNorm !== undefined ? String(sashHeightNorm) : undefined,
         doorWidth:
           doorWidthNorm !== undefined ? String(doorWidthNorm) : undefined,
+        doorHeight:
+          doorHeightNorm !== undefined ? String(doorHeightNorm) : undefined,
         leftSideliteWidth:
           leftSideliteWidthNorm !== undefined
             ? String(leftSideliteWidthNorm)
@@ -1310,6 +1368,7 @@ export function PieceForm({
           legHeight: legHeightNorm,
 
           doorWidth: doorWidthNorm,
+          doorHeight: doorHeightNorm,
           leftSideliteWidth: leftSideliteWidthNorm,
           rightSideliteWidth: rightSideliteWidthNorm,
           leftPanels: pieceDtoToSend.leftPanels ?? undefined,
@@ -2039,9 +2098,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresWidth && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
-                              {isStandardDimensionMode
-                                ? "Width (inches)"
-                                : "Opening Width (inches)"}
+                              {widthLabel} (inches)
                             </Label>
                             <Input
                               className={inputClass}
@@ -2049,7 +2106,7 @@ export function PieceForm({
                               type="text"
                               disabled={isLocked}
                               {...register("width", {
-                                required: "Width is required",
+                                required: `${widthLabel} is required`,
                               })}
                               onBlur={(e) => {
                                 const raw = e.target.value;
@@ -2057,7 +2114,7 @@ export function PieceForm({
                                 try {
                                   const v = normalizeInchesToEighthStep(
                                     raw,
-                                    "Width",
+                                    widthLabel,
                                     1,
                                   );
                                   setValue("width", String(v), {
@@ -2081,7 +2138,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresHeight && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
-                              Height (inches)
+                              {heightLabel} (inches)
                             </Label>
                             <Input
                               className={inputClass}
@@ -2089,7 +2146,7 @@ export function PieceForm({
                               type="text"
                               disabled={isLocked}
                               {...register("height", {
-                                required: "Height is required",
+                                required: `${heightLabel} is required`,
                               })}
                               onBlur={(e) => {
                                 const raw = e.target.value;
@@ -2097,7 +2154,7 @@ export function PieceForm({
                                 try {
                                   const v = normalizeInchesToEighthStep(
                                     raw,
-                                    "Height",
+                                    heightLabel,
                                     1,
                                   );
                                   setValue("height", String(v), {
@@ -2316,6 +2373,48 @@ export function PieceForm({
                             {errors.doorWidth && (
                               <p className="mt-1 text-xs text-red-500">
                                 {errors.doorWidth.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresDoorHeight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Door Height (inches)
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("doorHeight", {
+                                required: "Door Height is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+
+                                try {
+                                  const v = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Door Height",
+                                    1,
+                                  );
+
+                                  setValue("doorHeight", String(v), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (err) {
+                                  if (err instanceof DimensionParseError) {
+                                    toast.error(err.message);
+                                  }
+                                }
+                              }}
+                            />
+                            {errors.doorHeight && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.doorHeight.message}
                               </p>
                             )}
                           </div>

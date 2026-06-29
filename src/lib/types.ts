@@ -209,6 +209,7 @@ export interface Piece {
   sashHeight?: string | null;
 
   doorWidth?: string | null;
+  doorHeight?: string | null;
   leftSideliteWidth?: string | null;
   rightSideliteWidth?: string | null;
   leftPanels?: number | null;
@@ -429,6 +430,7 @@ export interface SysConf {
   requiresHeightRight: boolean;
   requiresLegHeight: boolean;
   requiresDoorWidth: boolean;
+  requiresDoorHeight: boolean;
   requiresLeftSideliteWidth: boolean;
   requiresRightSideliteWidth: boolean;
   requiresLeftPanels: boolean;
@@ -549,6 +551,7 @@ export interface CreatePieceData {
   sashHeight?: string | null;
 
   doorWidth?: string | null;
+  doorHeight?: string | null;
   leftSideliteWidth?: string | null;
   rightSideliteWidth?: string | null;
   leftPanels?: number | null;
