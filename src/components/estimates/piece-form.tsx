@@ -268,13 +268,24 @@ export function PieceForm({
 
   const availableBrands = useMemo(() => {
     if (!idProd) return [];
+
     const selectedProduct = props.productsWithBrands.find(
       (p) => p.id === Number(idProd),
     );
-    return selectedProduct
-      ? selectedProduct.brandProducts.map((bp) => bp.brand)
-      : [];
-  }, [idProd, props.productsWithBrands]);
+
+    if (!selectedProduct) return [];
+
+    return selectedProduct.brandProducts
+      .map((bp) => bp.brand)
+      .filter((brand) =>
+        props.systemsWithConfigs.some(
+          (system) =>
+            system.isActive === true &&
+            system.idProduct === Number(idProd) &&
+            system.idBrand === brand.id,
+        ),
+      );
+  }, [idProd, props.productsWithBrands, props.systemsWithConfigs]);
 
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
