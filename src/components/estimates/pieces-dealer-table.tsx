@@ -2,14 +2,13 @@
 
 import React from "react";
 import { Trash2, Pencil, Copy, ChevronDown } from "lucide-react";
-
-import type { ProductWithBrands, FrameColor } from "@/lib/types";
 import type { PieceFormValues } from "./types";
-
 import { Button } from "@/components/ui/button";
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
 import type {
+  ProductWithBrands,
+  FrameColor,
   SystemWithConfigs,
   Crystal,
   Tint,
@@ -96,6 +95,23 @@ export function PiecesDealerTable({
               (fc) => fc.id === Number(currentPieceData.idFC),
             );
 
+            const selectedSystem = systemsWithConfigs.find(
+              (s) => s.id === Number(currentPieceData.idSyst),
+            );
+
+            const selectedSysConf = selectedSystem?.sysconfs?.find(
+              (sc) =>
+                Number(sc.config?.id ?? sc.idConfig) ===
+                Number(currentPieceData.idConf),
+            ) as any;
+
+            const widthToken = selectedSysConf?.requiresDoorWidth
+              ? "Open W"
+              : "W";
+            const heightToken = selectedSysConf?.requiresDoorHeight
+              ? "Open H"
+              : "H";
+
             const qty = Number(currentPieceData.qty) || 0;
             const unitRate = Number(currentPieceData.price) || 0;
 
@@ -117,12 +133,90 @@ export function PiecesDealerTable({
               : null;
 
             const descriptionParts: string[] = [];
+
             if (product?.name) descriptionParts.push(product.name);
+
             if (currentPieceData.width || currentPieceData.height) {
               descriptionParts.push(
-                `${wTxt} W x ${hTxt} H${sashTxt ? ` / Sash ${sashTxt}` : ""}`,
+                `${wTxt} ${widthToken} x ${hTxt} ${heightToken}${
+                  sashTxt ? ` / Sash ${sashTxt}` : ""
+                }`,
               );
             }
+
+            if (currentPieceData.heightLeft) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.heightLeft)} HL`,
+              );
+            }
+
+            if (currentPieceData.heightRight) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.heightRight)} HR`,
+              );
+            }
+
+            if (currentPieceData.legHeight) {
+              descriptionParts.push(
+                `${formatInchesFromEighthStep(currentPieceData.legHeight)} LegH`,
+              );
+            }
+
+            if (currentPieceData.doorWidth || currentPieceData.doorHeight) {
+              const doorWTxt = currentPieceData.doorWidth
+                ? formatInchesFromEighthStep(currentPieceData.doorWidth)
+                : "?";
+
+              const doorHTxt = currentPieceData.doorHeight
+                ? formatInchesFromEighthStep(currentPieceData.doorHeight)
+                : "?";
+
+              descriptionParts.push(`Door ${doorWTxt} W x ${doorHTxt} H`);
+            }
+
+            if (currentPieceData.leftSideliteWidth) {
+              descriptionParts.push(
+                `Left Sidelite ${formatInchesFromEighthStep(
+                  currentPieceData.leftSideliteWidth,
+                )}`,
+              );
+            }
+
+            if (currentPieceData.rightSideliteWidth) {
+              descriptionParts.push(
+                `Right Sidelite ${formatInchesFromEighthStep(
+                  currentPieceData.rightSideliteWidth,
+                )}`,
+              );
+            }
+
+            if (currentPieceData.leftPanels) {
+              descriptionParts.push(
+                `Left Panels ${currentPieceData.leftPanels}`,
+              );
+            }
+
+            if (currentPieceData.rightPanels) {
+              descriptionParts.push(
+                `Right Panels ${currentPieceData.rightPanels}`,
+              );
+            }
+
+            if (currentPieceData.panelCount) {
+              descriptionParts.push(`Panels ${currentPieceData.panelCount}`);
+            }
+
+            if (
+              Array.isArray(currentPieceData.horizontalHeights) &&
+              currentPieceData.horizontalHeights.length > 0
+            ) {
+              descriptionParts.push(
+                `Horizontals @ ${currentPieceData.horizontalHeights
+                  .map((value) => formatInchesFromEighthStep(String(value)))
+                  .join(", ")}`,
+              );
+            }
+
             if (frameColor?.color) descriptionParts.push(frameColor.color);
 
             const description =

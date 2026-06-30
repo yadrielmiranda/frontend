@@ -70,6 +70,14 @@ export function PieceFormDetailsPanel({
     (sc) => sc.idConfig === Number(piece.idConf),
   );
 
+  const widthLabel = selectedSysConf?.requiresDoorWidth
+    ? "Opening Width"
+    : "Width";
+
+  const heightLabel = selectedSysConf?.requiresDoorHeight
+    ? "Opening Height"
+    : "Height";
+
   const muntinLayout = selectedSysConf?.config?.muntinLayout ?? [];
 
   const panelLabelByIndex = new Map(
@@ -121,6 +129,18 @@ export function PieceFormDetailsPanel({
   const sashHeight = formatDimension(piece.sashHeight);
   const legHeight = formatDimension(piece.legHeight);
 
+  const doorWidth = formatDimension(piece.doorWidth);
+  const doorHeight = formatDimension(piece.doorHeight);
+  const leftSideliteWidth = formatDimension(piece.leftSideliteWidth);
+  const rightSideliteWidth = formatDimension(piece.rightSideliteWidth);
+
+  const horizontalPositions =
+    Array.isArray(piece.horizontalHeights) && piece.horizontalHeights.length > 0
+      ? piece.horizontalHeights
+          .map((value) => formatDimension(value))
+          .filter(Boolean)
+      : [];
+
   const dpPlus = piece.dpPosPsf == null ? null : formatPsf(piece.dpPosPsf, 1);
   const dpMinus = piece.dpNegPsf == null ? null : formatPsf(piece.dpNegPsf, 1);
 
@@ -151,7 +171,10 @@ export function PieceFormDetailsPanel({
 
           <p>
             <strong>Size:</strong>{" "}
-            {[width && `${width} W`, height && `${height} H`]
+            {[
+              width && `${width} ${widthLabel}`,
+              height && `${height} ${heightLabel}`,
+            ]
               .filter(Boolean)
               .join(" x ") || "—"}
           </p>
@@ -161,6 +184,7 @@ export function PieceFormDetailsPanel({
               <strong>Height Left:</strong> {heightLeft}
             </p>
           )}
+
           {heightRight && (
             <p>
               <strong>Height Right:</strong> {heightRight}
@@ -176,6 +200,52 @@ export function PieceFormDetailsPanel({
           {legHeight && (
             <p>
               <strong>Leg Height:</strong> {legHeight}
+            </p>
+          )}
+
+          {(doorWidth || doorHeight) && (
+            <p>
+              <strong>Door Size:</strong>{" "}
+              {[doorWidth && `${doorWidth} W`, doorHeight && `${doorHeight} H`]
+                .filter(Boolean)
+                .join(" x ") || "—"}
+            </p>
+          )}
+
+          {leftSideliteWidth && (
+            <p>
+              <strong>Left Sidelite Width:</strong> {leftSideliteWidth}
+            </p>
+          )}
+
+          {rightSideliteWidth && (
+            <p>
+              <strong>Right Sidelite Width:</strong> {rightSideliteWidth}
+            </p>
+          )}
+
+          {piece.leftPanels && (
+            <p>
+              <strong>Left Panels:</strong> {piece.leftPanels}
+            </p>
+          )}
+
+          {piece.rightPanels && (
+            <p>
+              <strong>Right Panels:</strong> {piece.rightPanels}
+            </p>
+          )}
+
+          {piece.panelCount && (
+            <p>
+              <strong>Panel Count:</strong> {piece.panelCount}
+            </p>
+          )}
+
+          {horizontalPositions.length > 0 && (
+            <p>
+              <strong>Horizontal Positions:</strong>{" "}
+              {horizontalPositions.join(", ")} from bottom
             </p>
           )}
 

@@ -106,6 +106,8 @@ type SystemConfigLink = {
   reinforcementOptions?: { optionId: number; option: NamedOption }[];
 };
 
+const MIN_HORIZONTAL_HEIGHT_IN = 18;
+
 function buildDefaultPanelsFromLayout(
   layout: ConfigMuntinLayoutItem[] | null | undefined,
   existingPanels?: PieceMuntin["panels"] | null,
@@ -548,6 +550,17 @@ export function PieceForm({
   }, [requiresSashHeight, getValues, setValue]);
 
   useEffect(() => {
+    const current = getValues("doorWidth");
+
+    if (!dimensionRequirements.requiresDoorWidth && current) {
+      setValue("doorWidth", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [dimensionRequirements.requiresDoorWidth, getValues, setValue]);
+
+  useEffect(() => {
     if (!dimensionRequirements.requiresDoorHeight && getValues("doorHeight")) {
       setValue("doorHeight", "", {
         shouldDirty: true,
@@ -555,6 +568,21 @@ export function PieceForm({
       });
     }
   }, [dimensionRequirements.requiresDoorHeight, getValues, setValue]);
+
+  useEffect(() => {
+    const current = getValues("horizontalHeights");
+
+    if (
+      !dimensionRequirements.requiresHorizontalHeights &&
+      Array.isArray(current) &&
+      current.length > 0
+    ) {
+      setValue("horizontalHeights", null, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [dimensionRequirements.requiresHorizontalHeights, getValues, setValue]);
 
   useEffect(() => {
     if (!highBottomAllowed) {
@@ -1242,6 +1270,87 @@ export function PieceForm({
             )
           : undefined;
 
+      const horizontalHeightsNorm =
+        dimensionRequirements.requiresHorizontalHeights
+          ? (Array.isArray(currentValues.horizontalHeights)
+              ? currentValues.horizontalHeights
+              : []
+            ).map((value, idx) =>
+              normalizeInchesToEighthStep(
+                String(value),
+                `Horizontal Height ${idx + 1}`,
+                1,
+              ),
+            )
+          : undefined;
+
+      if (dimensionRequirements.requiresHorizontalHeights) {
+        if (!horizontalHeightsNorm || horizontalHeightsNorm.length === 0) {
+          toast.error("Horizontal Heights are required.");
+          return;
+        }
+
+        const totalHeightForHorizontals =
+          heightNorm !== undefined
+            ? heightNorm
+            : Number(currentValues.height || 0);
+
+        if (
+          !Number.isFinite(totalHeightForHorizontals) ||
+          totalHeightForHorizontals <= 0
+        ) {
+          toast.error(
+            `${heightLabel} is required to validate Horizontal Heights.`,
+          );
+          return;
+        }
+
+        const sortedHorizontalHeights = [...horizontalHeightsNorm].sort(
+          (a, b) => a - b,
+        );
+
+        const outOfRangeIndex = sortedHorizontalHeights.findIndex(
+          (value) => value <= 0 || value >= totalHeightForHorizontals,
+        );
+
+        if (outOfRangeIndex !== -1) {
+          toast.error(
+            `Horizontal Height ${outOfRangeIndex + 1} must be greater than 0 and less than ${heightLabel}.`,
+          );
+          return;
+        }
+
+        const duplicatedIndex = sortedHorizontalHeights.findIndex(
+          (value, idx) => idx > 0 && value === sortedHorizontalHeights[idx - 1],
+        );
+
+        if (duplicatedIndex !== -1) {
+          toast.error("Horizontal Heights cannot contain duplicate positions.");
+          return;
+        }
+
+        const horizontalPoints = [
+          0,
+          ...sortedHorizontalHeights,
+          totalHeightForHorizontals,
+        ];
+
+        const invalidGapIndex = horizontalPoints.findIndex((point, idx) => {
+          if (idx === 0) return false;
+          return point - horizontalPoints[idx - 1] < MIN_HORIZONTAL_HEIGHT_IN;
+        });
+
+        if (invalidGapIndex !== -1) {
+          const from = horizontalPoints[invalidGapIndex - 1];
+          const to = horizontalPoints[invalidGapIndex];
+
+          toast.error(
+            `The space between ${from}" and ${to}" cannot be less than ${MIN_HORIZONTAL_HEIGHT_IN} inches.`,
+          );
+          return;
+        }
+      }
+
       if (widthNorm !== undefined) setValue("width", String(widthNorm));
       if (heightNorm !== undefined) setValue("height", String(heightNorm));
       if (heightLeftNorm !== undefined)
@@ -1266,6 +1375,13 @@ export function PieceForm({
 
       if (rightSideliteWidthNorm !== undefined) {
         setValue("rightSideliteWidth", String(rightSideliteWidthNorm));
+      }
+
+      if (horizontalHeightsNorm !== undefined) {
+        setValue("horizontalHeights", horizontalHeightsNorm, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       }
 
       const pieceDtoToSend: CalculatePiecePayload = {
@@ -1307,7 +1423,7 @@ export function PieceForm({
           ? Number(currentValues.panelCount || 0)
           : undefined,
         horizontalHeights: dimensionRequirements.requiresHorizontalHeights
-          ? (currentValues.horizontalHeights ?? [])
+          ? horizontalHeightsNorm
           : undefined,
         idCryst: isLinearMaterial ? null : Number(currentValues.idCryst),
         idTint: isLinearMaterial ? null : Number(currentValues.idTint),
@@ -1374,7 +1490,7 @@ export function PieceForm({
           leftPanels: pieceDtoToSend.leftPanels ?? undefined,
           rightPanels: pieceDtoToSend.rightPanels ?? undefined,
           panelCount: pieceDtoToSend.panelCount ?? undefined,
-          horizontalHeights: pieceDtoToSend.horizontalHeights ?? undefined,
+          horizontalHeights: horizontalHeightsNorm ?? undefined,
         });
 
         if (!precheck.ok) {
@@ -1524,6 +1640,55 @@ export function PieceForm({
       })),
     [currentMuntin?.panels],
   );
+
+  const currentHorizontalHeights = useMemo(() => {
+    return Array.isArray(pieceValues.horizontalHeights)
+      ? pieceValues.horizontalHeights
+      : [];
+  }, [pieceValues.horizontalHeights]);
+
+  const handleAddHorizontalHeight = () => {
+    const current = Array.isArray(getValues("horizontalHeights"))
+      ? (getValues("horizontalHeights") ?? [])
+      : [];
+
+    setValue("horizontalHeights", [...current, MIN_HORIZONTAL_HEIGHT_IN], {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const handleRemoveHorizontalHeight = (heightIndex: number) => {
+    const current = Array.isArray(getValues("horizontalHeights"))
+      ? (getValues("horizontalHeights") ?? [])
+      : [];
+
+    const next = current.filter((_, idx) => idx !== heightIndex);
+
+    setValue("horizontalHeights", next.length > 0 ? next : null, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const handleHorizontalHeightChange = (
+    heightIndex: number,
+    rawValue: string,
+  ) => {
+    const current = Array.isArray(getValues("horizontalHeights"))
+      ? (getValues("horizontalHeights") ?? [])
+      : [];
+
+    const numericValue = Number(rawValue || 0);
+
+    const next = [...current];
+    next[heightIndex] = Number.isFinite(numericValue) ? numericValue : 0;
+
+    setValue("horizontalHeights", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
 
   const fieldLabelClass = "mb-2 block text-sm font-semibold text-slate-800";
 
@@ -2568,6 +2733,123 @@ export function PieceForm({
                               <p className="mt-1 text-xs text-red-500">
                                 {errors.panelCount.message}
                               </p>
+                            )}
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresHorizontalHeights && (
+                          <div className="w-full max-w-[640px] rounded-md border border-slate-200 bg-white">
+                            <div className="flex items-center justify-between border-b bg-slate-50 px-3 py-2">
+                              <div>
+                                <Label className="text-sm font-semibold text-slate-800">
+                                  Horizontal Heights
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Positions from bottom. Min spacing{" "}
+                                  {MIN_HORIZONTAL_HEIGHT_IN}
+                                  &quot;.
+                                </p>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isLocked}
+                                onClick={handleAddHorizontalHeight}
+                                className="h-8 px-3"
+                              >
+                                Add
+                              </Button>
+                            </div>
+
+                            {currentHorizontalHeights.length === 0 ? (
+                              <div className="px-3 py-3 text-sm text-slate-600">
+                                Add at least one horizontal height.
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-slate-100">
+                                {currentHorizontalHeights.map(
+                                  (value, heightIndex) => (
+                                    <div
+                                      key={heightIndex}
+                                      className="grid grid-cols-[120px_minmax(120px,180px)_40px] items-center gap-3 px-3 py-2"
+                                    >
+                                      <Label className="text-sm font-medium text-slate-700">
+                                        Horizontal {heightIndex + 1}
+                                      </Label>
+
+                                      <Input
+                                        className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm shadow-none"
+                                        autoComplete="off"
+                                        type="text"
+                                        disabled={isLocked}
+                                        value={
+                                          Number.isFinite(Number(value))
+                                            ? String(value)
+                                            : ""
+                                        }
+                                        onChange={(e) =>
+                                          handleHorizontalHeightChange(
+                                            heightIndex,
+                                            e.target.value,
+                                          )
+                                        }
+                                        onBlur={(e) => {
+                                          const raw = e.target.value;
+                                          if (!raw) return;
+
+                                          try {
+                                            const normalized =
+                                              normalizeInchesToEighthStep(
+                                                raw,
+                                                `Horizontal Height ${heightIndex + 1}`,
+                                                1,
+                                              );
+
+                                            if (
+                                              normalized <
+                                              MIN_HORIZONTAL_HEIGHT_IN
+                                            ) {
+                                              toast.error(
+                                                `Horizontal ${heightIndex + 1} must be at least ${MIN_HORIZONTAL_HEIGHT_IN} inches from the bottom.`,
+                                              );
+                                              return;
+                                            }
+
+                                            handleHorizontalHeightChange(
+                                              heightIndex,
+                                              String(normalized),
+                                            );
+                                          } catch (err) {
+                                            if (
+                                              err instanceof DimensionParseError
+                                            ) {
+                                              toast.error(err.message);
+                                            }
+                                          }
+                                        }}
+                                      />
+
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isLocked}
+                                        onClick={() =>
+                                          handleRemoveHorizontalHeight(
+                                            heightIndex,
+                                          )
+                                        }
+                                        className="h-8 w-8 px-0 text-red-600 hover:text-red-700"
+                                        aria-label={`Remove Horizontal Height ${heightIndex + 1}`}
+                                      >
+                                        ×
+                                      </Button>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
