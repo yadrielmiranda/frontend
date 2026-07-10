@@ -105,12 +105,18 @@ export function PiecesDealerTable({
                 Number(currentPieceData.idConf),
             ) as any;
 
+            const requiresWindowHeight =
+              selectedSysConf?.config?.requiresWindowHeight === true;
+
             const widthToken = selectedSysConf?.requiresDoorWidth
               ? "Open W"
               : "W";
-            const heightToken = selectedSysConf?.requiresDoorHeight
+
+            const heightToken = requiresWindowHeight
               ? "Open H"
-              : "H";
+              : selectedSysConf?.requiresDoorHeight
+                ? "Open H"
+                : "H";
 
             const qty = Number(currentPieceData.qty) || 0;
             const unitRate = Number(currentPieceData.price) || 0;
@@ -132,6 +138,10 @@ export function PiecesDealerTable({
               ? formatInchesFromEighthStep(currentPieceData.sashHeight)
               : null;
 
+            const windowHeightTxt = currentPieceData.windowHeight
+              ? formatInchesFromEighthStep(currentPieceData.windowHeight)
+              : null;
+
             const descriptionParts: string[] = [];
 
             if (product?.name) descriptionParts.push(product.name);
@@ -140,7 +150,7 @@ export function PiecesDealerTable({
               descriptionParts.push(
                 `${wTxt} ${widthToken} x ${hTxt} ${heightToken}${
                   sashTxt ? ` / Sash ${sashTxt}` : ""
-                }`,
+                }${windowHeightTxt ? ` / Window H ${windowHeightTxt}` : ""}`,
               );
             }
 

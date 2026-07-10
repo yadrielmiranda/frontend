@@ -41,6 +41,7 @@ type ConfigBase = Pick<
   | "requiresHeightRight"
   | "requiresLegHeight"
   | "requiresSashHeight"
+  | "requiresWindowHeight"
   | "muntinLayout"
 >;
 
@@ -61,6 +62,7 @@ type FormValues = {
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
+  requiresWindowHeight?: boolean;
   muntinLayout: LayoutFormItem[];
 };
 
@@ -111,6 +113,7 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       requiresHeightRight: config?.requiresHeightRight ?? false,
       requiresLegHeight: config?.requiresLegHeight ?? false,
       requiresSashHeight: config?.requiresSashHeight ?? false,
+      requiresWindowHeight: config?.requiresWindowHeight ?? false,
       muntinLayout: defaultLayout,
     },
   });
@@ -215,6 +218,11 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       shouldValidate: true,
     });
 
+    setValue("requiresWindowHeight", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
     setValue("muntinLayout", [], {
       shouldDirty: true,
       shouldValidate: true,
@@ -274,6 +282,11 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         requiresSashHeight: isLinearMaterial
           ? false
           : Boolean(data.requiresSashHeight),
+
+        requiresWindowHeight: isLinearMaterial
+          ? false
+          : Boolean(data.requiresWindowHeight),
+
         muntinLayout: isLinearMaterial ? [] : normalizedLayout,
       };
 
@@ -543,6 +556,29 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
                   disabled={isLinearMaterial}
                 />
                 <Label htmlFor="requiresSashHeight">Sash Height</Label>
+              </div>
+            )}
+          />
+
+          <Controller
+            name="requiresWindowHeight"
+            control={control}
+            render={({ field }) => (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="requiresWindowHeight"
+                  checked={isLinearMaterial ? false : Boolean(field.value)}
+                  onCheckedChange={(value) => {
+                    if (isLinearMaterial) {
+                      field.onChange(false);
+                      return;
+                    }
+
+                    field.onChange(value);
+                  }}
+                  disabled={isLinearMaterial}
+                />
+                <Label htmlFor="requiresWindowHeight">Window Height</Label>
               </div>
             )}
           />

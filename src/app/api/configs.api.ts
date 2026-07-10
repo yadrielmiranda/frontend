@@ -12,12 +12,15 @@ export type CreateConfigData = {
   idProduct: number;
   categoryId?: number | null;
   isActive?: boolean;
+
   requiresWidth?: boolean;
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
+  requiresWindowHeight?: boolean;
+
   muntinLayout?: ConfigMuntinLayoutItemData[];
 };
 

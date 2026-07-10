@@ -84,8 +84,6 @@ type SystemConfigLink = {
   requiresHeight?: boolean;
   requiresHeightLeft?: boolean;
   requiresHeightRight?: boolean;
-  requiresLegHeight?: boolean;
-  requiresSashHeight?: boolean;
   requiresDoorWidth?: boolean;
   requiresDoorHeight?: boolean;
   requiresLeftSideliteWidth?: boolean;
@@ -207,6 +205,7 @@ export function PieceForm({
       heightRight: initialData.heightRight ?? "",
       legHeight: initialData.legHeight ?? "",
       sashHeight: initialData.sashHeight ?? "",
+      windowHeight: initialData.windowHeight ?? "",
       doorWidth: initialData.doorWidth ?? "",
       doorHeight: initialData.doorHeight ?? "",
       leftSideliteWidth: initialData.leftSideliteWidth ?? "",
@@ -467,6 +466,7 @@ export function PieceForm({
         requiresHeightRight: false,
         requiresLegHeight: false,
         requiresSashHeight: false,
+        requiresWindowHeight: false,
 
         requiresDoorWidth: false,
         requiresDoorHeight: false,
@@ -487,6 +487,7 @@ export function PieceForm({
         requiresHeightRight: !!selectedConfig?.requiresHeightRight,
         requiresLegHeight: !!selectedConfig?.requiresLegHeight,
         requiresSashHeight: !!selectedConfig?.requiresSashHeight,
+        requiresWindowHeight: !!selectedConfig?.requiresWindowHeight,
 
         requiresDoorWidth: false,
         requiresDoorHeight: false,
@@ -504,8 +505,11 @@ export function PieceForm({
       requiresHeight: !!selectedSysConf?.requiresHeight,
       requiresHeightLeft: !!selectedSysConf?.requiresHeightLeft,
       requiresHeightRight: !!selectedSysConf?.requiresHeightRight,
-      requiresLegHeight: !!selectedSysConf?.requiresLegHeight,
+
+      // Estos tres campos pertenecen exclusivamente a Config + STANDARD.
+      requiresLegHeight: false,
       requiresSashHeight: false,
+      requiresWindowHeight: false,
 
       requiresDoorWidth: !!selectedSysConf?.requiresDoorWidth,
       requiresDoorHeight: !!selectedSysConf?.requiresDoorHeight,
@@ -532,13 +536,18 @@ export function PieceForm({
     : selectedSystem?.allowHighBottom === true;
   const requiresSashHeight = dimensionRequirements.requiresSashHeight === true;
 
+  const requiresWindowHeight =
+    dimensionRequirements.requiresWindowHeight === true;
+
   const widthLabel = dimensionRequirements.requiresDoorWidth
     ? "Opening Width"
     : "Width";
 
-  const heightLabel = dimensionRequirements.requiresDoorHeight
-    ? "Opening Height"
-    : "Height";
+  const heightLabel = requiresWindowHeight
+    ? "Open Height"
+    : dimensionRequirements.requiresDoorHeight
+      ? "Opening Height"
+      : "Height";
 
   useEffect(() => {
     if (!requiresSashHeight && getValues("sashHeight")) {
@@ -548,6 +557,15 @@ export function PieceForm({
       });
     }
   }, [requiresSashHeight, getValues, setValue]);
+
+  useEffect(() => {
+    if (!requiresWindowHeight && getValues("windowHeight")) {
+      setValue("windowHeight", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [requiresWindowHeight, getValues, setValue]);
 
   useEffect(() => {
     const current = getValues("doorWidth");
@@ -1126,11 +1144,17 @@ export function PieceForm({
         fieldsToValidate.push("heightRight");
       if (dimensionRequirements.requiresLegHeight)
         fieldsToValidate.push("legHeight");
-      if (dimensionRequirements.requiresSashHeight)
+      if (dimensionRequirements.requiresSashHeight) {
         fieldsToValidate.push("sashHeight");
+      }
 
-      if (dimensionRequirements.requiresDoorWidth)
+      if (dimensionRequirements.requiresWindowHeight) {
+        fieldsToValidate.push("windowHeight");
+      }
+
+      if (dimensionRequirements.requiresDoorWidth) {
         fieldsToValidate.push("doorWidth");
+      }
       if (dimensionRequirements.requiresDoorHeight)
         fieldsToValidate.push("doorHeight");
       if (dimensionRequirements.requiresLeftSideliteWidth)
@@ -1194,6 +1218,14 @@ export function PieceForm({
           )
         : undefined;
 
+      const windowHeightNorm = dimensionRequirements.requiresWindowHeight
+        ? normalizeInchesToEighthStep(
+            currentValues.windowHeight,
+            "Window Height",
+            1,
+          )
+        : undefined;
+
       if (sashHeightNorm !== undefined) {
         if (sashHeightNorm < 19.625) {
           toast.error("Sash Height cannot be less than 19.625 inches.");
@@ -1216,6 +1248,24 @@ export function PieceForm({
           toast.error(
             `Sash Height cannot be greater than half of the total height (${maxSashHeight.toFixed(3)} inches).`,
           );
+          return;
+        }
+      }
+
+      // Window Height validation
+      if (windowHeightNorm !== undefined) {
+        const openHeightForWindow =
+          heightNorm !== undefined
+            ? heightNorm
+            : Number(currentValues.height || 0);
+
+        if (!Number.isFinite(openHeightForWindow) || openHeightForWindow <= 0) {
+          toast.error("Open Height is required to validate Window Height.");
+          return;
+        }
+
+        if (windowHeightNorm >= openHeightForWindow) {
+          toast.error("Window Height must be less than Open Height.");
           return;
         }
       }
@@ -1357,10 +1407,18 @@ export function PieceForm({
         setValue("heightLeft", String(heightLeftNorm));
       if (heightRightNorm !== undefined)
         setValue("heightRight", String(heightRightNorm));
-      if (legHeightNorm !== undefined)
+      if (legHeightNorm !== undefined) {
         setValue("legHeight", String(legHeightNorm));
-      if (sashHeightNorm !== undefined)
+      }
+
+      if (sashHeightNorm !== undefined) {
         setValue("sashHeight", String(sashHeightNorm));
+      }
+
+      if (windowHeightNorm !== undefined) {
+        setValue("windowHeight", String(windowHeightNorm));
+      }
+
       if (doorWidthNorm !== undefined) {
         setValue("doorWidth", String(doorWidthNorm));
       }
@@ -1399,8 +1457,13 @@ export function PieceForm({
           heightRightNorm !== undefined ? String(heightRightNorm) : undefined,
         legHeight:
           legHeightNorm !== undefined ? String(legHeightNorm) : undefined,
+
         sashHeight:
           sashHeightNorm !== undefined ? String(sashHeightNorm) : undefined,
+
+        windowHeight:
+          windowHeightNorm !== undefined ? String(windowHeightNorm) : undefined,
+
         doorWidth:
           doorWidthNorm !== undefined ? String(doorWidthNorm) : undefined,
         doorHeight:
@@ -1738,6 +1801,7 @@ export function PieceForm({
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
                             setValue("sashHeight", "");
+                            setValue("windowHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1779,6 +1843,7 @@ export function PieceForm({
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
                             setValue("sashHeight", "");
+                            setValue("windowHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -1825,6 +1890,7 @@ export function PieceForm({
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
                             setValue("sashHeight", "");
+                            setValue("windowHeight", "");
 
                             // mantener color actual si ya existe
                             const currentColor = getValues("idFC");
@@ -1886,6 +1952,7 @@ export function PieceForm({
                             field.onChange(Number(v));
                             setValue("idReinforcementOption", null);
                             setValue("sashHeight", "");
+                            setValue("windowHeight", "");
                           }}
                           value={String(field.value || "0")}
                         >
@@ -2379,6 +2446,55 @@ export function PieceForm({
                             )}
                             <p className="mt-1 text-xs text-muted-foreground">
                               Min 19.625″. Cannot exceed half of total height.
+                            </p>
+                          </div>
+                        )}
+
+                        {dimensionRequirements.requiresWindowHeight && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Window Height (inches)
+                            </Label>
+
+                            <Input
+                              className={inputClass}
+                              autoComplete="off"
+                              type="text"
+                              disabled={isLocked}
+                              {...register("windowHeight", {
+                                required: "Window Height is required",
+                              })}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (!raw) return;
+
+                                try {
+                                  const value = normalizeInchesToEighthStep(
+                                    raw,
+                                    "Window Height",
+                                    1,
+                                  );
+
+                                  setValue("windowHeight", String(value), {
+                                    shouldValidate: true,
+                                  });
+                                } catch (error) {
+                                  if (error instanceof DimensionParseError) {
+                                    toast.error(error.message);
+                                  }
+                                }
+                              }}
+                            />
+
+                            {errors.windowHeight && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {errors.windowHeight.message}
+                              </p>
+                            )}
+
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Height of the upper Single Hung. Must be less than
+                              Open Height.
                             </p>
                           </div>
                         )}

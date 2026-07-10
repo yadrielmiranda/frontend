@@ -70,13 +70,18 @@ export function PieceFormDetailsPanel({
     (sc) => sc.idConfig === Number(piece.idConf),
   );
 
+  const requiresWindowHeight =
+    selectedSysConf?.config?.requiresWindowHeight === true;
+
   const widthLabel = selectedSysConf?.requiresDoorWidth
     ? "Opening Width"
     : "Width";
 
-  const heightLabel = selectedSysConf?.requiresDoorHeight
-    ? "Opening Height"
-    : "Height";
+  const heightLabel = requiresWindowHeight
+    ? "Open Height"
+    : selectedSysConf?.requiresDoorHeight
+      ? "Opening Height"
+      : "Height";
 
   const muntinLayout = selectedSysConf?.config?.muntinLayout ?? [];
 
@@ -127,6 +132,7 @@ export function PieceFormDetailsPanel({
   const heightLeft = formatDimension(piece.heightLeft);
   const heightRight = formatDimension(piece.heightRight);
   const sashHeight = formatDimension(piece.sashHeight);
+  const windowHeight = formatDimension(piece.windowHeight);
   const legHeight = formatDimension(piece.legHeight);
 
   const doorWidth = formatDimension(piece.doorWidth);
@@ -194,6 +200,12 @@ export function PieceFormDetailsPanel({
           {sashHeight && (
             <p>
               <strong>Sash Height:</strong> {sashHeight}
+            </p>
+          )}
+
+          {windowHeight && (
+            <p>
+              <strong>Window Height:</strong> {windowHeight}
             </p>
           )}
 
