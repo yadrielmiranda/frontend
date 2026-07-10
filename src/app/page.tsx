@@ -338,7 +338,7 @@ export default function HomePage() {
             <div className="hidden justify-end md:flex">
               <div className="relative h-36 w-36 lg:h-44 lg:w-44">
                 <Image
-                  src="/branding/authentic-login-logo.jpeg"
+                  src="/branding/authentic-login-logo.png"
                   alt="Authentic Evolution"
                   fill
                   priority

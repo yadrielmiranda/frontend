@@ -27,7 +27,7 @@ export function AuthPageShell({
           <section className="flex flex-col items-center text-center lg:items-center lg:text-center">
             <div className="relative h-44 w-full max-w-sm sm:h-56 lg:h-[330px] lg:max-w-lg">
               <Image
-                src="/branding/authentic-login-logo.jpeg"
+                src="/branding/authentic-login-logo.png"
                 alt="Authentic Evolution Co"
                 fill
                 priority
