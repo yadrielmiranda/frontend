@@ -1,4 +1,4 @@
-// src/components/ui/piece-diagram.tsx
+// src/components/piece-diagram.tsx
 import React from "react";
 
 interface PieceDiagramProps {

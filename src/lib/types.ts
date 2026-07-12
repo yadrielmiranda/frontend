@@ -42,11 +42,26 @@ export interface Product {
   isActive: boolean;
   kind: ProductKind;
   pricingMode: PricingMode;
+  diagramFamily: DiagramFamily;
 }
 
 export type ProductKind = "GLAZED_UNIT" | "LINEAR_MATERIAL";
 
 export type PricingMode = "AREA_PERIMETER" | "LINEAR_INCH";
+
+export type DiagramFamily =
+  | "GENERIC"
+  | "BIFOLD"
+  | "CASEMENT"
+  | "FIXED_SHAPE"
+  | "FRENCH_DOOR"
+  | "GARAGE_DOOR"
+  | "HORIZONTAL_SLIDER"
+  | "LINEAR_MATERIAL"
+  | "PIVOT_DOOR"
+  | "SINGLE_HUNG"
+  | "SLIDING_DOOR"
+  | "WINDOW_WALL";
 
 export interface ConfigCategory {
   id: number;
@@ -99,6 +114,18 @@ export interface ConfigMuntinLayoutItem {
   panelCode?: string;
 }
 
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export interface DiagramSpec {
+  family: DiagramFamily;
+  [key: string]: JsonValue;
+}
+
 export type DimensionMode =
   | "STANDARD"
   | "ECO_WINDOWS_DOOR"
@@ -125,6 +152,10 @@ export interface Config {
   requiresWindowHeight?: boolean;
 
   muntinLayout?: ConfigMuntinLayoutItem[] | null;
+
+  diagramSpec?: DiagramSpec | null;
+  diagramSpecVersion: number;
+
   prod?: Product;
 }
 
@@ -479,6 +510,7 @@ export type CreateProductData = {
   name: string;
   kind?: ProductKind;
   pricingMode?: PricingMode;
+  diagramFamily?: DiagramFamily;
 };
 
 export type UpdateProductData = {
@@ -486,6 +518,7 @@ export type UpdateProductData = {
   isActive?: boolean;
   kind?: ProductKind;
   pricingMode?: PricingMode;
+  diagramFamily?: DiagramFamily;
 };
 
 export type CreateBrandData = {

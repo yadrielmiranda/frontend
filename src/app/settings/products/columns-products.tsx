@@ -24,7 +24,22 @@ import {
 } from "@/components/ui/tooltip";
 
 import { deleteProduct } from "@/app/api/products.api";
-import type { Product } from "@/lib/types";
+import type { DiagramFamily, Product } from "@/lib/types";
+
+const DIAGRAM_FAMILY_LABELS: Record<DiagramFamily, string> = {
+  GENERIC: "Generic",
+  BIFOLD: "Bi-Fold Door",
+  CASEMENT: "Casement Window",
+  FIXED_SHAPE: "Fixed Window / Shape",
+  FRENCH_DOOR: "French Door",
+  GARAGE_DOOR: "Garage Door",
+  HORIZONTAL_SLIDER: "Horizontal Rolling Window",
+  LINEAR_MATERIAL: "Linear Material",
+  PIVOT_DOOR: "Pivot Door",
+  SINGLE_HUNG: "Single Hung Window",
+  SLIDING_DOOR: "Sliding Glass Door",
+  WINDOW_WALL: "Window Wall / Store Front",
+};
 
 export function getProductColumns({
   canEdit,
@@ -37,6 +52,15 @@ export function getProductColumns({
       header: "Name",
     },
     {
+      accessorKey: "diagramFamily",
+      header: "Diagram Family",
+      cell: ({ row }) => {
+        const diagramFamily = row.original.diagramFamily;
+
+        return DIAGRAM_FAMILY_LABELS[diagramFamily] ?? diagramFamily;
+      },
+    },
+    {
       accessorKey: "isActive",
       header: "Status",
       cell: ({ row }) => {
@@ -44,7 +68,7 @@ export function getProductColumns({
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isActive
                 ? "bg-green-100 text-green-800"
                 : "bg-yellow-100 text-yellow-800"
@@ -57,8 +81,10 @@ export function getProductColumns({
     },
   ];
 
-  // ✅ If cannot edit settings, hide actions column entirely
-  if (!canEdit) return cols;
+  // Si el usuario no puede editar Settings, se oculta Actions.
+  if (!canEdit) {
+    return cols;
+  }
 
   cols.push({
     id: "actions",
@@ -89,6 +115,7 @@ export function getProductColumns({
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
+
                 <TooltipContent>Actions</TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -98,15 +125,17 @@ export function getProductColumns({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/products/${product.id}/edit`}>Edit Product</Link>
+                <Link href={`/settings/products/${product.id}/edit`}>
+                  Edit Product
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={(e) => {
-                  e.preventDefault();
+                onSelect={(event) => {
+                  event.preventDefault();
                   setShowDeleteConfirm(true);
                 }}
               >
