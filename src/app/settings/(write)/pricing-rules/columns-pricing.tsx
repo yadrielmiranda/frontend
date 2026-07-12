@@ -20,13 +20,33 @@ import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import { deletePricingRule } from "@/app/api/pricing-rules.api";
 import type { PricingRule } from "@/lib/types";
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 8,
-  }).format(amount);
+// comentario en español: formatear el decimal sin convertirlo a number
+// para conservar hasta 20 posiciones decimales.
+const formatCurrency = (value: string | number): string => {
+  const rawValue = String(value).trim();
+
+  if (!/^-?\d+(?:\.\d+)?$/.test(rawValue)) {
+    return "$0.00";
+  }
+
+  const isNegative = rawValue.startsWith("-");
+  const unsignedValue = isNegative ? rawValue.slice(1) : rawValue;
+
+  const [integerPart = "0", decimalPart = ""] = unsignedValue.split(".");
+
+  const formattedInteger = new Intl.NumberFormat("en-US", {
+    useGrouping: true,
+    maximumFractionDigits: 0,
+  }).format(BigInt(integerPart || "0"));
+
+  // comentario en español: eliminar únicamente ceros finales,
+  // manteniendo un mínimo de dos decimales.
+  const significantDecimals = decimalPart.slice(0, 20).replace(/0+$/, "");
+
+  const formattedDecimals = significantDecimals.padEnd(2, "0");
+
+  return `${isNegative ? "-" : ""}$${formattedInteger}.${formattedDecimals}`;
+};
 
 export const columns: ColumnDef<PricingRule>[] = [
   {
@@ -111,7 +131,9 @@ export const columns: ColumnDef<PricingRule>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
               <DropdownMenuItem asChild>
-                <Link href={`/settings/pricing-rules/${rule.id}/edit`}>Edit</Link>
+                <Link href={`/settings/pricing-rules/${rule.id}/edit`}>
+                  Edit
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuItem

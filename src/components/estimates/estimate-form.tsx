@@ -6,8 +6,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { createEstimate, updateEstimate } from "@/app/api/estimates.api";
+import {
+  calculatePiece,
+  createEstimate,
+  updateEstimate,
+} from "@/app/api/estimates.api";
 import type {
+  CalculatePiecePayload,
   CreateEstimateData,
   CreatePieceData,
   UpdateEstimateData,
@@ -88,6 +93,8 @@ export function EstimateForm({
 
   const [duplicatingPieceData, setDuplicatingPieceData] =
     useState<PieceFormValues | null>(null);
+
+  const isApplyingGeneralMarkupRef = useRef(false);
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
@@ -364,36 +371,215 @@ export function EstimateForm({
     setPendingCoatingId(null);
   };
 
-  const handleApplyGeneralMarkup = () => {
+  const handleApplyGeneralMarkup = async () => {
     if (!canUseCustomerPricing) return;
+    if (isApplyingGeneralMarkupRef.current) return;
 
-    const gm = Number(getValues("generalDealerMarkup")) || 0;
+    const generalMarkup = Number(getValues("generalDealerMarkup"));
     const pieces = getValues("pieces");
 
-    pieces.forEach((piece, index) => {
-      const unitPrice = Number(piece.price) || 0;
-      const qty = Number(piece.qty) || 0;
-      const markupPercent = gm / 100;
+    if (!Number.isFinite(generalMarkup) || generalMarkup < 0) {
+      toast.error("General Dealer Markup must be zero or greater.");
+      return;
+    }
 
-      const baseTotal = roundMoney(unitPrice * qty);
-      const dealerProfitTotal = roundMoney(baseTotal * markupPercent);
-      const finalTotal = roundMoney(baseTotal + dealerProfitTotal);
-      const customerUnit = qty > 0 ? roundMoney(finalTotal / qty) : 0;
+    if (!pieces.length) {
+      toast.error("Add at least one piece before applying the markup.");
+      return;
+    }
 
-      setValue(`pieces.${index}.dealerMarkup`, gm, { shouldDirty: true });
-      setValue(`pieces.${index}.netProfitD`, dealerProfitTotal, {
-        shouldDirty: true,
-      });
-      setValue(`pieces.${index}.total`, finalTotal, { shouldDirty: true });
-      setValue(`pieces.${index}.customerSubtotal`, finalTotal, {
-        shouldDirty: true,
-      });
-      setValue(`pieces.${index}.customerPrice`, customerUnit, {
-        shouldDirty: true,
-      });
-    });
+    isApplyingGeneralMarkupRef.current = true;
 
-    toast.success("General dealer markup applied to all pieces.");
+    try {
+      type CalculatedPieceResponse = Awaited<ReturnType<typeof calculatePiece>>;
+
+      const calculatedPieces: Array<{
+        index: number;
+        calculated: CalculatedPieceResponse;
+      }> = [];
+
+      // calcular todas las piezas primero.
+      // Si alguna falla, no modificamos parcialmente el formulario.
+      for (let index = 0; index < pieces.length; index += 1) {
+        const piece = pieces[index];
+
+        const product = productsWithBrands.find(
+          (item) => item.id === Number(piece.idProd),
+        );
+
+        const isLinearMaterial = product?.kind === "LINEAR_MATERIAL";
+
+        const payload: CalculatePiecePayload = {
+          mark: piece.mark ?? "",
+
+          idProd: Number(piece.idProd),
+          idBrand: Number(piece.idBrand),
+          idSyst: Number(piece.idSyst),
+          idConf: Number(piece.idConf),
+          idFC: Number(piece.idFC),
+
+          width: piece.width ? String(piece.width) : undefined,
+          height: piece.height ? String(piece.height) : undefined,
+          heightLeft: piece.heightLeft ? String(piece.heightLeft) : undefined,
+          heightRight: piece.heightRight
+            ? String(piece.heightRight)
+            : undefined,
+          legHeight: piece.legHeight ? String(piece.legHeight) : undefined,
+          sashHeight: piece.sashHeight ? String(piece.sashHeight) : undefined,
+          windowHeight: piece.windowHeight
+            ? String(piece.windowHeight)
+            : undefined,
+
+          doorWidth: piece.doorWidth ? String(piece.doorWidth) : undefined,
+          doorHeight: piece.doorHeight ? String(piece.doorHeight) : undefined,
+
+          leftSideliteWidth: piece.leftSideliteWidth
+            ? String(piece.leftSideliteWidth)
+            : undefined,
+
+          rightSideliteWidth: piece.rightSideliteWidth
+            ? String(piece.rightSideliteWidth)
+            : undefined,
+
+          leftPanels:
+            piece.leftPanels === null || piece.leftPanels === undefined
+              ? undefined
+              : Number(piece.leftPanels),
+
+          rightPanels:
+            piece.rightPanels === null || piece.rightPanels === undefined
+              ? undefined
+              : Number(piece.rightPanels),
+
+          panelCount:
+            piece.panelCount === null || piece.panelCount === undefined
+              ? undefined
+              : Number(piece.panelCount),
+
+          horizontalHeights: Array.isArray(piece.horizontalHeights)
+            ? piece.horizontalHeights.map((value) => Number(value))
+            : undefined,
+
+          idCryst: isLinearMaterial ? null : Number(piece.idCryst),
+
+          idTint: isLinearMaterial ? null : Number(piece.idTint),
+
+          privacy: isLinearMaterial ? false : Boolean(piece.privacy),
+
+          idCoat: isLinearMaterial ? null : Number(piece.idCoat),
+
+          screen: isLinearMaterial ? false : Boolean(piece.screen),
+
+          highBottom: isLinearMaterial ? false : piece.highBottom === true,
+
+          idActiveOption: isLinearMaterial
+            ? null
+            : piece.idActiveOption
+              ? Number(piece.idActiveOption)
+              : undefined,
+
+          idPreparationOption: isLinearMaterial
+            ? null
+            : piece.idPreparationOption
+              ? Number(piece.idPreparationOption)
+              : undefined,
+
+          idSillOption: isLinearMaterial
+            ? null
+            : piece.idSillOption
+              ? Number(piece.idSillOption)
+              : undefined,
+
+          idReinforcementOption: isLinearMaterial
+            ? null
+            : piece.idReinforcementOption
+              ? Number(piece.idReinforcementOption)
+              : undefined,
+
+          muntin: isLinearMaterial ? null : (piece.muntin ?? null),
+
+          qty: Number(piece.qty),
+          dealerMarkup: generalMarkup,
+        };
+
+        const calculated = await calculatePiece(payload);
+
+        calculatedPieces.push({
+          index,
+          calculated,
+        });
+      }
+
+      // usar directamente los valores devueltos
+      // por el backend; el frontend no ejecuta fórmulas de markup.
+      calculatedPieces.forEach(({ index, calculated }) => {
+        const rate = Number(calculated.rate) || 0;
+        const price = Number(calculated.price) || 0;
+        const subtotal = Number(calculated.subtotal) || 0;
+        const netProfitD = Number(calculated.netProfitD) || 0;
+        const customerPrice = Number(calculated.customerPrice) || 0;
+        const customerSubtotal = Number(calculated.customerSubtotal) || 0;
+
+        setValue(`pieces.${index}.rate`, rate, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.price`, price, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.subtotal`, subtotal, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.dealerMarkup`, generalMarkup, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.netProfitD`, netProfitD, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.customerPrice`, customerPrice, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.customerSubtotal`, customerSubtotal, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.total`, customerSubtotal, {
+          shouldDirty: true,
+        });
+
+        setValue(`pieces.${index}.highBottom`, calculated.highBottom === true, {
+          shouldDirty: true,
+        });
+
+        setValue(
+          `pieces.${index}.highBottomPercent`,
+          calculated.highBottomPercent === null ||
+            calculated.highBottomPercent === undefined
+            ? null
+            : Number(calculated.highBottomPercent),
+          {
+            shouldDirty: true,
+          },
+        );
+      });
+
+      toast.success(
+        "General dealer markup calculated by the backend and applied to all pieces.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to apply General Dealer Markup.",
+      );
+    } finally {
+      isApplyingGeneralMarkupRef.current = false;
+    }
   };
 
   const summary = useMemo(() => {
@@ -548,6 +734,38 @@ export function EstimateForm({
           heightRight: p.heightRight ? String(p.heightRight) : null,
           legHeight: p.legHeight ? String(p.legHeight) : null,
           sashHeight: p.sashHeight ? String(p.sashHeight) : null,
+          windowHeight: p.windowHeight ? String(p.windowHeight) : null,
+
+          doorWidth: p.doorWidth ? String(p.doorWidth) : null,
+          doorHeight: p.doorHeight ? String(p.doorHeight) : null,
+
+          leftSideliteWidth: p.leftSideliteWidth
+            ? String(p.leftSideliteWidth)
+            : null,
+
+          rightSideliteWidth: p.rightSideliteWidth
+            ? String(p.rightSideliteWidth)
+            : null,
+
+          leftPanels:
+            p.leftPanels === null || p.leftPanels === undefined
+              ? null
+              : Number(p.leftPanels),
+
+          rightPanels:
+            p.rightPanels === null || p.rightPanels === undefined
+              ? null
+              : Number(p.rightPanels),
+
+          panelCount:
+            p.panelCount === null || p.panelCount === undefined
+              ? null
+              : Number(p.panelCount),
+
+          horizontalHeights: Array.isArray(p.horizontalHeights)
+            ? p.horizontalHeights.map((value) => Number(value))
+            : null,
+
           idCryst: Number(p.idCryst),
           idTint: Number(p.idTint),
           privacy: p.privacy,

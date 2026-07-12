@@ -352,9 +352,11 @@ export interface PricingRule {
   idSystem: number;
   idConfig: number;
   idCrystal: number;
-  costoA: number;
-  costoB: number;
-  costoC: number;
+
+  costoA: string;
+  costoB: string;
+  costoC: string;
+
   brand?: { name: string };
   product?: { name: string };
   system?: { name: string };

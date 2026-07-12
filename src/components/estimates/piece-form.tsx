@@ -1665,28 +1665,6 @@ export function PieceForm({
     );
   };
 
-  const recalcDealerTotals = () => {
-    if (!props.canUseCustomerPricing) return;
-
-    const v = getValues();
-    const qtyN = Number(v.qty) || 0;
-    const markupPercent = (Number(v.dealerMarkup) || 0) / 100;
-
-    const baseLine = roundMoney(Number(v.subtotal) || 0);
-
-    const dealerProfitLine = roundMoney(baseLine * markupPercent);
-    const customerLine = roundMoney(baseLine + dealerProfitLine);
-
-    const customerUnit = qtyN > 0 ? roundMoney(customerLine / qtyN) : 0;
-
-    setValue("netProfitD", dealerProfitLine, { shouldDirty: true });
-    setValue("total", customerLine, { shouldDirty: true });
-    setValue("customerSubtotal", customerLine, { shouldDirty: true });
-    setValue("customerPrice", customerUnit, { shouldDirty: true });
-
-    setHasPendingDealerMarkup(false);
-  };
-
   const dpPlusText =
     pieceValues.dpPosPsf == null ? "—" : formatPsf(pieceValues.dpPosPsf, 1);
   const dpMinusText =
@@ -3436,7 +3414,7 @@ export function PieceForm({
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={recalcDealerTotals}
+                              onClick={() => void handleCalculate()}
                             >
                               <Calculator className="h-4 w-4 mr-1" />
                               Apply Markup

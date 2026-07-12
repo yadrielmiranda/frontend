@@ -33,14 +33,9 @@ import {
 } from "@/app/api/pricing-rules.api";
 import { groupConfigsByCategory } from "@/lib/config-groups";
 
-type PricingRuleFormValues = Omit<
-  CreatePricingRuleData,
-  "costoA" | "costoB" | "costoC"
-> & {
-  costoA: string;
-  costoB: string;
-  costoC: string;
-};
+type PricingRuleFormValues = CreatePricingRuleData;
+
+const PRICING_DECIMAL_PATTERN = /^-?\d{1,4}(?:\.\d{1,20})?$/;
 
 interface PricingRuleFormProps {
   pricingRule?: PricingRule;
@@ -72,9 +67,9 @@ export function PricingRuleForm({
       idSystem: pricingRule?.idSystem || 0,
       idConfig: pricingRule?.idConfig || 0,
       idCrystal: pricingRule?.idCrystal || 0,
-      costoA: String(pricingRule?.costoA || "0.00"),
-      costoB: String(pricingRule?.costoB || "0.00"),
-      costoC: String(pricingRule?.costoC || "0.00"),
+      costoA: pricingRule?.costoA?.toString() ?? "0.00",
+      costoB: pricingRule?.costoB?.toString() ?? "0.00",
+      costoC: pricingRule?.costoC?.toString() ?? "0.00",
     },
   });
 
@@ -126,11 +121,14 @@ export function PricingRuleForm({
   );
 
   const onSubmit = handleSubmit(async (data) => {
-    const dataToSend = {
+    const dataToSend: CreatePricingRuleData = {
       ...data,
-      costoA: Number.parseFloat(data.costoA || "0"),
-      costoB: Number.parseFloat(data.costoB || "0"),
-      costoC: Number.parseFloat(data.costoC || "0"),
+
+      // conservar los coeficientes como strings
+      // para no perder precisión antes de enviarlos al backend.
+      costoA: data.costoA.trim(),
+      costoB: data.costoB.trim(),
+      costoC: data.costoC.trim(),
     };
 
     try {
@@ -331,36 +329,102 @@ export function PricingRuleForm({
         <div className="col-span-1 md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
           <div>
             <Label>Area Cost</Label>
+
             <Controller
               name="costoA"
               control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <Input type="number" step="0.01" {...field} />
+              rules={{
+                required: "Area Cost is required.",
+                pattern: {
+                  value: PRICING_DECIMAL_PATTERN,
+                  message:
+                    "Area Cost must contain at most 4 integer digits and 20 decimal digits.",
+                },
+              }}
+              render={({ field, fieldState }) => (
+                <>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0.00000000000000000000"
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <p className="mt-1 text-sm text-destructive">
+                      {fieldState.error.message}
+                    </p>
+                  )}
+                </>
               )}
             />
           </div>
 
           <div>
             <Label>Perimeter Cost</Label>
+
             <Controller
               name="costoB"
               control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <Input type="number" step="0.01" {...field} />
+              rules={{
+                required: "Perimeter Cost is required.",
+                pattern: {
+                  value: PRICING_DECIMAL_PATTERN,
+                  message:
+                    "Perimeter Cost must contain at most 4 integer digits and 20 decimal digits.",
+                },
+              }}
+              render={({ field, fieldState }) => (
+                <>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0.00000000000000000000"
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <p className="mt-1 text-sm text-destructive">
+                      {fieldState.error.message}
+                    </p>
+                  )}
+                </>
               )}
             />
           </div>
 
           <div>
             <Label>Fixed Cost</Label>
+
             <Controller
               name="costoC"
               control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <Input type="number" step="0.01" {...field} />
+              rules={{
+                required: "Fixed Cost is required.",
+                pattern: {
+                  value: PRICING_DECIMAL_PATTERN,
+                  message:
+                    "Fixed Cost must contain at most 4 integer digits and 20 decimal digits.",
+                },
+              }}
+              render={({ field, fieldState }) => (
+                <>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0.00000000000000000000"
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <p className="mt-1 text-sm text-destructive">
+                      {fieldState.error.message}
+                    </p>
+                  )}
+                </>
               )}
             />
           </div>
