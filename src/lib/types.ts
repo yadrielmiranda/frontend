@@ -616,35 +616,24 @@ export interface CreatePieceData {
 
 export type CalculatePiecePayload = CreatePieceData;
 
-export interface CreateEstimateData
-  extends Omit<
-    Estimate,
-    | "id"
-    | "number"
-    | "date"
-    | "units"
-    | "rateT"
-    | "priceT"
-    | "netProfit"
-    | "taxRate"
-    | "taxAmount"
-    | "totalPayable"
-    | "customerPriceT"
-    | "customerTaxRate"
-    | "customerTaxAmount"
-    | "customerTotalPayable"
-    | "netProfitD"
-    | "statusId"
-    | "idUser"
-    | "order"
-  > {
-  pieces: CreatePieceData[];
+export type CreateEstimateHeaderData = Pick<
+  Estimate,
+  | "name"
+  | "customerFirstName"
+  | "customerLastName"
+  | "customerEmail"
+  | "customerPhone"
+  | "customerStreet"
+  | "customerCity"
+  | "customerState"
+  | "customerPostalCode"
+> & {
+  // Fracción decimal, por ejemplo 0.07 representa 7%.
   customerTaxRate?: number;
-}
-
-export type UpdateEstimateData = Partial<Omit<CreateEstimateData, "pieces">> & {
-  pieces?: (CreatePieceData & { id?: number })[];
 };
+
+export type UpdateEstimateHeaderData =
+  Partial<CreateEstimateHeaderData>;
 
 export interface CreateUserDto {
   username: string;

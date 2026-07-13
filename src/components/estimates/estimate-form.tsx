@@ -1,22 +1,30 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import {
-  calculatePiece,
-  createEstimate,
-  updateEstimate,
+  addEstimatePiece,
+  applyBulkPieceAttribute,
+  applyGeneralDealerMarkup,
+  deleteEstimatePiece,
+  updateEstimateHeader,
+  updateEstimatePiece,
+  type ApplyBulkPieceAttributeData,
 } from "@/app/api/estimates.api";
 import type {
-  CalculatePiecePayload,
-  CreateEstimateData,
   CreatePieceData,
-  UpdateEstimateData,
   EstimateWithRelations,
+  UpdateEstimateHeaderData,
 } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
@@ -65,6 +73,97 @@ function mapPieceMuntinToForm(
   };
 }
 
+function mapEstimatePieceToForm(
+  piece: EstimateWithRelations["pieces"][number],
+): PieceFormValues {
+  return {
+    ...piece,
+
+    width: piece.width ?? "",
+    height: piece.height ?? "",
+    heightLeft: piece.heightLeft ?? "",
+    heightRight: piece.heightRight ?? "",
+    legHeight: piece.legHeight ?? "",
+    sashHeight: piece.sashHeight ?? "",
+    windowHeight: piece.windowHeight ?? "",
+
+    doorWidth: piece.doorWidth ?? "",
+    doorHeight: piece.doorHeight ?? "",
+    leftSideliteWidth: piece.leftSideliteWidth ?? "",
+    rightSideliteWidth: piece.rightSideliteWidth ?? "",
+
+    leftPanels:
+      piece.leftPanels === null || piece.leftPanels === undefined
+        ? null
+        : Number(piece.leftPanels),
+
+    rightPanels:
+      piece.rightPanels === null || piece.rightPanels === undefined
+        ? null
+        : Number(piece.rightPanels),
+
+    panelCount:
+      piece.panelCount === null || piece.panelCount === undefined
+        ? null
+        : Number(piece.panelCount),
+
+    horizontalHeights: Array.isArray(piece.horizontalHeights)
+      ? piece.horizontalHeights.map((value) => Number(value))
+      : null,
+
+    rate: Number(piece.rate) || 0,
+    price: Number(piece.price) || 0,
+    subtotal: Number(piece.subtotal) || 0,
+
+    // comentario en español:
+    // el backend guarda dealerMarkup como fracción decimal.
+    // El formulario lo muestra como porcentaje.
+    dealerMarkup: (Number(piece.dealerMarkup) || 0) * 100,
+
+    total: Number(piece.customerSubtotal) || 0,
+    netProfitD: Number(piece.netProfitD) || 0,
+    customerPrice: Number(piece.customerPrice) || 0,
+    customerSubtotal: Number(piece.customerSubtotal) || 0,
+
+    dpPosPsf:
+      piece.dpPosPsf === null || piece.dpPosPsf === undefined
+        ? null
+        : Number(piece.dpPosPsf),
+
+    dpNegPsf:
+      piece.dpNegPsf === null || piece.dpNegPsf === undefined
+        ? null
+        : Number(piece.dpNegPsf),
+
+    highBottom: piece.highBottom ?? false,
+
+    highBottomPercent:
+      piece.highBottomPercent === null || piece.highBottomPercent === undefined
+        ? null
+        : Number(piece.highBottomPercent),
+
+    muntin: mapPieceMuntinToForm(piece),
+
+    idActiveOption: piece.idActiveOption ?? null,
+    idPreparationOption: piece.idPreparationOption ?? null,
+    idSillOption: piece.idSillOption ?? null,
+    idReinforcementOption: piece.idReinforcementOption ?? null,
+  };
+}
+
+const ESTIMATE_HEADER_FIELDS: Array<keyof EstimateFormValues> = [
+  "name",
+  "customerFirstName",
+  "customerLastName",
+  "customerEmail",
+  "customerPhone",
+  "customerStreet",
+  "customerCity",
+  "customerState",
+  "customerPostalCode",
+  "customerTaxRate",
+];
+
 export function EstimateForm({
   estimate,
   taxRate,
@@ -95,6 +194,23 @@ export function EstimateForm({
     useState<PieceFormValues | null>(null);
 
   const isApplyingGeneralMarkupRef = useRef(false);
+  const isDeletingPieceRef = useRef(false);
+
+  const isApplyingBulkAttributeRef = useRef(false);
+
+  const [isApplyingBulkAttribute, setIsApplyingBulkAttribute] = useState(false);
+
+  const headerAutosaveReadyRef = useRef(false);
+
+  const headerAutosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const lastSavedHeaderRef = useRef("");
+
+  const headerSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const [isExiting, setIsExiting] = useState(false);
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
@@ -111,10 +227,10 @@ export function EstimateForm({
   const {
     register,
     control,
-    handleSubmit,
     setValue,
     getValues,
-    formState: { errors, isSubmitting, isDirty },
+    trigger,
+    formState: { errors },
   } = useForm<EstimateFormValues>({
     defaultValues: isEditMode
       ? {
@@ -132,45 +248,7 @@ export function EstimateForm({
             Number(estimate!.customerTaxRate || 0) * 100,
             2,
           ),
-          pieces: estimate!.pieces.map((p) => ({
-            ...p,
-            width: p.width ?? "",
-            height: p.height ?? "",
-            heightLeft: p.heightLeft ?? "",
-            heightRight: p.heightRight ?? "",
-            legHeight: p.legHeight ?? "",
-            sashHeight: p.sashHeight ?? "",
-            rate: Number(p.rate) || 0,
-            price: Number(p.price) || 0,
-            subtotal: Number(p.subtotal) || 0,
-            dealerMarkup: (Number(p.dealerMarkup) || 0) * 100,
-            total: Number(p.customerSubtotal) || 0,
-            netProfitD: Number(p.netProfitD) || 0,
-            customerPrice: Number(p.customerPrice) || 0,
-            customerSubtotal: Number(p.customerSubtotal) || 0,
-            dpPosPsf:
-              p.dpPosPsf === null || p.dpPosPsf === undefined
-                ? null
-                : Number(p.dpPosPsf),
-            dpNegPsf:
-              p.dpNegPsf === null || p.dpNegPsf === undefined
-                ? null
-                : Number(p.dpNegPsf),
-
-            highBottom: p.highBottom ?? false,
-            highBottomPercent:
-              p.highBottomPercent === null || p.highBottomPercent === undefined
-                ? null
-                : Number(p.highBottomPercent),
-
-            // ✅ clave: usar pieceMuntin real del backend
-            muntin: mapPieceMuntinToForm(p),
-
-            idActiveOption: p.idActiveOption ?? null,
-            idPreparationOption: p.idPreparationOption ?? null,
-            idSillOption: p.idSillOption ?? null,
-            idReinforcementOption: p.idReinforcementOption ?? null,
-          })),
+          pieces: estimate!.pieces.map(mapEstimatePieceToForm),
           defaultFrameColorId: 0,
           defaultTintId: 0,
           defaultCoatingId: 0,
@@ -210,6 +288,31 @@ export function EstimateForm({
     name: "defaultCoatingId",
   });
 
+  const watchedHeaderValues = useWatch({
+    control,
+    name: [
+      "name",
+      "customerFirstName",
+      "customerLastName",
+      "customerEmail",
+      "customerPhone",
+      "customerStreet",
+      "customerCity",
+      "customerState",
+      "customerPostalCode",
+      "customerTaxRate",
+    ],
+  });
+
+  const headerSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        canUseCustomerPricing,
+        values: watchedHeaderValues,
+      }),
+    [canUseCustomerPricing, watchedHeaderValues],
+  );
+
   useEffect(() => {
     const zip5 = normalizeUSZip(zip);
     if (!isValidUSZip(zip5)) return;
@@ -223,7 +326,143 @@ export function EstimateForm({
       .catch(() => {});
   }, [zip, setValue]);
 
-  const { fields, append, remove, update } = useFieldArray({
+  const buildEstimateHeaderPayload =
+    useCallback((): UpdateEstimateHeaderData => {
+      const values = getValues();
+
+      const customerHeader = canUseCustomerPricing
+        ? {
+            customerFirstName: values.customerFirstName?.trim() || null,
+
+            customerLastName: values.customerLastName?.trim() || null,
+
+            customerEmail: values.customerEmail?.trim() || null,
+
+            customerPhone: values.customerPhone?.trim() || null,
+
+            customerStreet: values.customerStreet?.trim() || null,
+
+            customerCity: values.customerCity?.trim() || null,
+
+            customerState: values.customerState?.trim() || null,
+
+            customerPostalCode: values.customerPostalCode?.trim() || null,
+          }
+        : {};
+
+      return {
+        name: values.name.trim(),
+
+        customerTaxRate: canUseCustomerPricing
+          ? (Number(values.customerTaxRate) || 0) / 100
+          : 0,
+
+        ...customerHeader,
+      };
+    }, [canUseCustomerPricing, getValues]);
+
+  const saveEstimateHeader = useCallback(async (): Promise<boolean> => {
+    if (!estimate?.id) {
+      return true;
+    }
+
+    const saveTask = headerSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const isValid = await trigger(ESTIMATE_HEADER_FIELDS);
+
+        if (!isValid) {
+          return false;
+        }
+
+        const payload = buildEstimateHeaderPayload();
+        const serializedPayload = JSON.stringify(payload);
+
+        if (serializedPayload === lastSavedHeaderRef.current) {
+          return true;
+        }
+
+        try {
+          await updateEstimateHeader(estimate.id, payload);
+
+          lastSavedHeaderRef.current = serializedPayload;
+
+          return true;
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to save the Estimate details.",
+          );
+
+          return false;
+        }
+      });
+
+    headerSaveQueueRef.current = saveTask.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return saveTask;
+  }, [estimate?.id, trigger, buildEstimateHeaderPayload]);
+
+  useEffect(() => {
+    if (!estimate?.id) {
+      return;
+    }
+
+    if (!headerAutosaveReadyRef.current) {
+      headerAutosaveReadyRef.current = true;
+
+      lastSavedHeaderRef.current = JSON.stringify(buildEstimateHeaderPayload());
+
+      return;
+    }
+
+    if (headerAutosaveTimeoutRef.current) {
+      clearTimeout(headerAutosaveTimeoutRef.current);
+    }
+
+    headerAutosaveTimeoutRef.current = setTimeout(() => {
+      void saveEstimateHeader();
+    }, 600);
+
+    return () => {
+      if (headerAutosaveTimeoutRef.current) {
+        clearTimeout(headerAutosaveTimeoutRef.current);
+      }
+    };
+  }, [
+    estimate?.id,
+    headerSnapshot,
+    buildEstimateHeaderPayload,
+    saveEstimateHeader,
+  ]);
+
+  const handleExit = async () => {
+    if (isExiting) {
+      return;
+    }
+
+    setIsExiting(true);
+
+    if (headerAutosaveTimeoutRef.current) {
+      clearTimeout(headerAutosaveTimeoutRef.current);
+      headerAutosaveTimeoutRef.current = null;
+    }
+
+    const headerWasSaved = await saveEstimateHeader();
+
+    if (!headerWasSaved) {
+      setIsExiting(false);
+      return;
+    }
+
+    router.push("/estimates");
+  };
+
+  const { fields, append, remove, update, replace } = useFieldArray({
     control,
     name: "pieces",
   });
@@ -291,45 +530,124 @@ export function EstimateForm({
     }
   };
 
-  const updateAllPiecesColor = () => {
+  const handleApplyBulkPieceAttribute = async (
+    changes: ApplyBulkPieceAttributeData,
+    successMessage: string,
+  ): Promise<boolean> => {
+    if (isApplyingBulkAttributeRef.current) {
+      return false;
+    }
+
+    if (!estimate?.id) {
+      toast.error("The Estimate must be created before updating its pieces.");
+
+      return false;
+    }
+
+    if (!fields.length) {
+      toast.error("Add at least one Piece before applying this update.");
+
+      return false;
+    }
+
+    isApplyingBulkAttributeRef.current = true;
+    setIsApplyingBulkAttribute(true);
+
+    try {
+      // Guardamos primero cualquier cambio pendiente del encabezado,
+      // especialmente Customer Sales Tax.
+      if (headerAutosaveTimeoutRef.current) {
+        clearTimeout(headerAutosaveTimeoutRef.current);
+        headerAutosaveTimeoutRef.current = null;
+      }
+
+      const headerWasSaved = await saveEstimateHeader();
+
+      if (!headerWasSaved) {
+        return false;
+      }
+
+      const updatedEstimate = await applyBulkPieceAttribute(
+        estimate.id,
+        changes,
+      );
+
+      // La respuesta del backend vuelve a ser la fuente de verdad.
+      replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+
+      toast.success(successMessage);
+
+      return true;
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update the Pieces.",
+      );
+
+      return false;
+    } finally {
+      isApplyingBulkAttributeRef.current = false;
+      setIsApplyingBulkAttribute(false);
+    }
+  };
+
+  const updateAllPiecesColor = async (): Promise<void> => {
     if (pendingColorId === null) return;
 
-    fields.forEach((_, index) => {
-      setValue(`pieces.${index}.idFC`, pendingColorId, { shouldDirty: true });
+    const applied = await handleApplyBulkPieceAttribute(
+      {
+        idFC: pendingColorId,
+      },
+      "Frame Color updated and saved for all Pieces.",
+    );
+
+    if (!applied) return;
+
+    setValue("defaultFrameColorId", pendingColorId, {
+      shouldDirty: true,
     });
 
-    setValue("defaultFrameColorId", pendingColorId, { shouldDirty: true });
     setShowColorUpdateAlert(false);
     setPendingColorId(null);
-    toast.success("All pieces have been updated to the new default color.");
   };
 
-  const updateAllPiecesTint = () => {
+  const updateAllPiecesTint = async (): Promise<void> => {
     if (pendingTintId === null) return;
 
-    fields.forEach((_, index) => {
-      setValue(`pieces.${index}.idTint`, pendingTintId, { shouldDirty: true });
+    const applied = await handleApplyBulkPieceAttribute(
+      {
+        idTint: pendingTintId,
+      },
+      "Tint updated and saved for all applicable Pieces.",
+    );
+
+    if (!applied) return;
+
+    setValue("defaultTintId", pendingTintId, {
+      shouldDirty: true,
     });
 
-    setValue("defaultTintId", pendingTintId, { shouldDirty: true });
     setShowTintUpdateAlert(false);
     setPendingTintId(null);
-    toast.success("All pieces have been updated to the new default tint.");
   };
 
-  const updateAllPiecesCoating = () => {
+  const updateAllPiecesCoating = async (): Promise<void> => {
     if (pendingCoatingId === null) return;
 
-    fields.forEach((_, index) => {
-      setValue(`pieces.${index}.idCoat`, pendingCoatingId, {
-        shouldDirty: true,
-      });
+    const applied = await handleApplyBulkPieceAttribute(
+      {
+        idCoat: pendingCoatingId,
+      },
+      "Coating updated and saved for all applicable Pieces.",
+    );
+
+    if (!applied) return;
+
+    setValue("defaultCoatingId", pendingCoatingId, {
+      shouldDirty: true,
     });
 
-    setValue("defaultCoatingId", pendingCoatingId, { shouldDirty: true });
     setShowCoatingUpdateAlert(false);
     setPendingCoatingId(null);
-    toast.success("All pieces have been updated to the new default coating.");
   };
 
   const setNewColorForFuturePieces = () => {
@@ -375,7 +693,13 @@ export function EstimateForm({
     if (!canUseCustomerPricing) return;
     if (isApplyingGeneralMarkupRef.current) return;
 
+    if (!estimate?.id) {
+      toast.error("The Estimate must be created before applying markup.");
+      return;
+    }
+
     const generalMarkup = Number(getValues("generalDealerMarkup"));
+
     const pieces = getValues("pieces");
 
     if (!Number.isFinite(generalMarkup) || generalMarkup < 0) {
@@ -391,186 +715,28 @@ export function EstimateForm({
     isApplyingGeneralMarkupRef.current = true;
 
     try {
-      type CalculatedPieceResponse = Awaited<ReturnType<typeof calculatePiece>>;
-
-      const calculatedPieces: Array<{
-        index: number;
-        calculated: CalculatedPieceResponse;
-      }> = [];
-
-      // calcular todas las piezas primero.
-      // Si alguna falla, no modificamos parcialmente el formulario.
-      for (let index = 0; index < pieces.length; index += 1) {
-        const piece = pieces[index];
-
-        const product = productsWithBrands.find(
-          (item) => item.id === Number(piece.idProd),
-        );
-
-        const isLinearMaterial = product?.kind === "LINEAR_MATERIAL";
-
-        const payload: CalculatePiecePayload = {
-          mark: piece.mark ?? "",
-
-          idProd: Number(piece.idProd),
-          idBrand: Number(piece.idBrand),
-          idSyst: Number(piece.idSyst),
-          idConf: Number(piece.idConf),
-          idFC: Number(piece.idFC),
-
-          width: piece.width ? String(piece.width) : undefined,
-          height: piece.height ? String(piece.height) : undefined,
-          heightLeft: piece.heightLeft ? String(piece.heightLeft) : undefined,
-          heightRight: piece.heightRight
-            ? String(piece.heightRight)
-            : undefined,
-          legHeight: piece.legHeight ? String(piece.legHeight) : undefined,
-          sashHeight: piece.sashHeight ? String(piece.sashHeight) : undefined,
-          windowHeight: piece.windowHeight
-            ? String(piece.windowHeight)
-            : undefined,
-
-          doorWidth: piece.doorWidth ? String(piece.doorWidth) : undefined,
-          doorHeight: piece.doorHeight ? String(piece.doorHeight) : undefined,
-
-          leftSideliteWidth: piece.leftSideliteWidth
-            ? String(piece.leftSideliteWidth)
-            : undefined,
-
-          rightSideliteWidth: piece.rightSideliteWidth
-            ? String(piece.rightSideliteWidth)
-            : undefined,
-
-          leftPanels:
-            piece.leftPanels === null || piece.leftPanels === undefined
-              ? undefined
-              : Number(piece.leftPanels),
-
-          rightPanels:
-            piece.rightPanels === null || piece.rightPanels === undefined
-              ? undefined
-              : Number(piece.rightPanels),
-
-          panelCount:
-            piece.panelCount === null || piece.panelCount === undefined
-              ? undefined
-              : Number(piece.panelCount),
-
-          horizontalHeights: Array.isArray(piece.horizontalHeights)
-            ? piece.horizontalHeights.map((value) => Number(value))
-            : undefined,
-
-          idCryst: isLinearMaterial ? null : Number(piece.idCryst),
-
-          idTint: isLinearMaterial ? null : Number(piece.idTint),
-
-          privacy: isLinearMaterial ? false : Boolean(piece.privacy),
-
-          idCoat: isLinearMaterial ? null : Number(piece.idCoat),
-
-          screen: isLinearMaterial ? false : Boolean(piece.screen),
-
-          highBottom: isLinearMaterial ? false : piece.highBottom === true,
-
-          idActiveOption: isLinearMaterial
-            ? null
-            : piece.idActiveOption
-              ? Number(piece.idActiveOption)
-              : undefined,
-
-          idPreparationOption: isLinearMaterial
-            ? null
-            : piece.idPreparationOption
-              ? Number(piece.idPreparationOption)
-              : undefined,
-
-          idSillOption: isLinearMaterial
-            ? null
-            : piece.idSillOption
-              ? Number(piece.idSillOption)
-              : undefined,
-
-          idReinforcementOption: isLinearMaterial
-            ? null
-            : piece.idReinforcementOption
-              ? Number(piece.idReinforcementOption)
-              : undefined,
-
-          muntin: isLinearMaterial ? null : (piece.muntin ?? null),
-
-          qty: Number(piece.qty),
-          dealerMarkup: generalMarkup,
-        };
-
-        const calculated = await calculatePiece(payload);
-
-        calculatedPieces.push({
-          index,
-          calculated,
-        });
+      // Guardamos primero cualquier cambio pendiente del encabezado,
+      // especialmente Customer Sales Tax.
+      if (headerAutosaveTimeoutRef.current) {
+        clearTimeout(headerAutosaveTimeoutRef.current);
+        headerAutosaveTimeoutRef.current = null;
       }
 
-      // usar directamente los valores devueltos
-      // por el backend; el frontend no ejecuta fórmulas de markup.
-      calculatedPieces.forEach(({ index, calculated }) => {
-        const rate = Number(calculated.rate) || 0;
-        const price = Number(calculated.price) || 0;
-        const subtotal = Number(calculated.subtotal) || 0;
-        const netProfitD = Number(calculated.netProfitD) || 0;
-        const customerPrice = Number(calculated.customerPrice) || 0;
-        const customerSubtotal = Number(calculated.customerSubtotal) || 0;
+      const headerWasSaved = await saveEstimateHeader();
 
-        setValue(`pieces.${index}.rate`, rate, {
-          shouldDirty: true,
-        });
+      if (!headerWasSaved) {
+        return;
+      }
 
-        setValue(`pieces.${index}.price`, price, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.subtotal`, subtotal, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.dealerMarkup`, generalMarkup, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.netProfitD`, netProfitD, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.customerPrice`, customerPrice, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.customerSubtotal`, customerSubtotal, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.total`, customerSubtotal, {
-          shouldDirty: true,
-        });
-
-        setValue(`pieces.${index}.highBottom`, calculated.highBottom === true, {
-          shouldDirty: true,
-        });
-
-        setValue(
-          `pieces.${index}.highBottomPercent`,
-          calculated.highBottomPercent === null ||
-            calculated.highBottomPercent === undefined
-            ? null
-            : Number(calculated.highBottomPercent),
-          {
-            shouldDirty: true,
-          },
-        );
-      });
-
-      toast.success(
-        "General dealer markup calculated by the backend and applied to all pieces.",
+      const updatedEstimate = await applyGeneralDealerMarkup(
+        estimate.id,
+        generalMarkup,
       );
+
+      // La respuesta del backend es la nueva fuente de verdad.
+      replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+
+      toast.success("General Dealer Markup applied and saved successfully.");
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -661,6 +827,99 @@ export function EstimateForm({
     isTaxExempt,
   ]);
 
+  const mapPieceForPersistence = (piece: PieceFormValues): CreatePieceData => {
+    const product = productsWithBrands.find(
+      (item) => item.id === Number(piece.idProd),
+    );
+
+    const isLinearMaterial = product?.kind === "LINEAR_MATERIAL";
+
+    return {
+      mark: piece.mark ?? "",
+
+      idProd: Number(piece.idProd),
+      idBrand: Number(piece.idBrand),
+      idSyst: Number(piece.idSyst),
+      idConf: Number(piece.idConf),
+      idFC: Number(piece.idFC),
+
+      width: piece.width ? String(piece.width) : null,
+      height: piece.height ? String(piece.height) : null,
+      heightLeft: piece.heightLeft ? String(piece.heightLeft) : null,
+      heightRight: piece.heightRight ? String(piece.heightRight) : null,
+      legHeight: piece.legHeight ? String(piece.legHeight) : null,
+      sashHeight: piece.sashHeight ? String(piece.sashHeight) : null,
+      windowHeight: piece.windowHeight ? String(piece.windowHeight) : null,
+
+      doorWidth: piece.doorWidth ? String(piece.doorWidth) : null,
+      doorHeight: piece.doorHeight ? String(piece.doorHeight) : null,
+
+      leftSideliteWidth: piece.leftSideliteWidth
+        ? String(piece.leftSideliteWidth)
+        : null,
+
+      rightSideliteWidth: piece.rightSideliteWidth
+        ? String(piece.rightSideliteWidth)
+        : null,
+
+      leftPanels:
+        piece.leftPanels === null || piece.leftPanels === undefined
+          ? null
+          : Number(piece.leftPanels),
+
+      rightPanels:
+        piece.rightPanels === null || piece.rightPanels === undefined
+          ? null
+          : Number(piece.rightPanels),
+
+      panelCount:
+        piece.panelCount === null || piece.panelCount === undefined
+          ? null
+          : Number(piece.panelCount),
+
+      horizontalHeights: Array.isArray(piece.horizontalHeights)
+        ? piece.horizontalHeights.map((value) => Number(value))
+        : null,
+
+      idCryst: isLinearMaterial ? null : Number(piece.idCryst),
+      idTint: isLinearMaterial ? null : Number(piece.idTint),
+      privacy: isLinearMaterial ? false : Boolean(piece.privacy),
+      idCoat: isLinearMaterial ? null : Number(piece.idCoat),
+      screen: isLinearMaterial ? false : Boolean(piece.screen),
+      highBottom: isLinearMaterial ? false : piece.highBottom === true,
+
+      idActiveOption: isLinearMaterial
+        ? null
+        : piece.idActiveOption
+          ? Number(piece.idActiveOption)
+          : null,
+
+      idPreparationOption: isLinearMaterial
+        ? null
+        : piece.idPreparationOption
+          ? Number(piece.idPreparationOption)
+          : null,
+
+      idSillOption: isLinearMaterial
+        ? null
+        : piece.idSillOption
+          ? Number(piece.idSillOption)
+          : null,
+
+      idReinforcementOption: isLinearMaterial
+        ? null
+        : piece.idReinforcementOption
+          ? Number(piece.idReinforcementOption)
+          : null,
+
+      muntin: isLinearMaterial ? null : (piece.muntin ?? null),
+
+      qty: Number(piece.qty),
+
+      dealerMarkup: canUseCustomerPricing ? Number(piece.dealerMarkup || 0) : 0,
+    };
+  };
+
   const handleAddNewPiece = () => {
     setEditingPieceIndex(null);
     setDuplicatingPieceData(null);
@@ -699,157 +958,100 @@ export function EstimateForm({
     toast.info("Piece duplicated. Please enter a new mark and recalculate.");
   };
 
-  const handleSavePiece = (data: PieceFormValues) => {
-    if (editingPieceIndex !== null) {
-      update(editingPieceIndex, data);
-    } else {
-      append(data);
+  const handleSavePiece = async (data: PieceFormValues): Promise<void> => {
+    // mantenemos el fallback local mientras exista algún uso antiguo
+    // de EstimateForm sin un Estimate persistido.
+    if (!estimate?.id) {
+      if (editingPieceIndex !== null) {
+        update(editingPieceIndex, data);
+      } else {
+        append(data);
+      }
+
+      setIsPieceModalOpen(false);
+      setEditingPieceIndex(null);
+      setDuplicatingPieceData(null);
+      return;
     }
 
-    setIsPieceModalOpen(false);
-    setEditingPieceIndex(null);
-    setDuplicatingPieceData(null);
+    try {
+      const payload = mapPieceForPersistence(data);
+
+      let updatedEstimate: EstimateWithRelations;
+
+      if (editingPieceIndex !== null) {
+        const currentPiece = getValues(`pieces.${editingPieceIndex}`);
+
+        const pieceId = Number(currentPiece?.id ?? data.id ?? 0);
+
+        if (!pieceId) {
+          toast.error("The persisted Piece could not be identified.");
+          return;
+        }
+
+        updatedEstimate = await updateEstimatePiece(
+          estimate.id,
+          pieceId,
+          payload,
+        );
+
+        toast.success("Piece updated successfully.");
+      } else {
+        updatedEstimate = await addEstimatePiece(estimate.id, payload);
+
+        toast.success("Piece added successfully.");
+      }
+
+      // reemplazamos las piezas locales con la fuente de verdad
+      // devuelta por el backend.
+      replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+
+      setIsPieceModalOpen(false);
+      setEditingPieceIndex(null);
+      setDuplicatingPieceData(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save the Piece.",
+      );
+
+      // no cerramos el modal cuando falla el backend.
+    }
   };
 
-  const onSubmit = handleSubmit(async (data) => {
-    try {
-      const customerTaxRateDec = canUseCustomerPricing
-        ? (Number(data.customerTaxRate) || 0) / 100
-        : 0;
+  const handleRemovePiece = async (index: number): Promise<void> => {
+    if (isDeletingPieceRef.current) return;
 
-      const mapPiecesForApi = (
-        p: PieceFormValues,
-      ): CreatePieceData & { id?: number } => {
-        return {
-          ...(p.id !== undefined && { id: p.id }),
-          mark: p.mark,
-          idProd: Number(p.idProd),
-          idBrand: Number(p.idBrand),
-          idSyst: Number(p.idSyst),
-          idConf: Number(p.idConf),
-          idFC: Number(p.idFC),
-          width: p.width ? String(p.width) : null,
-          height: p.height ? String(p.height) : null,
-          heightLeft: p.heightLeft ? String(p.heightLeft) : null,
-          heightRight: p.heightRight ? String(p.heightRight) : null,
-          legHeight: p.legHeight ? String(p.legHeight) : null,
-          sashHeight: p.sashHeight ? String(p.sashHeight) : null,
-          windowHeight: p.windowHeight ? String(p.windowHeight) : null,
+    const currentPiece = getValues(`pieces.${index}`);
 
-          doorWidth: p.doorWidth ? String(p.doorWidth) : null,
-          doorHeight: p.doorHeight ? String(p.doorHeight) : null,
-
-          leftSideliteWidth: p.leftSideliteWidth
-            ? String(p.leftSideliteWidth)
-            : null,
-
-          rightSideliteWidth: p.rightSideliteWidth
-            ? String(p.rightSideliteWidth)
-            : null,
-
-          leftPanels:
-            p.leftPanels === null || p.leftPanels === undefined
-              ? null
-              : Number(p.leftPanels),
-
-          rightPanels:
-            p.rightPanels === null || p.rightPanels === undefined
-              ? null
-              : Number(p.rightPanels),
-
-          panelCount:
-            p.panelCount === null || p.panelCount === undefined
-              ? null
-              : Number(p.panelCount),
-
-          horizontalHeights: Array.isArray(p.horizontalHeights)
-            ? p.horizontalHeights.map((value) => Number(value))
-            : null,
-
-          idCryst: Number(p.idCryst),
-          idTint: Number(p.idTint),
-          privacy: p.privacy,
-          idCoat: Number(p.idCoat),
-          screen: p.screen,
-          highBottom: p.highBottom === true,
-
-          idActiveOption: p.idActiveOption ? Number(p.idActiveOption) : null,
-          idPreparationOption: p.idPreparationOption
-            ? Number(p.idPreparationOption)
-            : null,
-          idSillOption: p.idSillOption ? Number(p.idSillOption) : null,
-          idReinforcementOption: p.idReinforcementOption
-            ? Number(p.idReinforcementOption)
-            : null,
-
-          muntin: p.muntin ?? null,
-          qty: Number(p.qty),
-          dealerMarkup: canUseCustomerPricing ? Number(p.dealerMarkup || 0) : 0,
-        };
-      };
-
-      type CustomerFields = Pick<
-        CreateEstimateData,
-        | "customerFirstName"
-        | "customerLastName"
-        | "customerEmail"
-        | "customerPhone"
-        | "customerStreet"
-        | "customerCity"
-        | "customerState"
-        | "customerPostalCode"
-      >;
-
-      const customerHeader: Partial<CustomerFields> = canUseCustomerPricing
-        ? {
-            customerFirstName: data.customerFirstName?.trim() || null,
-            customerLastName: data.customerLastName?.trim() || null,
-            customerEmail: data.customerEmail?.trim() || null,
-            customerPhone: data.customerPhone?.trim() || null,
-            customerStreet: data.customerStreet?.trim() || null,
-            customerCity: data.customerCity?.trim() || null,
-            customerState: data.customerState?.trim() || null,
-            customerPostalCode: data.customerPostalCode?.trim() || null,
-          }
-        : {};
-
-      if (isEditMode && estimate?.id) {
-        const updateData: UpdateEstimateData = {
-          name: data.name,
-          customerTaxRate: customerTaxRateDec,
-          ...customerHeader,
-          pieces: data.pieces.map(mapPiecesForApi),
-        };
-
-        await updateEstimate(estimate.id, updateData);
-        toast.success("Estimate updated successfully!");
-      } else {
-        const createData: CreateEstimateData = {
-          name: data.name,
-          customerTaxRate: customerTaxRateDec,
-          ...customerHeader,
-          pieces: data.pieces.map((p) => {
-            const { id, ...rest } = mapPiecesForApi(p);
-            return rest;
-          }),
-        };
-
-        await createEstimate(createData);
-        toast.success("Estimate created successfully!");
-      }
-
-      router.push("/estimates");
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message || "An unexpected error occurred.");
-      } else {
-        toast.error("An unexpected error occurred.");
-      }
+    if (!currentPiece) {
+      toast.error("The Piece could not be found.");
+      return;
     }
-  });
+    // fallback para cualquier flujo antiguo no persistido.
+    if (!estimate?.id || !currentPiece.id) {
+      remove(index);
+      return;
+    }
 
-  const showLoadingState = isSubmitting;
-  const isSubmitDisabled = !isDirty || showLoadingState || fields.length === 0;
+    isDeletingPieceRef.current = true;
+
+    try {
+      const updatedEstimate = await deleteEstimatePiece(
+        estimate.id,
+        Number(currentPiece.id),
+      );
+
+      replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+
+      toast.success("Piece deleted successfully.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete the Piece.",
+      );
+    } finally {
+      isDeletingPieceRef.current = false;
+    }
+  };
 
   const editingPieceData = useMemo<PieceFormValues>(() => {
     if (
@@ -923,7 +1125,7 @@ export function EstimateForm({
 
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-8">
+      <div className="space-y-8">
         <div className="p-6 border rounded-lg bg-slate-50">
           <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
 
@@ -1009,7 +1211,7 @@ export function EstimateForm({
               formatCurrency={formatCurrency}
               onDuplicate={handleDuplicatePiece}
               onEdit={handleEditPiece}
-              onRemove={remove}
+              onRemove={handleRemovePiece}
             />
           ) : (
             <PiecesClientList
@@ -1026,27 +1228,24 @@ export function EstimateForm({
               formatCurrency={formatCurrency}
               onDuplicate={handleDuplicatePiece}
               onEdit={handleEditPiece}
-              onRemove={remove}
+              onRemove={handleRemovePiece}
             />
           )}
         </div>
 
-        <div className="flex justify-end gap-4 mt-8">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="green" disabled={isSubmitDisabled}>
-            {showLoadingState && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            {showLoadingState
-              ? "Saving..."
-              : isEditMode
-                ? "Update Estimate"
-                : "Create Estimate"}
+        <div className="flex justify-end mt-8">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleExit()}
+            disabled={isExiting}
+          >
+            {isExiting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+            {isExiting ? "Saving..." : "Exit"}
           </Button>
         </div>
-      </form>
+      </div>
 
       <PieceModal
         open={isPieceModalOpen}
@@ -1085,6 +1284,7 @@ export function EstimateForm({
         onCancel={handleCancelColorChange}
         onNewPiecesOnly={setNewColorForFuturePieces}
         onUpdateAll={updateAllPiecesColor}
+        isUpdating={isApplyingBulkAttribute}
       />
 
       <ColorUpdateAlertDialog
@@ -1095,6 +1295,7 @@ export function EstimateForm({
         onCancel={handleCancelTintChange}
         onNewPiecesOnly={setNewTintForFuturePieces}
         onUpdateAll={updateAllPiecesTint}
+        isUpdating={isApplyingBulkAttribute}
       />
 
       <ColorUpdateAlertDialog
@@ -1105,6 +1306,7 @@ export function EstimateForm({
         onCancel={handleCancelCoatingChange}
         onNewPiecesOnly={setNewCoatingForFuturePieces}
         onUpdateAll={updateAllPiecesCoating}
+        isUpdating={isApplyingBulkAttribute}
       />
     </>
   );

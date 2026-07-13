@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -23,7 +23,9 @@ interface ColorUpdateAlertDialogProps {
 
   onCancel: () => void;
   onNewPiecesOnly: () => void;
-  onUpdateAll: () => void;
+  onUpdateAll: () => void | Promise<void>;
+
+  isUpdating?: boolean;
 }
 
 export function ColorUpdateAlertDialog({
@@ -34,30 +36,49 @@ export function ColorUpdateAlertDialog({
   onCancel,
   onNewPiecesOnly,
   onUpdateAll,
+  isUpdating = false,
 }: ColorUpdateAlertDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (isUpdating) return;
+        onOpenChange(nextOpen);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center">
             <AlertTriangle className="mr-2 text-yellow-500" />
             {title}
           </AlertDialogTitle>
+
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={onCancel} disabled={isUpdating}>
+            Cancel
+          </AlertDialogCancel>
 
-          <AlertDialogAction asChild>
-            <Button variant="outline" onClick={onNewPiecesOnly}>
-              For New Pieces Only
-            </Button>
-          </AlertDialogAction>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onNewPiecesOnly}
+            disabled={isUpdating}
+          >
+            For New Pieces Only
+          </Button>
 
-          <AlertDialogAction onClick={onUpdateAll}>
-            Yes, Update All
-          </AlertDialogAction>
+          <Button
+            type="button"
+            onClick={() => void onUpdateAll()}
+            disabled={isUpdating}
+          >
+            {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+            {isUpdating ? "Updating..." : "Yes, Update All"}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

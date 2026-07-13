@@ -32,7 +32,8 @@ interface PieceModalProps {
   initialData: PieceFormValues;
   index: number;
 
-  onSave: (data: PieceFormValues) => void;
+  onSave: (data: PieceFormValues) => void | Promise<void>;
+
   onCancel: () => void;
 
   productsWithBrands: ProductWithBrands[];

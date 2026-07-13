@@ -1,8 +1,8 @@
 import { apiFetch } from "./_base";
 import type {
   EstimateWithRelations,
-  CreateEstimateData,
-  UpdateEstimateData,
+  CreateEstimateHeaderData,
+  UpdateEstimateHeaderData,
   CreatePieceData,
 } from "../../lib/types";
 
@@ -78,6 +78,114 @@ export function validatePiece(data: ValidatePieceRequest) {
   });
 }
 
+// crea inmediatamente el Estimate vacío
+// y devuelve el Estimate persistido con su id y número.
+export function initializeEstimate(
+  data: CreateEstimateHeaderData,
+) {
+  return apiFetch<EstimateWithRelations>(
+    "/api/estimates/initialize",
+    {
+      method: "POST",
+      body: data,
+    },
+  );
+}
+
+// actualiza solamente el encabezado.
+// Este endpoint no modifica las piezas guardadas.
+export function updateEstimateHeader(
+  estimateId: number,
+  data: UpdateEstimateHeaderData,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/header`,
+    {
+      method: "PATCH",
+      body: data,
+    },
+  );
+}
+
+// calcula y guarda una pieza nueva
+// dentro de un Estimate ya persistido.
+export function addEstimatePiece(
+  estimateId: number,
+  data: CreatePieceData,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces`,
+    {
+      method: "POST",
+      body: data,
+    },
+  );
+}
+
+// recalcula y reemplaza los datos
+// de una pieza que ya pertenece al Estimate.
+export function updateEstimatePiece(
+  estimateId: number,
+  pieceId: number,
+  data: CreatePieceData,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces/${pieceId}`,
+    {
+      method: "PATCH",
+      body: data,
+    },
+  );
+}
+
+// elimina una pieza persistida
+// y devuelve el Estimate con sus totales actualizados.
+export function deleteEstimatePiece(
+  estimateId: number,
+  pieceId: number,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces/${pieceId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function applyGeneralDealerMarkup(
+  estimateId: number,
+  dealerMarkup: number,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces/general-markup`,
+    {
+      method: "PATCH",
+      body: {
+        dealerMarkup,
+      },
+    },
+  );
+}
+
+export type ApplyBulkPieceAttributeData = {
+  idFC?: number;
+  idTint?: number;
+  idCoat?: number;
+};
+
+export function applyBulkPieceAttribute(
+  estimateId: number,
+  data: ApplyBulkPieceAttributeData,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces/bulk-attribute`,
+    {
+      method: "PATCH",
+      body: data,
+    },
+  );
+}
+
 export function getEstimate(id: number) {
   return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`);
 }
@@ -86,20 +194,6 @@ export function getEstimates() {
   return apiFetch<EstimateWithRelations[]>(`/api/estimates`).catch((err) => {
     console.error("Error in getEstimates:", err);
     return [] as EstimateWithRelations[];
-  });
-}
-
-export function createEstimate(data: CreateEstimateData) {
-  return apiFetch<EstimateWithRelations>("/api/estimates", {
-    method: "POST",
-    body: data,
-  });
-}
-
-export function updateEstimate(id: number, data: UpdateEstimateData) {
-  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`, {
-    method: "PATCH",
-    body: data,
   });
 }
 

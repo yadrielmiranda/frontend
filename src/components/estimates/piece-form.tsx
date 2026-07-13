@@ -163,7 +163,7 @@ function syncMuntinWithConfigLayout(
 
 export interface PieceFormProps {
   initialData: PieceFormValues;
-  onSubmit: (data: PieceFormValues) => void;
+  onSubmit: (data: PieceFormValues) => void | Promise<void>;
   onCancel: () => void;
   index: number;
 
@@ -251,15 +251,16 @@ export function PieceForm({
   const { idProd, idConf, width, height, price } = pieceValues;
   const currentMuntin = pieceValues.muntin ?? null;
 
-  const { productName, selectedProduct } = useMemo(() => {
-    const product = idProd
-      ? props.productsWithBrands.find((p) => p.id === Number(idProd))
-      : undefined;
+  const selectedProduct = useMemo(() => {
+    if (!idProd) {
+      return null;
+    }
 
-    return {
-      productName: product?.name,
-      selectedProduct: product ?? null,
-    };
+    return (
+      props.productsWithBrands.find(
+        (product) => product.id === Number(idProd),
+      ) ?? null
+    );
   }, [idProd, props.productsWithBrands]);
 
   const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
@@ -889,10 +890,6 @@ export function PieceForm({
     props.muntinPatterns,
     setValue,
   ]);
-
-  const { configuration } = useMemo(() => {
-    return { configuration: selectedConfig?.conf };
-  }, [selectedConfig]);
 
   const dealerMarkupField = register("dealerMarkup", {
     valueAsNumber: true,
@@ -3473,10 +3470,11 @@ export function PieceForm({
             </Label>
             <div className="p-4 border rounded-lg bg-slate-50 min-h-[400px] flex items-center justify-center">
               <PieceDiagram
-                width={Number(width) || 0}
-                height={Number(height) || 0}
-                productName={productName}
-                configuration={configuration}
+                variant="editor"
+                diagramFamily={selectedProduct?.diagramFamily}
+                configuration={selectedConfig?.conf}
+                dimensionMode={dimensionMode}
+                piece={pieceValues}
               />
             </div>
           </div>
