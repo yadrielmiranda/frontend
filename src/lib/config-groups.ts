@@ -1,6 +1,7 @@
 export type ConfigLike = {
     id: number;
     conf: string;
+    sortOrder?: number | null;
     category?: {
         id: number;
         name: string;
@@ -42,7 +43,16 @@ export function groupConfigsByCategory<T extends ConfigLike>(configs: T[]) {
     }
 
     const sortItems = (items: T[]) =>
-        [...items].sort((a, b) => a.conf.localeCompare(b.conf));
+        [...items].sort((a, b) => {
+            const orderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+            const orderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+
+            return a.conf.localeCompare(b.conf);
+        });
 
     return {
         hasCategories: groups.size > 0,

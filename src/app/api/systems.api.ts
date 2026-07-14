@@ -18,7 +18,9 @@ export type SystemData = {
 export type UpdateSystemData = Partial<SystemData>;
 
 export type UpdateSystemConfigData = {
-  allowScreen: boolean;
+  allowScreen?: boolean;
+  sortOrder?: number;
+  isDefault?: boolean;
 };
 
 export type UpdateSystemConfigOptionsData = {

@@ -37,6 +37,8 @@ export type AvailableConfig = Pick<
 
 export type AssociatedConfig = AvailableConfig & {
   allowScreen: boolean;
+  sortOrder: number;
+  isDefault: boolean;
 };
 
 export const getAssociatedConfigsColumns = (

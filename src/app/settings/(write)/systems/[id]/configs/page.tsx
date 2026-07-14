@@ -28,12 +28,14 @@ export default async function ManageSystemConfigsPage({
     getAvailableConfigs(systemId),
   ]);
 
-  const associatedConfigs = systemData.sysconfs.map((sc: any) => ({
+  const associatedConfigs = systemData.sysconfs.map((sc) => ({
     id: sc.config.id,
     conf: sc.config.conf,
     categoryId: sc.config.categoryId ?? null,
     category: sc.config.category ?? null,
     allowScreen: sc.allowScreen,
+    sortOrder: sc.sortOrder,
+    isDefault: systemData.defaultConfigId === sc.idConfig,
   }));
 
   const isLinearMaterial =

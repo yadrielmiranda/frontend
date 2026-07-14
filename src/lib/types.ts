@@ -94,6 +94,7 @@ export interface System {
   isActive: boolean;
   allowHighBottom: boolean;
 
+  defaultConfigId?: number | null;
   defaultCrystalId?: number | null;
   systemCrystals?: {
     idCrystal: number;
@@ -455,6 +456,7 @@ export interface SysConf {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  sortOrder: number;
   config: Config;
 
   dimensionMode: DimensionMode;

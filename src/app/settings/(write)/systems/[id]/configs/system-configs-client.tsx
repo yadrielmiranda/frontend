@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  CheckCircle2,
+  Circle,
   Plus,
   PackageOpen,
   PlusCircle,
   Settings2,
   XCircle,
 } from "lucide-react";
-
-import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -156,6 +157,8 @@ function AssociatedConfigRow({
   config,
   onRemove,
   onToggleAllowScreen,
+  onUpdateSortOrder,
+  onUpdateDefault,
 }: {
   systemId: number;
   isLinearMaterial: boolean;
@@ -165,15 +168,30 @@ function AssociatedConfigRow({
     configId: number,
     allowScreen: boolean,
   ) => Promise<void>;
+  onUpdateSortOrder: (configId: number, sortOrder: number) => Promise<boolean>;
+  onUpdateDefault: (configId: number, isDefault: boolean) => Promise<boolean>;
 }) {
   const [checked, setChecked] = useState(config.allowScreen);
+  const [orderValue, setOrderValue] = useState(String(config.sortOrder));
+
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [isSavingDefault, setIsSavingDefault] = useState(false);
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingValue, setPendingValue] = useState<boolean | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const switchId = `allow-screen-${config.id}`;
   const isEnabling = pendingValue === true;
+
+  useEffect(() => {
+    setChecked(config.allowScreen);
+  }, [config.allowScreen]);
+
+  useEffect(() => {
+    setOrderValue(String(config.sortOrder));
+  }, [config.sortOrder]);
 
   const requestToggle = (nextValue: boolean) => {
     if (isSaving) return;
@@ -202,9 +220,104 @@ function AssociatedConfigRow({
     }
   };
 
+  const handleSaveOrder = async () => {
+    if (isSavingOrder) return;
+
+    const normalizedValue = orderValue.trim();
+    const nextOrder = Number(normalizedValue);
+
+    if (
+      normalizedValue === "" ||
+      !Number.isInteger(nextOrder) ||
+      nextOrder < 0
+    ) {
+      toast.error("Order must be a whole number greater than or equal to 0.");
+      setOrderValue(String(config.sortOrder));
+      return;
+    }
+
+    if (nextOrder === config.sortOrder) {
+      return;
+    }
+
+    setIsSavingOrder(true);
+
+    try {
+      const ok = await onUpdateSortOrder(config.id, nextOrder);
+
+      if (!ok) {
+        setOrderValue(String(config.sortOrder));
+      }
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const handleSetDefault = async () => {
+    if (isSavingDefault || config.isDefault) return;
+
+    setIsSavingDefault(true);
+
+    try {
+      await onUpdateDefault(config.id, true);
+    } finally {
+      setIsSavingDefault(false);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-[1fr_220px_120px] items-center border-b px-3 py-3 last:border-b-0">
+    <div className="grid grid-cols-[minmax(180px,1fr)_90px_130px_220px_120px] items-center border-b px-3 py-3 last:border-b-0">
       <div className="text-sm">{config.conf}</div>
+
+      <div>
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          value={orderValue}
+          disabled={isSavingOrder}
+          onChange={(event) => setOrderValue(event.target.value)}
+          onBlur={() => void handleSaveOrder()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+          }}
+          className="h-8 w-20"
+          aria-label={`Display order for config ${config.conf}`}
+        />
+      </div>
+
+      <div>
+        {config.isDefault ? (
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+            Default
+          </Badge>
+        ) : (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSavingDefault}
+                  onClick={() => {
+                    void handleSetDefault();
+                  }}
+                  className="gap-1 text-muted-foreground hover:text-blue-600"
+                >
+                  <Circle className="h-3.5 w-3.5" />
+                  Set default
+                </Button>
+              </TooltipTrigger>
+
+              <TooltipContent>Set as default config</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       <div className="flex items-center gap-3">
         {isLinearMaterial ? (
@@ -318,6 +431,8 @@ function AssociatedConfigsGroupedList({
   configs,
   onRemove,
   onToggleAllowScreen,
+  onUpdateSortOrder,
+  onUpdateDefault,
 }: {
   systemId: number;
   isLinearMaterial: boolean;
@@ -327,6 +442,8 @@ function AssociatedConfigsGroupedList({
     configId: number,
     allowScreen: boolean,
   ) => Promise<void>;
+  onUpdateSortOrder: (configId: number, sortOrder: number) => Promise<boolean>;
+  onUpdateDefault: (configId: number, isDefault: boolean) => Promise<boolean>;
 }) {
   const [search, setSearch] = useState("");
 
@@ -355,6 +472,8 @@ function AssociatedConfigsGroupedList({
       config={config}
       onRemove={onRemove}
       onToggleAllowScreen={onToggleAllowScreen}
+      onUpdateSortOrder={onUpdateSortOrder}
+      onUpdateDefault={onUpdateDefault}
     />
   );
 
@@ -369,8 +488,10 @@ function AssociatedConfigsGroupedList({
         />
       </div>
 
-      <div className="grid grid-cols-[1fr_220px_120px] border-b bg-muted/40 px-3 py-3 text-xs font-semibold uppercase text-muted-foreground">
+      <div className="grid grid-cols-[minmax(180px,1fr)_90px_130px_220px_120px] border-b bg-muted/40 px-3 py-3 text-xs font-semibold uppercase text-muted-foreground">
         <div>Associated Config</div>
+        <div>Order</div>
+        <div>Default</div>
         <div>Screen</div>
         <div className="text-right">Action</div>
       </div>
@@ -417,6 +538,13 @@ export function SystemConfigsClient({
 }: SystemConfigsClientProps) {
   const router = useRouter();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [associatedConfigs, setAssociatedConfigs] = useState(
+    initialAssociatedConfigs,
+  );
+
+  useEffect(() => {
+    setAssociatedConfigs(initialAssociatedConfigs);
+  }, [initialAssociatedConfigs]);
 
   const runAction = async (
     action: () => Promise<unknown>,
@@ -466,12 +594,65 @@ export function SystemConfigsClient({
     );
   };
 
+  const handleUpdateSortOrder = async (configId: number, sortOrder: number) => {
+    const ok = await runAction(
+      () =>
+        updateSystemConfig(systemId, configId, {
+          sortOrder,
+        }),
+      "Config order updated successfully.",
+      "Error updating config order.",
+    );
+
+    if (ok) {
+      setAssociatedConfigs((current) =>
+        current.map((config) =>
+          config.id === configId ? { ...config, sortOrder } : config,
+        ),
+      );
+    }
+
+    return ok;
+  };
+
+  const handleUpdateDefault = async (configId: number, isDefault: boolean) => {
+    const ok = await runAction(
+      () =>
+        updateSystemConfig(systemId, configId, {
+          isDefault,
+        }),
+      isDefault
+        ? "Default config updated successfully."
+        : "Default config cleared successfully.",
+      "Error updating default config.",
+    );
+
+    if (ok) {
+      setAssociatedConfigs((current) =>
+        current.map((config) => {
+          if (isDefault) {
+            return {
+              ...config,
+              isDefault: config.id === configId,
+            };
+          }
+
+          return config.id === configId
+            ? { ...config, isDefault: false }
+            : config;
+        }),
+      );
+    }
+
+    return ok;
+  };
+
   const availableConfigs = useMemo(
     () => initialAvailableConfigs,
     [initialAvailableConfigs],
   );
 
-  const hasAssociated = initialAssociatedConfigs.length > 0;
+  const hasAssociated = associatedConfigs.length > 0;
   const hasAvailable = availableConfigs.length > 0;
 
   return (
@@ -559,9 +740,11 @@ export function SystemConfigsClient({
             <AssociatedConfigsGroupedList
               systemId={systemId}
               isLinearMaterial={isLinearMaterial}
-              configs={initialAssociatedConfigs}
+              configs={associatedConfigs}
               onRemove={handleRemove}
               onToggleAllowScreen={handleToggleAllowScreen}
+              onUpdateSortOrder={handleUpdateSortOrder}
+              onUpdateDefault={handleUpdateDefault}
             />
           </div>
         )}

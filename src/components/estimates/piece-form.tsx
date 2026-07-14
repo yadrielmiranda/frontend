@@ -72,6 +72,7 @@ type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  sortOrder: number;
   config: Config;
 
   dimensionMode?:
@@ -331,9 +332,17 @@ export function PieceForm({
   }, [systemId, selectedSystem, isLinearMaterial, getValues, setValue]);
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
-    return ((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
-      (sc) => !!sc?.config,
-    );
+    return [
+      ...((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
+        (sc) => !!sc?.config,
+      ),
+    ].sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) {
+        return a.sortOrder - b.sortOrder;
+      }
+
+      return a.config.conf.localeCompare(b.config.conf);
+    });
   }, [selectedSystem]);
 
   const systemCrystalOptions = useMemo(() => {
@@ -347,6 +356,43 @@ export function PieceForm({
       .map((sc) => sc.config)
       .filter((c): c is Config => Boolean(c) && c.isActive === true);
   }, [availableSysConfs]);
+
+  useEffect(() => {
+    if (!selectedSystem) return;
+
+    const currentConfigId = Number(idConf || 0);
+
+    const currentConfigIsAvailable =
+      currentConfigId > 0 &&
+      availableSysConfs.some(
+        (sysConf) =>
+          sysConf.idConfig === currentConfigId &&
+          sysConf.config?.isActive === true,
+      );
+
+    // Conserva una configuración válida existente,
+    // especialmente cuando se edita una pieza.
+    if (currentConfigIsAvailable) return;
+
+    const defaultConfigId = Number(selectedSystem.defaultConfigId || 0);
+
+    const defaultConfigIsAvailable =
+      defaultConfigId > 0 &&
+      availableSysConfs.some(
+        (sysConf) =>
+          sysConf.idConfig === defaultConfigId &&
+          sysConf.config?.isActive === true,
+      );
+
+    const nextConfigId = defaultConfigIsAvailable ? defaultConfigId : 0;
+
+    if (currentConfigId === nextConfigId) return;
+
+    setValue("idConf", nextConfigId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [systemId, idConf, selectedSystem, availableSysConfs, setValue]);
 
   const groupedConfigs = useMemo(() => {
     const uncategorized: Config[] = [];
@@ -382,8 +428,22 @@ export function PieceForm({
       groups.get(key)!.configs.push(config);
     }
 
+    const orderByConfigId = new Map(
+      availableSysConfs.map((sysConf) => [sysConf.idConfig, sysConf.sortOrder]),
+    );
+
     const sortConfigs = (items: Config[]) =>
-      [...items].sort((a, b) => a.conf.localeCompare(b.conf));
+      [...items].sort((a, b) => {
+        const orderA = orderByConfigId.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+
+        const orderB = orderByConfigId.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+
+        return a.conf.localeCompare(b.conf);
+      });
 
     return {
       hasCategories: groups.size > 0,
@@ -398,7 +458,7 @@ export function PieceForm({
           return a.name.localeCompare(b.name);
         }),
     };
-  }, [availableConfigs]);
+  }, [availableConfigs, availableSysConfs]);
 
   const selectedConfig = useMemo(() => {
     if (!idConf) return null;
@@ -896,7 +956,11 @@ export function PieceForm({
     min: 0,
   });
 
-  const previousConfigIdRef = useRef<number>(Number(initialData.idConf || 0));
+  const previousSysConfKeyRef = useRef(
+    Number(initialData.idSyst || 0) && Number(initialData.idConf || 0)
+      ? `${Number(initialData.idSyst)}:${Number(initialData.idConf)}`
+      : "",
+  );
 
   useEffect(() => {
     const defaultItems = [
@@ -917,10 +981,16 @@ export function PieceForm({
   }, [hasOptionsSection, initialData.price, isLinearMaterial]);
 
   useEffect(() => {
+    const currentSystemId = Number(systemId || 0);
     const currentConfigId = Number(idConf || 0);
 
+    const currentSysConfKey =
+      currentSystemId && currentConfigId
+        ? `${currentSystemId}:${currentConfigId}`
+        : "";
+
     if (!currentConfigId) {
-      previousConfigIdRef.current = 0;
+      previousSysConfKeyRef.current = "";
 
       if (getValues("screen")) {
         setValue("screen", false, { shouldDirty: true });
@@ -937,7 +1007,7 @@ export function PieceForm({
     if (!selectedConfig) return;
 
     if (isLinearMaterial) {
-      previousConfigIdRef.current = currentConfigId;
+      previousSysConfKeyRef.current = currentSysConfKey;
 
       setValue("screen", false, { shouldDirty: true });
       setValue("privacy", false, { shouldDirty: true });
@@ -957,7 +1027,7 @@ export function PieceForm({
       return;
     }
 
-    if (previousConfigIdRef.current === currentConfigId) {
+    if (previousSysConfKeyRef.current === currentSysConfKey) {
       if (!screenAllowed && getValues("screen")) {
         setValue("screen", false, { shouldDirty: false });
       }
@@ -999,7 +1069,7 @@ export function PieceForm({
       setValue("muntin", syncedMuntin, { shouldDirty: false });
     }
 
-    previousConfigIdRef.current = currentConfigId;
+    previousSysConfKeyRef.current = currentSysConfKey;
 
     setValue("screen", screenAllowed, { shouldDirty: true });
 
@@ -1023,6 +1093,7 @@ export function PieceForm({
       { shouldDirty: true },
     );
   }, [
+    systemId,
     idConf,
     selectedConfig,
     isLinearMaterial,
@@ -1860,7 +1931,11 @@ export function PieceForm({
 
                             field.onChange(nextSystemId);
 
-                            setValue("idConf", 0);
+                            setValue("idConf", 0, {
+                              shouldDirty: true,
+                              shouldValidate: false,
+                            });
+
                             setValue("idReinforcementOption", null);
                             setValue("highBottom", false);
                             setValue("highBottomPercent", null);
