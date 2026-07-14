@@ -5,6 +5,8 @@ import type {
   Crystal,
   FrameColor,
   DimensionMode,
+  PricingComponentType,
+  PricingSourceConfig,
 } from "../../lib/types";
 
 export type SystemData = {
@@ -49,6 +51,14 @@ export type UpdateSystemConfigOptionsData = {
   requiresRightPanels?: boolean;
   requiresPanelCount?: boolean;
   requiresHorizontalHeights?: boolean;
+};
+
+export type UpdateSystemConfigPricingComponentsData = {
+  components: {
+    componentType: PricingComponentType;
+    sourceConfigId: number;
+    quantity?: number | null;
+  }[];
 };
 
 export type UpdateSystemCrystalsData = {
@@ -119,6 +129,18 @@ export type SystemConfigOptionsManage = {
   defaultPreparationOptionId: number | null;
   defaultSillOptionId: number | null;
   defaultReinforcementOptionId: number | null;
+
+  pricingComponents: {
+    componentType: PricingComponentType;
+    sourceConfigId: number;
+    quantity: number | null;
+    sourceConfig: PricingSourceConfig;
+  }[];
+
+  pricingSourceConfigsCatalog: {
+    idConfig: number;
+    config: PricingSourceConfig;
+  }[];
 
   activeOptionsCatalog: {
     id: number;
@@ -326,6 +348,20 @@ export function updateSystemFrameColors(
       method: "PATCH",
       body: data,
     }
+  );
+}
+
+export function updateSystemConfigPricingComponents(
+  systemId: number,
+  configId: number,
+  data: UpdateSystemConfigPricingComponentsData,
+) {
+  return apiFetch<SystemConfigOptionsManage>(
+    `/api/systems/${systemId}/configs/${configId}/pricing-components`,
+    {
+      method: "PATCH",
+      body: data,
+    },
   );
 }
 

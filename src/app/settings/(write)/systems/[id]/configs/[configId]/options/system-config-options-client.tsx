@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { PricingComponentType } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Plus, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 import {
   updateSystemConfigOptions,
+  updateSystemConfigPricingComponents,
   type SystemConfigOptionsManage,
 } from "@/app/api/systems.api";
 
@@ -203,6 +206,245 @@ const emptyRequirements: DimensionRequirementsState = {
   requiresPanelCount: false,
   requiresHorizontalHeights: false,
 };
+
+type PricingCalculationMode = "DIRECT" | "COMPONENT_SUM";
+
+type PricingComponentSelections = Record<PricingComponentType, number | null>;
+
+const pricingComponentOptions: {
+  type: PricingComponentType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    type: "DOOR",
+    label: "Door Source",
+    description: "Configuration whose direct pricing rule prices the door.",
+  },
+  {
+    type: "SIDELITE",
+    label: "Sidelite Source",
+    description:
+      "Configuration whose direct pricing rule prices each sidelite panel.",
+  },
+  {
+    type: "TRANSOM",
+    label: "Transom Source",
+    description: "Configuration whose direct pricing rule prices the transom.",
+  },
+];
+
+const emptyPricingComponentSelections: PricingComponentSelections = {
+  DOOR: null,
+  SIDELITE: null,
+  TRANSOM: null,
+};
+
+const buildInitialPricingComponentSelections = (
+  data: SystemConfigOptionsManage,
+): PricingComponentSelections => {
+  const selections: PricingComponentSelections = {
+    ...emptyPricingComponentSelections,
+  };
+
+  for (const component of data.pricingComponents ?? []) {
+    selections[component.componentType] = component.sourceConfigId;
+  }
+
+  return selections;
+};
+
+const buildInitialSideliteQuantity = (
+  data: SystemConfigOptionsManage,
+): number | null =>
+  data.pricingComponents.find(
+    (component) => component.componentType === "SIDELITE",
+  )?.quantity ?? null;
+
+function PricingCalculationCard({
+  calculationMode,
+  components,
+  sourceConfigs,
+  dimensionMode,
+  sideliteQuantity,
+  isSaving,
+  hasChanges,
+  onCalculationModeChange,
+  onComponentChange,
+  onSideliteQuantityChange,
+  onSave,
+}: {
+  calculationMode: PricingCalculationMode;
+  components: PricingComponentSelections;
+  sourceConfigs: SystemConfigOptionsManage["pricingSourceConfigsCatalog"];
+  dimensionMode: SystemConfigOptionsManage["dimensionMode"];
+  sideliteQuantity: number | null;
+  isSaving: boolean;
+  hasChanges: boolean;
+  onCalculationModeChange: (value: PricingCalculationMode) => void;
+  onComponentChange: (
+    type: PricingComponentType,
+    sourceConfigId: number | null,
+  ) => void;
+  onSideliteQuantityChange: (quantity: number | null) => void;
+  onSave: () => void;
+}) {
+  const hasSelectedComponent = Object.values(components).some(
+    (sourceConfigId) => sourceConfigId !== null,
+  );
+
+  const requiresSideliteQuantity =
+    dimensionMode === "ECO_WINDOWS_DOOR" && components.SIDELITE !== null;
+
+  const hasValidSideliteQuantity =
+    !requiresSideliteQuantity ||
+    (Number.isInteger(sideliteQuantity) && Number(sideliteQuantity) >= 1);
+
+  return (
+    <div className="space-y-5 rounded-lg border p-4">
+      <div>
+        <h3 className="text-base font-semibold">Pricing Calculation</h3>
+
+        <p className="text-sm text-muted-foreground">
+          Choose whether this configuration uses its own pricing rule or the sum
+          of direct pricing rules from component configurations.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Calculation Mode</Label>
+
+        <Select
+          value={calculationMode}
+          onValueChange={(value) =>
+            onCalculationModeChange(value as PricingCalculationMode)
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select calculation mode" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="DIRECT">Direct Pricing Rule</SelectItem>
+
+            <SelectItem value="COMPONENT_SUM">
+              Sum of Component Prices
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {calculationMode === "DIRECT" ? (
+        <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+          The piece uses the pricing rule assigned directly to this
+          configuration.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Each component is calculated and rounded to cents before the
+            component prices are added together. Remove any direct pricing rules
+            from this configuration before enabling component pricing.
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {pricingComponentOptions.map((option) => {
+              const selectedSourceConfigId = components[option.type];
+
+              return (
+                <div
+                  key={option.type}
+                  className="space-y-2 rounded-md border p-3"
+                >
+                  <div>
+                    <Label>{option.label}</Label>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {option.description}
+                    </p>
+                  </div>
+
+                  <Select
+                    value={
+                      selectedSourceConfigId === null
+                        ? "NONE"
+                        : String(selectedSourceConfigId)
+                    }
+                    onValueChange={(value) =>
+                      onComponentChange(
+                        option.type,
+                        value === "NONE" ? null : Number(value),
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source config" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="NONE">Not used</SelectItem>
+
+                      {sourceConfigs.map((source) => (
+                        <SelectItem
+                          key={source.idConfig}
+                          value={String(source.idConfig)}
+                        >
+                          {source.config.conf}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {option.type === "SIDELITE" &&
+                    dimensionMode === "ECO_WINDOWS_DOOR" &&
+                    selectedSourceConfigId !== null && (
+                      <div className="space-y-2 pt-2">
+                        <Label>Sidelite Quantity</Label>
+
+                        <Input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={sideliteQuantity ?? ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+
+                            onSideliteQuantityChange(
+                              value === "" ? null : Number(value),
+                            );
+                          }}
+                          placeholder="Enter total sidelites"
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                          Total number of equal-width sidelites in this
+                          configuration.
+                        </p>
+                      </div>
+                    )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={onSave}
+          disabled={
+            isSaving ||
+            !hasChanges ||
+            (calculationMode === "COMPONENT_SUM" && !hasSelectedComponent) ||
+            !hasValidSideliteQuantity
+          }
+        >
+          {isSaving ? "Saving..." : "Save Pricing Calculation"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function DimensionSettingsCard({
   dimensionMode,
@@ -456,6 +698,66 @@ export function SystemConfigOptionsClient({
   data: SystemConfigOptionsManage;
 }) {
   const router = useRouter();
+  const initialPricingCalculationMode: PricingCalculationMode =
+    data.pricingComponents?.length > 0 ? "COMPONENT_SUM" : "DIRECT";
+
+  const initialPricingComponents = useMemo(
+    () => buildInitialPricingComponentSelections(data),
+    [data],
+  );
+
+  const initialSideliteQuantity = useMemo(
+    () => buildInitialSideliteQuantity(data),
+    [data],
+  );
+
+  const [pricingCalculationMode, setPricingCalculationMode] =
+    useState<PricingCalculationMode>(initialPricingCalculationMode);
+
+  const [pricingComponents, setPricingComponents] =
+    useState<PricingComponentSelections>(initialPricingComponents);
+
+  const [sideliteQuantity, setSideliteQuantity] = useState<number | null>(
+    initialSideliteQuantity,
+  );
+
+  const [isSavingPricing, setIsSavingPricing] = useState(false);
+  const [isConfirmPricingOpen, setIsConfirmPricingOpen] = useState(false);
+
+  const effectivePricingComponents =
+    pricingCalculationMode === "DIRECT"
+      ? emptyPricingComponentSelections
+      : pricingComponents;
+
+  const effectiveSideliteQuantity =
+    pricingCalculationMode === "COMPONENT_SUM" &&
+    data.dimensionMode === "ECO_WINDOWS_DOOR" &&
+    effectivePricingComponents.SIDELITE !== null
+      ? sideliteQuantity
+      : null;
+
+  const hasPricingChanges = useMemo(() => {
+    if (pricingCalculationMode !== initialPricingCalculationMode) {
+      return true;
+    }
+
+    const componentsChanged = pricingComponentOptions.some(
+      (option) =>
+        effectivePricingComponents[option.type] !==
+        initialPricingComponents[option.type],
+    );
+
+    return (
+      componentsChanged || effectiveSideliteQuantity !== initialSideliteQuantity
+    );
+  }, [
+    pricingCalculationMode,
+    initialPricingCalculationMode,
+    effectivePricingComponents,
+    initialPricingComponents,
+    effectiveSideliteQuantity,
+    initialSideliteQuantity,
+  ]);
   const initialDimensionMode = data.dimensionMode ?? "STANDARD";
   const initialRequirements = useMemo(
     () => buildInitialRequirements(data),
@@ -573,6 +875,67 @@ export function SystemConfigOptionsClient({
       toast.error((error as Error).message || errorMsg);
       console.error(errorMsg, error);
       return false;
+    }
+  };
+
+  const handleSavePricingCalculation = async () => {
+    const requiresSideliteQuantity =
+      pricingCalculationMode === "COMPONENT_SUM" &&
+      data.dimensionMode === "ECO_WINDOWS_DOOR" &&
+      pricingComponents.SIDELITE !== null;
+
+    if (
+      requiresSideliteQuantity &&
+      (!Number.isInteger(sideliteQuantity) || Number(sideliteQuantity) < 1)
+    ) {
+      toast.error(
+        "Sidelite Quantity must be a whole number greater than zero.",
+      );
+      return;
+    }
+    const components =
+      pricingCalculationMode === "DIRECT"
+        ? []
+        : pricingComponentOptions.flatMap((option) => {
+            const sourceConfigId = pricingComponents[option.type];
+
+            return sourceConfigId === null
+              ? []
+              : [
+                  {
+                    componentType: option.type,
+                    sourceConfigId,
+
+                    ...(option.type === "SIDELITE" &&
+                    data.dimensionMode === "ECO_WINDOWS_DOOR"
+                      ? { quantity: sideliteQuantity }
+                      : {}),
+                  },
+                ];
+          });
+
+    if (pricingCalculationMode === "COMPONENT_SUM" && components.length === 0) {
+      toast.error("Select at least one pricing component.");
+      return;
+    }
+
+    try {
+      setIsSavingPricing(true);
+
+      await updateSystemConfigPricingComponents(data.idSystem, data.idConfig, {
+        components,
+      });
+
+      toast.success("Pricing calculation updated successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        (error as Error).message || "Error updating pricing calculation.",
+      );
+
+      console.error("Error updating pricing calculation.", error);
+    } finally {
+      setIsSavingPricing(false);
     }
   };
 
@@ -709,6 +1072,55 @@ export function SystemConfigOptionsClient({
 
   return (
     <div className="space-y-6">
+      <PricingCalculationCard
+        calculationMode={pricingCalculationMode}
+        components={effectivePricingComponents}
+        sourceConfigs={data.pricingSourceConfigsCatalog}
+        dimensionMode={data.dimensionMode}
+        sideliteQuantity={effectiveSideliteQuantity}
+        isSaving={isSavingPricing}
+        hasChanges={hasPricingChanges}
+        onCalculationModeChange={(value) => {
+          setPricingCalculationMode(value);
+
+          if (value === "DIRECT") {
+            setPricingComponents({
+              ...emptyPricingComponentSelections,
+            });
+
+            setSideliteQuantity(null);
+          }
+        }}
+        onComponentChange={(type, sourceConfigId) => {
+          setPricingComponents((current) => ({
+            ...current,
+            [type]: sourceConfigId,
+          }));
+
+          if (type === "SIDELITE" && sourceConfigId === null) {
+            setSideliteQuantity(null);
+          }
+        }}
+        onSideliteQuantityChange={setSideliteQuantity}
+        onSave={() => setIsConfirmPricingOpen(true)}
+      />
+
+      <ConfirmActionDialog
+        isOpen={isConfirmPricingOpen}
+        onClose={() => setIsConfirmPricingOpen(false)}
+        onConfirm={async () => {
+          setIsConfirmPricingOpen(false);
+          await handleSavePricingCalculation();
+        }}
+        title="Save pricing calculation?"
+        description={
+          pricingCalculationMode === "DIRECT"
+            ? "This configuration will use its own direct pricing rule."
+            : "This configuration will be priced by calculating, rounding, and adding the selected component prices."
+        }
+        confirmText="Yes, save pricing calculation"
+        cancelText="Cancel"
+      />
       <DimensionSettingsCard
         dimensionMode={dimensionMode}
         requirements={effectiveRequirements}

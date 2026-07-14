@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import {
   bulkUpsertRules,
+  deleteRulesByType,
   type RuleRow,
 } from "@/app/api/dimension-policies.api";
 import {
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DimensionRuleType } from "@/lib/types";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 type Props = {
   idPolicy: number;
@@ -43,6 +45,7 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
   const [allRows, setAllRows] = useState<RuleRow[]>(initialRows);
   const [rows, setRows] = useState<RuleRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [isClearOpen, setIsClearOpen] = useState(false);
 
   const rowsForSelectedType = useMemo(() => {
     return allRows.filter(
@@ -172,6 +175,32 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
     }
   };
 
+  const clearSelectedRules = async () => {
+    setBusy(true);
+
+    try {
+      const result = await deleteRulesByType(idPolicy, selectedRuleType);
+
+      setAllRows((current) =>
+        current.filter((row) => (row.ruleType ?? "MAIN") !== selectedRuleType),
+      );
+
+      setRows([]);
+
+      toast.success(
+        result.deletedCount === 1
+          ? `1 ${selectedRuleType} rule deleted.`
+          : `${result.deletedCount} ${selectedRuleType} rules deleted.`,
+      );
+    } catch (error: any) {
+      toast.error(
+        error?.message ?? `Failed to delete ${selectedRuleType} rules.`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
@@ -224,6 +253,15 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
             }}
           />
         </label>
+
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={() => setIsClearOpen(true)}
+          disabled={busy || rowsForSelectedType.length === 0}
+        >
+          Clear {selectedRuleType} Rules
+        </Button>
 
         <p className="text-sm text-muted-foreground">
           Saving replaces only the {selectedRuleType} rules for this policy.
@@ -359,6 +397,19 @@ export function RulesEditor({ idPolicy, initialRows = [] }: Props) {
           {busy ? "Saving..." : `Save ${selectedRuleType} rules`}
         </Button>
       </div>
+
+      <ConfirmActionDialog
+        isOpen={isClearOpen}
+        onClose={() => setIsClearOpen(false)}
+        onConfirm={async () => {
+          setIsClearOpen(false);
+          await clearSelectedRules();
+        }}
+        title={`Clear ${selectedRuleType} rules?`}
+        description={`This permanently deletes all ${selectedRuleType} rules from this policy. Other rule types will not be changed.`}
+        confirmText={`Yes, clear ${selectedRuleType} rules`}
+        cancelText="Cancel"
+      />
     </div>
   );
 }

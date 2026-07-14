@@ -160,6 +160,23 @@ export interface Config {
   prod?: Product;
 }
 
+export type PricingComponentType = "DOOR" | "SIDELITE" | "TRANSOM";
+
+export interface PricingSourceConfig {
+  id: number;
+  conf: string;
+  categoryId?: number | null;
+  isActive: boolean;
+  category?: ConfigCategory | null;
+}
+
+export interface SysConfPricingComponent {
+  componentType: PricingComponentType;
+  sourceConfigId: number;
+  quantity?: number | null;
+  sourceConfig?: PricingSourceConfig;
+}
+
 export interface FrameColor {
   id: number;
   color: string;
@@ -479,6 +496,8 @@ export interface SysConf {
   defaultPreparationOptionId?: number | null;
   defaultSillOptionId?: number | null;
   defaultReinforcementOptionId?: number | null;
+
+  pricingComponents?: SysConfPricingComponent[];
 
   activeOptions?: SysConfOptionLink<ActiveOption>[];
   preparationOptions?: SysConfOptionLink<PreparationOption>[];

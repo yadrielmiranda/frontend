@@ -110,6 +110,7 @@ export function PricingRuleForm({
 
     return selectedSystem
       ? selectedSystem.sysconfs
+          .filter((sysconf) => (sysconf.pricingComponents?.length ?? 0) === 0)
           .map((sysconf) => sysconf.config)
           .filter((config): config is Config => Boolean(config))
       : [];

@@ -132,3 +132,19 @@ export function bulkUpsertRules(
     },
   );
 }
+
+export function deleteRulesByType(
+  idPolicy: number,
+  ruleType: DimensionRuleType,
+) {
+  return apiFetch<{
+    ok: boolean;
+    ruleType: DimensionRuleType;
+    deletedCount: number;
+  }>(
+    `/api/dimension-policies/${idPolicy}/rules/${ruleType}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
