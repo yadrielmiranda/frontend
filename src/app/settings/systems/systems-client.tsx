@@ -91,6 +91,12 @@ export function SystemsClient({
   }, [initialSystems]);
 
   return (
-    <DataTable columns={columns} data={initialSystems} filters={filters} />
+    <DataTable
+      columns={columns}
+      data={initialSystems}
+      filters={filters}
+      filterPlacement="header"
+      collapsibleFilters
+    />
   );
 }

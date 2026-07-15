@@ -26,7 +26,7 @@ import {
 import { deleteProduct } from "@/app/api/products.api";
 import type { DiagramFamily, Product } from "@/lib/types";
 
-const DIAGRAM_FAMILY_LABELS: Record<DiagramFamily, string> = {
+export const DIAGRAM_FAMILY_LABELS: Record<DiagramFamily, string> = {
   GENERIC: "Generic",
   BIFOLD: "Bi-Fold Door",
   CASEMENT: "Casement Window",
@@ -50,10 +50,12 @@ export function getProductColumns({
     {
       accessorKey: "name",
       header: "Name",
+      filterFn: "includesString",
     },
     {
       accessorKey: "diagramFamily",
       header: "Diagram Family",
+      filterFn: "equalsString",
       cell: ({ row }) => {
         const diagramFamily = row.original.diagramFamily;
 
@@ -63,6 +65,7 @@ export function getProductColumns({
     {
       accessorKey: "isActive",
       header: "Status",
+      filterFn: "equals",
       cell: ({ row }) => {
         const isActive = row.original.isActive;
 

@@ -36,6 +36,7 @@ export function getBrandColumns({
     {
       accessorKey: "name",
       header: "Name",
+      filterFn: "includesString",
     },
     {
       accessorKey: "highBottomPercent",
@@ -53,12 +54,13 @@ export function getBrandColumns({
     {
       accessorKey: "isActive",
       header: "Status",
+      filterFn: "equals",
       cell: ({ row }) => {
         const isActive = row.original.isActive;
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isActive
                 ? "bg-green-100 text-green-800"
                 : "bg-yellow-100 text-yellow-800"
@@ -71,7 +73,7 @@ export function getBrandColumns({
     },
   ];
 
-  // ✅ Si no puede editar settings, NO mostramos la columna (igual que Systems)
+  // Si no puede editar settings, NO mostramos la columna (igual que Systems)
   if (!canEdit) return cols;
 
   cols.push({

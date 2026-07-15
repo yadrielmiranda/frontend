@@ -30,20 +30,46 @@ import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import type { User } from "@/lib/types";
 import { deleteUser, setUserActive } from "@/app/api/users.api";
 
+const getUserStatus = (user: User): string => {
+  if (user.deletedAt) {
+    return "Deleted";
+  }
+
+  return user.isActive ? "Active" : "Inactive";
+};
+
 export const columns: ColumnDef<User>[] = [
-  { accessorKey: "username", header: "Username" },
-  { accessorKey: "firstName", header: "First Name" },
-  { accessorKey: "lastName", header: "Last Name" },
-  { accessorKey: "email", header: "Email" },
   {
-    accessorKey: "role.name",
+    accessorKey: "username",
+    header: "Username",
+    filterFn: "includesString",
+  },
+  {
+    accessorKey: "firstName",
+    header: "First Name",
+    filterFn: "includesString",
+  },
+  {
+    accessorKey: "lastName",
+    header: "Last Name",
+    filterFn: "includesString",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    filterFn: "includesString",
+  },
+  {
+    id: "roleName",
+    accessorFn: (user) => user.role.name,
     header: "Role",
+    filterFn: "equalsString",
     cell: ({ row }) => {
       const roleName = row.original.role.name;
 
       return (
         <span
-          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
             roleName === "admin"
               ? "bg-blue-100 text-blue-800"
               : "bg-gray-100 text-gray-800"
@@ -63,24 +89,26 @@ export const columns: ColumnDef<User>[] = [
       if (user.markupOverride !== null && user.markupOverride !== undefined) {
         return (
           <div className="flex items-center gap-1 font-semibold text-blue-600">
-            <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
+            <Star className="h-4 w-4 fill-yellow-400 text-yellow-500" />
             <span>{(user.markupOverride * 100).toFixed(2)}%</span>
           </div>
         );
       }
 
-      return <span className="text-gray-400 italic">Default</span>;
+      return <span className="italic text-gray-400">Default</span>;
     },
   },
   {
-    accessorKey: "isActive",
+    id: "status",
+    accessorFn: (user) => getUserStatus(user),
     header: "Status",
+    filterFn: "equalsString",
     cell: ({ row }) => {
       const user = row.original;
 
       if (user.deletedAt) {
         return (
-          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
             Deleted
           </span>
         );
@@ -88,7 +116,7 @@ export const columns: ColumnDef<User>[] = [
 
       return (
         <span
-          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
             user.isActive
               ? "bg-green-100 text-green-800"
               : "bg-yellow-100 text-yellow-800"

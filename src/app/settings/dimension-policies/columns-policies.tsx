@@ -29,36 +29,54 @@ export function getPolicyColumns({
 }): ColumnDef<PolicyRow>[] {
   const cols: ColumnDef<PolicyRow>[] = [
     {
-      accessorKey: "systemName",
+      id: "systemName",
+      accessorFn: (policy) => policy.systemName ?? String(policy.idSystem),
       header: "System",
+      filterFn: "includesString",
       cell: ({ row }) => row.original.systemName ?? row.original.idSystem,
     },
     {
-      accessorKey: "configName",
+      id: "configName",
+      accessorFn: (policy) => policy.configName ?? String(policy.idConfig),
       header: "Config",
+      filterFn: "equalsString",
       cell: ({ row }) => row.original.configName ?? row.original.idConfig,
     },
     {
-      accessorKey: "crystalName",
+      id: "crystalName",
+      accessorFn: (policy) => policy.crystalName ?? String(policy.idCrystal),
       header: "Crystal",
+      filterFn: "equalsString",
       cell: ({ row }) => row.original.crystalName ?? row.original.idCrystal,
     },
     {
-      accessorKey: "reinforcementName",
+      id: "reinforcementName",
+      accessorFn: (policy) => policy.reinforcementName ?? "N/A",
       header: "Reinforcement",
+      filterFn: "equalsString",
       cell: ({ row }) => row.original.reinforcementName ?? "N/A",
     },
-    { accessorKey: "sizeBasis", header: "Basis" },
-    { accessorKey: "roundingRule", header: "Rounding" },
+    {
+      accessorKey: "sizeBasis",
+      header: "Basis",
+      filterFn: "equalsString",
+    },
+    {
+      accessorKey: "roundingRule",
+      header: "Rounding",
+      filterFn: "equalsString",
+    },
     {
       accessorKey: "isActive",
       header: "Active",
+      filterFn: "equals",
       cell: ({ row }) => (row.original.isActive ? "Yes" : "No"),
     },
   ];
 
-  // ✅ Igual que Brands: si no puede editar, no hay actions column
-  if (!canEdit) return cols;
+  if (!canEdit) {
+    return cols;
+  }
 
   cols.push({
     id: "actions",
@@ -101,8 +119,8 @@ export function getPolicyColumns({
 
               <DropdownMenuItem
                 className="text-red-800 focus:bg-red-50 focus:text-red-600"
-                onSelect={(e) => {
-                  e.preventDefault();
+                onSelect={(event) => {
+                  event.preventDefault();
                   setOpen(true);
                 }}
               >
@@ -115,7 +133,9 @@ export function getPolicyColumns({
             isOpen={open}
             onClose={() => setOpen(false)}
             onConfirm={handleDelete}
-            itemName={`policy for ${policy.systemName ?? policy.idSystem} / ${policy.configName ?? policy.idConfig}`}
+            itemName={`policy for ${
+              policy.systemName ?? policy.idSystem
+            } / ${policy.configName ?? policy.idConfig}`}
           />
         </div>
       );

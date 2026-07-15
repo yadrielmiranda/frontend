@@ -35,10 +35,13 @@ export function getConfigCategoryColumns({
     {
       accessorKey: "name",
       header: "Name",
+      filterFn: "includesString",
     },
     {
       id: "product",
+      accessorFn: (category) => category.product?.name ?? "—",
       header: "Product",
+      filterFn: "equalsString",
       cell: ({ row }) => {
         return row.original.product?.name ?? "—";
       },
@@ -57,12 +60,13 @@ export function getConfigCategoryColumns({
     {
       accessorKey: "isActive",
       header: "Status",
+      filterFn: "equals",
       cell: ({ row }) => {
         const isActive = row.original.isActive;
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isActive
                 ? "bg-green-100 text-green-800"
                 : "bg-yellow-100 text-yellow-800"

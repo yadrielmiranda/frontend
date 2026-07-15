@@ -53,27 +53,34 @@ export const columns: ColumnDef<PricingRule>[] = [
     id: "productName",
     header: "Product",
     accessorFn: (row) => row.product?.name ?? "",
+    filterFn: "equalsString",
   },
   {
     id: "brandName",
     header: "Brand",
     accessorFn: (row) => row.brand?.name ?? "",
+    filterFn: "equalsString",
   },
   {
     id: "systemName",
     header: "System",
     accessorFn: (row) => row.system?.name ?? "",
+    filterFn: "includesString",
   },
   {
     id: "configConf",
     header: "Config",
     accessorFn: (row) => row.config?.conf ?? "",
+    filterFn: "equalsString",
   },
   {
     id: "crystalGlass",
     header: "Crystal",
     accessorFn: (row) => row.crystal?.glass ?? "",
+    filterFn: "equalsString",
   },
+
+  // Desde aquí continúan costoA, costoB, costoC y actions sin cambios.
   {
     accessorKey: "costoA",
     header: () => <div className="text-right">Area Cost</div>,

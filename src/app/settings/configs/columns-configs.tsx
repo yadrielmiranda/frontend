@@ -35,10 +35,13 @@ export function getConfigColumns({
     {
       accessorKey: "conf",
       header: "Config",
+      filterFn: "includesString",
     },
     {
       id: "category",
+      accessorFn: (config) => config.category?.name ?? "No category",
       header: "Category",
+      filterFn: "equalsString",
       cell: ({ row }) => {
         const category = row.original.category;
 
@@ -50,18 +53,30 @@ export function getConfigColumns({
       },
     },
     {
-      accessorKey: "prod.name",
+      id: "product",
+      accessorFn: (config) => config.prod?.name ?? "No product",
       header: "Product",
+      filterFn: "equalsString",
+      cell: ({ row }) => {
+        const product = row.original.prod;
+
+        return product ? (
+          <span>{product.name}</span>
+        ) : (
+          <span className="text-muted-foreground">No product</span>
+        );
+      },
     },
     {
       accessorKey: "isActive",
       header: "Status",
+      filterFn: "equals",
       cell: ({ row }) => {
         const isActive = row.original.isActive;
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isActive
                 ? "bg-green-100 text-green-800"
                 : "bg-yellow-100 text-yellow-800"
@@ -74,7 +89,7 @@ export function getConfigColumns({
     },
   ];
 
-  // ✅ si no puede editar, no mostramos actions
+  // si no puede editar, no mostramos actions
   if (!canEdit) return cols;
 
   cols.push({

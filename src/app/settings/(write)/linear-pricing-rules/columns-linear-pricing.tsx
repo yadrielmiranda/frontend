@@ -39,22 +39,26 @@ export const columns: ColumnDef<LinearPricingRule>[] = [
     id: "productName",
     header: "Product",
     accessorFn: (row) => row.product?.name ?? "",
+    filterFn: "equalsString",
   },
   {
     id: "brandName",
     header: "Brand",
     accessorFn: (row) => row.brand?.name ?? "",
+    filterFn: "equalsString",
   },
   {
     id: "systemName",
     header: "System",
     accessorFn: (row) => row.system?.name ?? "",
+    filterFn: "includesString",
   },
   {
     id: "configConf",
     header: "Config",
     accessorFn: (row) => row.config?.conf ?? "",
-  },
+    filterFn: "equalsString",
+  },  
   {
     accessorKey: "costPerInch",
     header: () => <div className="text-right">Cost / Inch</div>,
