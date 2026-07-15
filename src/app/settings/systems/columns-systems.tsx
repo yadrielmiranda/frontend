@@ -36,24 +36,30 @@ export function getSystemColumns({
     {
       accessorKey: "name",
       header: "System Name",
+      filterFn: "includesString",
     },
     {
-      accessorKey: "brandProduct.brand.name",
+      id: "brand",
+      accessorFn: (system) => system.brandProduct?.brand?.name ?? "",
       header: "Brand",
+      filterFn: "equalsString",
     },
     {
-      accessorKey: "brandProduct.product.name",
+      id: "product",
+      accessorFn: (system) => system.brandProduct?.product?.name ?? "",
       header: "Product",
+      filterFn: "equalsString",
     },
     {
       accessorKey: "allowHighBottom",
       header: "High Bottom",
+      filterFn: "equals",
       cell: ({ row }) => {
         const allowHighBottom = row.original.allowHighBottom;
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               allowHighBottom
                 ? "bg-blue-100 text-blue-800"
                 : "bg-slate-100 text-slate-600"
@@ -67,12 +73,13 @@ export function getSystemColumns({
     {
       accessorKey: "isActive",
       header: "Status",
+      filterFn: "equals",
       cell: ({ row }) => {
         const isActive = row.original.isActive;
 
         return (
           <span
-            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isActive
                 ? "bg-green-100 text-green-800"
                 : "bg-yellow-100 text-yellow-800"
