@@ -342,7 +342,7 @@ export function LinearPricingRuleForm({
               min: 0,
             }}
             render={({ field }) => (
-              <Input type="number" step="0.01" min="0" {...field} />
+              <Input type="number" step="0.00000001" min="0" {...field} />
             )}
           />
         </div>
