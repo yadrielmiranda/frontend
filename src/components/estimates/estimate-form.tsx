@@ -1115,6 +1115,49 @@ export function EstimateForm({
     defaultCoatingId,
   ]);
 
+  const systemsForPieceModal = useMemo(() => {
+    const editingSystemId =
+      editingPieceIndex !== null ? Number(editingPieceData.idSyst) : null;
+
+    const editingConfigId =
+      editingPieceIndex !== null ? Number(editingPieceData.idConf) : null;
+
+    return systemsWithConfigs
+      .map((system) => {
+        const selectableSysconfs = system.sysconfs.filter((sysConf) => {
+          const isSelectable = sysConf.isSelectableInEstimate === true;
+
+          // Una configuración desactivada no puede agregarse como pieza nueva,
+          // pero continúa disponible al editar una pieza histórica existente.
+          const isCurrentEditingConfig =
+            editingSystemId === system.id &&
+            editingConfigId === sysConf.idConfig;
+
+          return isSelectable || isCurrentEditingConfig;
+        });
+
+        const selectableDefaultConfigId =
+          system.defaultConfigId != null &&
+          selectableSysconfs.some(
+            (sysConf) => sysConf.idConfig === system.defaultConfigId,
+          )
+            ? system.defaultConfigId
+            : (selectableSysconfs[0]?.idConfig ?? null);
+
+        return {
+          ...system,
+          defaultConfigId: selectableDefaultConfigId,
+          sysconfs: selectableSysconfs,
+        };
+      })
+      .filter((system) => system.sysconfs.length > 0);
+  }, [
+    systemsWithConfigs,
+    editingPieceIndex,
+    editingPieceData.idSyst,
+    editingPieceData.idConf,
+  ]);
+
   const modalTitle =
     editingPieceIndex !== null
       ? `Edit Piece - ${editingPieceData.mark || `#${editingPieceIndex + 1}`}`
@@ -1268,7 +1311,7 @@ export function EstimateForm({
           setDuplicatingPieceData(null);
         }}
         productsWithBrands={productsWithBrands}
-        systemsWithConfigs={systemsWithConfigs}
+        systemsWithConfigs={systemsForPieceModal}
         frameColors={frameColors}
         crystals={crystals}
         tints={tints}

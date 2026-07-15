@@ -36,6 +36,7 @@ const ruleTypeOptions: { value: DimensionRuleType; label: string }[] = [
   { value: "MAIN", label: "Main / Standard" },
   { value: "DOOR", label: "Door" },
   { value: "SIDELITE", label: "Sidelite" },
+  { value: "TRANSOM", label: "Transom" },
 ];
 
 export function RulesEditor({ idPolicy, initialRows = [] }: Props) {

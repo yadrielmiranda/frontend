@@ -37,6 +37,7 @@ export type UpdateSystemConfigOptionsData = {
   defaultReinforcementOptionId?: number | null;
 
   dimensionMode?: DimensionMode;
+  isSelectableInEstimate?: boolean;
 
   requiresWidth?: boolean;
   requiresHeight?: boolean;
@@ -103,6 +104,7 @@ export type SystemConfigOptionsManage = {
   system: { id: number; name: string };
   config: { id: number; conf: string };
   allowScreen: boolean;
+  isSelectableInEstimate: boolean;
 
   dimensionMode: DimensionMode;
 

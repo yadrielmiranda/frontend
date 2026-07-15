@@ -447,18 +447,22 @@ function PricingCalculationCard({
 }
 
 function DimensionSettingsCard({
+  isSelectableInEstimate,
   dimensionMode,
   requirements,
   isSaving,
   hasChanges,
+  onSelectableInEstimateChange,
   onDimensionModeChange,
   onRequirementChange,
   onSave,
 }: {
+  isSelectableInEstimate: boolean;
   dimensionMode: DimensionMode;
   requirements: DimensionRequirementsState;
   isSaving: boolean;
   hasChanges: boolean;
+  onSelectableInEstimateChange: (value: boolean) => void;
   onDimensionModeChange: (value: DimensionMode) => void;
   onRequirementChange: (key: DimensionRequirementKey, value: boolean) => void;
   onSave: () => void;
@@ -527,6 +531,23 @@ function DimensionSettingsCard({
             />
           </div>
         ))}
+      </div>
+
+      <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+        <div className="space-y-1">
+          <Label className="text-sm font-medium">Available in Estimates</Label>
+
+          <p className="text-xs text-muted-foreground">
+            Allow users to select this configuration when creating an estimate.
+            Disable it for internal pricing-source configurations.
+          </p>
+        </div>
+
+        <Switch
+          checked={isSelectableInEstimate}
+          onCheckedChange={onSelectableInEstimateChange}
+          disabled={isSaving}
+        />
       </div>
 
       <div className="flex justify-end">
@@ -758,6 +779,11 @@ export function SystemConfigOptionsClient({
     effectiveSideliteQuantity,
     initialSideliteQuantity,
   ]);
+  const initialIsSelectableInEstimate = data.isSelectableInEstimate ?? true;
+
+  const [isSelectableInEstimate, setIsSelectableInEstimate] = useState(
+    initialIsSelectableInEstimate,
+  );
   const initialDimensionMode = data.dimensionMode ?? "STANDARD";
   const initialRequirements = useMemo(
     () => buildInitialRequirements(data),
@@ -777,13 +803,22 @@ export function SystemConfigOptionsClient({
     dimensionMode === "STANDARD" ? emptyRequirements : requirements;
 
   const hasDimensionChanges = useMemo(() => {
-    if (dimensionMode !== initialDimensionMode) return true;
+    if (isSelectableInEstimate !== initialIsSelectableInEstimate) {
+      return true;
+    }
+
+    if (dimensionMode !== initialDimensionMode) {
+      return true;
+    }
 
     return Object.keys(emptyRequirements).some((key) => {
       const typedKey = key as DimensionRequirementKey;
+
       return effectiveRequirements[typedKey] !== initialRequirements[typedKey];
     });
   }, [
+    isSelectableInEstimate,
+    initialIsSelectableInEstimate,
     dimensionMode,
     initialDimensionMode,
     effectiveRequirements,
@@ -821,6 +856,7 @@ export function SystemConfigOptionsClient({
           ? nextDefaultId
           : data.defaultReinforcementOptionId,
 
+      isSelectableInEstimate,
       dimensionMode,
       ...effectiveRequirements,
     };
@@ -954,6 +990,7 @@ export function SystemConfigOptionsClient({
         defaultSillOptionId: data.defaultSillOptionId,
         defaultReinforcementOptionId: data.defaultReinforcementOptionId,
 
+        isSelectableInEstimate,
         dimensionMode,
         ...effectiveRequirements,
       });
@@ -1122,10 +1159,12 @@ export function SystemConfigOptionsClient({
         cancelText="Cancel"
       />
       <DimensionSettingsCard
+        isSelectableInEstimate={isSelectableInEstimate}
         dimensionMode={dimensionMode}
         requirements={effectiveRequirements}
         isSaving={isSavingDimensions}
         hasChanges={hasDimensionChanges}
+        onSelectableInEstimateChange={setIsSelectableInEstimate}
         onDimensionModeChange={(value) => {
           setDimensionMode(value);
 

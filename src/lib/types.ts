@@ -133,7 +133,7 @@ export type DimensionMode =
   | "ECO_NOVO_DOOR"
   | "WINDOW_WALL";
 
-export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
+export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE" | "TRANSOM";
 
 export interface Config {
   id: number;
@@ -473,6 +473,7 @@ export interface SysConf {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;
 
