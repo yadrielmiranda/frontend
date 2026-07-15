@@ -10,12 +10,11 @@ export default async function PricingRulesPage() {
   const pricingRules = await getPricingRules();
 
   return (
-    <div className="container mx-auto py-10 max-w-6xl">
-      {/* Header */}
+    <div className="w-full px-4 md:px-8 py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-4xl font-bold">Pricing Rules</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Define costs for specific product combinations.
           </p>
         </div>
@@ -31,10 +30,7 @@ export default async function PricingRulesPage() {
         </Button>
       </div>
 
-      {/* Table container */}
-      <div className="rounded-xl border bg-white shadow-sm p-4">
-        <PricingRulesClient initialRules={pricingRules} />
-      </div>
+      <PricingRulesClient initialRules={pricingRules} />
     </div>
   );
 }

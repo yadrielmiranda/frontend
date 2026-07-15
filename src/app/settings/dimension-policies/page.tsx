@@ -19,12 +19,11 @@ export default async function DimensionPoliciesPage() {
   const canEdit = canEditSettings(role);
 
   return (
-    <div className="container mx-auto py-10 max-w-6xl">
-      {/* Header */}
+    <div className="w-full px-4 md:px-8 py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-4xl font-bold">Dimension Policies</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Manage size basis, rounding, and rule tables per system/config/crystal.
           </p>
         </div>
@@ -42,10 +41,10 @@ export default async function DimensionPoliciesPage() {
         )}
       </div>
 
-      {/* Table container */}
-      <div className="rounded-xl border bg-white shadow-sm p-4">
-        <DimensionPoliciesClient initialPolicies={policies} canEdit={canEdit} />
-      </div>
+      <DimensionPoliciesClient
+        initialPolicies={policies}
+        canEdit={canEdit}
+      />
     </div>
   );
 }
