@@ -31,12 +31,15 @@ import {
   canViewDealerEstimateProfit,
   canViewInternalEstimateProfit,
 } from "@/lib/rbac";
+import type { DataTableDateRangeValue } from "@/components/data-table";
 
 // =============================
 // Helpers
 // =============================
 
-const getEstimateStatusName = (estimate: EstimateWithRelations): string => {
+export const getEstimateStatusName = (
+  estimate: EstimateWithRelations,
+): string => {
   if (estimate.status?.name) return estimate.status.name;
   if (estimate.order) return "Ordered";
   return "Unknown";
@@ -76,6 +79,28 @@ const getStatusBadge = (statusName: string) => {
   );
 };
 
+const getEstimateDateKey = (value: string): string => {
+  const rawValue = String(value ?? "").trim();
+
+  const isoDate = rawValue.match(/^(\d{4}-\d{2}-\d{2})/);
+
+  if (isoDate) {
+    return isoDate[1] ?? "";
+  }
+
+  const parsedDate = new Date(rawValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 // =============================
 // Columns
 // =============================
@@ -92,14 +117,33 @@ export const getEstimateColumns = (
     {
       accessorKey: "number",
       header: "Number",
+      filterFn: "includesString",
     },
     {
       accessorKey: "name",
       header: "Name",
+      filterFn: "includesString",
     },
     {
       accessorKey: "date",
       header: "Date",
+      filterFn: (row, _columnId, range: DataTableDateRangeValue) => {
+        const dateKey = getEstimateDateKey(row.original.date);
+
+        if (!dateKey) {
+          return false;
+        }
+
+        if (range?.from && dateKey < range.from) {
+          return false;
+        }
+
+        if (range?.to && dateKey > range.to) {
+          return false;
+        }
+
+        return true;
+      },
       cell: ({ row }) => formatDateEn(row.original.date),
     },
     {
@@ -146,8 +190,10 @@ export const getEstimateColumns = (
         ]
       : []),
     {
-      accessorKey: "user.username",
+      id: "createdBy",
+      accessorFn: (estimate) => estimate.user?.username ?? "",
       header: () => <div className="text-center">Created By</div>,
+      filterFn: "equalsString",
       cell: ({ row }) => (
         <div className="text-center">{row.original.user?.username ?? "—"}</div>
       ),
@@ -156,8 +202,9 @@ export const getEstimateColumns = (
       ? [
           {
             id: "createdByRole",
-            accessorFn: (row) => row.user?.role?.name ?? "",
+            accessorFn: (estimate) => estimate.user?.role?.name ?? "",
             header: () => <div className="text-center">Role</div>,
+            filterFn: "equalsString",
             cell: ({ row }) => (
               <div className="text-center capitalize">
                 {row.original.user?.role?.name ?? "—"}
@@ -168,9 +215,12 @@ export const getEstimateColumns = (
       : []),
     {
       id: "status",
+      accessorFn: (estimate) => getEstimateStatusName(estimate),
       header: "Status",
+      filterFn: "equalsString",
       cell: ({ row }) => {
         const statusName = getEstimateStatusName(row.original);
+
         return getStatusBadge(statusName);
       },
     },

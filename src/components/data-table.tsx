@@ -38,10 +38,15 @@ export interface DataTableFilterOption {
 
 export interface DataTableFilter {
   columnId: string;
-  type: "text" | "select";
+  type: "text" | "select" | "date-range";
   placeholder?: string;
   allLabel?: string;
   options?: DataTableFilterOption[];
+}
+
+export interface DataTableDateRangeValue {
+  from?: string;
+  to?: string;
 }
 
 interface DataTableProps<TData, TValue> {
@@ -130,6 +135,68 @@ export function DataTable<TData, TValue>({
 
     if (!column) {
       return null;
+    }
+
+    if (filter.type === "date-range") {
+      const currentValue =
+        (column.getFilterValue() as DataTableDateRangeValue | undefined) ?? {};
+
+      const updateDateRange = (
+        field: keyof DataTableDateRangeValue,
+        value: string,
+      ) => {
+        const nextValue: DataTableDateRangeValue = {
+          ...currentValue,
+          [field]: value || undefined,
+        };
+
+        if (!nextValue.from && !nextValue.to) {
+          column.setFilterValue(undefined);
+          return;
+        }
+
+        column.setFilterValue(nextValue);
+      };
+
+      return (
+        <div
+          className={
+            compact
+              ? "flex min-w-[285px] items-center gap-1"
+              : "flex flex-wrap items-center gap-2"
+          }
+        >
+          <Input
+            type="date"
+            aria-label={`${filter.placeholder ?? "Date"} from`}
+            value={currentValue.from ?? ""}
+            max={currentValue.to}
+            onChange={(event) => updateDateRange("from", event.target.value)}
+            className={
+              compact
+                ? "h-8 w-[128px] px-2 text-xs font-normal normal-case"
+                : "w-[150px] font-normal normal-case"
+            }
+          />
+
+          <span className="text-xs font-normal normal-case text-muted-foreground">
+            to
+          </span>
+
+          <Input
+            type="date"
+            aria-label={`${filter.placeholder ?? "Date"} to`}
+            value={currentValue.to ?? ""}
+            min={currentValue.from}
+            onChange={(event) => updateDateRange("to", event.target.value)}
+            className={
+              compact
+                ? "h-8 w-[128px] px-2 text-xs font-normal normal-case"
+                : "w-[150px] font-normal normal-case"
+            }
+          />
+        </div>
+      );
     }
 
     if (filter.type === "select") {
