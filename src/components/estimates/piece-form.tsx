@@ -317,20 +317,6 @@ export function PieceForm({
       .filter(Boolean);
   }, [selectedSystem]);
 
-  useEffect(() => {
-    if (!selectedSystem) return;
-    if (isLinearMaterial) return;
-
-    const currentCrystal = getValues("idCryst");
-
-    // solo setear si está vacío o en 0
-    if (!currentCrystal || currentCrystal === 0) {
-      setValue("idCryst", Number(selectedSystem.defaultCrystalId) || 0, {
-        shouldDirty: false,
-      });
-    }
-  }, [systemId, selectedSystem, isLinearMaterial, getValues, setValue]);
-
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
       ...((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -814,6 +800,45 @@ export function PieceForm({
     isLinearMaterial,
   ]);
 
+  const selectedCrystalId = Number(pieceValues.idCryst || 0);
+
+  const selectedCrystalUnavailable =
+    !isLinearMaterial &&
+    Boolean(systemId) &&
+    Boolean(idConf) &&
+    selectedCrystalId > 0 &&
+    !isLoadingDimensionPolicies &&
+    (!reinforcementRequired || Boolean(selectedReinforcementOptionId)) &&
+    !availableCrystals.some((crystal) => crystal.id === selectedCrystalId);
+
+  const crystalSelectOptions = useMemo(() => {
+    if (!selectedCrystalUnavailable) {
+      return availableCrystals;
+    }
+
+    const selectedCrystal =
+      systemCrystalOptions.find(
+        (crystal) => crystal.id === selectedCrystalId,
+      ) ?? props.crystals.find((crystal) => crystal.id === selectedCrystalId);
+
+    if (!selectedCrystal) {
+      return availableCrystals;
+    }
+
+    return [
+      selectedCrystal,
+      ...availableCrystals.filter(
+        (crystal) => crystal.id !== selectedCrystalId,
+      ),
+    ];
+  }, [
+    selectedCrystalUnavailable,
+    selectedCrystalId,
+    systemCrystalOptions,
+    availableCrystals,
+    props.crystals,
+  ]);
+
   useEffect(() => {
     if (!systemId || !idConf) return;
     if (isLocked) return;
@@ -825,22 +850,15 @@ export function PieceForm({
 
     const currentCrystalId = Number(getValues("idCryst") || 0);
 
-    if (availableCrystals.length === 0) {
-      if (currentCrystalId) {
-        setValue("idCryst", 0, {
-          shouldDirty: true,
-          shouldValidate: true,
-        });
-      }
-
+    // Conserva una selección existente aunque temporalmente no esté disponible.
+    // El usuario tendrá que escoger manualmente otra opción para recalcular.
+    if (currentCrystalId > 0) {
       return;
     }
 
-    const currentStillAllowed = availableCrystals.some(
-      (crystal) => crystal.id === currentCrystalId,
-    );
-
-    if (currentStillAllowed) return;
+    if (availableCrystals.length === 0) {
+      return;
+    }
 
     const defaultCrystalId = Number(selectedSystem?.defaultCrystalId || 0);
 
@@ -1188,6 +1206,12 @@ export function PieceForm({
 
   const handleCalculate = async () => {
     try {
+      if (!isLinearMaterial && selectedCrystalUnavailable) {
+        toast.error(
+          "The selected glass is currently unavailable. Select another glass before recalculating.",
+        );
+        return;
+      }
       const fieldsToValidate: (keyof PieceFormValues)[] = [
         "idProd",
         "idBrand",
@@ -1925,10 +1949,6 @@ export function PieceForm({
                           onValueChange={(v) => {
                             const nextSystemId = Number(v);
 
-                            const nextSystem = props.systemsWithConfigs.find(
-                              (s) => s.id === nextSystemId,
-                            );
-
                             field.onChange(nextSystemId);
 
                             setValue("idConf", 0, {
@@ -1958,14 +1978,10 @@ export function PieceForm({
                               }
                             }
 
-                            if (isLinearMaterial) {
-                              setValue("idCryst", 0);
-                            } else {
-                              setValue(
-                                "idCryst",
-                                Number(nextSystem?.defaultCrystalId) || 0,
-                              );
-                            }
+                            setValue("idCryst", 0, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                           }}
                           value={String(field.value || "0")}
                         >
@@ -2000,7 +2016,13 @@ export function PieceForm({
                           disabled={isLocked || !systemId}
                           onValueChange={(v) => {
                             field.onChange(Number(v));
+
                             setValue("idReinforcementOption", null);
+                            setValue("idCryst", 0, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+
                             setValue("sashHeight", "");
                             setValue("windowHeight", "");
                           }}
@@ -3070,11 +3092,24 @@ export function PieceForm({
                               <SelectValue placeholder="Select glass type" />
                             </SelectTrigger>
                             <SelectContent>
-                              {availableCrystals.map((c) => (
-                                <SelectItem key={c.id} value={String(c.id)}>
-                                  {c.glass}
-                                </SelectItem>
-                              ))}
+                              {crystalSelectOptions.map((crystal) => {
+                                const isUnavailableOption =
+                                  selectedCrystalUnavailable &&
+                                  crystal.id === selectedCrystalId;
+
+                                return (
+                                  <SelectItem
+                                    key={crystal.id}
+                                    value={String(crystal.id)}
+                                    disabled={isUnavailableOption}
+                                  >
+                                    {crystal.glass}
+                                    {isUnavailableOption
+                                      ? " (Unavailable)"
+                                      : ""}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         )}
@@ -3082,6 +3117,12 @@ export function PieceForm({
                       {errors.idCryst && (
                         <p className="mt-1 text-xs text-red-500">
                           Type required
+                        </p>
+                      )}
+                      {!errors.idCryst && selectedCrystalUnavailable && (
+                        <p className="mt-1 text-xs text-red-500">
+                          This glass is currently unavailable. Select another
+                          glass before recalculating.
                         </p>
                       )}
                       {!errors.idCryst &&
@@ -3095,6 +3136,7 @@ export function PieceForm({
                         )}
 
                       {!errors.idCryst &&
+                        !selectedCrystalUnavailable &&
                         systemId &&
                         idConf &&
                         !isLoadingDimensionPolicies &&
