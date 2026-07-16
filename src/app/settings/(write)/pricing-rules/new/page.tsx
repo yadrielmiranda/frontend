@@ -8,21 +8,22 @@ import {
 
 import { getProductsWithBrands } from "@/app/api/products.api";
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
-import { getCrystals } from "@/app/api/crystals.api";
 import { PricingRuleForm } from "./pricing-rule-form";
 import { BackLink } from "@/components/navigation/back-link";
 
 export default async function NewPricingRulePage() {
-  const [productsWithBrands, systemsWithConfigs, crystals] = await Promise.all([
+  const [productsWithBrands, systemsWithConfigs] = await Promise.all([
     getProductsWithBrands(),
     getSystemsWithConfigs(),
-    getCrystals(),
   ]);
 
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-4xl mx-auto mb-4">
-        <BackLink href="/settings/pricing-rules" label="Back to Pricing Rules" />
+        <BackLink
+          href="/settings/pricing-rules"
+          label="Back to Pricing Rules"
+        />
       </div>
 
       <Card className="max-w-4xl mx-auto">
@@ -32,11 +33,11 @@ export default async function NewPricingRulePage() {
             Define the costs for a specific product combination.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <PricingRuleForm
             productsWithBrands={productsWithBrands}
             systemsWithConfigs={systemsWithConfigs}
-            crystals={crystals}
           />
         </CardContent>
       </Card>

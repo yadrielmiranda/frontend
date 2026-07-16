@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/types";
 import {
   createPricingRule,
+  getAvailablePricingRuleCrystals,
   updatePricingRule,
 } from "@/app/api/pricing-rules.api";
 import { groupConfigsByCategory } from "@/lib/config-groups";
@@ -41,14 +42,12 @@ interface PricingRuleFormProps {
   pricingRule?: PricingRule;
   productsWithBrands: ProductWithBrands[];
   systemsWithConfigs: SystemWithConfigs[];
-  crystals: Crystal[];
 }
 
 export function PricingRuleForm({
   pricingRule,
   productsWithBrands,
   systemsWithConfigs,
-  crystals,
 }: PricingRuleFormProps) {
   const router = useRouter();
   const isEditMode = !!pricingRule;
@@ -58,6 +57,7 @@ export function PricingRuleForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { isSubmitting, isValid },
   } = useForm<PricingRuleFormValues>({
     mode: "onBlur",
@@ -73,12 +73,12 @@ export function PricingRuleForm({
     },
   });
 
-  const [productId, brandId, systemId] = watch([
+  const [productId, brandId, systemId, configId] = watch([
     "idProduct",
     "idBrand",
     "idSystem",
+    "idConfig",
   ]);
-
   const availableBrands = useMemo(() => {
     if (!productId) return [];
 
@@ -121,12 +121,97 @@ export function PricingRuleForm({
     [availableConfigs],
   );
 
+  const [availableCrystals, setAvailableCrystals] = useState<Crystal[]>([]);
+  const [isLoadingCrystals, setIsLoadingCrystals] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!systemId || !configId) {
+      setAvailableCrystals([]);
+      setIsLoadingCrystals(false);
+
+      if (getValues("idCrystal")) {
+        setValue("idCrystal", 0, {
+          shouldValidate: true,
+        });
+      }
+
+      return;
+    }
+
+    const excludeRuleId =
+      pricingRule &&
+      Number(systemId) === pricingRule.idSystem &&
+      Number(configId) === pricingRule.idConfig
+        ? pricingRule.id
+        : undefined;
+
+    setAvailableCrystals([]);
+    setIsLoadingCrystals(true);
+
+    void getAvailablePricingRuleCrystals(
+      Number(systemId),
+      Number(configId),
+      excludeRuleId,
+    )
+      .then((crystals) => {
+        if (cancelled) return;
+
+        setAvailableCrystals(crystals);
+
+        const selectedCrystalId = Number(getValues("idCrystal"));
+
+        if (
+          selectedCrystalId &&
+          !crystals.some((crystal) => crystal.id === selectedCrystalId)
+        ) {
+          setValue("idCrystal", 0, {
+            shouldValidate: true,
+          });
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        setAvailableCrystals([]);
+        setValue("idCrystal", 0, {
+          shouldValidate: true,
+        });
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load available crystals.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingCrystals(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [systemId, configId, pricingRule, getValues, setValue]);
+
   const onSubmit = handleSubmit(async (data) => {
+    const crystalIsAvailable = availableCrystals.some(
+      (crystal) => crystal.id === Number(data.idCrystal),
+    );
+
+    if (!crystalIsAvailable) {
+      toast.error(
+        "The selected Crystal is no longer available for this combination.",
+      );
+      return;
+    }
+
     const dataToSend: CreatePricingRuleData = {
       ...data,
 
-      // conservar los coeficientes como strings
-      // para no perder precisión antes de enviarlos al backend.
+      // Conservar los coeficientes como strings para no perder precisión.
       costoA: data.costoA.trim(),
       costoB: data.costoB.trim(),
       costoC: data.costoC.trim(),
@@ -160,9 +245,10 @@ export function PricingRuleForm({
               <Select
                 onValueChange={(value) => {
                   field.onChange(Number(value));
-                  setValue("idBrand", 0);
-                  setValue("idSystem", 0);
-                  setValue("idConfig", 0);
+                  setValue("idBrand", 0, { shouldValidate: true });
+                  setValue("idSystem", 0, { shouldValidate: true });
+                  setValue("idConfig", 0, { shouldValidate: true });
+                  setValue("idCrystal", 0, { shouldValidate: true });
                 }}
                 value={String(field.value)}
               >
@@ -192,8 +278,9 @@ export function PricingRuleForm({
               <Select
                 onValueChange={(value) => {
                   field.onChange(Number(value));
-                  setValue("idSystem", 0);
-                  setValue("idConfig", 0);
+                  setValue("idSystem", 0, { shouldValidate: true });
+                  setValue("idConfig", 0, { shouldValidate: true });
+                  setValue("idCrystal", 0, { shouldValidate: true });
                 }}
                 value={String(field.value)}
                 disabled={!productId}
@@ -224,7 +311,8 @@ export function PricingRuleForm({
               <Select
                 onValueChange={(value) => {
                   field.onChange(Number(value));
-                  setValue("idConfig", 0);
+                  setValue("idConfig", 0, { shouldValidate: true });
+                  setValue("idCrystal", 0, { shouldValidate: true });
                 }}
                 value={String(field.value)}
                 disabled={!brandId}
@@ -253,7 +341,12 @@ export function PricingRuleForm({
             rules={{ min: 1 }}
             render={({ field }) => (
               <Select
-                onValueChange={(value) => field.onChange(Number(value))}
+                onValueChange={(value) => {
+                  field.onChange(Number(value));
+                  setValue("idCrystal", 0, {
+                    shouldValidate: true,
+                  });
+                }}
                 value={String(field.value)}
                 disabled={!systemId}
               >
@@ -309,14 +402,33 @@ export function PricingRuleForm({
             render={({ field }) => (
               <Select
                 onValueChange={(value) => field.onChange(Number(value))}
-                value={String(field.value)}
+                value={field.value ? String(field.value) : ""}
+                disabled={
+                  !systemId ||
+                  !configId ||
+                  isLoadingCrystals ||
+                  isSubmitting ||
+                  availableCrystals.length === 0
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
+                  <SelectValue
+                    placeholder={
+                      !systemId
+                        ? "Select system first..."
+                        : !configId
+                          ? "Select configuration first..."
+                          : isLoadingCrystals
+                            ? "Loading crystals..."
+                            : availableCrystals.length > 0
+                              ? "Select crystal..."
+                              : "No available crystals for this combination"
+                    }
+                  />
                 </SelectTrigger>
 
                 <SelectContent>
-                  {crystals.map((crystal) => (
+                  {availableCrystals.map((crystal) => (
                     <SelectItem key={crystal.id} value={String(crystal.id)}>
                       {crystal.glass}
                     </SelectItem>
@@ -440,7 +552,7 @@ export function PricingRuleForm({
         <Button
           type="submit"
           variant="green"
-          disabled={!isValid || isSubmitting}
+          disabled={!isValid || isSubmitting || isLoadingCrystals}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isEditMode ? "Update Rule" : "Create Rule"}
