@@ -74,6 +74,7 @@ export function PricingRulesClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="pricing-rules"
     />
   );
 }

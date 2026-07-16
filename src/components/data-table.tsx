@@ -65,6 +65,8 @@ interface DataTableProps<TData, TValue> {
 
   // Permite mostrar u ocultar los filtros del encabezado.
   collapsibleFilters?: boolean;
+  // Conserva filtros durante navegación y recargas de la pestaña.
+  filterStorageKey?: string;
 
   maxHeightClassName?: string;
 }
@@ -79,8 +81,13 @@ export function DataTable<TData, TValue>({
   filters,
   filterPlacement = "toolbar",
   collapsibleFilters = false,
+  filterStorageKey,
   maxHeightClassName = "max-h-[520px]",
 }: DataTableProps<TData, TValue>) {
+  const storageKey = filterStorageKey
+    ? `data-table:${filterStorageKey}:filters`
+    : null;
+
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
@@ -88,6 +95,67 @@ export function DataTable<TData, TValue>({
   const [filtersVisible, setFiltersVisible] = React.useState(
     () => !collapsibleFilters,
   );
+
+  const [storageRestored, setStorageRestored] = React.useState(
+    () => !storageKey,
+  );
+
+  React.useEffect(() => {
+    if (!storageKey) {
+      setStorageRestored(true);
+      return;
+    }
+
+    try {
+      const savedState = window.sessionStorage.getItem(storageKey);
+
+      if (savedState) {
+        const parsed = JSON.parse(savedState) as {
+          columnFilters?: unknown;
+          filtersVisible?: unknown;
+        };
+
+        if (Array.isArray(parsed.columnFilters)) {
+          const restoredFilters = parsed.columnFilters as ColumnFiltersState;
+
+          setColumnFilters(restoredFilters);
+
+          if (typeof parsed.filtersVisible === "boolean") {
+            setFiltersVisible(parsed.filtersVisible);
+          } else if (restoredFilters.length > 0) {
+            setFiltersVisible(true);
+          }
+        }
+      }
+    } catch {
+      // La tabla continúa funcionando si sessionStorage no está disponible.
+    } finally {
+      setStorageRestored(true);
+    }
+  }, [storageKey]);
+
+  React.useEffect(() => {
+    if (!storageKey || !storageRestored) {
+      return;
+    }
+
+    try {
+      if (columnFilters.length === 0) {
+        window.sessionStorage.removeItem(storageKey);
+        return;
+      }
+
+      window.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          columnFilters,
+          filtersVisible,
+        }),
+      );
+    } catch {
+      // La tabla continúa funcionando si sessionStorage no está disponible.
+    }
+  }, [columnFilters, filtersVisible, storageKey, storageRestored]);
 
   const configuredFilters = React.useMemo<DataTableFilter[]>(() => {
     if (filters?.length) {
@@ -117,6 +185,20 @@ export function DataTable<TData, TValue>({
       columnFilters,
     },
   });
+
+  const clearFilters = () => {
+    table.resetColumnFilters();
+
+    if (!storageKey) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.removeItem(storageKey);
+    } catch {
+      // La tabla continúa funcionando si sessionStorage no está disponible.
+    }
+  };
 
   const filtersByColumnId = React.useMemo(
     () => new Map(configuredFilters.map((filter) => [filter.columnId, filter])),
@@ -283,7 +365,7 @@ export function DataTable<TData, TValue>({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => table.resetColumnFilters()}
+              onClick={clearFilters}
               className="gap-2"
             >
               Clear filters
@@ -328,7 +410,7 @@ export function DataTable<TData, TValue>({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => table.resetColumnFilters()}
+              onClick={clearFilters}
               className="gap-2"
             >
               Clear filters

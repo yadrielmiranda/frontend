@@ -33,14 +33,6 @@ interface PieceDiagramProps {
   piece?: PieceDiagramData;
   variant?: PieceDiagramVariant;
   className?: string;
-
-  /*
-   * Compatibilidad temporal con usos anteriores.
-   * Se eliminarán cuando todos los lugares usen piece + diagramFamily.
-   */
-  width?: number;
-  height?: number;
-  productName?: string;
 }
 
 type MovementDirection = "left" | "right";
@@ -97,49 +89,15 @@ function formatDimension(value: number): string {
   return String(Number(value.toFixed(3)));
 }
 
-function resolveLegacyDiagramFamily(
-  productName?: string,
-): DiagramFamily | undefined {
-  const normalized = productName?.trim().toLowerCase();
-
-  if (!normalized) {
-    return undefined;
-  }
-
-  if (
-    normalized === "horizontal rolling" ||
-    normalized === "horizontal rolling window"
-  ) {
-    return "HORIZONTAL_SLIDER";
-  }
-
-  if (normalized === "single hung" || normalized === "single hung window") {
-    return "SINGLE_HUNG";
-  }
-
-  if (normalized === "mullion") {
-    return "LINEAR_MATERIAL";
-  }
-
-  return undefined;
-}
-
 function resolveDimensions({
   piece,
-  width,
-  height,
   diagramFamily,
 }: {
   piece?: PieceDiagramData;
-  width?: number;
-  height?: number;
   diagramFamily: DiagramFamily;
 }): ResolvedDimensions {
-  const standardWidth =
-    toPositiveNumber(piece?.width) ?? toPositiveNumber(width);
-
-  const standardHeight =
-    toPositiveNumber(piece?.height) ?? toPositiveNumber(height);
+  const standardWidth = toPositiveNumber(piece?.width);
+  const standardHeight = toPositiveNumber(piece?.height);
 
   const doorWidth = toPositiveNumber(piece?.doorWidth) ?? 0;
   const doorHeight = toPositiveNumber(piece?.doorHeight);
@@ -806,17 +764,11 @@ export function PieceDiagram({
   piece,
   variant = "editor",
   className,
-  width,
-  height,
-  productName,
 }: PieceDiagramProps) {
-  const resolvedDiagramFamily =
-    diagramFamily ?? resolveLegacyDiagramFamily(productName) ?? "GENERIC";
+  const resolvedDiagramFamily = diagramFamily ?? "GENERIC";
 
   const dimensions = resolveDimensions({
     piece,
-    width,
-    height,
     diagramFamily: resolvedDiagramFamily,
   });
 

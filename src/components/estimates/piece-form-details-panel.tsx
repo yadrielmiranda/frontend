@@ -52,11 +52,11 @@ export function PieceFormDetailsPanel({
   muntinPatterns,
   muntinTypes,
 }: PieceFormDetailsPanelProps) {
-  const productName = findNameById(
-    productsWithBrands,
-    piece.idProd,
-    (p) => p.name,
-  );
+  const selectedProduct =
+    productsWithBrands.find((product) => product.id === Number(piece.idProd)) ??
+    null;
+
+  const productName = selectedProduct?.name ?? null;
 
   const system = systemsWithConfigs.find((s) => s.id === Number(piece.idSyst));
   const systemName = system?.name ?? null;
@@ -361,10 +361,10 @@ export function PieceFormDetailsPanel({
         <div className="flex items-center justify-center min-h-[180px]">
           <div className="w-full max-w-[260px]">
             <PieceDiagram
-              width={Number(piece.width) || 0}
-              height={Number(piece.height) || 0}
-              productName={productName ?? undefined}
+              diagramFamily={selectedProduct?.diagramFamily}
               configuration={configName ?? undefined}
+              dimensionMode={selectedSysConf?.dimensionMode}
+              piece={piece}
             />
           </div>
         </div>
