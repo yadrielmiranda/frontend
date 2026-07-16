@@ -79,6 +79,7 @@ export function ConfigsClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="configs"
     />
   );
 }

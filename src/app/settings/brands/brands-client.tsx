@@ -49,6 +49,7 @@ export function BrandsClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="brands"
     />
   );
 }

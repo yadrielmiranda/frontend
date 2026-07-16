@@ -27,6 +27,26 @@ import { useLoginDialog } from "@/contexts/LoginDialogContext";
 import { logoutUser } from "@/app/api/auth/me/auth.api";
 import { isDealerRole } from "@/lib/rbac";
 
+const clearStoredDataTableFilters = () => {
+  try {
+    const keysToRemove: string[] = [];
+
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+      const key = window.sessionStorage.key(index);
+
+      if (key?.startsWith("data-table:")) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => {
+      window.sessionStorage.removeItem(key);
+    });
+  } catch {
+    // El logout continúa aunque sessionStorage no esté disponible.
+  }
+};
+
 export function UserDropdown() {
   const { isAuthenticated, user, isLoading, revalidate } = useAuth();
   const { openLoginDialog } = useLoginDialog();
@@ -65,6 +85,9 @@ export function UserDropdown() {
       window.dispatchEvent(new Event("auth:manual-logout"));
 
       await logoutUser();
+
+      clearStoredDataTableFilters();
+
       await revalidate();
 
       setIsDropdownOpen(false);

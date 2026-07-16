@@ -110,6 +110,7 @@ export function EstimatesClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="estimates"
     />
   );
 }

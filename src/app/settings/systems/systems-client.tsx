@@ -97,6 +97,7 @@ export function SystemsClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="systems"
     />
   );
 }

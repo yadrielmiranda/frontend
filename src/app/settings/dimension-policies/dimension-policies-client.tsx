@@ -105,6 +105,7 @@ export function DimensionPoliciesClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="dimension-policies"
     />
   );
 }

@@ -65,6 +65,7 @@ export function ProductsClient({
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
+      filterStorageKey="products"
     />
   );
 }
