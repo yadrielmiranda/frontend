@@ -72,6 +72,7 @@ type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;
 
@@ -500,6 +501,9 @@ export function PieceForm({
       availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
     );
   }, [idConf, availableSysConfs]);
+
+  const selectedConfigUnavailable =
+    selectedSysConf?.isSelectableInEstimate === false;
 
   const dimensionMode = selectedSysConf?.dimensionMode ?? "STANDARD";
   const isStandardDimensionMode = dimensionMode === "STANDARD";
@@ -1206,6 +1210,12 @@ export function PieceForm({
 
   const handleCalculate = async () => {
     try {
+      if (selectedConfigUnavailable) {
+        toast.error(
+          "The selected configuration is currently unavailable in estimates.",
+        );
+        return;
+      }
       if (!isLinearMaterial && selectedCrystalUnavailable) {
         toast.error(
           "The selected glass is currently unavailable. Select another glass before recalculating.",
@@ -2077,6 +2087,12 @@ export function PieceForm({
                     {errors.idConf && (
                       <p className="mt-1 text-xs text-red-500">
                         Config required
+                      </p>
+                    )}
+                    {!errors.idConf && selectedConfigUnavailable && (
+                      <p className="mt-1 text-xs text-red-500">
+                        This configuration is currently unavailable. Select
+                        another configuration before recalculating.
                       </p>
                     )}
                   </div>
