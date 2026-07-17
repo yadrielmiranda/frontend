@@ -39,6 +39,7 @@ export function ConfigsClient({
       {
         columnId: "category",
         type: "select",
+        faceted: true,
         allLabel: "All categories",
         options: createOptions(
           initialConfigs.map(
@@ -49,6 +50,7 @@ export function ConfigsClient({
       {
         columnId: "product",
         type: "select",
+        faceted: true,
         allLabel: "All products",
         options: createOptions(
           initialConfigs.map((config) => config.prod?.name ?? "No product"),

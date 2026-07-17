@@ -29,6 +29,18 @@ export function getPolicyColumns({
 }): ColumnDef<PolicyRow>[] {
   const cols: ColumnDef<PolicyRow>[] = [
     {
+      accessorKey: "id",
+      header: "Policy #",
+      filterFn: (row, _columnId, filterValue) => {
+        const search = String(filterValue ?? "").trim();
+
+        if (!search) return true;
+
+        return String(row.original.id).includes(search);
+      },
+      cell: ({ row }) => row.original.id,
+    },
+    {
       id: "systemName",
       accessorFn: (policy) => policy.systemName ?? String(policy.idSystem),
       header: "System",

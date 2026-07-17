@@ -36,14 +36,21 @@ export function PricingRulesClient({
   const filters = useMemo<DataTableFilter[]>(() => {
     return [
       {
+        columnId: "id",
+        type: "text",
+        placeholder: "Filter rule #...",
+      },
+      {
         columnId: "productName",
         type: "select",
+        faceted: true,
         allLabel: "All products",
         options: createOptions(initialRules.map((rule) => rule.product?.name)),
       },
       {
         columnId: "brandName",
         type: "select",
+        faceted: true,
         allLabel: "All brands",
         options: createOptions(initialRules.map((rule) => rule.brand?.name)),
       },
@@ -55,12 +62,14 @@ export function PricingRulesClient({
       {
         columnId: "configConf",
         type: "select",
+        faceted: true,
         allLabel: "All configs",
         options: createOptions(initialRules.map((rule) => rule.config?.conf)),
       },
       {
         columnId: "crystalGlass",
         type: "select",
+        faceted: true,
         allLabel: "All crystals",
         options: createOptions(initialRules.map((rule) => rule.crystal?.glass)),
       },

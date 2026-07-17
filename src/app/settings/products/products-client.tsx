@@ -37,12 +37,14 @@ export function ProductsClient({
       {
         columnId: "diagramFamily",
         type: "select",
+        faceted: true,
         allLabel: "All diagram families",
         options: diagramFamilies,
       },
       {
         columnId: "isActive",
         type: "select",
+        faceted: true,
         allLabel: "All statuses",
         options: [
           {

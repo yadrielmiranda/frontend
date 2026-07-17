@@ -4,6 +4,8 @@ import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
   getFilteredRowModel,
   useReactTable,
   type ColumnDef,
@@ -42,6 +44,7 @@ export interface DataTableFilter {
   placeholder?: string;
   allLabel?: string;
   options?: DataTableFilterOption[];
+  faceted?: boolean;
 }
 
 export interface DataTableDateRangeValue {
@@ -181,6 +184,8 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
     state: {
       columnFilters,
     },
@@ -283,6 +288,22 @@ export function DataTable<TData, TValue>({
 
     if (filter.type === "select") {
       const currentValue = column.getFilterValue();
+      const facetedValues = new Set(
+        Array.from(column.getFacetedUniqueValues().keys(), (value) =>
+          String(value),
+        ),
+      );
+
+      const availableOptions = (filter.options ?? []).filter((option) => {
+        if (!filter.faceted) return true;
+
+        // Conserva visible la selección actual para que se pueda limpiar.
+        const isCurrentSelection =
+          currentValue !== undefined &&
+          String(option.value) === String(currentValue);
+
+        return isCurrentSelection || facetedValues.has(String(option.value));
+      });
 
       return (
         <Select
@@ -318,7 +339,7 @@ export function DataTable<TData, TValue>({
               {filter.allLabel ?? "All"}
             </SelectItem>
 
-            {filter.options?.map((option) => (
+            {availableOptions.map((option) => (
               <SelectItem
                 key={String(option.value)}
                 value={String(option.value)}

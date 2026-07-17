@@ -32,6 +32,11 @@ export function DimensionPoliciesClient({
   const filters = useMemo<DataTableFilter[]>(() => {
     return [
       {
+        columnId: "id",
+        type: "text",
+        placeholder: "Filter policy #...",
+      },
+      {
         columnId: "systemName",
         type: "text",
         placeholder: "Filter system...",
@@ -39,6 +44,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "configName",
         type: "select",
+        faceted: true,
         allLabel: "All configs",
         options: createOptions(
           initialPolicies.map(
@@ -49,6 +55,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "crystalName",
         type: "select",
+        faceted: true,
         allLabel: "All crystals",
         options: createOptions(
           initialPolicies.map(
@@ -59,6 +66,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "reinforcementName",
         type: "select",
+        faceted: true,
         allLabel: "All reinforcements",
         options: createOptions(
           initialPolicies.map((policy) => policy.reinforcementName ?? "N/A"),
@@ -67,6 +75,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "sizeBasis",
         type: "select",
+        faceted: true,
         allLabel: "All bases",
         options: createOptions(
           initialPolicies.map((policy) => String(policy.sizeBasis)),
@@ -75,6 +84,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "roundingRule",
         type: "select",
+        faceted: true,
         allLabel: "All rounding rules",
         options: createOptions(
           initialPolicies.map((policy) => String(policy.roundingRule)),
@@ -83,6 +93,7 @@ export function DimensionPoliciesClient({
       {
         columnId: "isActive",
         type: "select",
+        faceted: true,
         allLabel: "All statuses",
         options: [
           {

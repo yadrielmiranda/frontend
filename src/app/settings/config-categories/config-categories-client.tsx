@@ -42,6 +42,7 @@ export function ConfigCategoriesClient({
       {
         columnId: "product",
         type: "select",
+        faceted: true,
         allLabel: "All products",
         options: createOptions(
           initialCategories.map((category) => category.product?.name ?? "—"),
@@ -50,6 +51,7 @@ export function ConfigCategoriesClient({
       {
         columnId: "isActive",
         type: "select",
+        faceted: true,
         allLabel: "All statuses",
         options: [
           {

@@ -50,6 +50,18 @@ const formatCurrency = (value: string | number): string => {
 
 export const columns: ColumnDef<PricingRule>[] = [
   {
+    accessorKey: "id",
+    header: "Rule #",
+    filterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue ?? "").trim();
+
+      if (!search) return true;
+
+      return String(row.original.id).includes(search);
+    },
+    cell: ({ row }) => row.original.id,
+  },
+  {
     id: "productName",
     header: "Product",
     accessorFn: (row) => row.product?.name ?? "",

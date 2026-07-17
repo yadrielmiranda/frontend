@@ -42,6 +42,7 @@ export function SystemsClient({
       {
         columnId: "brand",
         type: "select",
+        faceted: true,
         allLabel: "All brands",
         options: brands.map((brand) => ({
           label: brand,
@@ -51,6 +52,7 @@ export function SystemsClient({
       {
         columnId: "product",
         type: "select",
+        faceted: true,
         allLabel: "All products",
         options: products.map((product) => ({
           label: product,
@@ -60,6 +62,7 @@ export function SystemsClient({
       {
         columnId: "allowHighBottom",
         type: "select",
+        faceted: true,
         allLabel: "All high bottom",
         options: [
           {
@@ -75,6 +78,7 @@ export function SystemsClient({
       {
         columnId: "isActive",
         type: "select",
+        faceted: true,
         allLabel: "All statuses",
         options: [
           {

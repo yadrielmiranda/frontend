@@ -72,6 +72,7 @@ export function EstimatesClient({
         {
           columnId: "createdBy",
           type: "select",
+          faceted: true,
           allLabel: "All users",
           options: createOptions(
             initialEstimates.map((estimate) => estimate.user?.username),
@@ -80,6 +81,7 @@ export function EstimatesClient({
         {
           columnId: "createdByRole",
           type: "select",
+          faceted: true,
           allLabel: "All roles",
           options: createOptions(
             initialEstimates.map((estimate) => estimate.user?.role?.name),
@@ -94,6 +96,7 @@ export function EstimatesClient({
     result.push({
       columnId: "status",
       type: "select",
+      faceted: true,
       allLabel: "All statuses",
       options: createOptions(
         initialEstimates.map((estimate) => getEstimateStatusName(estimate)),
