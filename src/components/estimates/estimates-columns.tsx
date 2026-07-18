@@ -238,9 +238,16 @@ export const getEstimateColumns = (
         const isExpired = statusLower === "expired";
         const isOrdered = statusLower === "ordered" || !!estimate.order;
 
-        const canEdit = isActive && isOwner;
-        const canPay = isActive && !estimate.order && isOwner;
-        const canRecalculate = isExpired && !estimate.order && isOwner;
+        const isPaid = estimate.payment?.status === "PAID";
+        const hasCheckoutStarted = Boolean(estimate.payment?.stripeSessionId);
+        const isPaymentLocked = isPaid || hasCheckoutStarted;
+
+        const canEdit = isActive && isOwner && !isPaymentLocked;
+
+        const canPay = isActive && !estimate.order && isOwner && !isPaid;
+
+        const canRecalculate =
+          isExpired && !estimate.order && isOwner && !isPaymentLocked;
 
         const handleDelete = async () => {
           try {
@@ -349,7 +356,7 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {showOwnerActions && !isOrdered && (
+                {showOwnerActions && !isOrdered && !isPaymentLocked && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

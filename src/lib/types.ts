@@ -299,6 +299,11 @@ export interface EstimateStatus {
   name: string;
 }
 
+export interface EstimatePayment {
+  status: string;
+  stripeSessionId: string | null;
+}
+
 export interface Estimate {
   id: number;
   number: string;
@@ -328,6 +333,7 @@ export interface Estimate {
   statusId: number;
   status?: EstimateStatus;
   order?: Order | null;
+  payment?: EstimatePayment | null;
 }
 
 export interface OrderStatus {

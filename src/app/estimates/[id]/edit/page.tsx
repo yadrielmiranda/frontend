@@ -13,7 +13,7 @@ import { getProductsWithBrands } from "@/app/api/products.api";
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
-import {getFColors} from "@/app/api/fcolors.api";
+import { getFColors } from "@/app/api/fcolors.api";
 import { getGlobalFrameColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getGlobalParameters } from "@/app/api/global-parameters.api";
@@ -48,6 +48,19 @@ export default async function EditEstimatePage({
     throw e;
   }
 
+  if (!estimate) notFound();
+
+  const isOwner = user.id === estimate.idUser;
+  const isActive = estimate.status?.name === "Active";
+
+  const isPaymentLocked =
+    estimate.payment?.status === "PAID" ||
+    Boolean(estimate.payment?.stripeSessionId);
+
+  const canEdit = isOwner && isActive && !estimate.order && !isPaymentLocked;
+
+  if (!canEdit) notFound();
+
   const [
     productsWithBrands,
     systemsWithConfigs,
@@ -72,49 +85,43 @@ export default async function EditEstimatePage({
     getMuntinTypes({ active: true }),
   ]);
 
-  if (!estimate) notFound();
-
-  const isActive = estimate.status?.name === "Active";
-  const canEdit = isActive && !estimate.order;
-  if (!canEdit) notFound();
-
   const salesTaxParam = parameters.find((p) => p.key === "SALES_TAX");
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
 
   return (
-  <div className="min-h-screen bg-gray-50 px-4 md:px-8 py-6">
-    <div className="w-full">
-      <div className="mb-4 flex items-center justify-between">
-        <BackLink href="/estimates" label="Back to Estimate" />
+    <div className="min-h-screen bg-gray-50 px-4 md:px-8 py-6">
+      <div className="w-full">
+        <div className="mb-4 flex items-center justify-between">
+          <BackLink href="/estimates" label="Back to Estimate" />
+        </div>
+
+        <Card className="w-full shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl">
+              Edit Estimate #{estimate.number}
+            </CardTitle>
+            <CardDescription>
+              Update the details for this estimate.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <EstimateForm
+              estimate={estimate}
+              taxRate={taxRate}
+              productsWithBrands={productsWithBrands}
+              systemsWithConfigs={systemsWithConfigs}
+              frameColors={allFrameColors}
+              globalFrameColors={globalFrameColors}
+              crystals={crystals}
+              tints={tints}
+              coatings={coatings}
+              muntinPatterns={muntinPatterns}
+              muntinTypes={muntinTypes}
+            />
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="w-full shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            Edit Estimate #{estimate.number}
-          </CardTitle>
-          <CardDescription>
-            Update the details for this estimate.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <EstimateForm
-            estimate={estimate}
-            taxRate={taxRate}
-            productsWithBrands={productsWithBrands}
-            systemsWithConfigs={systemsWithConfigs}
-            frameColors={allFrameColors}
-            globalFrameColors={globalFrameColors}
-            crystals={crystals}
-            tints={tints}
-            coatings={coatings}
-            muntinPatterns={muntinPatterns}
-            muntinTypes={muntinTypes}
-          />
-        </CardContent>
-      </Card>
     </div>
-  </div>
-);
+  );
 }
