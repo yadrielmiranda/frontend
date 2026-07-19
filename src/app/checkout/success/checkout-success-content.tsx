@@ -23,7 +23,7 @@ export default function CheckoutSuccessContent() {
   const [attempt, setAttempt] = useState(0);
   const [orderId, setOrderId] = useState<number | null>(null);
 
-  // comentario en espanol: evita doble toast / doble redirect
+  //evita doble toast / doble redirect
   const redirectedRef = useRef(false);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function CheckoutSuccessContent() {
 
     let alive = true;
 
-    // comentario en espanol: esperamos a que el webhook cree Order + cambie status
+    // esperamos a que el webhook cree Order + cambie status
     const tick = async () => {
       try {
         const est = await getEstimate(estimateId);
@@ -42,7 +42,7 @@ export default function CheckoutSuccessContent() {
         const statusName = (est.status?.name ?? "").toLowerCase().trim();
         const isOrdered = statusName === "ordered" || !!est.order;
 
-        // comentario en espanol: intentamos capturar el orderId si existe
+        // intentamos capturar el orderId si existe
         const oid =
           (est as any)?.order?.id != null
             ? Number((est as any).order.id)
@@ -51,7 +51,7 @@ export default function CheckoutSuccessContent() {
         if (!alive) return;
 
         if (isOrdered) {
-          // comentario en espanol: si ya redirigimos, no repetir
+          // si ya redirigimos, no repetir
           if (redirectedRef.current) return;
           redirectedRef.current = true;
 
@@ -63,7 +63,7 @@ export default function CheckoutSuccessContent() {
 
           toast.success("Payment confirmed. Order created.");
 
-          // ✅ principal: si ya existe order, redirigimos a /orders/:id
+          // principal: si ya existe order, redirigimos a /orders/:id
           if (oid && Number.isFinite(oid)) {
             router.replace(`/orders/${oid}`);
           } else {
@@ -74,7 +74,7 @@ export default function CheckoutSuccessContent() {
           return;
         }
 
-        // comentario en espanol: todavia no, seguimos intentando
+        // todavia no, seguimos intentando
         setAttempt((a) => a + 1);
       } catch {
         if (!alive) return;
@@ -87,7 +87,7 @@ export default function CheckoutSuccessContent() {
 
     const interval = setInterval(tick, 2000);
 
-    // comentario en espanol: limite (ej: 30 intentos ~ 60s)
+    // limite (ej: 30 intentos ~ 60s)
     const timeout = setTimeout(() => {
       if (!alive) return;
 

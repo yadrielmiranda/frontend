@@ -484,6 +484,7 @@ export interface SysConf {
   config: Config;
 
   dimensionMode: DimensionMode;
+  minimumBillableHeightIn?: string | null;
 
   requiresWidth: boolean;
   requiresHeight: boolean;

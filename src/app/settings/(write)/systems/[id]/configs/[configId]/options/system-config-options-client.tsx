@@ -446,6 +446,74 @@ function PricingCalculationCard({
   );
 }
 
+function MinimumBillableHeightCard({
+  isDirectPricing,
+  value,
+  isSaving,
+  hasChanges,
+  onChange,
+  onSave,
+}: {
+  isDirectPricing: boolean;
+  value: string;
+  isSaving: boolean;
+  hasChanges: boolean;
+  onChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="space-y-5 rounded-lg border p-4">
+      <div>
+        <h3 className="text-base font-semibold">Minimum Billable Height</h3>
+        <p className="text-sm text-muted-foreground">
+          Sets the minimum height used only for pricing this direct
+          configuration.
+        </p>
+      </div>
+
+      {isDirectPricing ? (
+        <>
+          <div className="grid max-w-sm gap-2">
+            <Label htmlFor="minimumBillableHeightIn">
+              Minimum Billable Height (in)
+            </Label>
+
+            <Input
+              id="minimumBillableHeightIn"
+              type="number"
+              min="0.001"
+              step="0.001"
+              placeholder="Use actual height"
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              disabled={isSaving}
+            />
+
+            <p className="text-sm text-muted-foreground">
+              Leave blank to always use the actual height.
+            </p>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={isSaving || !hasChanges}
+            >
+              {isSaving ? "Saving..." : "Save Minimum Height"}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+          This composite configuration inherits the minimum billable height from
+          each pricing source configuration.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DimensionSettingsCard({
   isSelectableInEstimate,
   dimensionMode,
@@ -745,6 +813,22 @@ export function SystemConfigOptionsClient({
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [isConfirmPricingOpen, setIsConfirmPricingOpen] = useState(false);
 
+  const initialMinimumBillableHeightInput =
+    data.minimumBillableHeightIn == null
+      ? ""
+      : String(data.minimumBillableHeightIn);
+
+  const [minimumBillableHeightInput, setMinimumBillableHeightInput] = useState(
+    initialMinimumBillableHeightInput,
+  );
+
+  const [isSavingMinimumBillableHeight, setIsSavingMinimumBillableHeight] =
+    useState(false);
+
+  const hasMinimumBillableHeightChanges =
+    minimumBillableHeightInput.trim() !==
+    initialMinimumBillableHeightInput.trim();
+
   const effectivePricingComponents =
     pricingCalculationMode === "DIRECT"
       ? emptyPricingComponentSelections
@@ -911,6 +995,57 @@ export function SystemConfigOptionsClient({
       toast.error((error as Error).message || errorMsg);
       console.error(errorMsg, error);
       return false;
+    }
+  };
+
+  const handleSaveMinimumBillableHeight = async () => {
+    const rawValue = minimumBillableHeightInput.trim();
+
+    const minimumBillableHeightIn = rawValue === "" ? null : Number(rawValue);
+
+    if (
+      minimumBillableHeightIn !== null &&
+      (!Number.isFinite(minimumBillableHeightIn) ||
+        minimumBillableHeightIn <= 0)
+    ) {
+      toast.error("Minimum Billable Height must be greater than zero.");
+      return;
+    }
+
+    const decimalPart = rawValue.split(".")[1];
+
+    if (decimalPart && decimalPart.length > 3) {
+      toast.error(
+        "Minimum Billable Height cannot have more than 3 decimal places.",
+      );
+      return;
+    }
+
+    try {
+      setIsSavingMinimumBillableHeight(true);
+
+      await updateSystemConfigOptions(data.idSystem, data.idConfig, {
+        activeOptionIds: data.selectedActiveOptionIds,
+        preparationOptionIds: data.selectedPreparationOptionIds,
+        sillOptionIds: data.selectedSillOptionIds,
+        reinforcementOptionIds: data.selectedReinforcementOptionIds,
+
+        defaultActiveOptionId: data.defaultActiveOptionId,
+        defaultPreparationOptionId: data.defaultPreparationOptionId,
+        defaultSillOptionId: data.defaultSillOptionId,
+        defaultReinforcementOptionId: data.defaultReinforcementOptionId,
+
+        minimumBillableHeightIn,
+      });
+
+      toast.success("Minimum billable height updated successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        (error as Error).message || "Error updating minimum billable height.",
+      );
+    } finally {
+      setIsSavingMinimumBillableHeight(false);
     }
   };
 
@@ -1157,6 +1292,14 @@ export function SystemConfigOptionsClient({
         }
         confirmText="Yes, save pricing calculation"
         cancelText="Cancel"
+      />
+      <MinimumBillableHeightCard
+        isDirectPricing={pricingCalculationMode === "DIRECT"}
+        value={minimumBillableHeightInput}
+        isSaving={isSavingMinimumBillableHeight}
+        hasChanges={hasMinimumBillableHeightChanges}
+        onChange={setMinimumBillableHeightInput}
+        onSave={handleSaveMinimumBillableHeight}
       />
       <DimensionSettingsCard
         isSelectableInEstimate={isSelectableInEstimate}

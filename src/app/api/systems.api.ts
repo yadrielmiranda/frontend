@@ -37,6 +37,7 @@ export type UpdateSystemConfigOptionsData = {
   defaultReinforcementOptionId?: number | null;
 
   dimensionMode?: DimensionMode;
+  minimumBillableHeightIn?: number | null;
   isSelectableInEstimate?: boolean;
 
   requiresWidth?: boolean;
@@ -107,6 +108,7 @@ export type SystemConfigOptionsManage = {
   isSelectableInEstimate: boolean;
 
   dimensionMode: DimensionMode;
+  minimumBillableHeightIn: string | null;
 
   requiresWidth: boolean;
   requiresHeight: boolean;
