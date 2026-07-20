@@ -1436,12 +1436,11 @@ export function PieceForm({
             )
           : undefined;
 
-      if (dimensionRequirements.requiresHorizontalHeights) {
-        if (!horizontalHeightsNorm || horizontalHeightsNorm.length === 0) {
-          toast.error("Horizontal Heights are required.");
-          return;
-        }
-
+      if (
+        dimensionRequirements.requiresHorizontalHeights &&
+        horizontalHeightsNorm &&
+        horizontalHeightsNorm.length > 0
+      ) {
         const totalHeightForHorizontals =
           heightNorm !== undefined
             ? heightNorm
@@ -2969,7 +2968,7 @@ export function PieceForm({
 
                             {currentHorizontalHeights.length === 0 ? (
                               <div className="px-3 py-3 text-sm text-slate-600">
-                                Add at least one horizontal height.
+                                No horizontal heights added.
                               </div>
                             ) : (
                               <div className="divide-y divide-slate-100">
