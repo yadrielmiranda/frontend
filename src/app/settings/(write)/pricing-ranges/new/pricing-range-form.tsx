@@ -949,7 +949,7 @@ export function PricingRangeForm({
                   key={ruleField.id}
                   className="grid grid-cols-1 gap-3 rounded-lg border p-3 lg:grid-cols-[minmax(220px,1.5fr)_repeat(3,minmax(140px,1fr))_44px]"
                 >
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <Label className="lg:hidden">Crystal</Label>
                     <Controller
                       name={`rules.${index}.idCrystal`}
@@ -964,7 +964,7 @@ export function PricingRangeForm({
                               field.onChange(Number(value))
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full min-w-0 overflow-hidden [&>span]:min-w-0 [&>span]:truncate">
                               <SelectValue placeholder="Select crystal..." />
                             </SelectTrigger>
                             <SelectContent>

@@ -62,6 +62,6 @@ export function getAvailablePricingRangeCrystals(
   });
 
   return apiFetch<Crystal[]>(
-    `/api/pricing-rules/available-crystals?${params.toString()}`,
+    `/api/pricing-ranges/available-crystals?${params.toString()}`
   );
 }
