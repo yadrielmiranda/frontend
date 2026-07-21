@@ -425,6 +425,86 @@ export type CreateLinearPricingRuleData = {
 
 export type UpdateLinearPricingRuleData = Partial<CreateLinearPricingRuleData>;
 
+export interface PricingRangeRule {
+  id: number;
+  rangeId: number;
+  idCrystal: number;
+
+  costoA: string;
+  costoB: string;
+  costoC: string;
+
+  crystal: Crystal;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PricingRange {
+  id: number;
+
+  idSystem: number;
+  idConfig: number;
+
+  code: string;
+
+  minWidthIn: string | null;
+  minWidthInclusive: boolean;
+  maxWidthIn: string | null;
+  maxWidthInclusive: boolean;
+
+  minHeightIn: string | null;
+  minHeightInclusive: boolean;
+  maxHeightIn: string | null;
+  maxHeightInclusive: boolean;
+
+  sortOrder: number;
+  isActive: boolean;
+
+  rules: PricingRangeRule[];
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePricingRangeData {
+  idSystem: number;
+  idConfig: number;
+
+  code: string;
+
+  minWidthIn?: string | null;
+  minWidthInclusive?: boolean;
+  maxWidthIn?: string | null;
+  maxWidthInclusive?: boolean;
+
+  minHeightIn?: string | null;
+  minHeightInclusive?: boolean;
+  maxHeightIn?: string | null;
+  maxHeightInclusive?: boolean;
+
+  sortOrder?: number;
+  isActive?: boolean;
+
+  rules: UpsertPricingRangeRuleData[];
+}
+
+export type UpdatePricingRangeData = Partial<
+  Omit<CreatePricingRangeData, "idSystem" | "idConfig">
+>;
+
+export interface PricingRangeFilters {
+  idSystem?: number;
+  idConfig?: number;
+}
+
+export interface UpsertPricingRangeRuleData {
+  idCrystal: number;
+  costoA: string;
+  costoB: string;
+  costoC: string;
+}
+
 // --- Tipos con Relaciones (Para Obtener y Mostrar Datos) ---
 
 export interface PieceMuntinPanelRelation {

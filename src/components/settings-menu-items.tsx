@@ -200,6 +200,13 @@ export function SettingsMenuItems({
       </DropdownMenuItem>
 
       <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/pricing-ranges">
+          <Ruler className={iconClass} />
+          Pricing Ranges
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuItem asChild className={itemClass}>
         <Link href="/settings/linear-pricing-rules">
           <Calculator className={iconClass} />
           Linear Pricing Rules
