@@ -139,7 +139,7 @@ const dimensionRequirementLabels: {
     key: "requiresDoorHeight",
     label: "Door Height",
     description:
-      "Door panel height required for door systems with transom or separate door height.",
+      "Door section height when it differs from the opening height.",
   },
   {
     key: "requiresLeftSideliteWidth",
@@ -227,17 +227,11 @@ const pricingComponentOptions: {
     description:
       "Configuration whose direct pricing rule prices each sidelite panel.",
   },
-  {
-    type: "TRANSOM",
-    label: "Transom Source",
-    description: "Configuration whose direct pricing rule prices the transom.",
-  },
 ];
 
 const emptyPricingComponentSelections: PricingComponentSelections = {
   DOOR: null,
   SIDELITE: null,
-  TRANSOM: null,
 };
 
 const buildInitialPricingComponentSelections = (

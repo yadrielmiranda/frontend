@@ -133,7 +133,7 @@ export type DimensionMode =
   | "ECO_NOVO_DOOR"
   | "WINDOW_WALL";
 
-export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE" | "TRANSOM";
+export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
 
 export interface Config {
   id: number;
@@ -160,7 +160,7 @@ export interface Config {
   prod?: Product;
 }
 
-export type PricingComponentType = "DOOR" | "SIDELITE" | "TRANSOM";
+export type PricingComponentType = "DOOR" | "SIDELITE";
 
 export interface PricingSourceConfig {
   id: number;
