@@ -1646,6 +1646,8 @@ export function PieceForm({
           heightLeft: heightLeftNorm,
           heightRight: heightRightNorm,
           legHeight: legHeightNorm,
+          windowHeight: windowHeightNorm,
+          
 
           doorWidth: doorWidthNorm,
           doorHeight: doorHeightNorm,

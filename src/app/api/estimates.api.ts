@@ -53,7 +53,7 @@ export interface ValidatePieceRequest {
   heightLeft?: number;
   heightRight?: number;
   legHeight?: number;
-
+  windowHeight?: number;
   doorWidth?: number;
   doorHeight?: number;
   leftSideliteWidth?: number;
