@@ -318,6 +318,11 @@ export function PieceForm({
       .filter(Boolean);
   }, [selectedSystem]);
 
+  const selectedFrameColorHex =
+    availableFrameColors.find(
+      (frameColor) => frameColor.id === Number(pieceValues.idFC),
+    )?.hexCode ?? null;
+
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
       ...((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -1647,7 +1652,6 @@ export function PieceForm({
           heightRight: heightRightNorm,
           legHeight: legHeightNorm,
           windowHeight: windowHeightNorm,
-          
 
           doorWidth: doorWidthNorm,
           doorHeight: doorHeightNorm,
@@ -3609,6 +3613,7 @@ export function PieceForm({
                 configuration={selectedConfig?.conf}
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
+                frameColorHex={selectedFrameColorHex}
               />
             </div>
           </div>
