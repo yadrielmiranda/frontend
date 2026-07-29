@@ -79,6 +79,10 @@ function circularShapeKeyFromConfiguration(
   return null;
 }
 
+function supportsCircularShapes(diagramFamily: DiagramFamily): boolean {
+  return diagramFamily === "GENERIC" || diagramFamily === "FIXED_SHAPE";
+}
+
 function toPositiveNumber(value: DiagramValue): number | null {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -123,10 +127,9 @@ function resolveDimensions({
   const standardWidth = toPositiveNumber(piece?.width);
   const standardHeight = toPositiveNumber(piece?.height);
 
-  const circularShape =
-    diagramFamily === "GENERIC"
-      ? circularShapeKeyFromConfiguration(configuration)
-      : null;
+  const circularShape = supportsCircularShapes(diagramFamily)
+    ? circularShapeKeyFromConfiguration(configuration)
+    : null;
 
   const derivedShapeHeight =
     standardWidth === null
@@ -895,10 +898,9 @@ export function PieceDiagram({
 }: PieceDiagramProps) {
   const resolvedDiagramFamily = diagramFamily ?? "GENERIC";
 
-  const circularShape =
-    resolvedDiagramFamily === "GENERIC"
-      ? circularShapeKeyFromConfiguration(configuration)
-      : null;
+  const circularShape = supportsCircularShapes(resolvedDiagramFamily)
+    ? circularShapeKeyFromConfiguration(configuration)
+    : null;
 
   const dimensions = resolveDimensions({
     piece,
