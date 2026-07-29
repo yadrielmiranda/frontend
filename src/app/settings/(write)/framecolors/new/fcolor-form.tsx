@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   color: string;
+  hexCode: string;
   isActive: boolean;
   isGlobal: boolean;
 };
@@ -29,20 +30,30 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
       color: fcolor?.color || "",
+      hexCode: fcolor?.hexCode ?? "#FFFFFF",
       isActive: fcolor?.isActive ?? true,
       isGlobal: fcolor?.isGlobal ?? false,
     },
   });
+
+  const hexCode = watch("hexCode");
+
+  const pickerHex = /^#[0-9A-Fa-f]{6}$/.test(hexCode ?? "")
+    ? hexCode.toLowerCase()
+    : "#ffffff";
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (isEdit) {
         await updateFColor(Number(params.id), {
           color: data.color.trim(),
+          hexCode: data.hexCode.trim().toUpperCase(),
           isActive: data.isActive,
           isGlobal: data.isGlobal,
         });
@@ -50,6 +61,7 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
       } else {
         await createFColor({
           color: data.color.trim(),
+          hexCode: data.hexCode.trim().toUpperCase(),
           isGlobal: data.isGlobal,
         });
         toast.success("Frame color created successfully.");
@@ -70,6 +82,42 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid w-full items-center gap-4">
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="hexCode">Frame Tone</Label>
+
+          <div className="flex gap-3">
+            <Input
+              type="color"
+              aria-label="Choose frame tone"
+              className="h-10 w-16 cursor-pointer p-1"
+              value={pickerHex}
+              onChange={(event) =>
+                setValue("hexCode", event.target.value.toUpperCase(), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+
+            <Input
+              id="hexCode"
+              placeholder="#FFFFFF"
+              maxLength={7}
+              autoComplete="off"
+              {...register("hexCode", {
+                required: "Frame tone is required.",
+                pattern: {
+                  value: /^#[0-9A-Fa-f]{6}$/,
+                  message: "Use the format #RRGGBB.",
+                },
+              })}
+            />
+          </div>
+
+          {errors.hexCode && (
+            <p className="text-sm text-destructive">{errors.hexCode.message}</p>
+          )}
+        </div>
         <div className="flex flex-col space-y-1.5">
           <Label htmlFor="color">Color</Label>
           <Input

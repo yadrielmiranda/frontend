@@ -180,6 +180,7 @@ export interface SysConfPricingComponent {
 export interface FrameColor {
   id: number;
   color: string;
+  hexCode: string;
   isActive: boolean;
   isGlobal: boolean;
 }
@@ -645,11 +646,13 @@ export type UpdateBrandData = {
 
 export type CreateFrameColorData = {
   color: string;
+  hexCode: string;
   isGlobal?: boolean;
 };
 
 export type UpdateFrameColorData = {
   color?: string;
+  hexCode?: string;
   isActive?: boolean;
   isGlobal?: boolean;
 };

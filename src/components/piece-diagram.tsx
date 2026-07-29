@@ -31,6 +31,7 @@ interface PieceDiagramProps {
   configuration?: string;
   dimensionMode?: DimensionMode;
   piece?: PieceDiagramData;
+  frameColorHex?: string | null;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -56,6 +57,12 @@ interface ResolvedDimensions {
 }
 
 const GLASS_FILL = "#F0F9FF";
+
+function resolveFrameFill(hexCode?: string | null): string {
+  const value = hexCode?.trim();
+
+  return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : "#FFFFFF";
+}
 
 type CircularShapeKey = "CIRCLE" | "HALF_CIRCLE" | "QUARTER_CIRCLE";
 
@@ -419,7 +426,7 @@ function HorizontalSliderDiagram({
         y={0}
         width={width}
         height={height}
-        fill="white"
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth * 1.5}
       />
@@ -622,7 +629,7 @@ function SingleHungDiagram({
         y={0}
         width={width}
         height={height}
-        fill="white"
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth * 1.5}
       />
@@ -740,7 +747,7 @@ function LinearMaterialDiagram({
         width={width}
         height={height}
         rx={Math.min(height * 0.2, 4)}
-        fill="white"
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth}
       />
@@ -787,7 +794,7 @@ function CircularShapeDiagram({
           cx={centerX}
           cy={centerY}
           r={outerRadius}
-          fill="white"
+          fill="var(--frame-fill, #FFFFFF)"
           stroke="black"
           strokeWidth={strokeWidth}
         />
@@ -830,7 +837,7 @@ function CircularShapeDiagram({
     <g>
       <path
         d={outerPath}
-        fill="white"
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -870,7 +877,7 @@ function GenericDiagram({
         y={0}
         width={width}
         height={height}
-        fill="white"
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth}
       />
@@ -893,10 +900,12 @@ export function PieceDiagram({
   configuration,
   dimensionMode = "STANDARD",
   piece,
+  frameColorHex,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
   const resolvedDiagramFamily = diagramFamily ?? "GENERIC";
+  const frameFill = resolveFrameFill(frameColorHex);
 
   const circularShape = supportsCircularShapes(resolvedDiagramFamily)
     ? circularShapeKeyFromConfiguration(configuration)
@@ -967,6 +976,11 @@ export function PieceDiagram({
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={`${resolvedDiagramFamily} piece diagram, exterior view`}
+        style={
+          {
+            "--frame-fill": frameFill,
+          } as React.CSSProperties
+        }
       >
         <text
           x={offsetX + scaledWidth / 2}
