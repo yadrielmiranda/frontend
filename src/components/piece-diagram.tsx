@@ -57,6 +57,28 @@ interface ResolvedDimensions {
 
 const GLASS_FILL = "#F0F9FF";
 
+type CircularShapeKey = "CIRCLE" | "HALF_CIRCLE" | "QUARTER_CIRCLE";
+
+function circularShapeKeyFromConfiguration(
+  configuration?: string,
+): CircularShapeKey | null {
+  const value = (configuration ?? "").trim().toLowerCase();
+
+  if (value.includes("half circle")) {
+    return "HALF_CIRCLE";
+  }
+
+  if (value.includes("quarter")) {
+    return "QUARTER_CIRCLE";
+  }
+
+  if (value === "circle") {
+    return "CIRCLE";
+  }
+
+  return null;
+}
+
 function toPositiveNumber(value: DiagramValue): number | null {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -92,12 +114,28 @@ function formatDimension(value: number): string {
 function resolveDimensions({
   piece,
   diagramFamily,
+  configuration,
 }: {
   piece?: PieceDiagramData;
   diagramFamily: DiagramFamily;
+  configuration?: string;
 }): ResolvedDimensions {
   const standardWidth = toPositiveNumber(piece?.width);
   const standardHeight = toPositiveNumber(piece?.height);
+
+  const circularShape =
+    diagramFamily === "GENERIC"
+      ? circularShapeKeyFromConfiguration(configuration)
+      : null;
+
+  const derivedShapeHeight =
+    standardWidth === null
+      ? null
+      : circularShape === "HALF_CIRCLE"
+        ? standardWidth / 2
+        : circularShape === "CIRCLE" || circularShape === "QUARTER_CIRCLE"
+          ? standardWidth
+          : null;
 
   const doorWidth = toPositiveNumber(piece?.doorWidth) ?? 0;
   const doorHeight = toPositiveNumber(piece?.doorHeight);
@@ -119,7 +157,7 @@ function resolveDimensions({
     (calculatedDoorAssemblyWidth > 0 ? calculatedDoorAssemblyWidth : null) ??
     doorWidth;
 
-  const resolvedHeight = standardHeight ?? doorHeight;
+  const resolvedHeight = derivedShapeHeight ?? standardHeight ?? doorHeight;
 
   if (diagramFamily === "LINEAR_MATERIAL") {
     const materialLength = resolvedWidth ?? 0;
@@ -716,6 +754,96 @@ function LinearMaterialDiagram({
   );
 }
 
+function CircularShapeDiagram({
+  shape,
+  width,
+  height,
+  variant,
+}: {
+  shape: CircularShapeKey;
+  width: number;
+  height: number;
+  variant: PieceDiagramVariant;
+}) {
+  const strokeWidth = variant === "report" ? 1.1 : 1.5;
+  const frameThickness = Math.min(
+    Math.max(Math.min(width, height) * 0.06, 4),
+    10,
+  );
+
+  if (shape === "CIRCLE") {
+    const diameter = Math.min(width, height);
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const outerRadius = Math.max(diameter / 2 - strokeWidth, 1);
+    const innerRadius = Math.max(outerRadius - frameThickness, 1);
+
+    return (
+      <g>
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={outerRadius}
+          fill="white"
+          stroke="black"
+          strokeWidth={strokeWidth}
+        />
+
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={innerRadius}
+          fill={GLASS_FILL}
+          stroke="black"
+          strokeWidth={strokeWidth}
+        />
+      </g>
+    );
+  }
+
+  const inset = Math.min(
+    frameThickness,
+    Math.max(Math.min(width, height) / 3, 1),
+  );
+
+  const innerLeft = inset;
+  const innerTop = inset;
+  const innerRight = Math.max(width - inset, innerLeft + 1);
+  const innerBottom = Math.max(height - inset, innerTop + 1);
+  const innerWidth = innerRight - innerLeft;
+  const innerHeight = innerBottom - innerTop;
+
+  const outerPath =
+    shape === "HALF_CIRCLE"
+      ? `M 0 ${height} A ${width / 2} ${height} 0 0 1 ${width} ${height} Z`
+      : `M 0 ${height} L 0 0 A ${width} ${height} 0 0 1 ${width} ${height} Z`;
+
+  const innerPath =
+    shape === "HALF_CIRCLE"
+      ? `M ${innerLeft} ${innerBottom} A ${innerWidth / 2} ${innerHeight} 0 0 1 ${innerRight} ${innerBottom} Z`
+      : `M ${innerLeft} ${innerBottom} L ${innerLeft} ${innerTop} A ${innerWidth} ${innerHeight} 0 0 1 ${innerRight} ${innerBottom} Z`;
+
+  return (
+    <g>
+      <path
+        d={outerPath}
+        fill="white"
+        stroke="black"
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+
+      <path
+        d={innerPath}
+        fill={GLASS_FILL}
+        stroke="black"
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+    </g>
+  );
+}
+
 function GenericDiagram({
   width,
   height,
@@ -767,9 +895,15 @@ export function PieceDiagram({
 }: PieceDiagramProps) {
   const resolvedDiagramFamily = diagramFamily ?? "GENERIC";
 
+  const circularShape =
+    resolvedDiagramFamily === "GENERIC"
+      ? circularShapeKeyFromConfiguration(configuration)
+      : null;
+
   const dimensions = resolveDimensions({
     piece,
     diagramFamily: resolvedDiagramFamily,
+    configuration,
   });
 
   const isLinearMaterial = resolvedDiagramFamily === "LINEAR_MATERIAL";
@@ -884,15 +1018,25 @@ export function PieceDiagram({
             />
           )}
 
-          {!["HORIZONTAL_SLIDER", "SINGLE_HUNG", "LINEAR_MATERIAL"].includes(
-            resolvedDiagramFamily,
-          ) && (
-            <GenericDiagram
+          {circularShape !== null && (
+            <CircularShapeDiagram
+              shape={circularShape}
               width={scaledWidth}
               height={scaledHeight}
               variant={variant}
             />
           )}
+
+          {circularShape === null &&
+            !["HORIZONTAL_SLIDER", "SINGLE_HUNG", "LINEAR_MATERIAL"].includes(
+              resolvedDiagramFamily,
+            ) && (
+              <GenericDiagram
+                width={scaledWidth}
+                height={scaledHeight}
+                variant={variant}
+              />
+            )}
         </g>
       </svg>
     </div>
