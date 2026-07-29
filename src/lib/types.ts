@@ -194,6 +194,7 @@ export interface Crystal {
 export interface Tint {
   id: number;
   color: string;
+  hexCode: string;
   isActive: boolean;
 }
 
@@ -668,10 +669,12 @@ export type UpdateCrystalData = {
 
 export type CreateTintData = {
   color: string;
+  hexCode: string;
 };
 
 export type UpdateTintData = {
   color?: string;
+  hexCode?: string;
   isActive?: boolean;
 };
 

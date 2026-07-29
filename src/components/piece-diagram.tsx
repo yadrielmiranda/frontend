@@ -15,6 +15,7 @@ export interface PieceDiagramData {
   legHeight?: DiagramValue;
   sashHeight?: DiagramValue;
   windowHeight?: DiagramValue;
+  privacy?: boolean | null;
 
   doorWidth?: DiagramValue;
   doorHeight?: DiagramValue;
@@ -32,6 +33,8 @@ interface PieceDiagramProps {
   dimensionMode?: DimensionMode;
   piece?: PieceDiagramData;
   frameColorHex?: string | null;
+  glassTintHex?: string | null;
+  hasCoating?: boolean;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -56,7 +59,34 @@ interface ResolvedDimensions {
   displayHeight: number | null;
 }
 
-const GLASS_FILL = "#F0F9FF";
+const DEFAULT_GLASS_FILL = "#F7FBFF";
+
+function resolveGlassFill(hexCode?: string | null): string {
+  const value = hexCode?.trim();
+
+  return value && /^#[0-9A-Fa-f]{6}$/.test(value)
+    ? value.toUpperCase()
+    : DEFAULT_GLASS_FILL;
+}
+
+function mixHexColors(
+  baseHex: string,
+  overlayHex: string,
+  overlayWeight: number,
+): string {
+  const weight = Math.min(Math.max(overlayWeight, 0), 1);
+
+  const mixChannel = (start: number) => {
+    const base = Number.parseInt(baseHex.slice(start, start + 2), 16);
+    const overlay = Number.parseInt(overlayHex.slice(start, start + 2), 16);
+
+    return Math.round(base * (1 - weight) + overlay * weight)
+      .toString(16)
+      .padStart(2, "0");
+  };
+
+  return `#${mixChannel(1)}${mixChannel(3)}${mixChannel(5)}`.toUpperCase();
+}
 
 function resolveFrameFill(hexCode?: string | null): string {
   const value = hexCode?.trim();
@@ -388,7 +418,6 @@ function HorizontalSliderDiagram({
     10,
   );
 
-  const sashInset = Math.max(frameThickness * 0.38, 2);
   const strokeWidth = variant === "report" ? 1.1 : 1.4;
   const arrowStrokeWidth = variant === "report" ? 1.2 : 1.8;
 
@@ -396,6 +425,7 @@ function HorizontalSliderDiagram({
   const innerTop = frameThickness;
   const innerWidth = Math.max(width - frameThickness * 2, 1);
   const innerHeight = Math.max(height - frameThickness * 2, 1);
+  const innerRight = innerLeft + innerWidth;
   const innerBottom = innerTop + innerHeight;
 
   const totalWeight = layout.panels.reduce(
@@ -419,6 +449,82 @@ function HorizontalSliderDiagram({
     return geometry;
   });
 
+  /*
+   * Cada letra representa una hoja completa. Las X se dibujan primero porque
+   * corren por el riel interior; las O se dibujan después y quedan al frente
+   * en los encuentros, como se ve desde el exterior.
+   */
+  const desiredSashProfile = Math.max(frameThickness * 0.55, 2);
+  const groupBreaks = new Set(layout.groupBreaks);
+
+  const sashGeometries = panelGeometries.map((geometry, index) => {
+    const previousPanel = panelGeometries[index - 1]?.panel;
+    const nextPanel = panelGeometries[index + 1]?.panel;
+
+    const meetsPreviousPanel =
+      previousPanel !== undefined && !groupBreaks.has(index);
+    const meetsNextPanel =
+      nextPanel !== undefined && !groupBreaks.has(index + 1);
+
+    const leftNeedsOverlap =
+      meetsPreviousPanel && previousPanel.code !== geometry.panel.code;
+    const rightNeedsOverlap =
+      meetsNextPanel && nextPanel.code !== geometry.panel.code;
+
+    const overlapLimit = Math.max(geometry.width * 0.08, 0.75);
+    const meetingStileOverlap = Math.min(
+      desiredSashProfile * 0.55,
+      overlapLimit,
+    );
+
+    const sashLeft = Math.max(
+      innerLeft,
+      geometry.x - (leftNeedsOverlap ? meetingStileOverlap : 0),
+    );
+    const sashRight = Math.min(
+      innerRight,
+      geometry.x +
+        geometry.width +
+        (rightNeedsOverlap ? meetingStileOverlap : 0),
+    );
+    const sashWidth = Math.max(sashRight - sashLeft, 1);
+
+    const sideProfile = Math.min(
+      desiredSashProfile,
+      Math.max(sashWidth * 0.2, 0.5),
+    );
+    const railProfile = Math.min(
+      desiredSashProfile,
+      Math.max(innerHeight * 0.2, 0.5),
+    );
+
+    const glassX = sashLeft + sideProfile;
+    const glassY = innerTop + railProfile;
+    const glassWidth = Math.max(sashWidth - sideProfile * 2, 1);
+    const glassHeight = Math.max(innerHeight - railProfile * 2, 1);
+
+    return {
+      ...geometry,
+      index,
+      sashX: sashLeft,
+      sashWidth,
+      glassX,
+      glassY,
+      glassWidth,
+      glassHeight,
+    };
+  });
+
+  const orderedSashes = [...sashGeometries].sort((a, b) => {
+    if (a.panel.code !== b.panel.code) {
+      return a.panel.code === "X" ? -1 : 1;
+    }
+
+    return a.index - b.index;
+  });
+
+  const labelFontSize = variant === "report" ? 7 : 9;
+
   return (
     <g>
       <rect
@@ -428,75 +534,33 @@ function HorizontalSliderDiagram({
         height={height}
         fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
-        strokeWidth={strokeWidth * 1.5}
-      />
-
-      <rect
-        x={innerLeft}
-        y={innerTop}
-        width={innerWidth}
-        height={innerHeight}
-        fill={GLASS_FILL}
-        stroke="black"
         strokeWidth={strokeWidth}
       />
 
-      {panelGeometries.map(({ panel, x, width: panelWidth }, index) => {
-        const movable = panel.code === "X";
+      {orderedSashes.map((sash) => (
+        <g key={`sash-${sash.panel.code}-${sash.index}`}>
+          <rect
+            x={sash.sashX}
+            y={innerTop}
+            width={sash.sashWidth}
+            height={innerHeight}
+            fill="var(--frame-fill, #FFFFFF)"
+            stroke="black"
+            strokeWidth={strokeWidth}
+          />
 
-        const sashX = x + sashInset;
-        const sashY = innerTop + sashInset;
-        const sashWidth = Math.max(panelWidth - sashInset * 2, 1);
-        const sashHeight = Math.max(innerHeight - sashInset * 2, 1);
-
-        return (
-          <g key={`${panel.code}-${index}`}>
-            {index > 0 && (
-              <line
-                x1={x}
-                y1={innerTop}
-                x2={x}
-                y2={innerBottom}
-                stroke="black"
-                strokeWidth={strokeWidth}
-              />
-            )}
-
-            {movable && (
-              <rect
-                x={sashX}
-                y={sashY}
-                width={sashWidth}
-                height={sashHeight}
-                fill="none"
-                stroke="black"
-                strokeWidth={strokeWidth}
-              />
-            )}
-
-            {movable && panel.direction && (
-              <MovementArrow
-                x={x}
-                y={innerTop + innerHeight / 2}
-                width={panelWidth}
-                direction={panel.direction}
-                strokeWidth={arrowStrokeWidth}
-              />
-            )}
-
-            <text
-              x={x + panelWidth / 2}
-              y={innerBottom - Math.max(sashInset, 4)}
-              textAnchor="middle"
-              fontSize={variant === "report" ? 7 : 9}
-              fontWeight={600}
-              fill="black"
-            >
-              {panel.code}
-            </text>
-          </g>
-        );
-      })}
+          <rect
+            x={sash.glassX}
+            y={sash.glassY}
+            width={sash.glassWidth}
+            height={sash.glassHeight}
+            fill="var(--glass-fill, #F7FBFF)"
+            fillOpacity="var(--glass-opacity, 1)"
+            stroke="black"
+            strokeWidth={strokeWidth}
+          />
+        </g>
+      ))}
 
       {layout.groupBreaks.map((breakIndex) => {
         const breakGeometry = panelGeometries[breakIndex];
@@ -510,6 +574,14 @@ function HorizontalSliderDiagram({
 
         return (
           <g key={`group-break-${breakIndex}`}>
+            <rect
+              x={breakX - separation}
+              y={innerTop}
+              width={separation * 2}
+              height={innerHeight}
+              fill="var(--frame-fill, #FFFFFF)"
+            />
+
             <line
               x1={breakX - separation}
               y1={innerTop}
@@ -527,6 +599,38 @@ function HorizontalSliderDiagram({
               stroke="black"
               strokeWidth={strokeWidth}
             />
+          </g>
+        );
+      })}
+
+      {sashGeometries.map((sash) => {
+        const glassCenterX = sash.glassX + sash.glassWidth / 2;
+        const glassCenterY = sash.glassY + sash.glassHeight / 2;
+        const labelY =
+          sash.glassY + sash.glassHeight - Math.min(4, sash.glassHeight * 0.2);
+
+        return (
+          <g key={`detail-${sash.panel.code}-${sash.index}`}>
+            {sash.panel.code === "X" && sash.panel.direction && (
+              <MovementArrow
+                x={sash.glassX}
+                y={glassCenterY}
+                width={sash.glassWidth}
+                direction={sash.panel.direction}
+                strokeWidth={arrowStrokeWidth}
+              />
+            )}
+
+            <text
+              x={glassCenterX}
+              y={labelY}
+              textAnchor="middle"
+              fontSize={labelFontSize}
+              fontWeight={600}
+              fill="black"
+            >
+              {sash.panel.code}
+            </text>
           </g>
         );
       })}
@@ -619,8 +723,65 @@ function SingleHungDiagram({
       innerBottom - innerHeight * (resolvedSashHeight / actualHeight);
   }
 
-  const movableSectionTop = meetingRailY;
-  const movableSectionBottom = windowSectionBottom;
+  const upperSashTop = innerTop;
+  const upperSashHeight = Math.max(meetingRailY - upperSashTop, 1);
+  const baseLowerSashHeight = Math.max(windowSectionBottom - meetingRailY, 1);
+
+  /*
+   * Las dos hojas ocupan toda la abertura. Así los perfiles se unen al frame
+   * y se solapan ligeramente en el meeting rail, como ocurre en una single hung.
+   */
+  const desiredSashProfile = Math.max(frameThickness * 0.55, 2);
+  const meetingRailOverlap = Math.min(
+    desiredSashProfile * 0.55,
+    baseLowerSashHeight * 0.2,
+  );
+  const lowerSashTop = Math.max(meetingRailY - meetingRailOverlap, innerTop);
+  const lowerSashHeight = Math.max(windowSectionBottom - lowerSashTop, 1);
+
+  const sashSideProfile = Math.min(
+    desiredSashProfile,
+    Math.max(innerWidth * 0.22, 0.5),
+  );
+  const upperRailProfile = Math.min(
+    desiredSashProfile,
+    Math.max(upperSashHeight * 0.24, 0.5),
+  );
+  const lowerRailProfile = Math.min(
+    desiredSashProfile,
+    Math.max(lowerSashHeight * 0.24, 0.5),
+  );
+
+  const upperGlassX = innerLeft + sashSideProfile;
+  const upperGlassY = upperSashTop + upperRailProfile;
+  const upperGlassWidth = Math.max(innerWidth - sashSideProfile * 2, 1);
+  const upperGlassHeight = Math.max(upperSashHeight - upperRailProfile * 2, 1);
+
+  const lowerGlassX = innerLeft + sashSideProfile;
+  const lowerGlassY = lowerSashTop + lowerRailProfile;
+  const lowerGlassWidth = Math.max(innerWidth - sashSideProfile * 2, 1);
+  const lowerGlassHeight = Math.max(lowerSashHeight - lowerRailProfile * 2, 1);
+
+  const fixedSectionHeight = Math.max(innerBottom - windowSectionBottom, 0);
+  const fixedRailProfile = Math.min(
+    desiredSashProfile,
+    Math.max(fixedSectionHeight * 0.24, 0.5),
+  );
+
+  const fixedGlassX = innerLeft + sashSideProfile;
+  const fixedGlassY = windowSectionBottom + fixedRailProfile;
+  const fixedGlassWidth = Math.max(innerWidth - sashSideProfile * 2, 1);
+  const fixedGlassHeight = Math.max(
+    fixedSectionHeight - fixedRailProfile * 2,
+    1,
+  );
+
+  const labelFontSize = variant === "report" ? 7 : 9;
+  const lowerGlassCenterX = lowerGlassX + lowerGlassWidth / 2;
+  const lowerGlassCenterY = lowerGlassY + lowerGlassHeight / 2;
+  const arrowHalfLength = Math.max(Math.min(lowerGlassHeight * 0.22, 18), 4);
+  const lowerLabelY =
+    lowerGlassY + lowerGlassHeight - Math.min(4, lowerGlassHeight * 0.2);
 
   return (
     <g>
@@ -631,70 +792,67 @@ function SingleHungDiagram({
         height={height}
         fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
-        strokeWidth={strokeWidth * 1.5}
+        strokeWidth={strokeWidth}
       />
 
+      {/* Hoja inferior móvil; se dibuja primero para quedar detrás */}
       <rect
         x={innerLeft}
-        y={innerTop}
+        y={lowerSashTop}
         width={innerWidth}
-        height={innerHeight}
-        fill={GLASS_FILL}
+        height={lowerSashHeight}
+        fill="var(--frame-fill, #FFFFFF)"
         stroke="black"
         strokeWidth={strokeWidth}
       />
 
-      <line
-        x1={innerLeft}
-        y1={meetingRailY}
-        x2={innerLeft + innerWidth}
-        y2={meetingRailY}
+      <rect
+        x={lowerGlassX}
+        y={lowerGlassY}
+        width={lowerGlassWidth}
+        height={lowerGlassHeight}
+        fill="var(--glass-fill, #F7FBFF)"
+        fillOpacity="var(--glass-opacity, 1)"
         stroke="black"
-        strokeWidth={strokeWidth * 1.5}
+        strokeWidth={strokeWidth}
       />
 
-      {hasWindowHeight && (
-        <line
-          x1={innerLeft}
-          y1={windowSectionBottom}
-          x2={innerLeft + innerWidth}
-          y2={windowSectionBottom}
-          stroke="black"
-          strokeWidth={strokeWidth * 1.5}
+      {/* Hoja superior fija; se dibuja después para quedar al frente */}
+      <rect
+        x={innerLeft}
+        y={upperSashTop}
+        width={innerWidth}
+        height={upperSashHeight}
+        fill="var(--frame-fill, #FFFFFF)"
+        stroke="black"
+        strokeWidth={strokeWidth}
+      />
+
+      <rect
+        x={upperGlassX}
+        y={upperGlassY}
+        width={upperGlassWidth}
+        height={upperGlassHeight}
+        fill="var(--glass-fill, #F7FBFF)"
+        fillOpacity="var(--glass-opacity, 1)"
+        stroke="black"
+        strokeWidth={strokeWidth}
+      />
+
+      {lowerGlassHeight >= 14 && (
+        <UpArrow
+          x={lowerGlassCenterX}
+          startY={lowerGlassCenterY + arrowHalfLength}
+          endY={lowerGlassCenterY - arrowHalfLength}
+          strokeWidth={variant === "report" ? 1.2 : 1.8}
         />
       )}
 
-      <rect
-        x={innerLeft + frameThickness * 0.35}
-        y={movableSectionTop + frameThickness * 0.35}
-        width={Math.max(innerWidth - frameThickness * 0.7, 1)}
-        height={Math.max(
-          movableSectionBottom - movableSectionTop - frameThickness * 0.7,
-          1,
-        )}
-        fill="none"
-        stroke="black"
-        strokeWidth={strokeWidth}
-      />
-
-      <UpArrow
-        x={innerLeft + innerWidth / 2}
-        startY={
-          movableSectionBottom -
-          Math.max((movableSectionBottom - movableSectionTop) * 0.2, 5)
-        }
-        endY={
-          movableSectionTop +
-          Math.max((movableSectionBottom - movableSectionTop) * 0.25, 5)
-        }
-        strokeWidth={variant === "report" ? 1.2 : 1.8}
-      />
-
       <text
-        x={innerLeft + innerWidth / 2}
-        y={meetingRailY - 4}
+        x={upperGlassX + upperGlassWidth / 2}
+        y={upperGlassY + upperGlassHeight / 2 + labelFontSize / 3}
         textAnchor="middle"
-        fontSize={variant === "report" ? 7 : 9}
+        fontSize={labelFontSize}
         fontWeight={600}
         fill="black"
       >
@@ -702,10 +860,10 @@ function SingleHungDiagram({
       </text>
 
       <text
-        x={innerLeft + innerWidth / 2}
-        y={movableSectionBottom - 4}
+        x={lowerGlassCenterX}
+        y={lowerLabelY}
         textAnchor="middle"
-        fontSize={variant === "report" ? 7 : 9}
+        fontSize={labelFontSize}
         fontWeight={600}
         fill="black"
       >
@@ -713,16 +871,40 @@ function SingleHungDiagram({
       </text>
 
       {hasWindowHeight && (
-        <text
-          x={innerLeft + innerWidth / 2}
-          y={innerBottom - 4}
-          textAnchor="middle"
-          fontSize={variant === "report" ? 7 : 9}
-          fontWeight={600}
-          fill="black"
-        >
-          FIX
-        </text>
+        <>
+          {/* Lite fijo inferior de las configuraciones con windowHeight */}
+          <rect
+            x={innerLeft}
+            y={windowSectionBottom}
+            width={innerWidth}
+            height={fixedSectionHeight}
+            fill="var(--frame-fill, #FFFFFF)"
+            stroke="black"
+            strokeWidth={strokeWidth}
+          />
+
+          <rect
+            x={fixedGlassX}
+            y={fixedGlassY}
+            width={fixedGlassWidth}
+            height={fixedGlassHeight}
+            fill="var(--glass-fill, #F7FBFF)"
+            fillOpacity="var(--glass-opacity, 1)"
+            stroke="black"
+            strokeWidth={strokeWidth}
+          />
+
+          <text
+            x={fixedGlassX + fixedGlassWidth / 2}
+            y={fixedGlassY + fixedGlassHeight / 2 + labelFontSize / 3}
+            textAnchor="middle"
+            fontSize={labelFontSize}
+            fontWeight={600}
+            fill="black"
+          >
+            FIX
+          </text>
+        </>
       )}
     </g>
   );
@@ -803,7 +985,8 @@ function CircularShapeDiagram({
           cx={centerX}
           cy={centerY}
           r={innerRadius}
-          fill={GLASS_FILL}
+          fill="var(--glass-fill, #F7FBFF)"
+          fillOpacity="var(--glass-opacity, 1)"
           stroke="black"
           strokeWidth={strokeWidth}
         />
@@ -845,7 +1028,8 @@ function CircularShapeDiagram({
 
       <path
         d={innerPath}
-        fill={GLASS_FILL}
+        fill="var(--glass-fill, #F7FBFF)"
+        fillOpacity="var(--glass-opacity, 1)"
         stroke="black"
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -887,7 +1071,8 @@ function GenericDiagram({
         y={frameThickness}
         width={Math.max(width - frameThickness * 2, 1)}
         height={Math.max(height - frameThickness * 2, 1)}
-        fill={GLASS_FILL}
+        fill="var(--glass-fill, #F7FBFF)"
+        fillOpacity="var(--glass-opacity, 1)"
         stroke="black"
         strokeWidth={strokeWidth}
       />
@@ -901,9 +1086,60 @@ export function PieceDiagram({
   dimensionMode = "STANDARD",
   piece,
   frameColorHex,
+  glassTintHex,
+  hasCoating = false,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
+  const reactId = React.useId();
+
+  const glassGradientId = `piece-glass-${reactId.replace(
+    /[^a-zA-Z0-9_-]/g,
+    "",
+  )}`;
+
+  const glassTone = resolveGlassFill(glassTintHex);
+  const hasPrivacy = piece?.privacy === true;
+  const isClearTone = glassTone.toUpperCase() === "#F7FBFF";
+
+  // Clear necesita una ligera base azul para distinguirse del fondo blanco.
+  const visibleGlassTone = isClearTone
+    ? mixHexColors(glassTone, "#9FC3D8", 0.22)
+    : glassTone;
+
+  const privacyGlassTone = hasPrivacy
+    ? mixHexColors(visibleGlassTone, "#1F2937", 0.18)
+    : visibleGlassTone;
+
+  // Low-E enfría ligeramente el cristal, sin crear una franja.
+  const renderedGlassTone = hasCoating
+    ? mixHexColors(privacyGlassTone, "#BFEAFF", hasPrivacy ? 0.06 : 0.1)
+    : privacyGlassTone;
+
+  const highlightWeight = hasPrivacy
+    ? hasCoating
+      ? 0.16
+      : 0.1
+    : hasCoating
+      ? 0.3
+      : isClearTone
+        ? 0.26
+        : 0.16;
+
+  const glassHighlightTone = mixHexColors(
+    renderedGlassTone,
+    hasCoating ? "#E6FAFF" : "#FFFFFF",
+    highlightWeight,
+  );
+
+  const glassShadowTone = mixHexColors(
+    renderedGlassTone,
+    "#5F7685",
+    hasPrivacy ? 0.1 : 0.07,
+  );
+
+  const glassPaint = `url(#${glassGradientId})`;
+  const glassOpacity = 1;
   const resolvedDiagramFamily = diagramFamily ?? "GENERIC";
   const frameFill = resolveFrameFill(frameColorHex);
 
@@ -979,9 +1215,26 @@ export function PieceDiagram({
         style={
           {
             "--frame-fill": frameFill,
+            "--glass-fill": glassPaint,
+            "--glass-opacity": String(glassOpacity),
           } as React.CSSProperties
         }
       >
+        <defs>
+          <radialGradient
+            id={glassGradientId}
+            cx="30%"
+            cy="24%"
+            r="90%"
+            fx="25%"
+            fy="18%"
+          >
+            <stop offset="0%" stopColor={glassHighlightTone} />
+            <stop offset="32%" stopColor={renderedGlassTone} />
+            <stop offset="72%" stopColor={renderedGlassTone} />
+            <stop offset="100%" stopColor={glassShadowTone} />
+          </radialGradient>
+        </defs>
         <text
           x={offsetX + scaledWidth / 2}
           y={offsetY - 10}

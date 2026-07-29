@@ -323,6 +323,23 @@ export function PieceForm({
       (frameColor) => frameColor.id === Number(pieceValues.idFC),
     )?.hexCode ?? null;
 
+  const selectedTintHex =
+    props.tints.find((tint) => tint.id === Number(pieceValues.idTint))
+      ?.hexCode ?? null;
+
+  const selectedCoating =
+    props.coatings.find(
+      (coating) => coating.id === Number(pieceValues.idCoat),
+    ) ?? null;
+
+  const normalizedCoatingName = (selectedCoating?.name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const hasCoating =
+    normalizedCoatingName !== "" && normalizedCoatingName !== "none";
+
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
       ...((selectedSystem?.sysconfs ?? []) as SystemConfigLink[]).filter(
@@ -3614,6 +3631,8 @@ export function PieceForm({
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
                 frameColorHex={selectedFrameColorHex}
+                glassTintHex={selectedTintHex}
+                hasCoating={hasCoating}
               />
             </div>
           </div>

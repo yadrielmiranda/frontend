@@ -35,6 +35,31 @@ export function getTintColumns({
     {
       accessorKey: "color",
       header: "Color",
+      cell: ({ row }) => {
+        const rawHex = row.original.hexCode?.trim();
+
+        const hexCode =
+          rawHex && /^#[0-9A-Fa-f]{6}$/.test(rawHex)
+            ? rawHex.toUpperCase()
+            : "#F7FBFF";
+
+        return (
+          <div className="flex items-center gap-3">
+            <span
+              className="h-7 w-7 shrink-0 rounded-md border shadow-sm"
+              style={{ backgroundColor: hexCode }}
+              title={hexCode}
+            />
+
+            <div>
+              <div className="font-medium">{row.original.color}</div>
+              <div className="font-mono text-xs text-muted-foreground">
+                {hexCode}
+              </div>
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "isActive",

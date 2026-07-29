@@ -94,10 +94,28 @@ export function PieceFormDetailsPanel({
       : [],
   );
 
-  const frameColor = findNameById(frameColors, piece.idFC, (fc) => fc.color);
+  const selectedFrameColor =
+    frameColors.find((fc) => fc.id === Number(piece.idFC)) ?? null;
+
+  const frameColor = selectedFrameColor?.color ?? null;
+  const frameColorHex = selectedFrameColor?.hexCode ?? null;
   const glass = findNameById(crystals, piece.idCryst, (c) => c.glass);
-  const tint = findNameById(tints, piece.idTint, (t) => t.color);
-  const coating = findNameById(coatings, piece.idCoat, (c) => c.name);
+  const selectedTint = tints.find((t) => t.id === Number(piece.idTint)) ?? null;
+
+  const tint = selectedTint?.color ?? null;
+  const glassTintHex = selectedTint?.hexCode ?? null;
+  const selectedCoating =
+    coatings.find((c) => c.id === Number(piece.idCoat)) ?? null;
+
+  const coating = selectedCoating?.name ?? null;
+
+  const normalizedCoatingName = (selectedCoating?.name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const hasCoating =
+    normalizedCoatingName !== "" && normalizedCoatingName !== "none";
 
   const activeName =
     selectedSysConf?.activeOptions?.find(
@@ -365,6 +383,9 @@ export function PieceFormDetailsPanel({
               configuration={configName ?? undefined}
               dimensionMode={selectedSysConf?.dimensionMode}
               piece={piece}
+              frameColorHex={frameColorHex}
+              glassTintHex={glassTintHex}
+              hasCoating={hasCoating}
             />
           </div>
         </div>

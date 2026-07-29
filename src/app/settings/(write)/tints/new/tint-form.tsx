@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   color: string;
+  hexCode: string;
   isActive: boolean;
 };
 
@@ -28,25 +29,39 @@ export function TintForm({ tint }: { tint?: Tint }) {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
       color: tint?.color || "",
+      hexCode: tint?.hexCode ?? "#F7FBFF",
       isActive: tint?.isActive ?? true,
     },
   });
 
+  const hexCode = watch("hexCode");
+
+  const pickerHex = /^#[0-9A-Fa-f]{6}$/.test(hexCode ?? "")
+    ? hexCode.toLowerCase()
+    : "#f7fbff";
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const payload = isEdit
-        ? { color: data.color.trim(), isActive: data.isActive }
-        : { color: data.color.trim() };
+      const normalizedData = {
+        color: data.color.trim(),
+        hexCode: data.hexCode.trim().toUpperCase(),
+      };
 
       if (isEdit) {
-        await updateTint(Number(params.id), payload);
+        await updateTint(Number(params.id), {
+          ...normalizedData,
+          isActive: data.isActive,
+        });
+
         toast.success("Tint updated successfully.");
       } else {
-        await createTint(payload);
+        await createTint(normalizedData);
         toast.success("Tint created successfully.");
       }
 
@@ -55,6 +70,7 @@ export function TintForm({ tint }: { tint?: Tint }) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong.";
+
       toast.error(message);
       console.error(error);
     }
@@ -65,6 +81,42 @@ export function TintForm({ tint }: { tint?: Tint }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid w-full items-center gap-4">
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="hexCode">Glass Tone</Label>
+
+          <div className="flex gap-3">
+            <Input
+              type="color"
+              aria-label="Choose glass tone"
+              className="h-10 w-16 cursor-pointer p-1"
+              value={pickerHex}
+              onChange={(event) =>
+                setValue("hexCode", event.target.value.toUpperCase(), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+
+            <Input
+              id="hexCode"
+              placeholder="#F7FBFF"
+              maxLength={7}
+              autoComplete="off"
+              {...register("hexCode", {
+                required: "Glass tone is required.",
+                pattern: {
+                  value: /^#[0-9A-Fa-f]{6}$/,
+                  message: "Use the format #RRGGBB.",
+                },
+              })}
+            />
+          </div>
+
+          {errors.hexCode && (
+            <p className="text-sm text-destructive">{errors.hexCode.message}</p>
+          )}
+        </div>
         <div className="flex flex-col space-y-1.5">
           <Label htmlFor="color">Color</Label>
           <Input
