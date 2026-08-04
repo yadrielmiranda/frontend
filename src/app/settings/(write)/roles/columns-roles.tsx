@@ -2,14 +2,21 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Role } from "@/lib/types";
+import type { InstallationPriceProfile, Role } from "@/lib/types";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
-import { updateRoleMarkup } from "@/app/api/roles.api";
+import { updateRole, updateRoleMarkup } from "@/app/api/roles.api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function EditableMarkupCell({ role }: { role: Role }) {
   const router = useRouter();
@@ -80,7 +87,52 @@ function EditableMarkupCell({ role }: { role: Role }) {
   );
 }
 
-export const columns: ColumnDef<Role>[] = [
+function InstallationProfileCell({
+  role,
+  profiles,
+}: {
+  role: Role;
+  profiles: InstallationPriceProfile[];
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+
+  const save = async (value: string) => {
+    setSaving(true);
+    try {
+      await updateRole(role.id, {
+        markup: Number(role.markup),
+        installationPriceProfileId: value === "DEFAULT" ? null : Number(value),
+      });
+      toast.success(`Installation profile for '${role.name}' updated.`);
+      router.refresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Select
+      value={role.installationPriceProfileId ? String(role.installationPriceProfileId) : "DEFAULT"}
+      onValueChange={save}
+      disabled={saving}
+    >
+      <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="DEFAULT">Use default profile</SelectItem>
+        {profiles.map((profile) => (
+          <SelectItem key={profile.id} value={String(profile.id)}>{profile.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export const getColumns = (
+  profiles: InstallationPriceProfile[],
+): ColumnDef<Role>[] => [
   {
     accessorKey: "id",
     header: "ID",
@@ -96,5 +148,12 @@ export const columns: ColumnDef<Role>[] = [
     accessorKey: "markup",
     header: "Default Markup",
     cell: ({ row }) => <EditableMarkupCell role={row.original} />,
+  },
+  {
+    id: "installationProfile",
+    header: "Installation Profile",
+    cell: ({ row }) => (
+      <InstallationProfileCell role={row.original} profiles={profiles} />
+    ),
   },
 ];

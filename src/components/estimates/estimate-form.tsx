@@ -48,6 +48,7 @@ import { CustomerDetailsCard } from "./customer-details-card";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
+import { InstallationEstimatePanel } from "./installation-estimate-panel";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -166,6 +167,10 @@ const ESTIMATE_HEADER_FIELDS: Array<keyof EstimateFormValues> = [
 
 export function EstimateForm({
   estimate,
+  initialInstallation,
+  currentUserId,
+  isPrivileged = false,
+  readOnly = false,
   taxRate,
   productsWithBrands,
   systemsWithConfigs,
@@ -1166,9 +1171,56 @@ export function EstimateForm({
   const pieceKey = editingPieceIndex ?? "new";
   const pieceIndex = editingPieceIndex ?? fields.length;
 
+  const installationPieces = useMemo(
+    () =>
+      (watchedPieces ?? [])
+        .filter((piece) => Number(piece?.id) > 0)
+        .map((piece) => ({
+          id: Number(piece.id),
+          mark: piece.mark || `Piece #${piece.id}`,
+          qty: Number(piece.qty) || 1,
+        })),
+    [watchedPieces],
+  );
+  const installationRefreshKey = useMemo(
+    () =>
+      JSON.stringify({
+        pieces: (watchedPieces ?? []).map((piece) => ({
+          id: piece?.id,
+          idSyst: piece?.idSyst,
+          idConf: piece?.idConf,
+          qty: piece?.qty,
+          width: piece?.width,
+          height: piece?.height,
+          heightLeft: piece?.heightLeft,
+          heightRight: piece?.heightRight,
+          legHeight: piece?.legHeight,
+          doorWidth: piece?.doorWidth,
+          doorHeight: piece?.doorHeight,
+          leftSideliteWidth: piece?.leftSideliteWidth,
+          rightSideliteWidth: piece?.rightSideliteWidth,
+          leftPanels: piece?.leftPanels,
+          rightPanels: piece?.rightPanels,
+          panelCount: piece?.panelCount,
+          price: piece?.price,
+        })),
+        totalPayable: summary.totalPayable,
+      }),
+    [watchedPieces, summary.totalPayable],
+  );
+
   return (
     <>
       <div className="space-y-8">
+        {readOnly && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Material is read-only after the installation deposit starts.
+            Remeasurement changes are prepared in Operations and apply only
+            after your approval. Installation actions below remain available.
+          </div>
+        )}
+
+        <fieldset disabled={readOnly} className="space-y-8">
         <div className="p-6 border rounded-lg bg-slate-50">
           <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
 
@@ -1275,6 +1327,24 @@ export function EstimateForm({
             />
           )}
         </div>
+
+        </fieldset>
+
+        {isEditMode && estimate && currentUserId && (
+          <InstallationEstimatePanel
+            estimateId={estimate.id}
+            estimateOwnerId={estimate.idUser}
+            estimateStatus={estimate.status?.name ?? ""}
+            order={estimate.order ?? null}
+            pieces={installationPieces}
+            materialTotal={summary.totalPayable}
+            initialJob={initialInstallation ?? null}
+            currentUserId={currentUserId}
+            isPrivileged={isPrivileged}
+            refreshKey={installationRefreshKey}
+            beforeRequest={saveEstimateHeader}
+          />
+        )}
 
         <div className="flex justify-end mt-8">
           <Button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,7 +33,23 @@ interface OrderFormProps {
 export function OrderForm({ order, statuses }: OrderFormProps) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<UpdateOrderData | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<UpdateOrderData | null>(
+    null,
+  );
+  const selectableStatuses = useMemo(() => {
+    const nextByStatus: Record<string, string | null> = {
+      Pending: "In production",
+      "In production": "Ready to pick up",
+      "Ready to pick up": "Delivered",
+      Delivered: null,
+      "Installation in progress": null,
+      Installed: null,
+    };
+    const next = nextByStatus[order.status.name];
+    return statuses.filter(
+      (status) => status.id === order.statusId || status.name === next,
+    );
+  }, [order.status.name, order.statusId, statuses]);
 
   const {
     control,
@@ -105,7 +121,7 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
                   <SelectValue placeholder="Select a status..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {statuses.map((status) => (
+                  {selectableStatuses.map((status) => (
                     <SelectItem key={status.id} value={String(status.id)}>
                       {status.name}
                     </SelectItem>

@@ -2,16 +2,24 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { OrderWithRelations } from "@/lib/types";
+import type { InstallationJob, OrderWithRelations } from "@/lib/types";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { OrderInstallationPanel } from "@/components/orders/order-installation-panel";
+import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-panel";
 
 export function OrderDetails({
   order,
+  installation,
+  isOwner,
+  isPrivileged,
   canEdit,
   canViewFinancials,
 }: {
   order: OrderWithRelations;
+  installation: InstallationJob | null;
+  isOwner: boolean;
+  isPrivileged: boolean;
   canEdit: boolean;
   canViewFinancials: boolean;
 }) {
@@ -23,8 +31,6 @@ export function OrderDetails({
           <h1 className="text-3xl font-bold">Order #{order.number}</h1>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
             <span>Created: {formatDateEn(order.date)}</span>
-            
-            
           </p>
         </div>
 
@@ -53,7 +59,9 @@ export function OrderDetails({
             </div>
             <div className="mt-2">
               <Button asChild variant="outline" size="sm">
-                <Link href={`/estimates/${order.estimate?.id}`}>View Estimate</Link>
+                <Link href={`/estimates/${order.estimate?.id}`}>
+                  View Estimate
+                </Link>
               </Button>
             </div>
           </div>
@@ -77,6 +85,23 @@ export function OrderDetails({
           </div>
         </div>
       </div>
+
+      {installation && (
+        <OrderInstallationPanel
+          order={order}
+          initialJob={installation}
+          isOwner={isOwner}
+          isPrivileged={isPrivileged}
+        />
+      )}
+
+      {installation && installation.status !== "CANCELED" && (
+        <OrderExtraChargesPanel
+          order={order}
+          isOwner={isOwner}
+          isPrivileged={isPrivileged}
+        />
+      )}
 
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (
@@ -116,7 +141,8 @@ export function OrderDetails({
             <div>
               <div className="text-muted-foreground">Net Profit Real</div>
               <div className="font-medium">
-                {order.netProfitReal === null || order.netProfitReal === undefined
+                {order.netProfitReal === null ||
+                order.netProfitReal === undefined
                   ? "—"
                   : formatMoney(order.netProfitReal)}
               </div>

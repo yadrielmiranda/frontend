@@ -19,6 +19,9 @@ import {
   SwatchBook,
   Users,
   Wrench,
+  Hammer,
+  Link2,
+  BadgeDollarSign,
 } from "lucide-react";
 
 type SettingsHubProps = {
@@ -249,6 +252,30 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
     },
   ];
 
+  const installationItems: SettingsItem[] = [
+    {
+      title: "Services & Rules",
+      description: "Configure formulas, rate ranges, and service availability.",
+      href: "/settings/installation-services",
+      icon: Hammer,
+      color: "bg-red-50 text-red-600",
+    },
+    {
+      title: "Automatic Mappings",
+      description: "Assign multiple services to direct system configurations.",
+      href: "/settings/installation-mappings",
+      icon: Link2,
+      color: "bg-blue-50 text-blue-600",
+    },
+    {
+      title: "Price Profiles",
+      description: "Manage adjustments, minimums, and assignment priority.",
+      href: "/settings/installation-profiles",
+      icon: BadgeDollarSign,
+      color: "bg-emerald-50 text-emerald-600",
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl space-y-8">
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-8 text-white shadow-xl">
@@ -295,6 +322,12 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
         title="Pricing & Rules"
         description="Rules and parameters used by calculations and validation."
         items={pricingItems}
+      />
+
+      <SettingsSection
+        title="Installation"
+        description="Configurable services, automatic mappings, and installation pricing."
+        items={installationItems}
       />
 
       <SettingsSection

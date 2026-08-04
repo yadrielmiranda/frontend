@@ -29,6 +29,9 @@ import {
   Tags,
   Users,
   Wrench,
+  Hammer,
+  Link2,
+  BadgeDollarSign,
 } from "lucide-react";
 
 import { isAdminRole, type RoleName } from "@/lib/rbac";
@@ -224,6 +227,33 @@ export function SettingsMenuItems({
         <Link href="/settings/dimension-policies">
           <Ruler className={iconClass} />
           Dimension Policies
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuSeparator />
+
+      <DropdownMenuLabel className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        Installation
+      </DropdownMenuLabel>
+
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/installation-services">
+          <Hammer className={iconClass} />
+          Services & Rules
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/installation-mappings">
+          <Link2 className={iconClass} />
+          Automatic Mappings
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/installation-profiles">
+          <BadgeDollarSign className={iconClass} />
+          Price Profiles
         </Link>
       </DropdownMenuItem>
 

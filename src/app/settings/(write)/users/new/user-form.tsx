@@ -4,7 +4,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Info } from "lucide-react";
-import { CreateUserDto, UpdateUserDto, Role, User } from "@/lib/types";
+import { CreateUserDto, UpdateUserDto, Role, User, InstallationPriceProfile } from "@/lib/types";
 import { createUser, updateUser} from "@/app/api/users.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import { updateMyProfile } from "@/app/api/auth/me/auth.api";
 interface UserFormProps {
   user?: User;
   roles: Role[];
+  profiles?: InstallationPriceProfile[];
   onProfileUpdate?: (updatedUser: User) => void;
 }
 
@@ -36,7 +37,7 @@ type UserFormData = Omit<CreateUserDto, "password"> & {
   markupOverride?: string;
 };
 
-export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
+export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFormProps) {
   const router = useRouter();
   const isEditMode = !!user;
   const isProfilePage = isEditMode && roles.length === 1;
@@ -70,6 +71,7 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
       state: user?.state || "",
       postalCode: user?.postalCode || "",
       idRole: user?.idRole || roles.find((r) => r.name === "client")?.id,
+      installationPriceProfileId: user?.installationPriceProfileId ?? null,
       markupOverride: user?.markupOverride
         ? String(Number((user.markupOverride * 100).toFixed(2)))
         : "",
@@ -159,6 +161,10 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
             idRole: Number(data.idRole),
             markupOverride: markupValue,
             isTaxExempt: data.isTaxExempt ?? false,
+            installationPriceProfileId:
+              data.installationPriceProfileId == null
+                ? null
+                : Number(data.installationPriceProfileId),
             // NOTA: aquí NO estás permitiendo cambiar profile fields en admin edit (por tu diseño)
           };
 
@@ -375,6 +381,40 @@ export function UserForm({ user, roles, onProfileUpdate }: UserFormProps) {
                         className="capitalize"
                       >
                         {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+        )}
+
+        {!isProfilePage && (
+          <div>
+            <Label htmlFor="installationPriceProfileId">
+              Installation Price Profile
+            </Label>
+            <Controller
+              name="installationPriceProfileId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value == null ? "ROLE_DEFAULT" : String(field.value)}
+                  onValueChange={(value) =>
+                    field.onChange(value === "ROLE_DEFAULT" ? null : Number(value))
+                  }
+                >
+                  <SelectTrigger id="installationPriceProfileId">
+                    <SelectValue placeholder="Use role or default profile" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ROLE_DEFAULT">
+                      Use role, then default
+                    </SelectItem>
+                    {profiles.map((profile) => (
+                      <SelectItem key={profile.id} value={String(profile.id)}>
+                        {profile.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

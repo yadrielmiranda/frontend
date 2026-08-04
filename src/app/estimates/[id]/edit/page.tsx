@@ -23,6 +23,8 @@ import { EstimateForm } from "@/components/estimates/estimate-form";
 import { isApiError } from "@/app/api/_base";
 import { getCurrentUser } from "@/lib/session";
 import { BackLink } from "@/components/navigation/back-link";
+import { getEstimateInstallation } from "@/app/api/installations.api";
+import { isAdminRole, isOperatorRole } from "@/lib/rbac";
 
 export default async function EditEstimatePage({
   params,
@@ -50,16 +52,39 @@ export default async function EditEstimatePage({
 
   if (!estimate) notFound();
 
+  const installation = await getEstimateInstallation(estimateId);
+
   const isOwner = user.id === estimate.idUser;
+  const isPrivileged =
+    isAdminRole(user.role.name) || isOperatorRole(user.role.name);
   const isActive = estimate.status?.name === "Active";
 
+  const materialPayment = estimate.payments?.find(
+    (payment) => payment.type === "MATERIAL",
+  );
   const isPaymentLocked =
-    estimate.payment?.status === "PAID" ||
-    Boolean(estimate.payment?.stripeSessionId);
+    materialPayment?.status === "PAID" ||
+    Boolean(materialPayment?.stripeSessionId);
 
-  const canEdit = isOwner && isActive && !estimate.order && !isPaymentLocked;
+  const depositPayment = (installation?.payments ?? []).find(
+    (payment) => payment.type === "INSTALLATION_DEPOSIT",
+  );
+  const depositCheckoutStarted =
+    installation?.status !== "CANCELED" &&
+    (depositPayment?.status === "PAID" ||
+      Boolean(depositPayment?.stripeSessionId));
+  const installationLocksOwner = Boolean(
+    installation &&
+    installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
+    installation.status !== "CANCELED",
+  );
 
-  if (!canEdit) notFound();
+  const canAccess = (isOwner || isPrivileged) && isActive && !estimate.order;
+
+  if (!canAccess) notFound();
+
+  const canEdit =
+    !isPaymentLocked && !installationLocksOwner && !depositCheckoutStarted;
 
   const [
     productsWithBrands,
@@ -101,13 +126,19 @@ export default async function EditEstimatePage({
               Edit Estimate #{estimate.number}
             </CardTitle>
             <CardDescription>
-              Update the details for this estimate.
+              {canEdit
+                ? "Update the details for this estimate."
+                : "Material details are locked. Remeasurement changes must be submitted through the pending Estimate revision."}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <EstimateForm
               estimate={estimate}
+              initialInstallation={installation}
+              currentUserId={user.id}
+              isPrivileged={isPrivileged}
+              readOnly={!canEdit}
               taxRate={taxRate}
               productsWithBrands={productsWithBrands}
               systemsWithConfigs={systemsWithConfigs}

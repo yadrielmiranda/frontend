@@ -30,6 +30,8 @@ import { formatDateEn, formatMoney } from "@/lib/formatters";
 import {
   canViewDealerEstimateProfit,
   canViewInternalEstimateProfit,
+  isAdminRole,
+  isOperatorRole,
 } from "@/lib/rbac";
 import type { DataTableDateRangeValue } from "@/components/data-table";
 
@@ -40,7 +42,33 @@ import type { DataTableDateRangeValue } from "@/components/data-table";
 export const getEstimateStatusName = (
   estimate: EstimateWithRelations,
 ): string => {
-  if (estimate.status?.name) return estimate.status.name;
+  const baseStatus = estimate.status?.name;
+  if (baseStatus === "Active" && estimate.installationJob) {
+    const installationStages: Record<string, string> = {
+      REQUESTED: "Installation requested",
+      DEPOSIT_PAYMENT_PENDING: "Awaiting installation deposit",
+      MEASUREMENT_SCHEDULING: "Awaiting remeasurement schedule",
+      MEASUREMENT_SCHEDULED: "Remeasurement scheduled",
+      MEASUREMENT_PENDING: "Awaiting remeasurement",
+      QUOTE_DRAFT: "Remeasurement or revision in progress",
+      ADMIN_APPROVAL_PENDING: "Awaiting internal approval",
+      CUSTOMER_APPROVAL_PENDING: "Awaiting customer approval",
+      APPROVED: "Installation approved",
+      PERMIT_PAYMENT_PENDING: "Awaiting permit payment",
+      PERMIT_PROCESSING: "Permit processing",
+      MATERIAL_PAYMENT_PENDING: "Awaiting material payment",
+      MATERIAL_PAID: "Material paid",
+      INSTALLATION_PAYMENT_PENDING: "Awaiting installation payment",
+      INSTALLATION_PAID: "Installation paid",
+      SCHEDULING: "Scheduling",
+      SCHEDULED: "Installation scheduled",
+      IN_PROGRESS: "Installation in progress",
+      COMPLETED: "Installed",
+      CANCELED: "Active",
+    };
+    return installationStages[estimate.installationJob.status] ?? baseStatus;
+  }
+  if (baseStatus) return baseStatus;
   if (estimate.order) return "Ordered";
   return "Unknown";
 };
@@ -227,7 +255,8 @@ export const getEstimateColumns = (
         const [isRecalculating, setIsRecalculating] = useState(false);
         const router = useRouter();
 
-        const statusName = getEstimateStatusName(estimate);
+        const statusName = estimate.status?.name ??
+          (estimate.order ? "Ordered" : "Unknown");
         const statusLower = statusName.trim().toLowerCase();
 
         const isOwner = currentUser?.id === estimate.idUser;
@@ -238,13 +267,35 @@ export const getEstimateColumns = (
         const isExpired = statusLower === "expired";
         const isOrdered = statusLower === "ordered" || !!estimate.order;
 
-        const isPaid = estimate.payment?.status === "PAID";
-        const hasCheckoutStarted = Boolean(estimate.payment?.stripeSessionId);
+        const materialPayment = estimate.payments?.find(
+          (payment) => payment.type === "MATERIAL",
+        );
+        const isPaid = materialPayment?.status === "PAID";
+        const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
         const isPaymentLocked = isPaid || hasCheckoutStarted;
 
-        const canEdit = isActive && isOwner && !isPaymentLocked;
+        const isPrivileged =
+          isAdminRole(currentUser?.role?.name) ||
+          isOperatorRole(currentUser?.role?.name);
 
-        const canPay = isActive && !estimate.order && isOwner && !isPaid;
+        const hasActiveInstallation = Boolean(
+          estimate.installationJob &&
+            estimate.installationJob.status !== "CANCELED",
+        );
+
+        const canEdit =
+          isActive &&
+          !isPaymentLocked &&
+          !estimate.order &&
+          (isPrivileged || isOwner);
+
+        const canPay =
+          isActive &&
+          !estimate.order &&
+          isOwner &&
+          !isPaid &&
+          (!estimate.installationJob ||
+            estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING");
 
         const canRecalculate =
           isExpired && !estimate.order && isOwner && !isPaymentLocked;
@@ -324,7 +375,7 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {showOwnerActions && canEdit && (
+                {canEdit && (
                   <DropdownMenuItem asChild>
                     <Link href={`/estimates/${estimate.id}/edit`}>
                       Edit Estimate
@@ -356,7 +407,10 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {showOwnerActions && !isOrdered && !isPaymentLocked && (
+                {showOwnerActions &&
+                  !isOrdered &&
+                  !isPaymentLocked &&
+                  !hasActiveInstallation && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

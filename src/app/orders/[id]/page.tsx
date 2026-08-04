@@ -5,7 +5,7 @@ import { isApiError } from "@/app/api/_base";
 import { getCurrentUser } from "@/lib/session";
 import { canEditOrders, canViewOrderFinancials } from "@/lib/rbac";
 import { OrderDetails } from "./order-details";
-
+import { getEstimateInstallation } from "@/app/api/installations.api";
 
 export default async function OrderDetailsPage({
   params,
@@ -35,10 +35,18 @@ export default async function OrderDetailsPage({
   }
 
   if (!order) notFound();
+  const installation = await getEstimateInstallation(order.idEst);
 
   return (
     <div className="container mx-auto py-10 max-w-5xl">
-      <OrderDetails order={order} canEdit={canEdit} canViewFinancials={canViewFinancials} />
+      <OrderDetails
+        order={order}
+        installation={installation}
+        isOwner={user.id === order.userId}
+        isPrivileged={canEdit}
+        canEdit={canEdit}
+        canViewFinancials={canViewFinancials}
+      />
     </div>
   );
 }

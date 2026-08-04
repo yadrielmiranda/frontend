@@ -17,3 +17,13 @@ export function updateRoleMarkup(id: number, markup: number) {
     body: { markup },
   });
 }
+
+export function updateRole(
+  id: number,
+  data: { markup: number; installationPriceProfileId?: number | null },
+) {
+  return apiFetch<Role>(`/api/roles/${id}`, {
+    method: 'PATCH',
+    body: data,
+  });
+}

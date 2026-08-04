@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { getEstimate } from "@/app/api/estimates.api";
+import { getEstimateInstallation } from "@/app/api/installations.api";
+import type { PaymentType } from "@/lib/types";
 
 type Status = "checking" | "done" | "failed";
 
@@ -23,6 +25,21 @@ export default function CheckoutSuccessContent() {
   const [attempt, setAttempt] = useState(0);
   const [orderId, setOrderId] = useState<number | null>(null);
 
+  const paymentType = useMemo<PaymentType>(() => {
+    const value = params.get("type");
+    return value === "INSTALLATION_DEPOSIT" ||
+      value === "PERMIT" ||
+      value === "INSTALLATION" ||
+      value === "EXTRA"
+      ? value
+      : "MATERIAL";
+  }, [params]);
+
+  const sequence = useMemo(() => {
+    const value = Number(params.get("sequence"));
+    return Number.isInteger(value) && value > 0 ? value : 1;
+  }, [params]);
+
   //evita doble toast / doble redirect
   const redirectedRef = useRef(false);
 
@@ -39,14 +56,48 @@ export default function CheckoutSuccessContent() {
       try {
         const est = await getEstimate(estimateId);
 
+        if (paymentType !== "MATERIAL") {
+          const installation = await getEstimateInstallation(estimateId);
+          const paid = installation?.payments.some(
+            (payment) =>
+              payment.type === paymentType &&
+              payment.sequence === sequence &&
+              payment.status === "PAID",
+          );
+          if (paid && installation) {
+            if (redirectedRef.current) return;
+            redirectedRef.current = true;
+            setStatus("done");
+            toast.success(
+              paymentType === "PERMIT"
+                ? "Permit Fee confirmed."
+                : paymentType === "INSTALLATION_DEPOSIT"
+                  ? "Non-refundable installation deposit confirmed and credited."
+                : paymentType === "INSTALLATION"
+                  ? "Installation payment confirmed."
+                  : "Extra charge payment confirmed.",
+            );
+            if (
+              paymentType === "PERMIT" ||
+              paymentType === "INSTALLATION_DEPOSIT"
+            ) {
+              router.replace(`/estimates/${estimateId}/edit`);
+            } else if (installation.estimate.order?.id) {
+              router.replace(`/orders/${installation.estimate.order.id}`);
+            } else {
+              router.replace(`/estimates/${estimateId}`);
+            }
+            return;
+          }
+          setAttempt((value) => value + 1);
+          return;
+        }
+
         const statusName = (est.status?.name ?? "").toLowerCase().trim();
         const isOrdered = statusName === "ordered" || !!est.order;
 
         // intentamos capturar el orderId si existe
-        const oid =
-          (est as any)?.order?.id != null
-            ? Number((est as any).order.id)
-            : null;
+        const oid = est.order?.id != null ? Number(est.order.id) : null;
 
         if (!alive) return;
 
@@ -94,7 +145,7 @@ export default function CheckoutSuccessContent() {
       setStatus("failed");
 
       toast.error(
-        "Payment received, but order is still processing. Refresh in a moment."
+        "Payment received, but order is still processing. Refresh in a moment.",
       );
     }, 60000);
 
@@ -103,7 +154,7 @@ export default function CheckoutSuccessContent() {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [estimateId, router]);
+  }, [estimateId, paymentType, router, sequence]);
 
   if (!estimateId) {
     return (
@@ -128,16 +179,15 @@ export default function CheckoutSuccessContent() {
       {status === "checking" && (
         <>
           <p className="text-sm text-muted-foreground">
-            We’re confirming your payment and creating the order…
+            We’re confirming your payment
+            {paymentType === "MATERIAL" ? " and creating the order" : ""}…
           </p>
 
-          <p className="text-xs text-muted-foreground">
-            Attempts: {attempt}
-          </p>
+          <p className="text-xs text-muted-foreground">Attempts: {attempt}</p>
 
           <Button
             variant="outline"
-            onClick={() => router.replace(`/estimates/${estimateId}`)}
+            onClick={() => router.replace(`/estimates/${estimateId}/edit`)}
           >
             View Estimate
           </Button>
@@ -147,7 +197,11 @@ export default function CheckoutSuccessContent() {
       {status === "done" && (
         <>
           <p className="text-sm text-muted-foreground">
-            Order created successfully.
+            {paymentType === "MATERIAL"
+              ? "Order created successfully."
+              : paymentType === "INSTALLATION_DEPOSIT"
+                ? "Deposit confirmed. It is non-refundable and will be deducted from the installation balance."
+                : "Payment confirmed successfully."}
           </p>
 
           <div className="flex gap-2">
@@ -159,7 +213,7 @@ export default function CheckoutSuccessContent() {
             ) : (
               <Button
                 onClick={() =>
-                  router.replace(`/estimates/${estimateId}?paid=1`)
+                  router.replace(`/estimates/${estimateId}/edit?paid=1`)
                 }
               >
                 Go to Estimate
@@ -168,7 +222,7 @@ export default function CheckoutSuccessContent() {
 
             <Button
               variant="outline"
-              onClick={() => router.replace(`/estimates/${estimateId}`)}
+              onClick={() => router.replace(`/estimates/${estimateId}/edit`)}
             >
               View Estimate
             </Button>
@@ -179,21 +233,16 @@ export default function CheckoutSuccessContent() {
       {status === "failed" && (
         <>
           <p className="text-sm text-muted-foreground">
-            Payment was completed, but the order might still be processing.
-            Please open the estimate and refresh.
+            Payment was completed, but confirmation is still processing. Please
+            reopen the related Estimate or Order in a moment.
           </p>
 
           <div className="flex gap-2">
-            <Button
-              onClick={() => router.replace(`/estimates/${estimateId}`)}
-            >
+            <Button onClick={() => router.replace(`/estimates/${estimateId}/edit`)}>
               Open Estimate
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => router.push("/estimates")}
-            >
+            <Button variant="outline" onClick={() => router.push("/estimates")}>
               Back to Estimates
             </Button>
           </div>

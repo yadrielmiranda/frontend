@@ -10,6 +10,7 @@ import type {
   MuntinPattern,
   MuntinType,
   PieceMuntin,
+  InstallationJob,
 } from "@/lib/types";
 
 export interface PieceFormValues extends CreatePieceData {
@@ -69,6 +70,10 @@ export interface EstimateFormValues {
 
 export interface EstimateFormProps {
   estimate?: EstimateWithRelations;
+  initialInstallation?: InstallationJob | null;
+  currentUserId?: number;
+  isPrivileged?: boolean;
+  readOnly?: boolean;
   taxRate: number;
   productsWithBrands: ProductWithBrands[];
   systemsWithConfigs: SystemWithConfigs[];

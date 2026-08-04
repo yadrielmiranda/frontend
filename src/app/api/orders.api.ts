@@ -1,14 +1,16 @@
-import { apiFetch } from './_base';
-import type { Order, OrderWithRelations, UpdateOrderData, OrderStatus } from '../../lib/types';
-
-
-
+import { apiFetch } from "./_base";
+import type {
+  OrderExtraCharge,
+  OrderWithRelations,
+  UpdateOrderData,
+  OrderStatus,
+} from "../../lib/types";
 
 /**
  * Obtiene todas las órdenes (SSR opcional con token).
  */
 export function getOrders() {
-  return apiFetch<OrderWithRelations[]>('/api/orders');
+  return apiFetch<OrderWithRelations[]>("/api/orders");
 }
 
 /**
@@ -23,7 +25,7 @@ export function getOrder(id: number) {
  */
 export function updateOrder(id: number, data: UpdateOrderData) {
   return apiFetch<OrderWithRelations>(`/api/orders/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: data,
   });
 }
@@ -32,5 +34,39 @@ export function updateOrder(id: number, data: UpdateOrderData) {
  * Obtiene los posibles estados de una orden (SSR opcional con token).
  */
 export function getOrderStatuses() {
-  return apiFetch<OrderStatus[]>('/api/orders/statuses');
+  return apiFetch<OrderStatus[]>("/api/orders/statuses");
+}
+
+export type CreateOrderExtraChargeInput = {
+  notes?: string;
+  lines: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxable?: boolean;
+  }>;
+};
+
+export function createOrderExtraCharge(
+  orderId: number,
+  data: CreateOrderExtraChargeInput,
+) {
+  return apiFetch<OrderExtraCharge>(`/api/orders/${orderId}/extra-charges`, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export function respondOrderExtraCharge(
+  chargeId: number,
+  decision: "APPROVE" | "REJECT",
+  comment?: string,
+) {
+  return apiFetch<OrderExtraCharge>(
+    `/api/orders/extra-charges/${chargeId}/respond`,
+    {
+      method: "POST",
+      body: { decision, comment },
+    },
+  );
 }

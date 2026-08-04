@@ -14,6 +14,9 @@ import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
 import { isDealerRole } from "@/lib/rbac";
 import { toast } from "sonner";
 import { getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
+import { getEstimateInstallation } from "@/app/api/installations.api";
+import { InstallationQuoteSummary } from "@/components/estimates/installation-quote-summary";
+import type { InstallationJob } from "@/lib/types";
 
 import {
   Dialog,
@@ -47,6 +50,28 @@ export function EstimateDetails({
   );
 
   const [printOpen, setPrintOpen] = useState(false);
+  const [installationJob, setInstallationJob] =
+    useState<InstallationJob | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (isPublicView) {
+      setInstallationJob(null);
+      return () => {
+        active = false;
+      };
+    }
+    getEstimateInstallation(estimate.id)
+      .then((job) => {
+        if (active) setInstallationJob(job);
+      })
+      .catch((error) => {
+        if (active) toast.error((error as Error).message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [estimate.id, isPublicView]);
 
   // Ref del contenido que vamos a imprimir (HTML/SVG)
   const printRef = useRef<HTMLDivElement | null>(null);
@@ -118,7 +143,6 @@ export function EstimateDetails({
         return;
       }
 
-      
       // fallback para desktop sin Web Share API: abrir email.
       const subject = `Estimate #${estimate.number}`;
       const body = [
@@ -334,6 +358,9 @@ export function EstimateDetails({
         {/* ✅ Vista normal */}
         <EstimateReportShell estimate={estimate}>
           {viewContent}
+          {installationJob && (
+            <InstallationQuoteSummary job={installationJob} />
+          )}
         </EstimateReportShell>
 
         {/* =============================
@@ -379,6 +406,9 @@ export function EstimateDetails({
                   <div ref={printRef} className="p-8">
                     <EstimateReportShell estimate={estimate}>
                       {viewContent}
+                      {installationJob && (
+                        <InstallationQuoteSummary job={installationJob} />
+                      )}
                     </EstimateReportShell>
                   </div>
                 </div>

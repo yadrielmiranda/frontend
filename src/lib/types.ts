@@ -4,6 +4,8 @@ export interface Role {
   id: number;
   name: string;
   markup: number;
+  installationPriceProfileId?: number | null;
+  installationPriceProfile?: InstallationPriceProfile | null;
 }
 
 export interface User {
@@ -27,6 +29,8 @@ export interface User {
 
   idRole: number;
   role: Role;
+  installationPriceProfileId?: number | null;
+  installationPriceProfile?: InstallationPriceProfile | null;
 }
 
 export interface Brand {
@@ -301,9 +305,32 @@ export interface EstimateStatus {
   name: string;
 }
 
+export type PaymentType =
+  | "MATERIAL"
+  | "INSTALLATION_DEPOSIT"
+  | "PERMIT"
+  | "INSTALLATION"
+  | "EXTRA";
+export type PaymentStatus =
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "CANCELED"
+  | "EXPIRED"
+  | "REFUNDED";
+
 export interface EstimatePayment {
-  status: string;
+  id: number;
+  type: PaymentType;
+  sequence: number;
+  status: PaymentStatus;
+  baseAmount: string | number;
+  surchargePercent: string | number;
+  surchargeAmount: string | number;
+  amount: string | number;
   stripeSessionId: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Estimate {
@@ -335,7 +362,419 @@ export interface Estimate {
   statusId: number;
   status?: EstimateStatus;
   order?: Order | null;
-  payment?: EstimatePayment | null;
+  payments?: EstimatePayment[];
+  installationJob?: {
+    id: number;
+    status: InstallationJobStatus;
+  } | null;
+}
+
+export type InstallationBillingUnit =
+  | "UNIT"
+  | "PANEL"
+  | "SQFT"
+  | "SQFT_RECTANGULAR"
+  | "LINEAR_FOOT";
+
+export type InstallationRuleMetric =
+  | "NONE"
+  | "WIDTH"
+  | "HEIGHT"
+  | "AREA"
+  | "PANEL_COUNT"
+  | "LENGTH";
+
+export type InstallationLineOrigin = "AUTO" | "USER_SELECTED" | "FIELD_ADDED";
+
+export type InstallationJobStatus =
+  | "REQUESTED"
+  | "DEPOSIT_PAYMENT_PENDING"
+  | "MEASUREMENT_SCHEDULING"
+  | "MEASUREMENT_SCHEDULED"
+  | "MEASUREMENT_PENDING"
+  | "QUOTE_DRAFT"
+  | "ADMIN_APPROVAL_PENDING"
+  | "CUSTOMER_APPROVAL_PENDING"
+  | "APPROVED"
+  | "PERMIT_PAYMENT_PENDING"
+  | "PERMIT_PROCESSING"
+  | "MATERIAL_PAYMENT_PENDING"
+  | "MATERIAL_PAID"
+  | "INSTALLATION_PAYMENT_PENDING"
+  | "INSTALLATION_PAID"
+  | "SCHEDULING"
+  | "SCHEDULED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELED";
+
+export type InstallationQuoteReason =
+  | "REMEASUREMENT"
+  | "PERMIT_REVISION"
+  | "FIELD_CHANGE";
+
+export type InstallationQuoteStatus =
+  | "DRAFT"
+  | "PENDING_ADMIN_APPROVAL"
+  | "PENDING_CUSTOMER_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "SUPERSEDED";
+
+export type InstallationPermitStatus =
+  | "PAYMENT_PENDING"
+  | "PAID"
+  | "SUBMITTED"
+  | "CHANGES_REQUIRED"
+  | "APPROVED"
+  | "REJECTED";
+
+export type InstallationAppointmentStatus =
+  | "PROPOSED"
+  | "ACCEPTED"
+  | "RESCHEDULE_REQUESTED"
+  | "SUPERSEDED"
+  | "CANCELED"
+  | "COMPLETED";
+
+export type InstallationAppointmentType = "REMEASUREMENT" | "INSTALLATION";
+
+export interface InstallationServiceRule {
+  id: number;
+  serviceId: number;
+  minValue: string | number | null;
+  minInclusive: boolean;
+  maxValue: string | number | null;
+  maxInclusive: boolean;
+  rate: string | number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface InstallationService {
+  id: number;
+  name: string;
+  description?: string | null;
+  billingUnit: InstallationBillingUnit;
+  ruleMetric: InstallationRuleMetric;
+  baseRate: string | number;
+  minimumCharge: string | number;
+  availableForRequest: boolean;
+  availableForField: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  rules: InstallationServiceRule[];
+  _count?: { sysConfs: number; lines: number };
+}
+
+export interface InstallationPriceProfile {
+  id: number;
+  name: string;
+  adjustmentPercent: string | number;
+  minimumCharge: string | number;
+  isDefault: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  _count?: { roles: number; users: number; quotes: number };
+}
+
+export interface InstallationMeasurement {
+  id: number;
+  jobId: number;
+  pieceId: number | null;
+  unitIndex: number;
+  label: string;
+  isManual: boolean;
+  status: "PENDING" | "COMPLETED";
+  widthIn: string | number | null;
+  heightIn: string | number | null;
+  heightLeftIn: string | number | null;
+  heightRightIn: string | number | null;
+  legHeightIn: string | number | null;
+  sashHeightIn: string | number | null;
+  windowHeightIn: string | number | null;
+  doorWidthIn: string | number | null;
+  doorHeightIn: string | number | null;
+  leftSideliteWidthIn: string | number | null;
+  rightSideliteWidthIn: string | number | null;
+  leftPanels: number | null;
+  rightPanels: number | null;
+  panelCount: number | null;
+  horizontalHeights: number[] | null;
+  lengthIn: string | number | null;
+  notes?: string | null;
+  measuredAt?: string | null;
+  updatedAt?: string;
+}
+
+export type EstimateRevisionStatus =
+  | "DRAFT"
+  | "PENDING_ADMIN_APPROVAL"
+  | "PENDING_CUSTOMER_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "SUPERSEDED";
+
+export type EstimateRevisionItemAction =
+  | "UNCHANGED"
+  | "UPDATE"
+  | "REPLACE"
+  | "REMOVE";
+
+export type EstimateRevisionChangeReason =
+  | "REMEASUREMENT"
+  | "EGRESS"
+  | "DIMENSION_LIMITS"
+  | "STRUCTURAL_CONDITION"
+  | "CUSTOMER_REQUEST"
+  | "OTHER";
+
+export interface EstimateRevisionTotals {
+  units: number;
+  rateT: string | number;
+  priceT: string | number;
+  netProfit: string | number;
+  taxRate: string | number;
+  taxAmount: string | number;
+  totalPayable: string | number;
+  customerPriceT: string | number;
+  customerTaxRate: string | number;
+  customerTaxAmount: string | number;
+  customerTotalPayable: string | number;
+  netProfitD: string | number;
+}
+
+export interface EstimateRevisionPieceSnapshot {
+  mark?: string;
+  productName?: string | null;
+  brandName?: string | null;
+  systemName?: string | null;
+  configName?: string | null;
+  crystalName?: string | null;
+  width?: string | number | null;
+  height?: string | number | null;
+  doorWidth?: string | number | null;
+  doorHeight?: string | number | null;
+  pieceInput?: CreatePieceData;
+  display?: {
+    productName?: string | null;
+    brandName?: string | null;
+    systemName?: string | null;
+    configName?: string | null;
+    crystalName?: string | null;
+  };
+}
+
+export interface EstimateRevisionItem {
+  id: number;
+  revisionId: number;
+  measurementId: number;
+  originalPieceId: number | null;
+  sourceUnitIndex: number;
+  action: EstimateRevisionItemAction;
+  reason: EstimateRevisionChangeReason;
+  reasonNote?: string | null;
+  originalSnapshot: EstimateRevisionPieceSnapshot;
+  proposedPieceInput?: CreatePieceData | null;
+  calculatedSnapshot?: (EstimateRevisionPieceSnapshot & {
+    rate?: string | number;
+    price?: string | number;
+    customerPrice?: string | number;
+  }) | null;
+}
+
+export interface EstimateRevision {
+  id: number;
+  estimateId: number;
+  installationJobId: number;
+  quoteId: number;
+  version: number;
+  status: EstimateRevisionStatus;
+  reason: InstallationQuoteReason;
+  originalTotals: EstimateRevisionTotals;
+  revisedTotals: EstimateRevisionTotals;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  appliedAt?: string | null;
+  items: EstimateRevisionItem[];
+}
+
+export interface InstallationQuoteLine {
+  id: number;
+  quoteId: number;
+  serviceId: number;
+  measurementId: number | null;
+  origin: InstallationLineOrigin;
+  serviceNameSnapshot: string;
+  billingUnitSnapshot: InstallationBillingUnit;
+  ruleMetricSnapshot: InstallationRuleMetric;
+  componentLabel?: string | null;
+  widthIn?: string | number | null;
+  heightIn?: string | number | null;
+  areaSqFt?: string | number | null;
+  panelCount?: number | null;
+  lengthIn?: string | number | null;
+  rate: string | number;
+  billableQuantity: string | number;
+  occurrences: number;
+  baseAmount: string | number;
+  adjustmentPercent: string | number;
+  adjustedAmount: string | number;
+  description?: string | null;
+  sortOrder: number;
+}
+
+export interface InstallationQuoteApproval {
+  id: number;
+  stage: "ADMIN" | "CUSTOMER";
+  decision: "APPROVED" | "REJECTED";
+  comment?: string | null;
+  createdAt: string;
+  actor?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    username: string;
+  };
+}
+
+export interface InstallationServiceMinimumSnapshot {
+  serviceId: number;
+  serviceName: string;
+  minimumCharge: string | number;
+  calculatedAmount: string | number;
+  adjustment: string | number;
+}
+
+export interface InstallationQuote {
+  id: number;
+  jobId: number;
+  version: number;
+  status: InstallationQuoteStatus;
+  approvalReason: InstallationQuoteReason;
+  profileNameSnapshot: string;
+  profileAdjustmentPercent: string | number;
+  profileMinimumSnapshot: string | number;
+  baseSubtotal: string | number;
+  adjustedSubtotal: string | number;
+  serviceMinimumAdjustment: string | number;
+  serviceMinimumsSnapshot?: InstallationServiceMinimumSnapshot[] | null;
+  minimumAdjustment: string | number;
+  total: string | number;
+  needsRecalculation: boolean;
+  notes?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  lines: InstallationQuoteLine[];
+  approvals: InstallationQuoteApproval[];
+}
+
+export interface InstallationPermit {
+  id: number;
+  status: InstallationPermitStatus;
+  permitFeeSnapshot: string | number;
+  cityFee: string | number | null;
+  notes?: string | null;
+  paidAt?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+}
+
+export interface InstallationAppointment {
+  id: number;
+  type: InstallationAppointmentType;
+  status: InstallationAppointmentStatus;
+  startsAt: string;
+  endsAt?: string | null;
+  note?: string | null;
+  responseNote?: string | null;
+  proposedBy?: { id: number; firstName: string; lastName: string };
+  respondedBy?: { id: number; firstName: string; lastName: string } | null;
+}
+
+export interface InstallationJob {
+  id: number;
+  estimateId: number;
+  status: InstallationJobStatus;
+  depositAmountSnapshot: string | number;
+  depositTermsSnapshot?: string | null;
+  depositTermsAcceptedAt?: string | null;
+  cancellationReason?: string | null;
+  requestedAt: string;
+  updatedAt: string;
+  estimate: Estimate & {
+    user: User;
+    order?: (Order & { status?: OrderStatus }) | null;
+    pieces?: PieceWithRelations[];
+  };
+  measurements: InstallationMeasurement[];
+  quotes: InstallationQuote[];
+  permit?: InstallationPermit | null;
+  payments: EstimatePayment[];
+  appointments: InstallationAppointment[];
+  revisions: EstimateRevision[];
+}
+
+export type InstallationListScope =
+  | "active"
+  | "completed"
+  | "canceled"
+  | "all";
+
+export interface InstallationListQuery {
+  page?: number;
+  pageSize?: 25 | 50 | 100;
+  scope?: InstallationListScope;
+  status?: InstallationJobStatus;
+  search?: string;
+}
+
+export interface InstallationJobSummary {
+  id: number;
+  estimateId: number;
+  status: InstallationJobStatus;
+  requestedAt: string;
+  updatedAt: string;
+  estimate: {
+    idUser: number;
+    number: string;
+    name: string;
+    customerFirstName?: string | null;
+    customerLastName?: string | null;
+    customerEmail?: string | null;
+    user: {
+      id: number;
+      username: string;
+      firstName: string;
+      lastName: string;
+      role: { name: string };
+    };
+    order?: { id: number; number: string } | null;
+  };
+  openings: number;
+  latestQuote: {
+    id: number;
+    version: number;
+    status: InstallationQuoteStatus;
+    approvalReason: InstallationQuoteReason;
+    total: string | number;
+  } | null;
+  nextAppointment: {
+    id: number;
+    type: InstallationAppointmentType;
+    status: InstallationAppointmentStatus;
+    startsAt: string;
+    endsAt?: string | null;
+  } | null;
+}
+
+export interface InstallationJobsPage {
+  items: InstallationJobSummary[];
+  page: number;
+  pageSize: 25 | 50 | 100;
+  total: number;
+  totalPages: number;
 }
 
 export interface OrderStatus {
@@ -367,6 +806,47 @@ export interface Order {
 
   createdAt?: string;
   updatedAt?: string;
+  extraCharges?: OrderExtraCharge[];
+}
+
+export type OrderExtraChargeStatus =
+  | "DRAFT"
+  | "PENDING_CUSTOMER_APPROVAL"
+  | "PAYMENT_DUE"
+  | "PAID"
+  | "REJECTED"
+  | "CANCELED";
+
+export interface OrderExtraChargeLine {
+  id: number;
+  description: string;
+  quantity: string | number;
+  unitPrice: string | number;
+  taxable: boolean;
+  subtotal: string | number;
+  taxAmount: string | number;
+  total: string | number;
+  sortOrder: number;
+}
+
+export interface OrderExtraCharge {
+  id: number;
+  orderId: number;
+  sequence: number;
+  status: OrderExtraChargeStatus;
+  subtotal: string | number;
+  taxRateSnapshot: string | number;
+  taxAmount: string | number;
+  total: string | number;
+  notes?: string | null;
+  decisionComment?: string | null;
+  lines: OrderExtraChargeLine[];
+  payment?: EstimatePayment | null;
+  submittedAt?: string | null;
+  respondedAt?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- NUEVOS TIPOS PARA REGLAS DE PRECIOS ---
@@ -747,8 +1227,7 @@ export type CreateEstimateHeaderData = Pick<
   customerTaxRate?: number;
 };
 
-export type UpdateEstimateHeaderData =
-  Partial<CreateEstimateHeaderData>;
+export type UpdateEstimateHeaderData = Partial<CreateEstimateHeaderData>;
 
 export interface CreateUserDto {
   username: string;
@@ -765,6 +1244,7 @@ export interface CreateUserDto {
   password: string;
   idRole: number;
   isTaxExempt?: boolean;
+  installationPriceProfileId?: number | null;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {

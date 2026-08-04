@@ -3,9 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BackLink } from "@/components/navigation/back-link";
 import { getRoles } from "@/app/api/roles.api";
 import { UserForm } from "./user-form";
+import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function NewUserPage() {
-  const roles = await getRoles();
+  const [roles, profiles] = await Promise.all([
+    getRoles(),
+    getInstallationProfiles(false),
+  ]);
 
   return (
     <div className="container mx-auto py-10">
@@ -21,7 +25,7 @@ export default async function NewUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm roles={roles} />
+          <UserForm roles={roles} profiles={profiles} />
         </CardContent>
       </Card>
     </div>

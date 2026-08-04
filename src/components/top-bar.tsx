@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Menu, FileText, ShoppingBag, Settings } from "lucide-react";
+import { Menu, FileText, ShoppingBag, Settings, Hammer } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { NotificationBell } from "./notifications-bell";
@@ -33,6 +33,7 @@ function TopBar() {
 
   const isEstimatesActive = pathname.startsWith("/estimates");
   const isOrdersActive = pathname.startsWith("/orders");
+  const isInstallationsActive = pathname.startsWith("/installations");
   const isSettingsActive = pathname.startsWith("/settings");
 
   const navButtonClass = (active: boolean) =>
@@ -120,6 +121,17 @@ function TopBar() {
 
             <Button
               variant="ghost"
+              className={navButtonClass(isInstallationsActive)}
+              asChild
+            >
+              <Link href="/installations">
+                <Hammer className="mr-2 h-4 w-4" />
+                Installations
+              </Link>
+            </Button>
+
+            <Button
+              variant="ghost"
               className={navButtonClass(isOrdersActive)}
               asChild
             >
@@ -178,6 +190,17 @@ function TopBar() {
                       <Link href="/estimates">
                         <FileText className="mr-2 h-4 w-4" />
                         Estimates
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${mobileNavButtonClass(isInstallationsActive)}`}
+                      asChild
+                    >
+                      <Link href="/installations">
+                        <Hammer className="mr-2 h-4 w-4" />
+                        Installations
                       </Link>
                     </Button>
 

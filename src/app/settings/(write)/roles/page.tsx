@@ -1,9 +1,13 @@
 // src/app/settings/(write)/roles/page.tsx
 import { getRoles } from "@/app/api/roles.api";
 import { RolesClient } from "./roles-client";
+import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function RolesPage() {
-  const roles = await getRoles();
+  const [roles, profiles] = await Promise.all([
+    getRoles(),
+    getInstallationProfiles(false),
+  ]);
 
   return (
     <div>
@@ -13,7 +17,7 @@ export default async function RolesPage() {
       </div>
 
       <div className="container mx-auto py-10">
-        <RolesClient initialRoles={roles} />
+        <RolesClient initialRoles={roles} profiles={profiles} />
       </div>
     </div>
   );

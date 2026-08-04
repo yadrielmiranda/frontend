@@ -2,9 +2,15 @@
 "use client";
 
 import { DataTable } from "@/components/data-table";
-import type { Role } from "@/lib/types";
-import { columns } from "./columns-roles";
+import type { InstallationPriceProfile, Role } from "@/lib/types";
+import { getColumns } from "./columns-roles";
 
-export function RolesClient({ initialRoles }: { initialRoles: Role[] }) {
-  return <DataTable columns={columns} data={initialRoles} />;
+export function RolesClient({
+  initialRoles,
+  profiles,
+}: {
+  initialRoles: Role[];
+  profiles: InstallationPriceProfile[];
+}) {
+  return <DataTable columns={getColumns(profiles)} data={initialRoles} />;
 }

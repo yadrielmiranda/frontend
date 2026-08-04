@@ -5,6 +5,7 @@ import { BackLink } from "@/components/navigation/back-link";
 import { getUser } from "@/app/api/users.api";
 import { getRoles } from "@/app/api/roles.api";
 import { UserForm } from "../../new/user-form";
+import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function EditUserPage({
   params,
@@ -16,7 +17,11 @@ export default async function EditUserPage({
 
   if (isNaN(userId)) notFound();
 
-  const [user, roles] = await Promise.all([getUser(userId), getRoles()]);
+  const [user, roles, profiles] = await Promise.all([
+    getUser(userId),
+    getRoles(),
+    getInstallationProfiles(false),
+  ]);
   if (!user) notFound();
 
   return (
@@ -33,7 +38,7 @@ export default async function EditUserPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm user={user} roles={roles} />
+          <UserForm user={user} roles={roles} profiles={profiles} />
         </CardContent>
       </Card>
     </div>
