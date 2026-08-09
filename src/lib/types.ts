@@ -1046,6 +1046,7 @@ export interface SysConf {
   config: Config;
 
   dimensionMode: DimensionMode;
+  minimumBillableWidthIn?: string | null;
   minimumBillableHeightIn?: string | null;
 
   requiresWidth: boolean;
