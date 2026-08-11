@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PricingComponentType } from "@/lib/types";
+import type {
+  BillableHeightMode,
+  PricingComponentType,
+} from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { Plus, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -100,6 +103,12 @@ const dimensionModeLabels: Record<DimensionMode, string> = {
   WINDOW_WALL: "Window Wall",
 };
 
+const billableHeightModeLabels: Record<BillableHeightMode, string> = {
+  ACTUAL_HEIGHT: "Actual Height",
+  WIDTH_PERCENTAGE: "Percentage of Width",
+  FIXED: "Fixed Value",
+};
+
 const dimensionRequirementLabels: {
   key: DimensionRequirementKey;
   label: string;
@@ -138,7 +147,8 @@ const dimensionRequirementLabels: {
   {
     key: "requiresDoorHeight",
     label: "Door Height",
-    description: "Door section height when it differs from the opening height.",
+    description:
+      "Door section height when it differs from the opening height.",
   },
   {
     key: "requiresLeftSideliteWidth",
@@ -439,38 +449,134 @@ function PricingCalculationCard({
   );
 }
 
-function MinimumBillableDimensionsCard({
+function BillableDimensionsCard({
   isDirectPricing,
   widthValue,
   heightValue,
+  heightMode,
+  heightPercentValue,
+  heightFixedValue,
   isSaving,
   hasChanges,
   onWidthChange,
   onHeightChange,
+  onHeightModeChange,
+  onHeightPercentValueChange,
+  onHeightFixedValueChange,
   onSave,
 }: {
   isDirectPricing: boolean;
   widthValue: string;
   heightValue: string;
+  heightMode: BillableHeightMode;
+  heightPercentValue: string;
+  heightFixedValue: string;
   isSaving: boolean;
   hasChanges: boolean;
   onWidthChange: (value: string) => void;
   onHeightChange: (value: string) => void;
+  onHeightModeChange: (value: BillableHeightMode) => void;
+  onHeightPercentValueChange: (value: string) => void;
+  onHeightFixedValueChange: (value: string) => void;
   onSave: () => void;
 }) {
+  const usesFixedHeight = heightMode === "FIXED";
+  const usesWidthPercentage = heightMode === "WIDTH_PERCENTAGE";
+
   return (
     <div className="space-y-5 rounded-lg border p-4">
       <div>
-        <h3 className="text-base font-semibold">Minimum Billable Dimensions</h3>
-
+        <h3 className="text-base font-semibold">Billable Dimensions</h3>
         <p className="text-sm text-muted-foreground">
-          Sets the minimum width and height used only for pricing this direct
-          configuration.
+          Controls the width and height sent to the pricing formula for this
+          direct configuration.
         </p>
       </div>
 
       {isDirectPricing ? (
         <>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="billableHeightMode">Billable Height</Label>
+
+              <Select
+                value={heightMode}
+                onValueChange={(value) =>
+                  onHeightModeChange(value as BillableHeightMode)
+                }
+                disabled={isSaving}
+              >
+                <SelectTrigger id="billableHeightMode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(billableHeightModeLabels) as BillableHeightMode[]).map(
+                    (mode) => (
+                      <SelectItem key={mode} value={mode}>
+                        {billableHeightModeLabels[mode]}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+
+              <p className="text-sm text-muted-foreground">
+                Select how the height used by A, B and C is obtained.
+              </p>
+            </div>
+
+            {usesWidthPercentage && (
+              <div className="grid gap-2">
+                <Label htmlFor="billableHeightPercentOfWidth">
+                  Percentage of Width (%)
+                </Label>
+
+                <Input
+                  id="billableHeightPercentOfWidth"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  placeholder="100"
+                  value={heightPercentValue}
+                  onChange={(event) =>
+                    onHeightPercentValueChange(event.target.value)
+                  }
+                  disabled={isSaving}
+                />
+
+                <p className="text-sm text-muted-foreground">
+                  Use 100 for Width, 50 for Half Width, or any required
+                  percentage.
+                </p>
+              </div>
+            )}
+
+            {usesFixedHeight && (
+              <div className="grid gap-2">
+                <Label htmlFor="billableHeightFixedIn">
+                  Fixed Billable Height (in)
+                </Label>
+
+                <Input
+                  id="billableHeightFixedIn"
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  placeholder="0"
+                  value={heightFixedValue}
+                  onChange={(event) =>
+                    onHeightFixedValueChange(event.target.value)
+                  }
+                  disabled={isSaving}
+                />
+
+                <p className="text-sm text-muted-foreground">
+                  Accepts zero and ignores the minimum billable height.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="minimumBillableWidthIn">
@@ -506,11 +612,13 @@ function MinimumBillableDimensionsCard({
                 placeholder="Use actual height"
                 value={heightValue}
                 onChange={(event) => onHeightChange(event.target.value)}
-                disabled={isSaving}
+                disabled={isSaving || usesFixedHeight}
               />
 
               <p className="text-sm text-muted-foreground">
-                Leave blank to always use the actual height.
+                {usesFixedHeight
+                  ? "Not applied while Billable Height is Fixed Value."
+                  : "Leave blank to use the selected height without a minimum."}
               </p>
             </div>
           </div>
@@ -521,14 +629,14 @@ function MinimumBillableDimensionsCard({
               onClick={onSave}
               disabled={isSaving || !hasChanges}
             >
-              {isSaving ? "Saving..." : "Save Minimum Dimensions"}
+              {isSaving ? "Saving..." : "Save Billable Dimensions"}
             </Button>
           </div>
         </>
       ) : (
         <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-          This composite configuration inherits the minimum billable width and
-          height from each pricing source configuration.
+          This composite configuration inherits all billable-dimension settings
+          from each pricing source configuration.
         </div>
       )}
     </div>
@@ -844,12 +952,36 @@ export function SystemConfigOptionsClient({
       ? ""
       : String(data.minimumBillableHeightIn);
 
+  const initialBillableHeightMode: BillableHeightMode =
+    data.billableHeightMode ?? "ACTUAL_HEIGHT";
+
+  const initialBillableHeightPercentInput =
+    data.billableHeightPercentOfWidth == null
+      ? ""
+      : String(data.billableHeightPercentOfWidth);
+
+  const initialBillableHeightFixedInput =
+    data.billableHeightFixedIn == null
+      ? ""
+      : String(data.billableHeightFixedIn);
+
   const [minimumBillableWidthInput, setMinimumBillableWidthInput] = useState(
     initialMinimumBillableWidthInput,
   );
 
   const [minimumBillableHeightInput, setMinimumBillableHeightInput] = useState(
     initialMinimumBillableHeightInput,
+  );
+
+  const [billableHeightMode, setBillableHeightMode] =
+    useState<BillableHeightMode>(initialBillableHeightMode);
+
+  const [billableHeightPercentInput, setBillableHeightPercentInput] = useState(
+    initialBillableHeightPercentInput,
+  );
+
+  const [billableHeightFixedInput, setBillableHeightFixedInput] = useState(
+    initialBillableHeightFixedInput,
   );
 
   const [
@@ -861,7 +993,20 @@ export function SystemConfigOptionsClient({
     minimumBillableWidthInput.trim() !==
       initialMinimumBillableWidthInput.trim() ||
     minimumBillableHeightInput.trim() !==
-      initialMinimumBillableHeightInput.trim();
+      initialMinimumBillableHeightInput.trim() ||
+    billableHeightMode !== initialBillableHeightMode ||
+    (billableHeightMode === "WIDTH_PERCENTAGE"
+      ? billableHeightPercentInput.trim()
+      : "") !==
+      (initialBillableHeightMode === "WIDTH_PERCENTAGE"
+        ? initialBillableHeightPercentInput.trim()
+        : "") ||
+    (billableHeightMode === "FIXED"
+      ? billableHeightFixedInput.trim()
+      : "") !==
+      (initialBillableHeightMode === "FIXED"
+        ? initialBillableHeightFixedInput.trim()
+        : "");
 
   const effectivePricingComponents =
     pricingCalculationMode === "DIRECT"
@@ -1032,13 +1177,14 @@ export function SystemConfigOptionsClient({
     }
   };
 
-  const handleSaveMinimumBillableDimensions = async () => {
+  const handleSaveBillableDimensions = async () => {
     const rawWidthValue = minimumBillableWidthInput.trim();
     const rawHeightValue = minimumBillableHeightInput.trim();
+    const rawHeightPercentValue = billableHeightPercentInput.trim();
+    const rawFixedHeightValue = billableHeightFixedInput.trim();
 
     const minimumBillableWidthIn =
       rawWidthValue === "" ? null : Number(rawWidthValue);
-
     const minimumBillableHeightIn =
       rawHeightValue === "" ? null : Number(rawHeightValue);
 
@@ -1076,6 +1222,61 @@ export function SystemConfigOptionsClient({
       }
     }
 
+    const billableHeightFixedIn =
+      billableHeightMode === "FIXED" && rawFixedHeightValue !== ""
+        ? Number(rawFixedHeightValue)
+        : null;
+
+    const billableHeightPercentOfWidth =
+      billableHeightMode === "WIDTH_PERCENTAGE" &&
+      rawHeightPercentValue !== ""
+        ? Number(rawHeightPercentValue)
+        : null;
+
+    if (
+      billableHeightMode === "WIDTH_PERCENTAGE" &&
+      (billableHeightPercentOfWidth === null ||
+        !Number.isFinite(billableHeightPercentOfWidth) ||
+        billableHeightPercentOfWidth <= 0)
+    ) {
+      toast.error("Percentage of Width must be greater than zero.");
+      return;
+    }
+
+    const percentageDecimalPart = rawHeightPercentValue.split(".")[1];
+
+    if (
+      billableHeightMode === "WIDTH_PERCENTAGE" &&
+      percentageDecimalPart &&
+      percentageDecimalPart.length > 3
+    ) {
+      toast.error("Percentage of Width cannot have more than 3 decimal places.");
+      return;
+    }
+
+    if (
+      billableHeightMode === "FIXED" &&
+      (billableHeightFixedIn === null ||
+        !Number.isFinite(billableHeightFixedIn) ||
+        billableHeightFixedIn < 0)
+    ) {
+      toast.error("Fixed Billable Height must be zero or greater.");
+      return;
+    }
+
+    const fixedDecimalPart = rawFixedHeightValue.split(".")[1];
+
+    if (
+      billableHeightMode === "FIXED" &&
+      fixedDecimalPart &&
+      fixedDecimalPart.length > 3
+    ) {
+      toast.error(
+        "Fixed Billable Height cannot have more than 3 decimal places.",
+      );
+      return;
+    }
+
     try {
       setIsSavingMinimumBillableDimensions(true);
 
@@ -1088,19 +1289,21 @@ export function SystemConfigOptionsClient({
         defaultActiveOptionId: data.defaultActiveOptionId,
         defaultPreparationOptionId: data.defaultPreparationOptionId,
         defaultSillOptionId: data.defaultSillOptionId,
-        defaultReinforcementOptionId:
-          data.defaultReinforcementOptionId,
+        defaultReinforcementOptionId: data.defaultReinforcementOptionId,
 
         minimumBillableWidthIn,
         minimumBillableHeightIn,
+        billableHeightMode,
+        billableHeightPercentOfWidth,
+        billableHeightFixedIn,
       });
 
-      toast.success("Minimum billable dimensions updated successfully.");
+      toast.success("Billable dimensions updated successfully.");
       router.refresh();
     } catch (error) {
       toast.error(
         (error as Error).message ||
-          "Error updating minimum billable dimensions.",
+          "Error updating billable dimensions.",
       );
     } finally {
       setIsSavingMinimumBillableDimensions(false);
@@ -1351,15 +1554,21 @@ export function SystemConfigOptionsClient({
         confirmText="Yes, save pricing calculation"
         cancelText="Cancel"
       />
-            <MinimumBillableDimensionsCard
+      <BillableDimensionsCard
         isDirectPricing={pricingCalculationMode === "DIRECT"}
         widthValue={minimumBillableWidthInput}
         heightValue={minimumBillableHeightInput}
+        heightMode={billableHeightMode}
+        heightPercentValue={billableHeightPercentInput}
+        heightFixedValue={billableHeightFixedInput}
         isSaving={isSavingMinimumBillableDimensions}
         hasChanges={hasMinimumBillableDimensionsChanges}
         onWidthChange={setMinimumBillableWidthInput}
         onHeightChange={setMinimumBillableHeightInput}
-        onSave={handleSaveMinimumBillableDimensions}
+        onHeightModeChange={setBillableHeightMode}
+        onHeightPercentValueChange={setBillableHeightPercentInput}
+        onHeightFixedValueChange={setBillableHeightFixedInput}
+        onSave={handleSaveBillableDimensions}
       />
       <DimensionSettingsCard
         isSelectableInEstimate={isSelectableInEstimate}

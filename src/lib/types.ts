@@ -137,6 +137,11 @@ export type DimensionMode =
   | "ECO_NOVO_DOOR"
   | "WINDOW_WALL";
 
+export type BillableHeightMode =
+  | "ACTUAL_HEIGHT"
+  | "WIDTH_PERCENTAGE"
+  | "FIXED";
+
 export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
 
 export interface Config {
@@ -1048,6 +1053,9 @@ export interface SysConf {
   dimensionMode: DimensionMode;
   minimumBillableWidthIn?: string | null;
   minimumBillableHeightIn?: string | null;
+  billableHeightMode: BillableHeightMode;
+  billableHeightPercentOfWidth?: string | null;
+  billableHeightFixedIn?: string | null;
 
   requiresWidth: boolean;
   requiresHeight: boolean;
