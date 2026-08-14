@@ -62,6 +62,10 @@ export function getFrameColorColumns({
       },
     },
     {
+      accessorKey: "globalSortOrder",
+      header: "Global Order",
+    },
+    {
       accessorKey: "isGlobal",
       header: "Global",
       cell: ({ row }) => {

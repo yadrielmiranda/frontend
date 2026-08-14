@@ -43,6 +43,7 @@ export interface Brand {
 export interface Product {
   id: number;
   name: string;
+  sortOrder: number;
   isActive: boolean;
   kind: ProductKind;
   pricingMode: PricingMode;
@@ -92,6 +93,7 @@ export interface BrandProduct {
 export interface System {
   id: number;
   name: string;
+  sortOrder: number;
   idProduct: number;
   idBrand: number;
   brandProduct: BrandProduct;
@@ -122,9 +124,7 @@ export interface ConfigMuntinLayoutItem {
 export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonValue =
-  | JsonPrimitive
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 export interface DiagramSpec {
   family: DiagramFamily;
@@ -132,15 +132,9 @@ export interface DiagramSpec {
 }
 
 export type DimensionMode =
-  | "STANDARD"
-  | "ECO_WINDOWS_DOOR"
-  | "ECO_NOVO_DOOR"
-  | "WINDOW_WALL";
+  "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
 
-export type BillableHeightMode =
-  | "ACTUAL_HEIGHT"
-  | "WIDTH_PERCENTAGE"
-  | "FIXED";
+export type BillableHeightMode = "ACTUAL_HEIGHT" | "WIDTH_PERCENTAGE" | "FIXED";
 
 export type DimensionRuleType = "MAIN" | "DOOR" | "SIDELITE";
 
@@ -192,6 +186,7 @@ export interface FrameColor {
   hexCode: string;
   isActive: boolean;
   isGlobal: boolean;
+  globalSortOrder: number;
 }
 
 export interface Crystal {
@@ -200,17 +195,30 @@ export interface Crystal {
   isActive: boolean;
 }
 
+export interface BrandGlassOptionAssociation {
+  idBrand: number;
+  sortOrder: number;
+  surchargeEnabled: boolean;
+  isDefault: boolean;
+}
+
 export interface Tint {
   id: number;
   color: string;
   hexCode: string;
   isActive: boolean;
+  isGlobal: boolean;
+  globalSortOrder: number;
+  brandTints?: BrandGlassOptionAssociation[];
 }
 
 export interface Coating {
   id: number;
   name: string;
   isActive: boolean;
+  isGlobal: boolean;
+  globalSortOrder: number;
+  brandCoatings?: BrandGlassOptionAssociation[];
 }
 
 export interface MuntinPattern {
@@ -311,18 +319,9 @@ export interface EstimateStatus {
 }
 
 export type PaymentType =
-  | "MATERIAL"
-  | "INSTALLATION_DEPOSIT"
-  | "PERMIT"
-  | "INSTALLATION"
-  | "EXTRA";
+  "MATERIAL" | "INSTALLATION_DEPOSIT" | "PERMIT" | "INSTALLATION" | "EXTRA";
 export type PaymentStatus =
-  | "PENDING"
-  | "PAID"
-  | "FAILED"
-  | "CANCELED"
-  | "EXPIRED"
-  | "REFUNDED";
+  "PENDING" | "PAID" | "FAILED" | "CANCELED" | "EXPIRED" | "REFUNDED";
 
 export interface EstimatePayment {
   id: number;
@@ -375,19 +374,10 @@ export interface Estimate {
 }
 
 export type InstallationBillingUnit =
-  | "UNIT"
-  | "PANEL"
-  | "SQFT"
-  | "SQFT_RECTANGULAR"
-  | "LINEAR_FOOT";
+  "UNIT" | "PANEL" | "SQFT" | "SQFT_RECTANGULAR" | "LINEAR_FOOT";
 
 export type InstallationRuleMetric =
-  | "NONE"
-  | "WIDTH"
-  | "HEIGHT"
-  | "AREA"
-  | "PANEL_COUNT"
-  | "LENGTH";
+  "NONE" | "WIDTH" | "HEIGHT" | "AREA" | "PANEL_COUNT" | "LENGTH";
 
 export type InstallationLineOrigin = "AUTO" | "USER_SELECTED" | "FIELD_ADDED";
 
@@ -414,9 +404,7 @@ export type InstallationJobStatus =
   | "CANCELED";
 
 export type InstallationQuoteReason =
-  | "REMEASUREMENT"
-  | "PERMIT_REVISION"
-  | "FIELD_CHANGE";
+  "REMEASUREMENT" | "PERMIT_REVISION" | "FIELD_CHANGE";
 
 export type InstallationQuoteStatus =
   | "DRAFT"
@@ -521,10 +509,7 @@ export type EstimateRevisionStatus =
   | "SUPERSEDED";
 
 export type EstimateRevisionItemAction =
-  | "UNCHANGED"
-  | "UPDATE"
-  | "REPLACE"
-  | "REMOVE";
+  "UNCHANGED" | "UPDATE" | "REPLACE" | "REMOVE";
 
 export type EstimateRevisionChangeReason =
   | "REMEASUREMENT"
@@ -581,11 +566,13 @@ export interface EstimateRevisionItem {
   reasonNote?: string | null;
   originalSnapshot: EstimateRevisionPieceSnapshot;
   proposedPieceInput?: CreatePieceData | null;
-  calculatedSnapshot?: (EstimateRevisionPieceSnapshot & {
-    rate?: string | number;
-    price?: string | number;
-    customerPrice?: string | number;
-  }) | null;
+  calculatedSnapshot?:
+    | (EstimateRevisionPieceSnapshot & {
+        rate?: string | number;
+        price?: string | number;
+        customerPrice?: string | number;
+      })
+    | null;
 }
 
 export interface EstimateRevision {
@@ -721,11 +708,7 @@ export interface InstallationJob {
   revisions: EstimateRevision[];
 }
 
-export type InstallationListScope =
-  | "active"
-  | "completed"
-  | "canceled"
-  | "all";
+export type InstallationListScope = "active" | "completed" | "canceled" | "all";
 
 export interface InstallationListQuery {
   page?: number;
@@ -1110,6 +1093,7 @@ export type OrderWithRelations = Order & {
 
 export type CreateProductData = {
   name: string;
+  sortOrder?: number;
   kind?: ProductKind;
   pricingMode?: PricingMode;
   diagramFamily?: DiagramFamily;
@@ -1117,6 +1101,7 @@ export type CreateProductData = {
 
 export type UpdateProductData = {
   name?: string;
+  sortOrder?: number;
   isActive?: boolean;
   kind?: ProductKind;
   pricingMode?: PricingMode;
@@ -1138,6 +1123,7 @@ export type CreateFrameColorData = {
   color: string;
   hexCode: string;
   isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export type UpdateFrameColorData = {
@@ -1145,6 +1131,7 @@ export type UpdateFrameColorData = {
   hexCode?: string;
   isActive?: boolean;
   isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export type CreateCrystalData = {
@@ -1159,21 +1146,29 @@ export type UpdateCrystalData = {
 export type CreateTintData = {
   color: string;
   hexCode: string;
+  isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export type UpdateTintData = {
   color?: string;
   hexCode?: string;
   isActive?: boolean;
+  isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export type CreateCoatingData = {
   name: string;
+  isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export type UpdateCoatingData = {
   name?: string;
   isActive?: boolean;
+  isGlobal?: boolean;
+  globalSortOrder?: number;
 };
 
 export interface CreatePieceData {

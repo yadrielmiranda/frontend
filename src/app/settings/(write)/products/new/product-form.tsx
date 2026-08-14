@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   name: string;
+  sortOrder: string;
   isActive: boolean;
   kind: ProductKind;
   diagramFamily: DiagramFamily;
@@ -98,6 +99,7 @@ export function ProductForm({ product }: { product?: Product }) {
   } = useForm<FormData>({
     defaultValues: {
       name: product?.name ?? "",
+      sortOrder: product?.sortOrder == null ? "" : String(product.sortOrder),
       isActive: product?.isActive ?? true,
       kind: product?.kind ?? "GLAZED_UNIT",
       diagramFamily: product?.diagramFamily ?? "GENERIC",
@@ -115,6 +117,7 @@ export function ProductForm({ product }: { product?: Product }) {
     try {
       const payload = {
         name: data.name.trim(),
+        ...(data.sortOrder === "" ? {} : { sortOrder: Number(data.sortOrder) }),
         kind: data.kind,
         pricingMode: getPricingModeFromKind(data.kind),
         diagramFamily: data.diagramFamily,
@@ -165,6 +168,36 @@ export function ProductForm({ product }: { product?: Product }) {
 
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name.message}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="sortOrder">Order</Label>
+
+          <Input
+            id="sortOrder"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Automatic"
+            autoComplete="off"
+            {...register("sortOrder", {
+              validate: (value) =>
+                value === "" ||
+                (/^\d+$/.test(value) && Number(value) >= 0) ||
+                "Order must be a whole number of zero or greater.",
+            })}
+          />
+
+          <p className="text-xs text-muted-foreground">
+            Controls the Product selector. Leave blank on creation to place it
+            last.
+          </p>
+
+          {errors.sortOrder && (
+            <p className="text-sm text-destructive">
+              {errors.sortOrder.message}
+            </p>
           )}
         </div>
 

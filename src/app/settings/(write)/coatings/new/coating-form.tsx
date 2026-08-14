@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label";
 
 type FormData = {
   name: string;
+  globalSortOrder: string;
   isActive: boolean;
+  isGlobal: boolean;
 };
 
 export function CoatingForm({ coating }: { coating?: Coating }) {
@@ -32,15 +34,31 @@ export function CoatingForm({ coating }: { coating?: Coating }) {
   } = useForm<FormData>({
     defaultValues: {
       name: coating?.name || "",
+      globalSortOrder:
+        coating?.globalSortOrder == null ? "" : String(coating.globalSortOrder),
       isActive: coating?.isActive ?? true,
+      isGlobal: coating?.isGlobal ?? false,
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       const payload = isEdit
-        ? { name: data.name.trim(), isActive: data.isActive }
-        : { name: data.name.trim() };
+        ? {
+            name: data.name.trim(),
+            isActive: data.isActive,
+            isGlobal: data.isGlobal,
+            ...(data.globalSortOrder === ""
+              ? {}
+              : { globalSortOrder: Number(data.globalSortOrder) }),
+          }
+        : {
+            name: data.name.trim(),
+            isGlobal: data.isGlobal,
+            ...(data.globalSortOrder === ""
+              ? {}
+              : { globalSortOrder: Number(data.globalSortOrder) }),
+          };
 
       if (isEdit) {
         await updateCoating(Number(params.id), payload);
@@ -78,6 +96,42 @@ export function CoatingForm({ coating }: { coating?: Coating }) {
             <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
+
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="globalSortOrder">Global Order</Label>
+          <Input
+            id="globalSortOrder"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Automatic"
+            autoComplete="off"
+            {...register("globalSortOrder", {
+              validate: (value) =>
+                value === "" ||
+                (/^\d+$/.test(value) && Number(value) >= 0) ||
+                "Global Order must be a whole number of zero or greater.",
+            })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Controls the Estimate-level default selector. Brand-specific order
+            is configured under each Brand.
+          </p>
+          {errors.globalSortOrder && (
+            <p className="text-sm text-destructive">
+              {errors.globalSortOrder.message}
+            </p>
+          )}
+        </div>
+
+        <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            {...register("isGlobal")}
+          />
+          <span>Global Estimate default option</span>
+        </label>
 
         {isEdit && (
           <label className="flex items-center gap-2 rounded-md border p-3 text-sm">

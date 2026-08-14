@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, PackageOpen } from "lucide-react";
@@ -42,17 +42,62 @@ export function SystemFrameColorsClient({
   const router = useRouter();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const selectedFrameColorIds = data.selectedFrameColorIds;
+  const initialAssociatedFrameColors = useMemo<AssociatedFrameColor[]>(() => {
+    const associations =
+      data.selectedFrameColors ??
+      data.selectedFrameColorIds.map((idFrameColor, sortOrder) => ({
+        idFrameColor,
+        sortOrder,
+      }));
+    const associationById = new Map(
+      associations.map((association) => [
+        association.idFrameColor,
+        association.sortOrder,
+      ]),
+    );
 
-  const associatedFrameColors = useMemo<AssociatedFrameColor[]>(() => {
     return data.frameColorsCatalog
-      .filter((frameColor) => selectedFrameColorIds.includes(frameColor.id))
+      .filter((frameColor) => associationById.has(frameColor.id))
       .map((frameColor) => ({
         id: frameColor.id,
         color: frameColor.color,
-        isDefault: false,
-      }));
-  }, [data.frameColorsCatalog, selectedFrameColorIds]);
+        sortOrder: associationById.get(frameColor.id) ?? 0,
+      }))
+      .sort(
+        (left, right) =>
+          left.sortOrder - right.sortOrder ||
+          left.color.localeCompare(right.color) ||
+          left.id - right.id,
+      );
+  }, [
+    data.frameColorsCatalog,
+    data.selectedFrameColorIds,
+    data.selectedFrameColors,
+  ]);
+
+  const [associatedFrameColors, setAssociatedFrameColors] = useState(
+    initialAssociatedFrameColors,
+  );
+
+  useEffect(() => {
+    setAssociatedFrameColors(initialAssociatedFrameColors);
+  }, [initialAssociatedFrameColors]);
+
+  const selectedFrameColorIds = useMemo(
+    () => associatedFrameColors.map((frameColor) => frameColor.id),
+    [associatedFrameColors],
+  );
+
+  const hasOrderChanges =
+    JSON.stringify(
+      associatedFrameColors.map(({ id, sortOrder }) => ({ id, sortOrder })),
+    ) !==
+    JSON.stringify(
+      initialAssociatedFrameColors.map(({ id, sortOrder }) => ({
+        id,
+        sortOrder,
+      })),
+    );
 
   const availableFrameColors = useMemo<AvailableFrameColor[]>(() => {
     return data.frameColorsCatalog
@@ -64,15 +109,19 @@ export function SystemFrameColorsClient({
   }, [data.frameColorsCatalog, selectedFrameColorIds]);
 
   const runAction = async (
-    nextFrameColorIds: number[],
+    nextFrameColors: AssociatedFrameColor[],
     successMsg: string,
     errorMsg: string,
   ) => {
     try {
       await updateSystemFrameColors(data.system.id, {
-        frameColorIds: nextFrameColorIds,
+        frameColors: nextFrameColors.map((frameColor) => ({
+          frameColorId: frameColor.id,
+          sortOrder: frameColor.sortOrder,
+        })),
       });
 
+      setAssociatedFrameColors(nextFrameColors);
       toast.success(successMsg);
       router.refresh();
       return true;
@@ -84,43 +133,85 @@ export function SystemFrameColorsClient({
   };
 
   const handleAdd = async (frameColorId: number) => {
-    const nextFrameColorIds = [...selectedFrameColorIds, frameColorId];
+    const frameColor = data.frameColorsCatalog.find(
+      (item) => item.id === frameColorId,
+    );
+    if (!frameColor) return;
 
-    await runAction(
-      nextFrameColorIds,
+    const highestOrder = associatedFrameColors.reduce(
+      (highest, item) => Math.max(highest, item.sortOrder),
+      -1,
+    );
+    const nextFrameColors = [
+      ...associatedFrameColors,
+      {
+        id: frameColor.id,
+        color: frameColor.color,
+        sortOrder: highestOrder + 1,
+      },
+    ];
+
+    const succeeded = await runAction(
+      nextFrameColors,
       "Frame color linked successfully.",
       "Error linking frame color.",
     );
+
+    if (succeeded) setIsAddDialogOpen(false);
   };
 
   const handleRemove = async (frameColorId: number) => {
-    const nextFrameColorIds = selectedFrameColorIds.filter(
-      (id) => id !== frameColorId,
+    const nextFrameColors = associatedFrameColors.filter(
+      (frameColor) => frameColor.id !== frameColorId,
     );
 
     await runAction(
-      nextFrameColorIds,
-      "Frame color linked successfully.",
-      "Error linking frame color.",
+      nextFrameColors,
+      "Frame color removed successfully.",
+      "Error removing frame color.",
     );
   };
 
-  const associatedColumns = useMemo(
-    () => getAssociatedFrameColorsColumns(handleRemove),
-    [selectedFrameColorIds],
+  const handleOrderChange = (frameColorId: number, sortOrder: number) => {
+    setAssociatedFrameColors((current) =>
+      current.map((frameColor) =>
+        frameColor.id === frameColorId
+          ? { ...frameColor, sortOrder }
+          : frameColor,
+      ),
+    );
+  };
+
+  const handleSaveOrder = async () => {
+    await runAction(
+      associatedFrameColors,
+      "Frame color order updated successfully.",
+      "Error updating frame color order.",
+    );
+  };
+
+  const associatedColumns = getAssociatedFrameColorsColumns(
+    handleRemove,
+    handleOrderChange,
   );
 
-  const availableColumns = useMemo(
-    () => getAvailableFrameColorsColumns(handleAdd),
-    [selectedFrameColorIds],
-  );
+  const availableColumns = getAvailableFrameColorsColumns(handleAdd);
 
   const hasAssociated = associatedFrameColors.length > 0;
   const hasAvailable = availableFrameColors.length > 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!hasOrderChanges}
+          onClick={handleSaveOrder}
+        >
+          Save Order
+        </Button>
+
         <TooltipProvider>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <Tooltip>

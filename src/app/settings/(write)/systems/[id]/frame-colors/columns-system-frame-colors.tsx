@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckCircle2, Circle, XCircle, PlusCircle } from "lucide-react";
+import { XCircle, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +17,7 @@ import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 export type AssociatedFrameColor = {
   id: number;
   color: string;
-  isDefault: boolean;
+  sortOrder: number;
 };
 
 export type AvailableFrameColor = {
@@ -26,12 +26,33 @@ export type AvailableFrameColor = {
 };
 
 export const getAssociatedFrameColorsColumns = (
-  handleRemove: (frameColorId: number) => Promise<void>
+  handleRemove: (frameColorId: number) => Promise<void>,
+  handleOrderChange: (frameColorId: number, sortOrder: number) => void,
 ): ColumnDef<AssociatedFrameColor>[] => [
   {
     accessorKey: "color",
     header: "Associated Frame Color",
-  }, 
+  },
+  {
+    accessorKey: "sortOrder",
+    header: "Order",
+    cell: ({ row }) => (
+      <Input
+        type="number"
+        min="0"
+        step="1"
+        value={row.original.sortOrder}
+        className="w-24"
+        aria-label={`${row.original.color} order`}
+        onChange={(event) =>
+          handleOrderChange(
+            row.original.id,
+            Math.max(0, Number(event.target.value) || 0),
+          )
+        }
+      />
+    ),
+  },
   {
     id: "actions",
     header: () => <div className="text-right">Action</div>,
@@ -74,7 +95,7 @@ export const getAssociatedFrameColorsColumns = (
 ];
 
 export const getAvailableFrameColorsColumns = (
-  handleAdd: (frameColorId: number) => Promise<void>
+  handleAdd: (frameColorId: number) => Promise<void>,
 ): ColumnDef<AvailableFrameColor>[] => [
   {
     accessorKey: "color",

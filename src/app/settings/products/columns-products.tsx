@@ -53,6 +53,10 @@ export function getProductColumns({
       filterFn: "includesString",
     },
     {
+      accessorKey: "sortOrder",
+      header: "Order",
+    },
+    {
       accessorKey: "diagramFamily",
       header: "Diagram Family",
       filterFn: "equalsString",

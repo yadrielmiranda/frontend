@@ -39,6 +39,10 @@ export function getSystemColumns({
       filterFn: "includesString",
     },
     {
+      accessorKey: "sortOrder",
+      header: "Order",
+    },
+    {
       id: "brand",
       accessorFn: (system) => system.brandProduct?.brand?.name ?? "",
       header: "Brand",

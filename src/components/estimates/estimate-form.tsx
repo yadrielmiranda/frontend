@@ -190,6 +190,16 @@ export function EstimateForm({
   const isTaxExempt = !!user?.isTaxExempt;
   const isEditMode = !!estimate;
 
+  const globalTints = useMemo(
+    () => tints.filter((tint) => tint.isActive && tint.isGlobal),
+    [tints],
+  );
+
+  const globalCoatings = useMemo(
+    () => coatings.filter((coating) => coating.isActive && coating.isGlobal),
+    [coatings],
+  );
+
   const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
   const [editingPieceIndex, setEditingPieceIndex] = useState<number | null>(
     null,
@@ -1238,8 +1248,8 @@ export function EstimateForm({
               onDefaultColorChange={handleDefaultColorChange}
               defaultTintId={getValues("defaultTintId")}
               defaultCoatingId={getValues("defaultCoatingId")}
-              tints={tints}
-              coatings={coatings}
+              tints={globalTints}
+              coatings={globalCoatings}
               onDefaultTintChange={handleDefaultTintChange}
               onDefaultCoatingChange={handleDefaultCoatingChange}
               generalDealerMarkupRegister={register("generalDealerMarkup", {

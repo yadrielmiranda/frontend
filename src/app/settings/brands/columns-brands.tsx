@@ -125,6 +125,18 @@ export function getBrandColumns({
                 </Link>
               </DropdownMenuItem>
 
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/brands/${brand.id}/tints`}>
+                  Manage Tints
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/brands/${brand.id}/coatings`}>
+                  Manage Coatings
+                </Link>
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
 
               <DropdownMenuItem

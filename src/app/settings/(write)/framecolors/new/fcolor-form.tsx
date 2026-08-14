@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 type FormData = {
   color: string;
   hexCode: string;
+  globalSortOrder: string;
   isActive: boolean;
   isGlobal: boolean;
 };
@@ -37,6 +38,8 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
     defaultValues: {
       color: fcolor?.color || "",
       hexCode: fcolor?.hexCode ?? "#FFFFFF",
+      globalSortOrder:
+        fcolor?.globalSortOrder == null ? "" : String(fcolor.globalSortOrder),
       isActive: fcolor?.isActive ?? true,
       isGlobal: fcolor?.isGlobal ?? false,
     },
@@ -56,6 +59,9 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
           hexCode: data.hexCode.trim().toUpperCase(),
           isActive: data.isActive,
           isGlobal: data.isGlobal,
+          ...(data.globalSortOrder === ""
+            ? {}
+            : { globalSortOrder: Number(data.globalSortOrder) }),
         });
         toast.success("Frame color updated successfully.");
       } else {
@@ -63,6 +69,9 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
           color: data.color.trim(),
           hexCode: data.hexCode.trim().toUpperCase(),
           isGlobal: data.isGlobal,
+          ...(data.globalSortOrder === ""
+            ? {}
+            : { globalSortOrder: Number(data.globalSortOrder) }),
         });
         toast.success("Frame color created successfully.");
       }
@@ -129,6 +138,33 @@ export function FcolorForm({ fcolor }: { fcolor?: FrameColor }) {
 
           {errors.color && (
             <p className="text-sm text-destructive">{errors.color.message}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col space-y-1.5">
+          <Label htmlFor="globalSortOrder">Global Order</Label>
+          <Input
+            id="globalSortOrder"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Automatic"
+            autoComplete="off"
+            {...register("globalSortOrder", {
+              validate: (value) =>
+                value === "" ||
+                (/^\d+$/.test(value) && Number(value) >= 0) ||
+                "Global Order must be a whole number of zero or greater.",
+            })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Controls the Estimate-level default selector. System-specific order
+            is configured under each System.
+          </p>
+          {errors.globalSortOrder && (
+            <p className="text-sm text-destructive">
+              {errors.globalSortOrder.message}
+            </p>
           )}
         </div>
 

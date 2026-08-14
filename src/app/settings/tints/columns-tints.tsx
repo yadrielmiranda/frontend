@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { Check, MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
@@ -60,6 +60,21 @@ export function getTintColumns({
           </div>
         );
       },
+    },
+    {
+      accessorKey: "globalSortOrder",
+      header: "Global Order",
+    },
+    {
+      accessorKey: "isGlobal",
+      header: "Global",
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          {row.original.isGlobal && (
+            <Check className="h-5 w-5 text-green-600" />
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: "isActive",

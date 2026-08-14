@@ -77,10 +77,7 @@ type SystemConfigLink = {
   config: Config;
 
   dimensionMode?:
-    | "STANDARD"
-    | "ECO_WINDOWS_DOOR"
-    | "ECO_NOVO_DOOR"
-    | "WINDOW_WALL";
+    "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
 
   requiresWidth?: boolean;
   requiresHeight?: boolean;
@@ -296,12 +293,19 @@ export function PieceForm({
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
 
-    return props.systemsWithConfigs.filter(
-      (system) =>
-        system.isActive === true &&
-        system.idProduct === Number(idProd) &&
-        system.idBrand === Number(brandId),
-    );
+    return props.systemsWithConfigs
+      .filter(
+        (system) =>
+          system.isActive === true &&
+          system.idProduct === Number(idProd) &&
+          system.idBrand === Number(brandId),
+      )
+      .sort(
+        (left, right) =>
+          left.sortOrder - right.sortOrder ||
+          left.name.localeCompare(right.name) ||
+          left.id - right.id,
+      );
   }, [idProd, brandId, props.systemsWithConfigs]);
 
   const selectedSystem = useMemo(() => {
@@ -313,10 +317,124 @@ export function PieceForm({
   }, [systemId, props.systemsWithConfigs]);
 
   const availableFrameColors = useMemo(() => {
-    return (selectedSystem?.systemFrameColors ?? [])
+    return [...(selectedSystem?.systemFrameColors ?? [])]
+      .sort(
+        (left, right) =>
+          (left.sortOrder ?? 0) - (right.sortOrder ?? 0) ||
+          left.frameColor.color.localeCompare(right.frameColor.color) ||
+          left.idFrameColor - right.idFrameColor,
+      )
       .map((item) => item.frameColor)
       .filter(Boolean);
   }, [selectedSystem]);
+
+  const availableTints = useMemo(() => {
+    const selectedBrandId = Number(brandId || 0);
+    if (!selectedBrandId || isLinearMaterial) return [];
+
+    return props.tints
+      .filter(
+        (tint) =>
+          tint.isActive === true &&
+          (tint.brandTints ?? []).some(
+            (association) => association.idBrand === selectedBrandId,
+          ),
+      )
+      .sort((left, right) => {
+        const leftAssociation = (left.brandTints ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+        const rightAssociation = (right.brandTints ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+
+        return (
+          (leftAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+            (rightAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+          left.color.localeCompare(right.color) ||
+          left.id - right.id
+        );
+      });
+  }, [brandId, isLinearMaterial, props.tints]);
+
+  const availableCoatings = useMemo(() => {
+    const selectedBrandId = Number(brandId || 0);
+    if (!selectedBrandId || isLinearMaterial) return [];
+
+    return props.coatings
+      .filter(
+        (coating) =>
+          coating.isActive === true &&
+          (coating.brandCoatings ?? []).some(
+            (association) => association.idBrand === selectedBrandId,
+          ),
+      )
+      .sort((left, right) => {
+        const leftAssociation = (left.brandCoatings ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+        const rightAssociation = (right.brandCoatings ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+
+        return (
+          (leftAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+            (rightAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+          left.name.localeCompare(right.name) ||
+          left.id - right.id
+        );
+      });
+  }, [brandId, isLinearMaterial, props.coatings]);
+
+  useEffect(() => {
+    const selectedBrandId = Number(brandId || 0);
+    if (!selectedBrandId || isLinearMaterial) return;
+
+    const currentTintId = Number(getValues("idTint") || 0);
+    const currentTintIsAvailable = availableTints.some(
+      (tint) => tint.id === currentTintId,
+    );
+
+    if (!currentTintIsAvailable) {
+      const defaultTint = availableTints.find((tint) =>
+        (tint.brandTints ?? []).some(
+          (association) =>
+            association.idBrand === selectedBrandId && association.isDefault,
+        ),
+      );
+
+      setValue("idTint", defaultTint?.id ?? 0, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+
+    const currentCoatingId = Number(getValues("idCoat") || 0);
+    const currentCoatingIsAvailable = availableCoatings.some(
+      (coating) => coating.id === currentCoatingId,
+    );
+
+    if (!currentCoatingIsAvailable) {
+      const defaultCoating = availableCoatings.find((coating) =>
+        (coating.brandCoatings ?? []).some(
+          (association) =>
+            association.idBrand === selectedBrandId && association.isDefault,
+        ),
+      );
+
+      setValue("idCoat", defaultCoating?.id ?? 0, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [
+    brandId,
+    isLinearMaterial,
+    availableTints,
+    availableCoatings,
+    getValues,
+    setValue,
+  ]);
 
   const selectedFrameColorHex =
     availableFrameColors.find(
@@ -332,13 +450,11 @@ export function PieceForm({
       (coating) => coating.id === Number(pieceValues.idCoat),
     ) ?? null;
 
-  const normalizedCoatingName = (selectedCoating?.name ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+  const selectedCoatingAssociation = selectedCoating?.brandCoatings?.find(
+    (association) => association.idBrand === Number(brandId || 0),
+  );
 
-  const hasCoating =
-    normalizedCoatingName !== "" && normalizedCoatingName !== "none";
+  const hasCoating = selectedCoatingAssociation?.surchargeEnabled === true;
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
@@ -3197,7 +3313,7 @@ export function PieceForm({
                         rules={{ required: true, min: 1 }}
                         render={({ field }) => (
                           <Select
-                            disabled={isLocked}
+                            disabled={isLocked || !brandId}
                             onValueChange={(v) => field.onChange(Number(v))}
                             value={String(field.value || "0")}
                           >
@@ -3205,7 +3321,7 @@ export function PieceForm({
                               <SelectValue placeholder="Select tint" />
                             </SelectTrigger>
                             <SelectContent>
-                              {props.tints.map((t) => (
+                              {availableTints.map((t) => (
                                 <SelectItem key={t.id} value={String(t.id)}>
                                   {t.color}
                                 </SelectItem>
@@ -3219,6 +3335,13 @@ export function PieceForm({
                           Tint required
                         </p>
                       )}
+                      {!errors.idTint &&
+                        brandId &&
+                        availableTints.length === 0 && (
+                          <p className="mt-1 text-xs text-red-500">
+                            No active Tint is configured for this Brand.
+                          </p>
+                        )}
                     </div>
 
                     <div>
@@ -3229,7 +3352,7 @@ export function PieceForm({
                         rules={{ required: true, min: 1 }}
                         render={({ field }) => (
                           <Select
-                            disabled={isLocked}
+                            disabled={isLocked || !brandId}
                             onValueChange={(v) => field.onChange(Number(v))}
                             value={String(field.value || "0")}
                           >
@@ -3237,7 +3360,7 @@ export function PieceForm({
                               <SelectValue placeholder="Select coating" />
                             </SelectTrigger>
                             <SelectContent>
-                              {props.coatings.map((c) => (
+                              {availableCoatings.map((c) => (
                                 <SelectItem key={c.id} value={String(c.id)}>
                                   {c.name}
                                 </SelectItem>
@@ -3251,6 +3374,13 @@ export function PieceForm({
                           Coating required
                         </p>
                       )}
+                      {!errors.idCoat &&
+                        brandId &&
+                        availableCoatings.length === 0 && (
+                          <p className="mt-1 text-xs text-red-500">
+                            No active Coating is configured for this Brand.
+                          </p>
+                        )}
                     </div>
 
                     <div className="flex items-end">

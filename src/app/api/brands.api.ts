@@ -11,6 +11,59 @@ export type BrandWithProducts = Brand & {
   brandProducts: BrandProduct[];
 };
 
+export type BrandOptionManageItem = {
+  id: number;
+  isActive: boolean;
+  isGlobal: boolean;
+  globalSortOrder: number;
+  isAssociated: boolean;
+  sortOrder: number | null;
+  surchargeEnabled: boolean;
+  isDefault: boolean;
+  costoA: string | number | null;
+  costoB: string | number | null;
+  costoC: string | number | null;
+};
+
+export type BrandTintsManage = {
+  brand: Pick<Brand, "id" | "name">;
+  tints: Array<
+    BrandOptionManageItem & {
+      color: string;
+      hexCode: string;
+    }
+  >;
+};
+
+export type BrandCoatingsManage = {
+  brand: Pick<Brand, "id" | "name">;
+  coatings: Array<BrandOptionManageItem & { name: string }>;
+};
+
+export type UpdateBrandTintAssociations = {
+  tints: Array<{
+    tintId: number;
+    sortOrder: number;
+    surchargeEnabled: boolean;
+    isDefault: boolean;
+    costoA: string | null;
+    costoB: string | null;
+    costoC: string | null;
+  }>;
+};
+
+export type UpdateBrandCoatingAssociations = {
+  coatings: Array<{
+    coatingId: number;
+    sortOrder: number;
+    surchargeEnabled: boolean;
+    isDefault: boolean;
+    costoA: string | null;
+    costoB: string | null;
+    costoC: string | null;
+  }>;
+};
+
 export function getBrands() {
   return apiFetch<Brand[]>("/api/brands");
 }
@@ -63,4 +116,37 @@ export function removeProductFromBrand(brandId: number, productId: number) {
 
 export function getAvailableProductsForBrand(brandId: number) {
   return apiFetch<Product[]>(`/api/brands/${brandId}/available-products`);
+}
+
+export function getBrandTintsForManage(brandId: number) {
+  return apiFetch<BrandTintsManage>(`/api/brands/${brandId}/tints/manage`);
+}
+
+export function updateBrandTints(
+  brandId: number,
+  data: UpdateBrandTintAssociations,
+) {
+  return apiFetch<BrandTintsManage>(`/api/brands/${brandId}/tints/manage`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
+export function getBrandCoatingsForManage(brandId: number) {
+  return apiFetch<BrandCoatingsManage>(
+    `/api/brands/${brandId}/coatings/manage`,
+  );
+}
+
+export function updateBrandCoatings(
+  brandId: number,
+  data: UpdateBrandCoatingAssociations,
+) {
+  return apiFetch<BrandCoatingsManage>(
+    `/api/brands/${brandId}/coatings/manage`,
+    {
+      method: "PATCH",
+      body: data,
+    },
+  );
 }

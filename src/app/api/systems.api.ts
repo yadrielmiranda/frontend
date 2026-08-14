@@ -1,4 +1,4 @@
-import { apiFetch } from './_base';
+import { apiFetch } from "./_base";
 import type {
   System,
   SystemWithConfigs,
@@ -8,10 +8,11 @@ import type {
   DimensionMode,
   PricingComponentType,
   PricingSourceConfig,
-} from '../../lib/types';
+} from "../../lib/types";
 
 export type SystemData = {
   name: string;
+  sortOrder?: number;
   idBrand: number;
   idProduct: number;
   isActive?: boolean;
@@ -74,7 +75,10 @@ export type UpdateSystemCrystalsData = {
 };
 
 export type UpdateSystemFrameColorsData = {
-  frameColorIds: number[];
+  frameColors: Array<{
+    frameColorId: number;
+    sortOrder: number;
+  }>;
 };
 
 export type SystemCrystalsManage = {
@@ -101,6 +105,10 @@ export type SystemFrameColorsManage = {
     product: { id: number; name: string };
   };
   selectedFrameColorIds: number[];
+  selectedFrameColors: Array<{
+    idFrameColor: number;
+    sortOrder: number;
+  }>;
   frameColorsCatalog: FrameColor[];
 };
 
@@ -196,7 +204,7 @@ export type SystemConfigOptionsManage = {
  * Obtiene todos los sistemas y precarga las configuraciones asociadas.
  */
 export function getSystemsWithConfigs() {
-  return apiFetch<SystemWithConfigs[]>('/api/systems/with-configs');
+  return apiFetch<SystemWithConfigs[]>("/api/systems/with-configs");
 }
 
 /**
@@ -204,10 +212,10 @@ export function getSystemsWithConfigs() {
  */
 export function getSystems(params?: { idBrand?: number; idProduct?: number }) {
   const query = new URLSearchParams();
-  if (params?.idBrand) query.append('brand', String(params.idBrand));
-  if (params?.idProduct) query.append('product', String(params.idProduct));
+  if (params?.idBrand) query.append("brand", String(params.idBrand));
+  if (params?.idProduct) query.append("product", String(params.idProduct));
   const q = query.toString();
-  return apiFetch<System[]>(`/api/systems${q ? `?${q}` : ''}`);
+  return apiFetch<System[]>(`/api/systems${q ? `?${q}` : ""}`);
 }
 
 /**
@@ -221,8 +229,8 @@ export function getSystem(id: number) {
  * Crea un nuevo sistema.
  */
 export function createSystem(data: SystemData) {
-  return apiFetch<System>('/api/systems', {
-    method: 'POST',
+  return apiFetch<System>("/api/systems", {
+    method: "POST",
     body: data,
   });
 }
@@ -232,7 +240,7 @@ export function createSystem(data: SystemData) {
  */
 export function updateSystem(id: number, data: UpdateSystemData) {
   return apiFetch<System>(`/api/systems/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: data,
   });
 }
@@ -242,7 +250,7 @@ export function updateSystem(id: number, data: UpdateSystemData) {
  */
 export function deleteSystem(id: number) {
   return apiFetch<{ success: boolean }>(`/api/systems/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
@@ -266,7 +274,7 @@ export function getAvailableConfigs(systemId: number) {
 export function addConfigToSystem(systemId: number, configId: number) {
   return apiFetch<SystemWithConfigs>(
     `/api/systems/${systemId}/configs/${configId}`,
-    { method: 'POST' },
+    { method: "POST" },
   );
 }
 
@@ -281,7 +289,7 @@ export function updateSystemConfig(
   return apiFetch<SystemWithConfigs>(
     `/api/systems/${systemId}/configs/${configId}`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       body: data,
     },
   );
@@ -293,7 +301,7 @@ export function updateSystemConfig(
 export function removeConfigFromSystem(systemId: number, configId: number) {
   return apiFetch<SystemWithConfigs>(
     `/api/systems/${systemId}/configs/${configId}`,
-    { method: 'DELETE' },
+    { method: "DELETE" },
   );
 }
 
@@ -320,7 +328,7 @@ export function updateSystemConfigOptions(
   return apiFetch<SystemConfigOptionsManage>(
     `/api/systems/${systemId}/configs/${configId}/options/manage`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       body: data,
     },
   );
@@ -339,7 +347,7 @@ export function updateSystemCrystals(
   return apiFetch<SystemCrystalsManage>(
     `/api/systems/${systemId}/crystals/manage`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       body: data,
     },
   );
@@ -358,7 +366,7 @@ export function updateSystemFrameColors(
   return apiFetch<SystemFrameColorsManage>(
     `/api/systems/${systemId}/frame-colors/manage`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       body: data,
     },
   );
@@ -372,7 +380,7 @@ export function updateSystemConfigPricingComponents(
   return apiFetch<SystemConfigOptionsManage>(
     `/api/systems/${systemId}/configs/${configId}/pricing-components`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       body: data,
     },
   );

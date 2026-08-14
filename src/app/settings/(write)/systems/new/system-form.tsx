@@ -24,6 +24,7 @@ import {
 
 type FormValues = {
   name: string;
+  sortOrder: string;
   idBrand: string;
   idProduct: string;
   isActive: boolean;
@@ -55,6 +56,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   } = useForm<FormValues>({
     defaultValues: {
       name: system?.name ?? "",
+      sortOrder: system?.sortOrder == null ? "" : String(system.sortOrder),
       idBrand: system?.idBrand ? String(system.idBrand) : "",
       idProduct: system?.idProduct ? String(system.idProduct) : "",
       isActive: system?.isActive ?? true,
@@ -136,6 +138,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   const onSubmit = handleSubmit(async (data) => {
     const payload = {
       name: data.name.trim(),
+      ...(data.sortOrder === "" ? {} : { sortOrder: Number(data.sortOrder) }),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
       allowHighBottom: isLinearMaterial ? false : Boolean(data.allowHighBottom),
@@ -178,6 +181,32 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         />
         {errors.name && (
           <p className="text-sm text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col space-y-1.5">
+        <Label htmlFor="sortOrder">Order</Label>
+        <Input
+          id="sortOrder"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Automatic"
+          autoComplete="off"
+          disabled={showLoadingState}
+          {...register("sortOrder", {
+            validate: (value) =>
+              value === "" ||
+              (/^\d+$/.test(value) && Number(value) >= 0) ||
+              "Order must be a whole number of zero or greater.",
+          })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Applied within the selected Brand and Product. Leave blank on creation
+          to place it last.
+        </p>
+        {errors.sortOrder && (
+          <p className="text-sm text-destructive">{errors.sortOrder.message}</p>
         )}
       </div>
 
