@@ -13,6 +13,7 @@ import { getProductsWithBrands } from "@/app/api/products.api";
 import { getSystemsWithConfigs } from "@/app/api/systems.api";
 import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
+import { getPrivacies } from "@/app/api/privacies.api";
 import { getFColors } from "@/app/api/fcolors.api";
 import { getGlobalFrameColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
@@ -94,6 +95,7 @@ export default async function EditEstimatePage({
     crystals,
     tints,
     coatings,
+    privacies,
     parameters,
     muntinPatterns,
     muntinTypes,
@@ -105,6 +107,7 @@ export default async function EditEstimatePage({
     getCrystals(),
     getTints(),
     getCoatings(),
+    getPrivacies(),
     getGlobalParameters(),
     getMuntinPatterns({ active: true }),
     getMuntinTypes({ active: true }),
@@ -147,6 +150,7 @@ export default async function EditEstimatePage({
               crystals={crystals}
               tints={tints}
               coatings={coatings}
+              privacies={privacies}
               muntinPatterns={muntinPatterns}
               muntinTypes={muntinTypes}
             />

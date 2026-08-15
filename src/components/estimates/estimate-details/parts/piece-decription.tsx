@@ -166,7 +166,7 @@ export function buildPieceDescriptionLines(
   }
 
   detailLines.push(buildGridLine(piece));
-  detailLines.push(`Privacy: ${piece.privacy ? "Yes" : "No"}`);
+  detailLines.push(`Privacy: ${piece.privacyOption?.name ?? "—"}`);
 
   const pos = p.dpPosPsf;
   const neg = p.dpNegPsf;

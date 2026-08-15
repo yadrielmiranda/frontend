@@ -12,6 +12,7 @@ import { getFColors } from "@/app/api/fcolors.api";
 import { getCrystals } from "@/app/api/crystals.api";
 import { getTints } from "@/app/api/tints.api";
 import { getCoatings } from "@/app/api/coatings.api";
+import { getPrivacies } from "@/app/api/privacies.api";
 import { getMuntinPatterns } from "@/app/api/muntin-patterns.api";
 import { getMuntinTypes } from "@/app/api/muntin-types.api";
 
@@ -56,6 +57,7 @@ export default async function InstallationDetailPage({
       crystals,
       tints,
       coatings,
+      privacies,
       muntinPatterns,
       muntinTypes,
     ] = await Promise.all([
@@ -67,6 +69,7 @@ export default async function InstallationDetailPage({
       getCrystals(),
       getTints(),
       getCoatings(),
+      getPrivacies(),
       getMuntinPatterns({ active: true }),
       getMuntinTypes({ active: true }),
     ]);
@@ -83,6 +86,7 @@ export default async function InstallationDetailPage({
         crystals={crystals}
         tints={tints}
         coatings={coatings}
+        privacies={privacies}
         muntinPatterns={muntinPatterns}
         muntinTypes={muntinTypes}
       />

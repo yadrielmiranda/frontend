@@ -45,6 +45,7 @@ import type {
   Crystal,
   Tint,
   Coating,
+  Privacy,
   Config,
   CalculatePiecePayload,
   PieceMuntin,
@@ -172,6 +173,7 @@ export interface PieceFormProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 
@@ -386,6 +388,35 @@ export function PieceForm({
       });
   }, [brandId, isLinearMaterial, props.coatings]);
 
+  const availablePrivacies = useMemo(() => {
+    const selectedBrandId = Number(brandId || 0);
+    if (!selectedBrandId || isLinearMaterial) return [];
+
+    return props.privacies
+      .filter(
+        (privacy) =>
+          privacy.isActive === true &&
+          (privacy.brandPrivacies ?? []).some(
+            (association) => association.idBrand === selectedBrandId,
+          ),
+      )
+      .sort((left, right) => {
+        const leftAssociation = (left.brandPrivacies ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+        const rightAssociation = (right.brandPrivacies ?? []).find(
+          (association) => association.idBrand === selectedBrandId,
+        );
+
+        return (
+          (leftAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+            (rightAssociation?.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+          left.name.localeCompare(right.name) ||
+          left.id - right.id
+        );
+      });
+  }, [brandId, isLinearMaterial, props.privacies]);
+
   useEffect(() => {
     const selectedBrandId = Number(brandId || 0);
     if (!selectedBrandId || isLinearMaterial) return;
@@ -427,11 +458,31 @@ export function PieceForm({
         shouldValidate: true,
       });
     }
+
+    const currentPrivacyId = Number(getValues("idPrivacy") || 0);
+    const currentPrivacyIsAvailable = availablePrivacies.some(
+      (privacy) => privacy.id === currentPrivacyId,
+    );
+
+    if (!currentPrivacyIsAvailable) {
+      const defaultPrivacy = availablePrivacies.find((privacy) =>
+        (privacy.brandPrivacies ?? []).some(
+          (association) =>
+            association.idBrand === selectedBrandId && association.isDefault,
+        ),
+      );
+
+      setValue("idPrivacy", defaultPrivacy?.id ?? 0, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
   }, [
     brandId,
     isLinearMaterial,
     availableTints,
     availableCoatings,
+    availablePrivacies,
     getValues,
     setValue,
   ]);
@@ -455,6 +506,17 @@ export function PieceForm({
   );
 
   const hasCoating = selectedCoatingAssociation?.surchargeEnabled === true;
+
+  const selectedPrivacy =
+    props.privacies.find(
+      (privacy) => privacy.id === Number(pieceValues.idPrivacy),
+    ) ?? null;
+
+  const selectedPrivacyAssociation = selectedPrivacy?.brandPrivacies?.find(
+    (association) => association.idBrand === Number(brandId || 0),
+  );
+
+  const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
@@ -1170,13 +1232,13 @@ export function PieceForm({
       previousSysConfKeyRef.current = currentSysConfKey;
 
       setValue("screen", false, { shouldDirty: true });
-      setValue("privacy", false, { shouldDirty: true });
       setValue("highBottom", false, { shouldDirty: true });
       setValue("highBottomPercent", null, { shouldDirty: true });
 
       setValue("idCryst", 0, { shouldDirty: true, shouldValidate: false });
       setValue("idTint", 0, { shouldDirty: true, shouldValidate: false });
       setValue("idCoat", 0, { shouldDirty: true, shouldValidate: false });
+      setValue("idPrivacy", 0, { shouldDirty: true, shouldValidate: false });
 
       setValue("muntin", null, { shouldDirty: true });
       setValue("idActiveOption", null, { shouldDirty: true });
@@ -1370,7 +1432,7 @@ export function PieceForm({
       ];
 
       if (!isLinearMaterial) {
-        fieldsToValidate.push("idCryst", "idTint", "idCoat");
+        fieldsToValidate.push("idCryst", "idTint", "idCoat", "idPrivacy");
       }
 
       if (!isLinearMaterial && reinforcementRequired) {
@@ -1729,8 +1791,8 @@ export function PieceForm({
           : undefined,
         idCryst: isLinearMaterial ? null : Number(currentValues.idCryst),
         idTint: isLinearMaterial ? null : Number(currentValues.idTint),
-        privacy: isLinearMaterial ? false : Boolean(currentValues.privacy),
         idCoat: isLinearMaterial ? null : Number(currentValues.idCoat),
+        idPrivacy: isLinearMaterial ? null : Number(currentValues.idPrivacy),
         screen: isLinearMaterial ? false : Boolean(currentValues.screen),
         highBottom:
           !isLinearMaterial && highBottomAllowed
@@ -3383,30 +3445,48 @@ export function PieceForm({
                         )}
                     </div>
 
-                    <div className="flex items-end">
+                    <div>
+                      <Label className={fieldLabelClass}>Privacy</Label>
                       <Controller
-                        name="privacy"
+                        name="idPrivacy"
                         control={control}
+                        rules={{ required: true, min: 1 }}
                         render={({ field }) => (
-                          <div className="inline-flex h-11 items-center gap-3 rounded-md px-1">
-                            <Checkbox
-                              id={`privacy-${index}`}
-                              checked={!!field.value}
-                              onCheckedChange={(v) =>
-                                field.onChange(Boolean(v))
-                              }
-                              disabled={isLocked}
-                              className="h-4 w-4 border-2 border-slate-500 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                            />
-                            <Label
-                              htmlFor={`privacy-${index}`}
-                              className="cursor-pointer text-sm font-medium text-slate-800"
-                            >
-                              Privacy
-                            </Label>
-                          </div>
+                          <Select
+                            disabled={isLocked || !brandId}
+                            onValueChange={(value) =>
+                              field.onChange(Number(value))
+                            }
+                            value={String(field.value || "0")}
+                          >
+                            <SelectTrigger className={selectTriggerClass}>
+                              <SelectValue placeholder="Select privacy" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availablePrivacies.map((privacy) => (
+                                <SelectItem
+                                  key={privacy.id}
+                                  value={String(privacy.id)}
+                                >
+                                  {privacy.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                       />
+                      {errors.idPrivacy && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Privacy required
+                        </p>
+                      )}
+                      {!errors.idPrivacy &&
+                        brandId &&
+                        availablePrivacies.length === 0 && (
+                          <p className="mt-1 text-xs text-red-500">
+                            No active Privacy is configured for this Brand.
+                          </p>
+                        )}
                     </div>
                   </div>
                 </AccordionContent>
@@ -3763,6 +3843,7 @@ export function PieceForm({
                 frameColorHex={selectedFrameColorHex}
                 glassTintHex={selectedTintHex}
                 hasCoating={hasCoating}
+                hasPrivacy={hasPrivacy}
               />
             </div>
           </div>

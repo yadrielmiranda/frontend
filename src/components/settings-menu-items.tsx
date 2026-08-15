@@ -17,6 +17,7 @@ import {
   Cog,
   DoorOpen,
   Droplets,
+  EyeOff,
   FileSliders,
   Layers,
   Palette,
@@ -178,6 +179,13 @@ export function SettingsMenuItems({
         <Link href="/settings/tints">
           <Palette className={iconClass} />
           Tints
+        </Link>
+      </DropdownMenuItem>
+
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/privacies">
+          <EyeOff className={iconClass} />
+          Privacy Options
         </Link>
       </DropdownMenuItem>
 

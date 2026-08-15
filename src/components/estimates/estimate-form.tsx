@@ -179,6 +179,7 @@ export function EstimateForm({
   crystals,
   tints,
   coatings,
+  privacies,
   muntinPatterns,
   muntinTypes,
 }: EstimateFormProps) {
@@ -898,8 +899,8 @@ export function EstimateForm({
 
       idCryst: isLinearMaterial ? null : Number(piece.idCryst),
       idTint: isLinearMaterial ? null : Number(piece.idTint),
-      privacy: isLinearMaterial ? false : Boolean(piece.privacy),
       idCoat: isLinearMaterial ? null : Number(piece.idCoat),
+      idPrivacy: isLinearMaterial ? null : Number(piece.idPrivacy),
       screen: isLinearMaterial ? false : Boolean(piece.screen),
       highBottom: isLinearMaterial ? false : piece.highBottom === true,
 
@@ -1090,6 +1091,7 @@ export function EstimateForm({
       idFC: Number(defaultFrameColorId) || 0,
       idTint: Number(defaultTintId) || 0,
       idCoat: Number(defaultCoatingId) || 0,
+      idPrivacy: 0,
       width: "",
       height: "",
       heightLeft: "",
@@ -1097,7 +1099,6 @@ export function EstimateForm({
       legHeight: "",
       sashHeight: "",
       idCryst: 0,
-      privacy: false,
       screen: false,
       highBottom: false,
       highBottomPercent: null,
@@ -1311,6 +1312,7 @@ export function EstimateForm({
               crystals={crystals}
               tints={tints}
               coatings={coatings}
+              privacies={privacies}
               muntinPatterns={muntinPatterns}
               muntinTypes={muntinTypes}
               formatCurrency={formatCurrency}
@@ -1328,6 +1330,7 @@ export function EstimateForm({
               crystals={crystals}
               tints={tints}
               coatings={coatings}
+              privacies={privacies}
               muntinPatterns={muntinPatterns}
               muntinTypes={muntinTypes}
               formatCurrency={formatCurrency}
@@ -1396,6 +1399,7 @@ export function EstimateForm({
         crystals={crystals}
         tints={tints}
         coatings={coatings}
+        privacies={privacies}
         muntinPatterns={muntinPatterns}
         muntinTypes={muntinTypes}
         canUseCustomerPricing={canUseCustomerPricing}

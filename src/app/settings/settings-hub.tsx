@@ -8,6 +8,7 @@ import {
   Cog,
   DoorOpen,
   Droplets,
+  EyeOff,
   FileSliders,
   Layers,
   Palette,
@@ -200,6 +201,13 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
       href: "/settings/tints",
       icon: Palette,
       color: "bg-sky-50 text-sky-600",
+    },
+    {
+      title: "Privacy Options",
+      description: "Manage Privacy options for Brand association.",
+      href: "/settings/privacies",
+      icon: EyeOff,
+      color: "bg-slate-100 text-slate-700",
     },
   ];
 

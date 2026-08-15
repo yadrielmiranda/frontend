@@ -5,8 +5,10 @@ import { toast } from "sonner";
 
 import {
   type BrandCoatingsManage,
+  type BrandPrivaciesManage,
   type BrandTintsManage,
   updateBrandCoatings,
+  updateBrandPrivacies,
   updateBrandTints,
 } from "@/app/api/brands.api";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,8 @@ import {
 
 type Props =
   | { kind: "tint"; initialData: BrandTintsManage }
-  | { kind: "coating"; initialData: BrandCoatingsManage };
+  | { kind: "coating"; initialData: BrandCoatingsManage }
+  | { kind: "privacy"; initialData: BrandPrivaciesManage };
 
 type EditableRow = {
   id: number;
@@ -59,7 +62,12 @@ function toEditableRows(props: Props): EditableRow[] {
     }));
   }
 
-  return props.initialData.coatings.map((option) => ({
+  const options =
+    props.kind === "coating"
+      ? props.initialData.coatings
+      : props.initialData.privacies;
+
+  return options.map((option) => ({
     id: option.id,
     label: option.name,
     isActive: option.isActive,
@@ -92,8 +100,18 @@ export function BrandOptionAssociationsClient(props: Props) {
   const [savedRows, setSavedRows] = useState<EditableRow[]>(initialRows);
   const [isSaving, setIsSaving] = useState(false);
 
-  const singular = props.kind === "tint" ? "Tint" : "Coating";
-  const plural = props.kind === "tint" ? "Tints" : "Coatings";
+  const singular =
+    props.kind === "tint"
+      ? "Tint"
+      : props.kind === "coating"
+        ? "Coating"
+        : "Privacy option";
+  const plural =
+    props.kind === "tint"
+      ? "Tints"
+      : props.kind === "coating"
+        ? "Coatings"
+        : "Privacy options";
   const brandId = props.initialData.brand.id;
   const hasChanges =
     JSON.stringify(comparable(rows)) !== JSON.stringify(comparable(savedRows));
@@ -222,25 +240,33 @@ export function BrandOptionAssociationsClient(props: Props) {
     try {
       setIsSaving(true);
 
-      const updated =
-        props.kind === "tint"
-          ? await updateBrandTints(brandId, {
-              tints: normalizedRows.map(({ id, ...row }) => ({
-                tintId: id,
-                ...row,
-              })),
-            })
-          : await updateBrandCoatings(brandId, {
-              coatings: normalizedRows.map(({ id, ...row }) => ({
-                coatingId: id,
-                ...row,
-              })),
-            });
+      let nextProps: Props;
 
-      const nextProps: Props =
-        props.kind === "tint"
-          ? { kind: "tint", initialData: updated as BrandTintsManage }
-          : { kind: "coating", initialData: updated as BrandCoatingsManage };
+      if (props.kind === "tint") {
+        const updated = await updateBrandTints(brandId, {
+          tints: normalizedRows.map(({ id, ...row }) => ({
+            tintId: id,
+            ...row,
+          })),
+        });
+        nextProps = { kind: "tint", initialData: updated };
+      } else if (props.kind === "coating") {
+        const updated = await updateBrandCoatings(brandId, {
+          coatings: normalizedRows.map(({ id, ...row }) => ({
+            coatingId: id,
+            ...row,
+          })),
+        });
+        nextProps = { kind: "coating", initialData: updated };
+      } else {
+        const updated = await updateBrandPrivacies(brandId, {
+          privacies: normalizedRows.map(({ id, ...row }) => ({
+            privacyId: id,
+            ...row,
+          })),
+        });
+        nextProps = { kind: "privacy", initialData: updated };
+      }
       const nextRows = toEditableRows(nextProps);
 
       setRows(nextRows);

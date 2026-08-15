@@ -15,7 +15,6 @@ export interface PieceDiagramData {
   legHeight?: DiagramValue;
   sashHeight?: DiagramValue;
   windowHeight?: DiagramValue;
-  privacy?: boolean | null;
 
   doorWidth?: DiagramValue;
   doorHeight?: DiagramValue;
@@ -35,6 +34,7 @@ interface PieceDiagramProps {
   frameColorHex?: string | null;
   glassTintHex?: string | null;
   hasCoating?: boolean;
+  hasPrivacy?: boolean;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -1088,6 +1088,7 @@ export function PieceDiagram({
   frameColorHex,
   glassTintHex,
   hasCoating = false,
+  hasPrivacy = false,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
@@ -1099,7 +1100,6 @@ export function PieceDiagram({
   )}`;
 
   const glassTone = resolveGlassFill(glassTintHex);
-  const hasPrivacy = piece?.privacy === true;
   const isClearTone = glassTone.toUpperCase() === "#F7FBFF";
 
   // Clear necesita una ligera base azul para distinguirse del fondo blanco.

@@ -8,6 +8,7 @@ import type {
   Crystal,
   Tint,
   Coating,
+  Privacy,
   MuntinPattern,
   MuntinType,
 } from "@/lib/types";
@@ -23,6 +24,7 @@ interface PieceFormDetailsPanelProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 }
@@ -49,6 +51,7 @@ export function PieceFormDetailsPanel({
   crystals,
   tints,
   coatings,
+  privacies,
   muntinPatterns,
   muntinTypes,
 }: PieceFormDetailsPanelProps) {
@@ -108,14 +111,18 @@ export function PieceFormDetailsPanel({
     coatings.find((c) => c.id === Number(piece.idCoat)) ?? null;
 
   const coating = selectedCoating?.name ?? null;
+  const selectedCoatingAssociation = selectedCoating?.brandCoatings?.find(
+    (association) => association.idBrand === Number(piece.idBrand),
+  );
+  const hasCoating = selectedCoatingAssociation?.surchargeEnabled === true;
 
-  const normalizedCoatingName = (selectedCoating?.name ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  const hasCoating =
-    normalizedCoatingName !== "" && normalizedCoatingName !== "none";
+  const selectedPrivacy =
+    privacies.find((privacy) => privacy.id === Number(piece.idPrivacy)) ?? null;
+  const privacy = selectedPrivacy?.name ?? null;
+  const selectedPrivacyAssociation = selectedPrivacy?.brandPrivacies?.find(
+    (association) => association.idBrand === Number(piece.idBrand),
+  );
+  const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const activeName =
     selectedSysConf?.activeOptions?.find(
@@ -289,7 +296,7 @@ export function PieceFormDetailsPanel({
           </p>
 
           <p>
-            <strong>Privacy:</strong> {piece.privacy ? "Yes" : "No"}
+            <strong>Privacy:</strong> {privacy ?? "—"}
           </p>
 
           <p>
@@ -386,6 +393,7 @@ export function PieceFormDetailsPanel({
               frameColorHex={frameColorHex}
               glassTintHex={glassTintHex}
               hasCoating={hasCoating}
+              hasPrivacy={hasPrivacy}
             />
           </div>
         </div>

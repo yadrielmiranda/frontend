@@ -221,6 +221,13 @@ export interface Coating {
   brandCoatings?: BrandGlassOptionAssociation[];
 }
 
+export interface Privacy {
+  id: number;
+  name: string;
+  isActive: boolean;
+  brandPrivacies?: BrandGlassOptionAssociation[];
+}
+
 export interface MuntinPattern {
   id: number;
   name: string;
@@ -289,8 +296,8 @@ export interface Piece {
 
   idCryst?: number | null;
   idTint?: number | null;
-  privacy: boolean;
   idCoat?: number | null;
+  idPrivacy?: number | null;
   screen: boolean;
   highBottom: boolean;
   highBottomPercent?: number | null;
@@ -1011,6 +1018,7 @@ export interface PieceWithRelations extends Piece {
   cryst: Crystal | null;
   tin: Tint | null;
   coat: Coating | null;
+  privacyOption: Privacy | null;
 
   activeOption?: ActiveOption | null;
   preparationOption?: PreparationOption | null;
@@ -1171,6 +1179,15 @@ export type UpdateCoatingData = {
   globalSortOrder?: number;
 };
 
+export type CreatePrivacyData = {
+  name: string;
+};
+
+export type UpdatePrivacyData = {
+  name?: string;
+  isActive?: boolean;
+};
+
 export interface CreatePieceData {
   mark: string;
   idProd: number;
@@ -1198,8 +1215,8 @@ export interface CreatePieceData {
 
   idCryst?: number | null;
   idTint?: number | null;
-  privacy?: boolean;
   idCoat?: number | null;
+  idPrivacy?: number | null;
   screen?: boolean;
   highBottom?: boolean;
 

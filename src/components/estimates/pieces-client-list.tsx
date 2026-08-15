@@ -16,6 +16,7 @@ import type {
   Crystal,
   Tint,
   Coating,
+  Privacy,
   MuntinPattern,
   MuntinType,
 } from "@/lib/types";
@@ -36,6 +37,7 @@ interface PiecesClientListProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 
@@ -55,6 +57,7 @@ export function PiecesClientList({
   crystals,
   tints,
   coatings,
+  privacies,
   muntinPatterns,
   muntinTypes,
   formatCurrency,
@@ -378,6 +381,7 @@ export function PiecesClientList({
                           crystals={crystals}
                           tints={tints}
                           coatings={coatings}
+                          privacies={privacies}
                           muntinPatterns={muntinPatterns}
                           muntinTypes={muntinTypes}
                         />

@@ -137,6 +137,12 @@ export function getBrandColumns({
                 </Link>
               </DropdownMenuItem>
 
+              <DropdownMenuItem asChild>
+                <Link href={`/settings/brands/${brand.id}/privacies`}>
+                  Manage Privacy
+                </Link>
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
 
               <DropdownMenuItem

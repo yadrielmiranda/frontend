@@ -29,6 +29,7 @@ import type {
   MuntinType,
   PieceWithRelations,
   ProductWithBrands,
+  Privacy,
   SysConf,
   SystemWithConfigs,
   Tint,
@@ -214,8 +215,8 @@ function pieceForPersistence(
       : null,
     idCryst: isLinear ? null : Number(piece.idCryst),
     idTint: isLinear ? null : Number(piece.idTint),
-    privacy: isLinear ? false : Boolean(piece.privacy),
     idCoat: isLinear ? null : Number(piece.idCoat),
+    idPrivacy: isLinear ? null : Number(piece.idPrivacy),
     screen: isLinear ? false : Boolean(piece.screen),
     highBottom: isLinear ? false : Boolean(piece.highBottom),
     idActiveOption:
@@ -585,6 +586,7 @@ export function InstallationDetailClient({
   crystals,
   tints,
   coatings,
+  privacies,
   muntinPatterns,
   muntinTypes,
 }: {
@@ -599,6 +601,7 @@ export function InstallationDetailClient({
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 }) {
@@ -1172,6 +1175,7 @@ export function InstallationDetailClient({
           crystals={crystals}
           tints={tints}
           coatings={coatings}
+          privacies={privacies}
           muntinPatterns={muntinPatterns}
           muntinTypes={muntinTypes}
           canUseCustomerPricing={job.estimate.user.role.name === "dealer"}

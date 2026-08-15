@@ -14,8 +14,8 @@ export type BrandWithProducts = Brand & {
 export type BrandOptionManageItem = {
   id: number;
   isActive: boolean;
-  isGlobal: boolean;
-  globalSortOrder: number;
+  isGlobal?: boolean;
+  globalSortOrder?: number;
   isAssociated: boolean;
   sortOrder: number | null;
   surchargeEnabled: boolean;
@@ -40,6 +40,11 @@ export type BrandCoatingsManage = {
   coatings: Array<BrandOptionManageItem & { name: string }>;
 };
 
+export type BrandPrivaciesManage = {
+  brand: Pick<Brand, "id" | "name">;
+  privacies: Array<BrandOptionManageItem & { name: string }>;
+};
+
 export type UpdateBrandTintAssociations = {
   tints: Array<{
     tintId: number;
@@ -55,6 +60,18 @@ export type UpdateBrandTintAssociations = {
 export type UpdateBrandCoatingAssociations = {
   coatings: Array<{
     coatingId: number;
+    sortOrder: number;
+    surchargeEnabled: boolean;
+    isDefault: boolean;
+    costoA: string | null;
+    costoB: string | null;
+    costoC: string | null;
+  }>;
+};
+
+export type UpdateBrandPrivacyAssociations = {
+  privacies: Array<{
+    privacyId: number;
     sortOrder: number;
     surchargeEnabled: boolean;
     isDefault: boolean;
@@ -144,6 +161,25 @@ export function updateBrandCoatings(
 ) {
   return apiFetch<BrandCoatingsManage>(
     `/api/brands/${brandId}/coatings/manage`,
+    {
+      method: "PATCH",
+      body: data,
+    },
+  );
+}
+
+export function getBrandPrivaciesForManage(brandId: number) {
+  return apiFetch<BrandPrivaciesManage>(
+    `/api/brands/${brandId}/privacies/manage`,
+  );
+}
+
+export function updateBrandPrivacies(
+  brandId: number,
+  data: UpdateBrandPrivacyAssociations,
+) {
+  return apiFetch<BrandPrivaciesManage>(
+    `/api/brands/${brandId}/privacies/manage`,
     {
       method: "PATCH",
       body: data,

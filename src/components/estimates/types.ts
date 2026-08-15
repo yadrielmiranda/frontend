@@ -7,6 +7,7 @@ import type {
   Crystal,
   Tint,
   Coating,
+  Privacy,
   MuntinPattern,
   MuntinType,
   PieceMuntin,
@@ -82,6 +83,7 @@ export interface EstimateFormProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
 }

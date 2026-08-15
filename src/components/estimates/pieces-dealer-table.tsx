@@ -20,6 +20,7 @@ import type {
   Crystal,
   Tint,
   Coating,
+  Privacy,
   MuntinPattern,
   MuntinType,
 } from "@/lib/types";
@@ -33,6 +34,7 @@ interface PiecesDealerTableProps {
   crystals: Crystal[];
   tints: Tint[];
   coatings: Coating[];
+  privacies: Privacy[];
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
   formatCurrency: (amount: number) => string;
@@ -51,6 +53,7 @@ export function PiecesDealerTable({
   crystals,
   tints,
   coatings,
+  privacies,
   muntinPatterns,
   muntinTypes,
   formatCurrency,
@@ -393,6 +396,7 @@ export function PiecesDealerTable({
                           crystals={crystals}
                           tints={tints}
                           coatings={coatings}
+                          privacies={privacies}
                           muntinPatterns={muntinPatterns}
                           muntinTypes={muntinTypes}
                         />
