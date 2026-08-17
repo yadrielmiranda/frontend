@@ -388,12 +388,14 @@ export function PieceFormDetailsPanel({
             <PieceDiagram
               diagramFamily={selectedProduct?.diagramFamily}
               configuration={configName ?? undefined}
+              diagramSpec={selectedSysConf?.config?.diagramSpec}
               dimensionMode={selectedSysConf?.dimensionMode}
               piece={piece}
               frameColorHex={frameColorHex}
               glassTintHex={glassTintHex}
               hasCoating={hasCoating}
               hasPrivacy={hasPrivacy}
+              screenEnabled={Boolean(piece.screen)}
             />
           </div>
         </div>

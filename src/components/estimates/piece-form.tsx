@@ -161,6 +161,25 @@ function syncMuntinWithConfigLayout(
   };
 }
 
+function ColorSelectOption({
+  label,
+  hexCode,
+}: {
+  label: string;
+  hexCode: string;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="size-4 shrink-0 rounded-sm border border-slate-300 shadow-sm"
+        style={{ backgroundColor: hexCode }}
+      />
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
 export interface PieceFormProps {
   initialData: PieceFormValues;
   onSubmit: (data: PieceFormValues) => void | Promise<void>;
@@ -2319,7 +2338,10 @@ export function PieceForm({
                           <SelectContent>
                             {availableFrameColors.map((fc) => (
                               <SelectItem key={fc.id} value={String(fc.id)}>
-                                {fc.color}
+                                <ColorSelectOption
+                                  label={fc.color}
+                                  hexCode={fc.hexCode}
+                                />
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -3385,7 +3407,10 @@ export function PieceForm({
                             <SelectContent>
                               {availableTints.map((t) => (
                                 <SelectItem key={t.id} value={String(t.id)}>
-                                  {t.color}
+                                  <ColorSelectOption
+                                    label={t.color}
+                                    hexCode={t.hexCode}
+                                  />
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -3838,12 +3863,14 @@ export function PieceForm({
                 variant="editor"
                 diagramFamily={selectedProduct?.diagramFamily}
                 configuration={selectedConfig?.conf}
+                diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
                 frameColorHex={selectedFrameColorHex}
                 glassTintHex={selectedTintHex}
                 hasCoating={hasCoating}
                 hasPrivacy={hasPrivacy}
+                screenEnabled={Boolean(pieceValues.screen)}
               />
             </div>
           </div>
