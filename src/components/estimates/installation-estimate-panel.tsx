@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, CreditCard, Hammer, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Hammer, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type {
   InstallationJob,
@@ -17,7 +17,6 @@ import {
   requestInstallation,
   respondInstallationAppointment,
 } from "@/app/api/installations.api";
-import { createCheckoutSession } from "@/app/api/payments.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,12 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney } from "@/lib/formatters";
-import {
-  installationStageLabel,
-  paidBaseFor,
-  paidInstallationCredit,
-} from "@/lib/installation-flow";
+import { installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
 import { EstimateRevisionSummary } from "./estimate-revision-summary";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
@@ -59,33 +53,30 @@ type RequestedRow = {
 };
 type EstimatePieceTarget = { id: number; mark: string; qty: number };
 
-const DEPOSIT_NOTICE =
-  "Once paid, this deposit is non-refundable. If you proceed with installation, the full amount is credited toward your installation balance. If installation is canceled, the deposit will not be refunded.";
-
 export function InstallationEstimatePanel({
   estimateId,
   estimateOwnerId,
   estimateStatus,
   order,
   pieces,
-  materialTotal,
   initialJob,
   currentUserId,
   isPrivileged,
   refreshKey,
   beforeRequest,
+  onJobChange,
 }: {
   estimateId: number;
   estimateOwnerId: number;
   estimateStatus: string;
   order: Order | null;
   pieces: EstimatePieceTarget[];
-  materialTotal: number;
   initialJob: InstallationJob | null;
   currentUserId: number;
   isPrivileged: boolean;
   refreshKey: string;
   beforeRequest?: () => Promise<boolean>;
+  onJobChange?: (job: InstallationJob | null) => void;
 }) {
   const [job, setJob] = useState<InstallationJob | null>(initialJob);
   const [services, setServices] = useState<InstallationService[]>([]);
@@ -93,12 +84,19 @@ export function InstallationEstimatePanel({
   const [busy, setBusy] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
   const [permitRequested, setPermitRequested] = useState(false);
-  const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
   const [rows, setRows] = useState<RequestedRow[]>([]);
   const [nextRowId, setNextRowId] = useState(1);
   const [decisionComment, setDecisionComment] = useState("");
   const [appointmentResponseNote, setAppointmentResponseNote] = useState("");
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+
+  const commitJob = useCallback(
+    (nextJob: InstallationJob | null) => {
+      setJob(nextJob);
+      onJobChange?.(nextJob);
+    },
+    [onJobChange],
+  );
 
   useEffect(() => {
     let active = true;
@@ -108,7 +106,7 @@ export function InstallationEstimatePanel({
     ])
       .then(([installation, catalog]) => {
         if (!active) return;
-        setJob(installation);
+        commitJob(installation);
         setServices(catalog.filter((service) => service.availableForRequest));
       })
       .catch((error) => {
@@ -118,7 +116,7 @@ export function InstallationEstimatePanel({
     return () => {
       active = false;
     };
-  }, [estimateId, refreshKey]);
+  }, [commitJob, estimateId, refreshKey]);
 
   const addRow = () => {
     setRows((current) => [
@@ -160,7 +158,7 @@ export function InstallationEstimatePanel({
           };
         }),
       });
-      setJob(created);
+      commitJob(created);
       setShowRequest(false);
       toast.success("Preliminary installation price calculated.");
     } catch (error) {
@@ -175,8 +173,7 @@ export function InstallationEstimatePanel({
     setBusy(true);
     try {
       const result = await cancelInstallation(job.id);
-      setJob(result);
-      setDepositTermsAccepted(false);
+      commitJob(result);
       toast.success("Installation removed. The estimate remains material only.");
     } catch (error) {
       toast.error((error as Error).message);
@@ -355,28 +352,7 @@ export function InstallationEstimatePanel({
     ? job.revisions?.find((revision) => revision.quoteId === latest.id)
     : job.revisions?.[0];
   const isOwner = currentUserId === estimateOwnerId;
-  const installationTotal = Number(latest?.total ?? 0);
-  const permitFee = Number(job.permit?.permitFeeSnapshot ?? 0);
-  const cityFee = Number(job.permit?.cityFee ?? 0);
-  const depositAmount = Number(job.depositAmountSnapshot ?? 0);
   const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
-  const installationCredit = paidInstallationCredit(job);
-  const installationBalance = Math.max(
-    0,
-    installationTotal - installationCredit,
-  );
-  const canceled = job.status === "CANCELED";
-  const displayedMaterialTotal = Number(
-    latestRevision &&
-      ["PENDING_ADMIN_APPROVAL", "PENDING_CUSTOMER_APPROVAL"].includes(
-        latestRevision.status,
-      )
-      ? latestRevision.revisedTotals.totalPayable
-      : job.estimate.totalPayable ?? materialTotal,
-  );
-  const knownProjectTotal = canceled
-    ? displayedMaterialTotal + depositPaid
-    : displayedMaterialTotal + installationTotal + permitFee + cityFee;
   const proposedRemeasurement = job.appointments.find(
     (appointment) =>
       appointment.type === "REMEASUREMENT" &&
@@ -393,32 +369,10 @@ export function InstallationEstimatePanel({
     job.status === "DEPOSIT_PAYMENT_PENDING" &&
     depositPaid === 0;
 
-  const pay = async (
-    type: "INSTALLATION_DEPOSIT" | "PERMIT" | "MATERIAL",
-  ) => {
-    if (type === "INSTALLATION_DEPOSIT" && !depositTermsAccepted) {
-      toast.error("Accept the non-refundable deposit terms first.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const { url } = await createCheckoutSession(
-        estimateId,
-        type,
-        undefined,
-        type === "INSTALLATION_DEPOSIT" ? depositTermsAccepted : undefined,
-      );
-      window.location.href = url;
-    } catch (error) {
-      toast.error((error as Error).message);
-      setBusy(false);
-    }
-  };
-
   const decide = async (decision: "APPROVED" | "REJECTED") => {
     setBusy(true);
     try {
-      setJob(
+      commitJob(
         await decideInstallationQuoteAsCustomer(
           job.id,
           decision,
@@ -444,7 +398,7 @@ export function InstallationEstimatePanel({
     if (!proposedRemeasurement) return;
     setBusy(true);
     try {
-      setJob(
+      commitJob(
         await respondInstallationAppointment(
           proposedRemeasurement.id,
           response,
@@ -478,123 +432,20 @@ export function InstallationEstimatePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-2">
-          <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">Material + tax</span>
-            <strong>{formatMoney(displayedMaterialTotal)}</strong>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">Installation</span>
-            <strong>
-              {canceled
-                ? `Canceled (was ${formatMoney(installationTotal)})`
-                : latest
-                  ? formatMoney(installationTotal)
-                  : "Pending"}
-            </strong>
-          </div>
-          {depositPaid > 0 && canceled ? (
-            <div className="flex justify-between gap-3 text-amber-800 sm:col-span-2">
-              <span>Non-refundable deposit retained</span>
-              <strong>{formatMoney(depositPaid)}</strong>
-            </div>
-          ) : depositPaid > 0 ? (
-            <>
-              <div className="flex justify-between gap-3 text-emerald-700">
-                <span>Deposit paid · non-refundable</span>
-                <strong>-{formatMoney(depositPaid)}</strong>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">
-                  Installation balance
-                </span>
-                <strong>{formatMoney(installationBalance)}</strong>
-              </div>
-            </>
-          ) : (
-            <div className="flex justify-between gap-3 sm:col-span-2">
-              <span className="text-muted-foreground">
-                Installation deposit due now
-              </span>
-              <strong>{formatMoney(depositAmount)}</strong>
-            </div>
-          )}
-          {job.permit && !canceled && (
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Permit Fee</span>
-              <strong>{formatMoney(permitFee)}</strong>
-            </div>
-          )}
-          {job.permit && !canceled && (
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">City Fee</span>
-              <strong>
-                {job.permit.cityFee == null
-                  ? "Pending"
-                  : formatMoney(cityFee)}
-              </strong>
-            </div>
-          )}
-          <div className="flex justify-between gap-3 border-t pt-2 sm:col-span-2">
-            <strong>
-              {canceled
-                ? "Material + retained deposit"
-                : job.permit && job.permit.cityFee == null
-                ? "Known project total"
-                : "Project total"}
-            </strong>
-            <strong>{formatMoney(knownProjectTotal)}</strong>
-          </div>
-          {!canceled && (
-            <p className="sm:col-span-2 text-xs text-muted-foreground">
-              The deposit is part of the installation total shown above; it is
-              not an additional charge.
-            </p>
-          )}
-        </div>
-
         {latestRevision &&
           latestRevision.status !== "DRAFT" &&
           latestRevision.status !== "SUPERSEDED" && (
-            <EstimateRevisionSummary revision={latestRevision} />
+            <EstimateRevisionSummary
+              revision={latestRevision}
+              showFinancials={false}
+            />
           )}
-
-        {latest && latest.lines.length > 0 && !canceled && (
-          <details
-            className="overflow-hidden rounded-lg border"
-            open={job.status === "DEPOSIT_PAYMENT_PENDING"}
-          >
-            <summary className="cursor-pointer bg-slate-50 px-4 py-3 text-sm font-semibold">
-              Installation price breakdown
-            </summary>
-            <div className="divide-y text-sm">
-              {latest.lines.map((line) => (
-                <div
-                  key={line.id}
-                  className="flex items-start justify-between gap-4 px-4 py-3"
-                >
-                  <div>
-                    <span className="font-medium">
-                      {line.serviceNameSnapshot}
-                    </span>
-                    {line.componentLabel && (
-                      <span className="block text-xs text-muted-foreground">
-                        {line.componentLabel}
-                      </span>
-                    )}
-                  </div>
-                  <strong>{formatMoney(Number(line.adjustedAmount))}</strong>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
 
         {job.status === "CANCELED" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <strong className="block">Installation canceled</strong>
             {depositPaid > 0
-              ? `The ${formatMoney(depositPaid)} deposit remains non-refundable. This estimate can continue with material only.`
+              ? "The paid deposit remains non-refundable. This estimate can continue with material only."
               : "This estimate can continue with material only."}
             {job.cancellationReason && (
               <p className="mt-2">Reason: {job.cancellationReason}</p>
@@ -602,45 +453,21 @@ export function InstallationEstimatePanel({
           </div>
         )}
 
-        {isOwner && job.status === "DEPOSIT_PAYMENT_PENDING" && (
-          <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
-            <div>
-              <strong className="text-sm">
-                Installation deposit — Non-refundable
-              </strong>
-              <p className="mt-1 text-xs text-amber-900">
-                {job.depositTermsSnapshot || DEPOSIT_NOTICE}
-              </p>
-            </div>
-            <label className="flex items-start gap-3 text-sm">
-              <Checkbox
-                checked={depositTermsAccepted}
-                onCheckedChange={(checked) =>
-                  setDepositTermsAccepted(Boolean(checked))
-                }
-              />
-              <span>I understand and accept these deposit terms.</span>
-            </label>
+        {canRemoveBeforeDeposit && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-sm text-slate-600">
+              Installation has not been confirmed. You can still continue
+              with material only before paying the deposit.
+            </p>
             <Button
               type="button"
               className="w-full"
-              disabled={busy || !depositTermsAccepted}
-              onClick={() => pay("INSTALLATION_DEPOSIT")}
+              variant="outline"
+              disabled={busy}
+              onClick={() => setRemoveDialogOpen(true)}
             >
-              <CreditCard className="mr-2 h-4 w-4" /> Pay non-refundable
-              deposit · {formatMoney(depositAmount)}
+              Remove installation and continue with material only
             </Button>
-            {canRemoveBeforeDeposit && (
-              <Button
-                type="button"
-                className="w-full"
-                variant="outline"
-                disabled={busy}
-                onClick={() => setRemoveDialogOpen(true)}
-              >
-                Remove installation and continue with material only
-              </Button>
-            )}
           </div>
         )}
 
@@ -707,7 +534,8 @@ export function InstallationEstimatePanel({
                     : "Approve remeasurement and installation"}
                 </strong>
                 <p className="text-xs text-muted-foreground">
-                  Review the updated material and installation totals above.
+                  Review the updated material and installation amounts in the
+                  Estimate Summary below.
                 </p>
               </div>
               <Textarea
@@ -734,30 +562,6 @@ export function InstallationEstimatePanel({
               </div>
             </div>
           )}
-
-        {isOwner && job.status === "PERMIT_PAYMENT_PENDING" && job.permit && (
-          <Button
-            type="button"
-            className="w-full"
-            disabled={busy}
-            onClick={() => pay("PERMIT")}
-          >
-            <CreditCard className="mr-2 h-4 w-4" /> Pay Permit Fee ·{" "}
-            {formatMoney(permitFee)}
-          </Button>
-        )}
-
-        {isOwner && job.status === "MATERIAL_PAYMENT_PENDING" && (
-          <Button
-            type="button"
-            className="w-full"
-            disabled={busy}
-            onClick={() => pay("MATERIAL")}
-          >
-            <CreditCard className="mr-2 h-4 w-4" /> Pay Material
-            {job.permit ? " + City Fee" : ""}
-          </Button>
-        )}
 
         <div className="flex justify-end">
           {isPrivileged && (

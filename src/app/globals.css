@@ -130,5 +130,108 @@
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
-}
 
+  input[type="checkbox"] {
+    min-width: 1.125rem;
+    min-height: 1.125rem;
+    border-radius: 0.25rem;
+    accent-color: var(--primary);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 45%, transparent);
+  }
+
+  input[type="checkbox"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent);
+    outline-offset: 2px;
+  }
+
+  input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    select,
+    textarea
+  ):not([data-slot]) {
+    border-color: color-mix(in oklab, var(--foreground) 24%, transparent);
+    background-color: var(--background);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
+    transition:
+      background-color 150ms,
+      border-color 150ms,
+      box-shadow 150ms;
+  }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    select,
+    textarea
+  ):not([data-slot]):not(:disabled):not([readonly]):hover {
+    border-color: color-mix(in oklab, var(--foreground) 38%, transparent);
+  }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    select,
+    textarea
+  ):not([data-slot]):focus-visible {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 15%, transparent);
+  }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    select,
+    textarea
+  ):not([data-slot]):is(:disabled, [readonly]) {
+    border-color: var(--border);
+    background-color: var(--muted);
+    box-shadow: none;
+  }
+}

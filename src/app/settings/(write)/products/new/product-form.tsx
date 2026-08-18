@@ -206,7 +206,7 @@ export function ProductForm({ product }: { product?: Product }) {
 
           <select
             id="kind"
-            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950"
             {...register("kind", {
               required: true,
             })}
@@ -231,7 +231,7 @@ export function ProductForm({ product }: { product?: Product }) {
 
           <select
             id="diagramFamily"
-            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:outline-none dark:border-slate-600 dark:bg-slate-950"
             {...register("diagramFamily", {
               required: true,
             })}

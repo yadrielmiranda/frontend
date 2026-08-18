@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Send, RefreshCw } from "lucide-react";
+import {
+  CreditCard,
+  Loader2,
+  MoreHorizontal,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -247,6 +252,7 @@ export const getEstimateColumns = (
     },
     {
       id: "actions",
+      header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => {
         const estimate = row.original;
 
@@ -273,6 +279,7 @@ export const getEstimateColumns = (
         const isPaid = materialPayment?.status === "PAID";
         const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
         const isPaymentLocked = isPaid || hasCheckoutStarted;
+        const hasPayableMaterial = Number(estimate.totalPayable) > 0;
 
         const isPrivileged =
           isAdminRole(currentUser?.role?.name) ||
@@ -294,7 +301,9 @@ export const getEstimateColumns = (
           !estimate.order &&
           isOwner &&
           !isPaid &&
+          hasPayableMaterial &&
           (!estimate.installationJob ||
+            estimate.installationJob.status === "CANCELED" ||
             estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING");
 
         const canRecalculate =
@@ -337,7 +346,26 @@ export const getEstimateColumns = (
         };
 
         return (
-          <div className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            {showOwnerActions && canPay && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3 shadow-sm"
+                onClick={() => void handlePay()}
+                disabled={isPaying}
+                title="Pay estimate and place order"
+                aria-label={`Pay estimate #${estimate.number} and place order`}
+              >
+                {isPaying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4" />
+                )}
+                {isPaying ? "Opening..." : "Pay now"}
+              </Button>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -393,17 +421,6 @@ export const getEstimateColumns = (
                     {isRecalculating
                       ? "Recalculating..."
                       : "Recalculate Estimate"}
-                  </DropdownMenuItem>
-                )}
-
-                {showOwnerActions && canPay && (
-                  <DropdownMenuItem
-                    onSelect={handlePay}
-                    disabled={isPaying}
-                    className="text-green-700 focus:bg-green-50 focus:text-green-800"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    {isPaying ? "Redirecting..." : "Pay & Create Order"}
                   </DropdownMenuItem>
                 )}
 

@@ -39,7 +39,8 @@ import type {
 
 import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
 import { EstimateDetailsLeft } from "./estimate-details-left";
-import { EstimateTotalsCard } from "./estimate-totals-card";
+import { EstimateFinancialSummary } from "./estimate-financial-summary";
+import { EstimatePaymentCard } from "./estimate-payment-card";
 import { PiecesBreakdownBar } from "./pieces-breakdown-bar";
 import { PiecesDealerTable } from "./pieces-dealer-table";
 import { PiecesClientList } from "./pieces-client-list";
@@ -188,8 +189,14 @@ export function EstimateForm({
   const role = user?.role?.name ?? null;
 
   const canUseCustomerPricing = canSetCustomerOnEstimate(role);
-  const isTaxExempt = !!user?.isTaxExempt;
+  const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
+  const isTaxExempt = estimate
+    ? Boolean(estimate.user.isTaxExempt)
+    : Boolean(user?.isTaxExempt);
   const isEditMode = !!estimate;
+  const [financialInstallation, setFinancialInstallation] = useState(
+    initialInstallation ?? null,
+  );
 
   const globalTints = useMemo(
     () => tints.filter((tint) => tint.isActive && tint.isGlobal),
@@ -1235,48 +1242,37 @@ export function EstimateForm({
         <div className="p-6 border rounded-lg bg-slate-50">
           <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <EstimateDetailsLeft
-              isEditMode={isEditMode}
-              estimateNumber={estimate?.number}
-              canUseCustomerPricing={canUseCustomerPricing}
-              nameError={errors.name?.message}
-              nameRegister={register("name", {
-                required: "The name is required",
-              })}
-              defaultFrameColorId={getValues("defaultFrameColorId")}
-              frameColors={globalFrameColors}
-              onDefaultColorChange={handleDefaultColorChange}
-              defaultTintId={getValues("defaultTintId")}
-              defaultCoatingId={getValues("defaultCoatingId")}
-              tints={globalTints}
-              coatings={globalCoatings}
-              onDefaultTintChange={handleDefaultTintChange}
-              onDefaultCoatingChange={handleDefaultCoatingChange}
-              generalDealerMarkupRegister={register("generalDealerMarkup", {
-                valueAsNumber: true,
-                min: 0,
-              })}
-              onApplyGeneralMarkup={handleApplyGeneralMarkup}
-              customerTaxRateRegister={register("customerTaxRate", {
-                valueAsNumber: true,
-                min: 0,
-              })}
-              onCustomerTaxBlur={(value) => {
-                const v = roundMoney(Number(value) || 0, 2);
-                setValue("customerTaxRate", v, { shouldDirty: true });
-              }}
-            />
-
-            <EstimateTotalsCard
-              canUseCustomerPricing={canUseCustomerPricing}
-              taxRate={taxRate}
-              isTaxExempt={isTaxExempt}
-              customerTaxRatePercent={Number(customerTaxRatePercent) || 0}
-              summary={summary}
-              formatCurrency={formatCurrency}
-            />
-          </div>
+          <EstimateDetailsLeft
+            isEditMode={isEditMode}
+            estimateNumber={estimate?.number}
+            canUseCustomerPricing={canUseCustomerPricing}
+            nameError={errors.name?.message}
+            nameRegister={register("name", {
+              required: "The name is required",
+            })}
+            defaultFrameColorId={getValues("defaultFrameColorId")}
+            frameColors={globalFrameColors}
+            onDefaultColorChange={handleDefaultColorChange}
+            defaultTintId={getValues("defaultTintId")}
+            defaultCoatingId={getValues("defaultCoatingId")}
+            tints={globalTints}
+            coatings={globalCoatings}
+            onDefaultTintChange={handleDefaultTintChange}
+            onDefaultCoatingChange={handleDefaultCoatingChange}
+            generalDealerMarkupRegister={register("generalDealerMarkup", {
+              valueAsNumber: true,
+              min: 0,
+            })}
+            onApplyGeneralMarkup={handleApplyGeneralMarkup}
+            customerTaxRateRegister={register("customerTaxRate", {
+              valueAsNumber: true,
+              min: 0,
+            })}
+            onCustomerTaxBlur={(value) => {
+              const v = roundMoney(Number(value) || 0, 2);
+              setValue("customerTaxRate", v, { shouldDirty: true });
+            }}
+          />
 
           {canUseCustomerPricing && (
             <div className="mt-6">
@@ -1350,12 +1346,34 @@ export function EstimateForm({
             estimateStatus={estimate.status?.name ?? ""}
             order={estimate.order ?? null}
             pieces={installationPieces}
-            materialTotal={summary.totalPayable}
             initialJob={initialInstallation ?? null}
             currentUserId={currentUserId}
             isPrivileged={isPrivileged}
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
+            onJobChange={setFinancialInstallation}
+          />
+        )}
+
+        <EstimateFinancialSummary
+          ownerRole={ownerRole}
+          ownerIsTaxExempt={isTaxExempt}
+          taxRate={taxRate}
+          customerTaxRatePercent={Number(customerTaxRatePercent) || 0}
+          materialSummary={summary}
+          installationJob={isEditMode ? financialInstallation : null}
+        />
+
+        {isEditMode && estimate && currentUserId && (
+          <EstimatePaymentCard
+            estimateId={estimate.id}
+            estimateOwnerId={estimate.idUser}
+            estimateStatus={estimate.status?.name ?? ""}
+            order={estimate.order ?? null}
+            materialPayments={estimate.payments ?? []}
+            installationJob={financialInstallation}
+            currentUserId={currentUserId}
+            materialAmount={summary.totalPayable}
           />
         )}
 

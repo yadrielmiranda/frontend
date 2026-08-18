@@ -111,7 +111,7 @@ export function EstimateDetailsLeft({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 w-full rounded-md !border-0 bg-white px-2 shadow-sm !ring-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!outline-none data-[state=open]:!ring-0",
+                  "h-9 w-full px-2",
                   defaultFrameColorId ? "text-slate-900" : "text-slate-400",
                 )}
               >
@@ -141,7 +141,7 @@ export function EstimateDetailsLeft({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 w-full rounded-md !border-0 bg-white px-2 shadow-sm !ring-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!outline-none data-[state=open]:!ring-0",
+                  "h-9 w-full px-2",
                   defaultTintId ? "text-slate-900" : "text-slate-400",
                 )}
               >
@@ -171,7 +171,7 @@ export function EstimateDetailsLeft({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 w-full rounded-md !border-0 bg-white px-2 shadow-sm !ring-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!outline-none data-[state=open]:!ring-0",
+                  "h-9 w-full px-2",
                   defaultCoatingId ? "text-slate-900" : "text-slate-400",
                 )}
               >

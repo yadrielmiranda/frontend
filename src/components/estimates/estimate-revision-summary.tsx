@@ -72,9 +72,11 @@ function proposedName(item: EstimateRevisionItem) {
 export function EstimateRevisionSummary({
   revision,
   compact = false,
+  showFinancials = true,
 }: {
   revision: EstimateRevision;
   compact?: boolean;
+  showFinancials?: boolean;
 }) {
   const changedItems = revision.items.filter(
     (item) => item.action !== "UNCHANGED",
@@ -94,33 +96,35 @@ export function EstimateRevisionSummary({
         <Badge variant="outline">{title(revision.status)}</Badge>
       </div>
 
-      <div className="overflow-hidden rounded-md border bg-white text-sm">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
-          <span>Material</span>
-          <span>Original</span>
-          <span>Revised</span>
+      {showFinancials && (
+        <div className="overflow-hidden rounded-md border bg-white text-sm">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+            <span>Material</span>
+            <span>Original</span>
+            <span>Revised</span>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
+            <span>Units</span>
+            <span>{original.units}</span>
+            <strong>{revised.units}</strong>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
+            <span>Subtotal</span>
+            <span>{money(original.priceT)}</span>
+            <strong>{money(revised.priceT)}</strong>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
+            <span>Tax</span>
+            <span>{money(original.taxAmount)}</span>
+            <strong>{money(revised.taxAmount)}</strong>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2 font-semibold">
+            <span>Material + tax</span>
+            <span>{money(original.totalPayable)}</span>
+            <span>{money(revised.totalPayable)}</span>
+          </div>
         </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
-          <span>Units</span>
-          <span>{original.units}</span>
-          <strong>{revised.units}</strong>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
-          <span>Subtotal</span>
-          <span>{money(original.priceT)}</span>
-          <strong>{money(revised.priceT)}</strong>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2">
-          <span>Tax</span>
-          <span>{money(original.taxAmount)}</span>
-          <strong>{money(revised.taxAmount)}</strong>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-t px-3 py-2 font-semibold">
-          <span>Material + tax</span>
-          <span>{money(original.totalPayable)}</span>
-          <span>{money(revised.totalPayable)}</span>
-        </div>
-      </div>
+      )}
 
       {!compact && (
         <div className="space-y-2">
