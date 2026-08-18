@@ -101,32 +101,35 @@ export function EstimateDetails({
   }, [allowedReportModes, defaultReportMode, reportMode]);
 
   const reportOptions = useMemo<ReportOption[]>(() => {
-    return allowedReportModes.flatMap((mode) => {
+    const options: ReportOption[] = [];
+
+    for (const mode of allowedReportModes) {
       if (mode === "customer" && ownerIsDealer) {
-        return [
+        options.push(
           {
             key: "customer-detailed",
             label: "Customer Detailed Prices",
-            reportMode: "customer" as const,
-            customerPricingMode: "detailed" as const,
+            reportMode: "customer",
+            customerPricingMode: "detailed",
           },
           {
             key: "customer-total",
             label: "Customer Project Total",
-            reportMode: "customer" as const,
-            customerPricingMode: "total" as const,
+            reportMode: "customer",
+            customerPricingMode: "total",
           },
-        ];
+        );
+        continue;
       }
 
-      return [
-        {
-          key: mode,
-          label: REPORT_LABELS[mode],
-          reportMode: mode,
-        },
-      ];
-    });
+      options.push({
+        key: mode,
+        label: REPORT_LABELS[mode],
+        reportMode: mode,
+      });
+    }
+
+    return options;
   }, [allowedReportModes, ownerIsDealer]);
 
   const activeReportOptionKey =
