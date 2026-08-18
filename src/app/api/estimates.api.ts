@@ -212,13 +212,18 @@ export function recalculateEstimate(id: number) {
 export type EstimatePublicTokenResponse = {
   token: string;
   enabled: boolean;
+  pricingMode: "detailed" | "total";
 };
 
-export function getOrCreateEstimatePublicToken(id: number) {
+export function getOrCreateEstimatePublicToken(
+  id: number,
+  pricingMode: "detailed" | "total" = "detailed",
+) {
   return apiFetch<EstimatePublicTokenResponse>(
     `/api/estimates/${id}/public-token`,
     {
       method: "POST",
+      body: { pricingMode },
     },
   );
 }

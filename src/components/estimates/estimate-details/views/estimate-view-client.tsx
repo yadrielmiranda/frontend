@@ -2,7 +2,7 @@
 
 import { EstimateWithRelations } from "@/lib/types";
 import { PiecesTable } from "../parts/pieces-table";
-import { TotalsInternal } from "../parts/totals-internal";
+import { ReportFinancialSummary } from "../parts/report-financial-summary";
 
 type Piece = EstimateWithRelations["pieces"][number];
 
@@ -15,7 +15,7 @@ export function EstimateViewClient({ estimate }: { estimate: EstimateWithRelatio
         getSubtotal={(p: Piece) => Number(p.subtotal) || 0}
       />
 
-      <TotalsInternal estimate={estimate} />
+      <ReportFinancialSummary estimate={estimate} reportKind="client" />
     </>
   );
 }

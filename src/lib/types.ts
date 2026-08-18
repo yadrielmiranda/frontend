@@ -349,6 +349,7 @@ export interface Estimate {
   number: string;
   name: string;
   date: string;
+  expiresAt?: string | null;
   customerFirstName?: string | null;
   customerLastName?: string | null;
   customerEmail?: string | null;
@@ -713,6 +714,21 @@ export interface InstallationJob {
   payments: EstimatePayment[];
   appointments: InstallationAppointment[];
   revisions: EstimateRevision[];
+}
+
+export interface EstimateInstallationReportSummary {
+  status: InstallationJobStatus;
+  quoteStatus: InstallationQuoteStatus | null;
+  installationAmount: string | number | null;
+  installationTotal: string | number | null;
+  additionalServices: Array<{
+    serviceId: number;
+    name: string;
+    amount: string | number;
+  }>;
+  permitIncluded: boolean;
+  permitFee: string | number | null;
+  cityFee: string | number | null;
 }
 
 export type InstallationListScope = "active" | "completed" | "canceled" | "all";
@@ -1089,6 +1105,10 @@ export type EstimateWithRelations = Estimate & {
   pieces: PieceWithRelations[];
   user: User;
   branding?: Branding | null;
+  installationSummary?: EstimateInstallationReportSummary | null;
+  publicPricingMode?: "detailed" | "total";
+  publicProjectTotal?: string | number;
+  publicProjectTotalIncomplete?: boolean;
 };
 
 export type OrderWithRelations = Order & {

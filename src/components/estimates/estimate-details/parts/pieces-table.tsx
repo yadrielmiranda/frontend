@@ -7,18 +7,28 @@ import { PieceDescriptionCell } from "./piece-decription";
 
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
-export function PiecesTable({
-  pieces,
-  getUnitPrice,
-  getSubtotal,
-}: {
+type PiecesTableProps = {
   pieces: PieceWithRelations[];
-  getUnitPrice: (p: PieceWithRelations) => number;
-  getSubtotal: (p: PieceWithRelations) => number;
-}) {
+} & (
+  | {
+      showPrices: false;
+      getUnitPrice?: never;
+      getSubtotal?: never;
+    }
+  | {
+      showPrices?: true;
+      getUnitPrice: (p: PieceWithRelations) => number;
+      getSubtotal: (p: PieceWithRelations) => number;
+    }
+);
+
+export function PiecesTable(props: PiecesTableProps) {
+  const { pieces } = props;
+  const showPrices = props.showPrices !== false;
+
   return (
     <section className="mt-10">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Pieces Detail</h3>
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">Products</h3>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-xs text-gray-700 uppercase">
@@ -26,14 +36,23 @@ export function PiecesTable({
               <th className="px-4 py-3">Mark</th>
               <th className="px-4 py-3">Description</th>
               <th className="px-4 py-3 text-center">Qty</th>
-              <th className="px-4 py-3 text-right">Unit Price</th>
-              <th className="px-4 py-3 text-right">Subtotal</th>
+              {showPrices ? (
+                <>
+                  <th className="px-4 py-3 text-right">Unit Price</th>
+                  <th className="px-4 py-3 text-right">Subtotal</th>
+                </>
+              ) : null}
             </tr>
           </thead>
           <tbody>
             {pieces.map((piece) => {
-              const unitPrice = getUnitPrice(piece);
-              const subtotal = getSubtotal(piece);
+              const prices =
+                props.showPrices === false
+                  ? null
+                  : {
+                      unitPrice: props.getUnitPrice(piece),
+                      subtotal: props.getSubtotal(piece),
+                    };
 
               return (
                 <tr key={piece.id} className="border-b last:border-b-0">
@@ -42,10 +61,16 @@ export function PiecesTable({
                     <PieceDescriptionCell piece={piece} />
                   </td>
                   <td className="px-4 py-4 text-center">{piece.qty}</td>
-                  <td className="px-4 py-4 text-right">{formatMoney(unitPrice)}</td>
-                  <td className="px-4 py-4 text-right font-medium">
-                    {formatMoney(subtotal)}
-                  </td>
+                  {prices ? (
+                    <>
+                      <td className="px-4 py-4 text-right">
+                        {formatMoney(prices.unitPrice)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-medium">
+                        {formatMoney(prices.subtotal)}
+                      </td>
+                    </>
+                  ) : null}
                 </tr>
               );
             })}
