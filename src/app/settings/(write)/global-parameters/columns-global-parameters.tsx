@@ -1,7 +1,7 @@
 // src/app/settings/(write)/global-parameters/columns.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { GlobalParameter } from "@/lib/types";
@@ -20,7 +20,16 @@ function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
       : String(parameter.value);
 
   const [value, setValue] = useState(initialDisplayValue);
+  const previousInitialDisplayValue = useRef(initialDisplayValue);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const previousInitial = previousInitialDisplayValue.current;
+    setValue((currentValue) =>
+      currentValue === previousInitial ? initialDisplayValue : currentValue,
+    );
+    previousInitialDisplayValue.current = initialDisplayValue;
+  }, [initialDisplayValue]);
 
   const handleSave = async () => {
     setIsLoading(true);

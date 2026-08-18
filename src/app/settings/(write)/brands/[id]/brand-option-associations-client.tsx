@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -95,10 +96,26 @@ function comparable(rows: EditableRow[]) {
 }
 
 export function BrandOptionAssociationsClient(props: Props) {
-  const initialRows = useMemo(() => toEditableRows(props), [props]);
+  const router = useRouter();
+  const initialRows = useMemo(
+    () => toEditableRows(props),
+    [props.kind, props.initialData],
+  );
   const [rows, setRows] = useState<EditableRow[]>(initialRows);
   const [savedRows, setSavedRows] = useState<EditableRow[]>(initialRows);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setSavedRows((previousSavedRows) => {
+      setRows((currentRows) =>
+        JSON.stringify(comparable(currentRows)) ===
+        JSON.stringify(comparable(previousSavedRows))
+          ? initialRows
+          : currentRows,
+      );
+      return initialRows;
+    });
+  }, [initialRows]);
 
   const singular =
     props.kind === "tint"
@@ -272,6 +289,7 @@ export function BrandOptionAssociationsClient(props: Props) {
       setRows(nextRows);
       setSavedRows(nextRows);
       toast.success(`Brand ${plural.toLowerCase()} updated successfully.`);
+      router.refresh();
     } catch (error) {
       toast.error(
         error instanceof Error

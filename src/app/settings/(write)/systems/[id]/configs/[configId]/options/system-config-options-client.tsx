@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   BillableHeightMode,
   PricingComponentType,
@@ -939,6 +939,16 @@ export function SystemConfigOptionsClient({
     initialSideliteQuantity,
   );
 
+  useEffect(() => {
+    setPricingCalculationMode(initialPricingCalculationMode);
+    setPricingComponents(initialPricingComponents);
+    setSideliteQuantity(initialSideliteQuantity);
+  }, [
+    initialPricingCalculationMode,
+    initialPricingComponents,
+    initialSideliteQuantity,
+  ]);
+
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [isConfirmPricingOpen, setIsConfirmPricingOpen] = useState(false);
 
@@ -983,6 +993,20 @@ export function SystemConfigOptionsClient({
   const [billableHeightFixedInput, setBillableHeightFixedInput] = useState(
     initialBillableHeightFixedInput,
   );
+
+  useEffect(() => {
+    setMinimumBillableWidthInput(initialMinimumBillableWidthInput);
+    setMinimumBillableHeightInput(initialMinimumBillableHeightInput);
+    setBillableHeightMode(initialBillableHeightMode);
+    setBillableHeightPercentInput(initialBillableHeightPercentInput);
+    setBillableHeightFixedInput(initialBillableHeightFixedInput);
+  }, [
+    initialMinimumBillableWidthInput,
+    initialMinimumBillableHeightInput,
+    initialBillableHeightMode,
+    initialBillableHeightPercentInput,
+    initialBillableHeightFixedInput,
+  ]);
 
   const [
     isSavingMinimumBillableDimensions,
@@ -1058,6 +1082,16 @@ export function SystemConfigOptionsClient({
 
   const [requirements, setRequirements] =
     useState<DimensionRequirementsState>(initialRequirements);
+
+  useEffect(() => {
+    setIsSelectableInEstimate(initialIsSelectableInEstimate);
+    setDimensionMode(initialDimensionMode);
+    setRequirements(initialRequirements);
+  }, [
+    initialIsSelectableInEstimate,
+    initialDimensionMode,
+    initialRequirements,
+  ]);
 
   const [isSavingDimensions, setIsSavingDimensions] = useState(false);
   const [isConfirmDimensionsOpen, setIsConfirmDimensionsOpen] = useState(false);
