@@ -104,11 +104,74 @@ type SystemConfigLink = {
   reinforcementOptions?: { optionId: number; option: NamedOption }[];
 };
 
-function withoutInactiveHeight(
+type PieceDimensionRequirements = {
+  requiresWidth: boolean;
+  requiresHeight: boolean;
+  requiresHeightLeft: boolean;
+  requiresHeightRight: boolean;
+  requiresLegHeight: boolean;
+  requiresSashHeight: boolean;
+  requiresWindowHeight: boolean;
+  requiresDoorWidth: boolean;
+  requiresDoorHeight: boolean;
+  requiresLeftSideliteWidth: boolean;
+  requiresRightSideliteWidth: boolean;
+  requiresLeftPanels: boolean;
+  requiresRightPanels: boolean;
+  requiresPanelCount: boolean;
+  requiresHorizontalHeights: boolean;
+};
+
+const STRING_DIMENSION_FIELDS = [
+  ["width", "requiresWidth"],
+  ["height", "requiresHeight"],
+  ["heightLeft", "requiresHeightLeft"],
+  ["heightRight", "requiresHeightRight"],
+  ["legHeight", "requiresLegHeight"],
+  ["sashHeight", "requiresSashHeight"],
+  ["windowHeight", "requiresWindowHeight"],
+  ["doorWidth", "requiresDoorWidth"],
+  ["doorHeight", "requiresDoorHeight"],
+  ["leftSideliteWidth", "requiresLeftSideliteWidth"],
+  ["rightSideliteWidth", "requiresRightSideliteWidth"],
+] as const;
+
+const NUMBER_DIMENSION_FIELDS = [
+  ["leftPanels", "requiresLeftPanels"],
+  ["rightPanels", "requiresRightPanels"],
+  ["panelCount", "requiresPanelCount"],
+] as const;
+
+function withoutInactiveDimensions(
   values: PieceFormValues,
-  requiresHeight: boolean,
+  requirements: PieceDimensionRequirements,
 ): PieceFormValues {
-  return requiresHeight ? values : { ...values, height: null };
+  return {
+    ...values,
+    width: requirements.requiresWidth ? values.width : null,
+    height: requirements.requiresHeight ? values.height : null,
+    heightLeft: requirements.requiresHeightLeft ? values.heightLeft : null,
+    heightRight: requirements.requiresHeightRight ? values.heightRight : null,
+    legHeight: requirements.requiresLegHeight ? values.legHeight : null,
+    sashHeight: requirements.requiresSashHeight ? values.sashHeight : null,
+    windowHeight: requirements.requiresWindowHeight
+      ? values.windowHeight
+      : null,
+    doorWidth: requirements.requiresDoorWidth ? values.doorWidth : null,
+    doorHeight: requirements.requiresDoorHeight ? values.doorHeight : null,
+    leftSideliteWidth: requirements.requiresLeftSideliteWidth
+      ? values.leftSideliteWidth
+      : null,
+    rightSideliteWidth: requirements.requiresRightSideliteWidth
+      ? values.rightSideliteWidth
+      : null,
+    leftPanels: requirements.requiresLeftPanels ? values.leftPanels : null,
+    rightPanels: requirements.requiresRightPanels ? values.rightPanels : null,
+    panelCount: requirements.requiresPanelCount ? values.panelCount : null,
+    horizontalHeights: requirements.requiresHorizontalHeights
+      ? values.horizontalHeights
+      : null,
+  };
 }
 
 const MIN_HORIZONTAL_HEIGHT_IN = 18;
@@ -734,7 +797,7 @@ export function PieceForm({
   const dimensionMode = selectedSysConf?.dimensionMode ?? "STANDARD";
   const isStandardDimensionMode = dimensionMode === "STANDARD";
 
-  const dimensionRequirements = useMemo(() => {
+  const dimensionRequirements = useMemo<PieceDimensionRequirements>(() => {
     if (isLinearMaterial) {
       return {
         requiresWidth: !!selectedSysConf?.requiresWidth,
@@ -827,18 +890,41 @@ export function PieceForm({
       : "Height";
 
   useEffect(() => {
-    if (
-      !selectedConfig ||
-      !selectedSysConf ||
-      dimensionRequirements.requiresHeight
-    ) {
-      return;
+    if (!selectedConfig || !selectedSysConf) return;
+
+    for (const [field, requirement] of STRING_DIMENSION_FIELDS) {
+      const current = getValues(field);
+
+      if (
+        !dimensionRequirements[requirement] &&
+        current !== "" &&
+        current != null
+      ) {
+        setValue(field, "", {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
     }
 
-    const currentHeight = getValues("height");
+    for (const [field, requirement] of NUMBER_DIMENSION_FIELDS) {
+      const current = getValues(field);
 
-    if (currentHeight !== "" && currentHeight != null) {
-      setValue("height", "", {
+      if (!dimensionRequirements[requirement] && current != null) {
+        setValue(field, null, {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
+    const currentHorizontalHeights = getValues("horizontalHeights");
+
+    if (
+      !dimensionRequirements.requiresHorizontalHeights &&
+      currentHorizontalHeights != null
+    ) {
+      setValue("horizontalHeights", null, {
         shouldDirty: true,
         shouldValidate: false,
       });
@@ -846,63 +932,10 @@ export function PieceForm({
   }, [
     selectedConfig,
     selectedSysConf,
-    dimensionRequirements.requiresHeight,
+    dimensionRequirements,
     getValues,
     setValue,
   ]);
-
-  useEffect(() => {
-    if (!requiresSashHeight && getValues("sashHeight")) {
-      setValue("sashHeight", "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
-  }, [requiresSashHeight, getValues, setValue]);
-
-  useEffect(() => {
-    if (!requiresWindowHeight && getValues("windowHeight")) {
-      setValue("windowHeight", "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
-  }, [requiresWindowHeight, getValues, setValue]);
-
-  useEffect(() => {
-    const current = getValues("doorWidth");
-
-    if (!dimensionRequirements.requiresDoorWidth && current) {
-      setValue("doorWidth", "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
-  }, [dimensionRequirements.requiresDoorWidth, getValues, setValue]);
-
-  useEffect(() => {
-    if (!dimensionRequirements.requiresDoorHeight && getValues("doorHeight")) {
-      setValue("doorHeight", "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
-  }, [dimensionRequirements.requiresDoorHeight, getValues, setValue]);
-
-  useEffect(() => {
-    const current = getValues("horizontalHeights");
-
-    if (
-      !dimensionRequirements.requiresHorizontalHeights &&
-      Array.isArray(current) &&
-      current.length > 0
-    ) {
-      setValue("horizontalHeights", null, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
-  }, [dimensionRequirements.requiresHorizontalHeights, getValues, setValue]);
 
   useEffect(() => {
     if (!highBottomAllowed) {
@@ -1528,9 +1561,9 @@ export function PieceForm({
         return;
       }
 
-      const currentValues = withoutInactiveHeight(
+      const currentValues = withoutInactiveDimensions(
         getValues(),
-        dimensionRequirements.requiresHeight,
+        dimensionRequirements,
       );
 
       if (!selectedConfig) {
@@ -2098,12 +2131,7 @@ export function PieceForm({
   return (
     <form
       onSubmit={handleSubmit((values) =>
-        onSubmit(
-          withoutInactiveHeight(
-            values,
-            dimensionRequirements.requiresHeight,
-          ),
-        ),
+        onSubmit(withoutInactiveDimensions(values, dimensionRequirements)),
       )}
     >
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 p-1">
