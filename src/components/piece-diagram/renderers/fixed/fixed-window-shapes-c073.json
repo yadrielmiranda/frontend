@@ -1,0 +1,1482 @@
+{
+  "schema": "AUTHENTIC_EVOLUTION_FIXED_WINDOW_SHAPES_RUNTIME_CONFIG_V1",
+  "release": "C073_FINAL",
+  "status": "APPROVED_FINAL",
+  "approvedOn": "2026-08-08",
+  "family": "FIXED_WINDOW_SHAPES",
+  "sourceVisualRelease": "C072_REVIEW_APPROVED_BY_USER",
+  "view": "EXTERIOR_FRONT_ORTHOGRAPHIC",
+  "state": "FIXED_CLOSED",
+  "canvas": {
+    "width": 1254,
+    "height": 1254
+  },
+  "visualIdentity": {
+    "frameMaterial": "ALUMINUM",
+    "frameColor": "WHITE",
+    "frameFinish": "SATIN_POWDER_COAT",
+    "glassRaw": "Clear / Clear / .090 PVB White",
+    "glassCanonical": "LAM[GLASS(UNKNOWN,UNKNOWN,CLEAR)|INTERLAYER(.090,PVB,WHITE)|GLASS(UNKNOWN,UNKNOWN,CLEAR)]",
+    "sequenceBasis": "AS_PRINTED",
+    "unknownGlassFieldsWereNotInvented": true,
+    "gasket": "MINIMAL_CONTINUOUS_CHARCOAL_HAIRLINE_1_TO_3_PX",
+    "fixedIndicator": "CENTERED_O"
+  },
+  "dimensionalContract": {
+    "allFiguresShowWidthAndHeight": true,
+    "singleHeightCount": 14,
+    "multipleHeightCount": 5,
+    "widthPosition": "BELOW_PRODUCT",
+    "multipleHeightRule": "H1_AND_H2_STAY_BESIDE_THE_PHYSICAL_JAMB_THEY_MEASURE",
+    "arrowTipsTerminateAtFrameExtents": true,
+    "secondaryJunctionAlignedIndexes": [
+      5,
+      6,
+      16,
+      17
+    ],
+    "rightSideHeightIndexes": [
+      8,
+      10,
+      19
+    ]
+  },
+  "identityContract": {
+    "confirmedSerie70ConfigurationIds": 14,
+    "unresolvedSerie70ConfigurationIds": 5,
+    "unresolvedIndexes": [
+      6,
+      8,
+      10,
+      17,
+      19
+    ],
+    "unresolvedPolicy": "NULL_DO_NOT_INVENT"
+  },
+  "commercialContract": {
+    "visualUiOnly": true,
+    "pricingOrFormulaChanges": false,
+    "dimensionalPolicyChanges": false,
+    "shapePricingRuleInherited": false,
+    "warning": "Arcs and H2 shapes must not inherit a rectangular pricing formula without an independently validated pricing rule."
+  },
+  "sourceEvidence": {
+    "manifest": "source/provenance/C072_REVIEW_MANIFEST.json",
+    "manifestSha256": "f9adb0a3b7f2843e3e3678660db2abfcaeb36997dd9c691bf37feca244bb2226",
+    "qa": "source/provenance/C072_REVIEW_QA.json",
+    "approval": "USER_APPROVED_IN_CONVERSATION_2026-08-08"
+  },
+  "catalogCount": 19,
+  "catalog": [
+    {
+      "index": 1,
+      "shapeKey": "CIRCLE",
+      "displayName": "Circle",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 48
+      },
+      "configurationIdSerie70": "FX70FC",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "01_Fixed-Window_Circle_W48xH48_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "2af2b39dfee96aac77a62d57f27d725973b8ab2dcd8174d2d22c5bf9cc66aed2",
+      "approvedReferenceRender": "01_Fixed-Window_Circle_W48xH48_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "c797083617533e6272382123708213baad25dacaac11f942d8c1c83846b2a973",
+      "frameBBox": [
+        207,
+        152,
+        1007,
+        969
+      ],
+      "glassCentroid": [
+        606.697,
+        560.208
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            207,
+            1041
+          ],
+          "tipEnd": [
+            1007,
+            1041
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            129,
+            152
+          ],
+          "tipEnd": [
+            129,
+            969
+          ],
+          "label": "H. 48\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "DERIVED_DIAMETER_EQUALS_WIDTH",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3449,
+        "exteriorToGlazingRatio": 1.8996
+      }
+    },
+    {
+      "index": 2,
+      "shapeKey": "EYEBROW",
+      "displayName": "Eyebrow",
+      "axes": [
+        "W",
+        "H1",
+        "H2"
+      ],
+      "requiresSecondaryHeight": true,
+      "sampleDimensionsInches": {
+        "width": 60,
+        "height": 40,
+        "secondaryHeight": 24
+      },
+      "configurationIdSerie70": "FX70EB",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "02_Fixed-Window_Eyebrow_W60xH40xH2-24_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "71c7e381b3c2780a2597d73f0b0d9c9dd092cf74957b9b0ae6da675449642b94",
+      "approvedReferenceRender": "02_Fixed-Window_Eyebrow_W60xH40xH2-24_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "fceb903e39fc33a3a68723e0e17895535252ca0830731a393293a335b260dd7f",
+      "frameBBox": [
+        168,
+        283,
+        1062,
+        926
+      ],
+      "glassCentroid": [
+        613.933,
+        618.357
+      ],
+      "secondaryTopY": 394,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            168,
+            998
+          ],
+          "tipEnd": [
+            1062,
+            998
+          ],
+          "label": "W. 60\""
+        },
+        {
+          "axis": "H1",
+          "side": "LEFT",
+          "tipStart": [
+            90,
+            283
+          ],
+          "tipEnd": [
+            90,
+            926
+          ],
+          "label": "H1. 40\""
+        },
+        {
+          "axis": "H2",
+          "side": "RIGHT",
+          "tipStart": [
+            1140,
+            394
+          ],
+          "tipEnd": [
+            1140,
+            926
+          ],
+          "label": "H2. 24\""
+        }
+      ],
+      "heightSides": {
+        "H1": "LEFT",
+        "H2": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3514,
+        "exteriorToGlazingRatio": 1.8462
+      }
+    },
+    {
+      "index": 3,
+      "shapeKey": "FAN",
+      "displayName": "Fan",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 60,
+        "height": 36
+      },
+      "configurationIdSerie70": "FX70FN",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "03_Fixed-Window_Fan_W60xH36_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "e4bc26316188993afee0eb8959eaa7b84e825b0d465632ad59b1273a211391b1",
+      "approvedReferenceRender": "03_Fixed-Window_Fan_W60xH36_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "356429df2cc29d7c34d62546d2b1d5bc9182b66c631b5ca1ee70f628c9e4c34b",
+      "frameBBox": [
+        79,
+        424,
+        1010,
+        843
+      ],
+      "glassCentroid": [
+        544.775,
+        659.129
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            79,
+            915
+          ],
+          "tipEnd": [
+            1010,
+            915
+          ],
+          "label": "W. 60\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            66,
+            424
+          ],
+          "tipEnd": [
+            66,
+            843
+          ],
+          "label": "H. 36\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.35,
+        "exteriorToGlazingRatio": 1.8571
+      }
+    },
+    {
+      "index": 4,
+      "shapeKey": "HALF_CIRCLE",
+      "displayName": "Half Circle",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 60,
+        "height": 30
+      },
+      "configurationIdSerie70": "FX70HC",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "04_Fixed-Window_Half-Circle_W60xH30_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "c57c75d537baca7f8a296f48b752b76facc9ed70a6238e179d91755c93809398",
+      "approvedReferenceRender": "04_Fixed-Window_Half-Circle_W60xH30_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "11707686bc41223b4d6a07961565b8b64513d78b14a9d974dd4e356584951983",
+      "frameBBox": [
+        95,
+        280,
+        1157,
+        882
+      ],
+      "glassCentroid": [
+        624.563,
+        617.039
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            95,
+            954
+          ],
+          "tipEnd": [
+            1157,
+            954
+          ],
+          "label": "W. 60\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            66,
+            280
+          ],
+          "tipEnd": [
+            66,
+            882
+          ],
+          "label": "H. 30\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "DERIVED_RADIUS_EQUALS_HALF_WIDTH",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3487,
+        "exteriorToGlazingRatio": 1.8679
+      }
+    },
+    {
+      "index": 5,
+      "shapeKey": "HALF_EYEBROW_LEFT",
+      "displayName": "Half Eyebrow (Left)",
+      "axes": [
+        "W",
+        "H1",
+        "H2"
+      ],
+      "requiresSecondaryHeight": true,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60,
+        "secondaryHeight": 36
+      },
+      "configurationIdSerie70": "FX70HEBL",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "05_Fixed-Window_Half-Eyebrow-Left_W48xH60xH2-36_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "848ad0a6fee0f0d17d51ed2edbebebb39a5610b89449e9751c92602535c899e9",
+      "approvedReferenceRender": "05_Fixed-Window_Half-Eyebrow-Left_W48xH60xH2-36_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "8f0f635892bd674a44deb9533fd20006bb93bb99b5d21ba31ca22f0a7f921148",
+      "frameBBox": [
+        255,
+        164,
+        959,
+        1003
+      ],
+      "glassCentroid": [
+        582.639,
+        629.355
+      ],
+      "secondaryTopY": 515,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            255,
+            1075
+          ],
+          "tipEnd": [
+            959,
+            1075
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H1",
+          "side": "LEFT",
+          "tipStart": [
+            177,
+            164
+          ],
+          "tipEnd": [
+            177,
+            1003
+          ],
+          "label": "H1. 60\""
+        },
+        {
+          "axis": "H2",
+          "side": "RIGHT",
+          "tipStart": [
+            1037,
+            515
+          ],
+          "tipEnd": [
+            1037,
+            1003
+          ],
+          "label": "H2. 36\""
+        }
+      ],
+      "heightSides": {
+        "H1": "LEFT",
+        "H2": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3333,
+        "exteriorToGlazingRatio": 2
+      }
+    },
+    {
+      "index": 6,
+      "shapeKey": "HALF_EYEBROW_RIGHT",
+      "displayName": "Half Eyebrow (Right)",
+      "axes": [
+        "W",
+        "H1",
+        "H2"
+      ],
+      "requiresSecondaryHeight": true,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60,
+        "secondaryHeight": 36
+      },
+      "configurationIdSerie70": null,
+      "configurationIdStatus": "NOT_PROVIDED_DO_NOT_INVENT",
+      "structuralAsset": "06_Fixed-Window_Half-Eyebrow-Right_W48xH60xH2-36_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "c5dd5e41a8481c9149f0e8c6542fad5039a0889b3173351dd1fe7fa8fc0d2f0a",
+      "approvedReferenceRender": "06_Fixed-Window_Half-Eyebrow-Right_W48xH60xH2-36_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "68b1197c339e332f44449a63d94a6937d452a5dd6156761e85830fb693bddbe9",
+      "frameBBox": [
+        285,
+        166,
+        984,
+        1006
+      ],
+      "glassCentroid": [
+        658.112,
+        632.695
+      ],
+      "secondaryTopY": 530,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            285,
+            1078
+          ],
+          "tipEnd": [
+            984,
+            1078
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H1",
+          "side": "RIGHT",
+          "tipStart": [
+            1062,
+            166
+          ],
+          "tipEnd": [
+            1062,
+            1006
+          ],
+          "label": "H1. 60\""
+        },
+        {
+          "axis": "H2",
+          "side": "LEFT",
+          "tipStart": [
+            207,
+            530
+          ],
+          "tipEnd": [
+            207,
+            1006
+          ],
+          "label": "H2. 36\""
+        }
+      ],
+      "heightSides": {
+        "H1": "RIGHT",
+        "H2": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.375,
+        "exteriorToGlazingRatio": 1.6667
+      }
+    },
+    {
+      "index": 7,
+      "shapeKey": "HALF_FAN_LEFT",
+      "displayName": "Half Fan (Left)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": "FX70HFNL",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "07_Fixed-Window_Half-Fan-Left_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "fdc9731a0194acf5a7f84f6bb96b0f7aaf46f21d6b223134e688ff05e035a248",
+      "approvedReferenceRender": "07_Fixed-Window_Half-Fan-Left_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "0c6c4476dd39f549657c189851e2900eb48052fdedcff3e2523e257b6fa5cf97",
+      "frameBBox": [
+        156,
+        114,
+        957,
+        1009
+      ],
+      "glassCentroid": [
+        501.33,
+        630.193
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            156,
+            1081
+          ],
+          "tipEnd": [
+            957,
+            1081
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            78,
+            114
+          ],
+          "tipEnd": [
+            78,
+            1009
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.34,
+        "exteriorToGlazingRatio": 1.9412
+      }
+    },
+    {
+      "index": 8,
+      "shapeKey": "HALF_FAN_RIGHT",
+      "displayName": "Half Fan (Right)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": null,
+      "configurationIdStatus": "NOT_PROVIDED_DO_NOT_INVENT",
+      "structuralAsset": "08_Fixed-Window_Half-Fan-Right_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "61f5f9437279ca97cce585af343dd0bf9a5463b2d6ce49418771e8507937f712",
+      "approvedReferenceRender": "08_Fixed-Window_Half-Fan-Right_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "c765e80b515de3f0487a50a7d0128f8da7e11dabcb76ec374e77dd483479794d",
+      "frameBBox": [
+        291,
+        114,
+        1075,
+        1012
+      ],
+      "glassCentroid": [
+        737.848,
+        632.251
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            291,
+            1084
+          ],
+          "tipEnd": [
+            1075,
+            1084
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "RIGHT",
+          "tipStart": [
+            1153,
+            114
+          ],
+          "tipEnd": [
+            1153,
+            1012
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3441,
+        "exteriorToGlazingRatio": 1.9062
+      }
+    },
+    {
+      "index": 9,
+      "shapeKey": "HALF_TOMBSTONE_LEFT",
+      "displayName": "Half Tombstone (Left)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": "FX70HARL",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "09_Fixed-Window_Half-Tombstone-Left_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "1f63a70bd7d23d92a180cb0f3eb70ba4030e6f6d1692eba9ce698a8b19cc62ce",
+      "approvedReferenceRender": "09_Fixed-Window_Half-Tombstone-Left_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "8544c4418106d8a40a31fa9cd075bf55cf5a628628bea0f4d0c5bcbb3c49a300",
+      "frameBBox": [
+        194,
+        77,
+        848,
+        1041
+      ],
+      "glassCentroid": [
+        501.25,
+        603.419
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            194,
+            1113
+          ],
+          "tipEnd": [
+            848,
+            1113
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            116,
+            77
+          ],
+          "tipEnd": [
+            116,
+            1041
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3404,
+        "exteriorToGlazingRatio": 1.9375
+      }
+    },
+    {
+      "index": 10,
+      "shapeKey": "HALF_TOMBSTONE_RIGHT",
+      "displayName": "Half Tombstone (Right)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": null,
+      "configurationIdStatus": "NOT_DOCUMENTED_DO_NOT_INVENT",
+      "structuralAsset": "10_Fixed-Window_Half-Tombstone-Right_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "4f21451af728c848e21d38a4c07cc17238375009785eadc04835f7be95e8efef",
+      "approvedReferenceRender": "10_Fixed-Window_Half-Tombstone-Right_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "f0245aba0eecabaef1cf0e93809da9ef72310307e021e021fd11c8ba28f575c1",
+      "frameBBox": [
+        390,
+        79,
+        1031,
+        1042
+      ],
+      "glassCentroid": [
+        729.88,
+        605.466
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            390,
+            1114
+          ],
+          "tipEnd": [
+            1031,
+            1114
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "RIGHT",
+          "tipStart": [
+            1109,
+            79
+          ],
+          "tipEnd": [
+            1109,
+            1042
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3404,
+        "exteriorToGlazingRatio": 1.9375
+      }
+    },
+    {
+      "index": 11,
+      "shapeKey": "HEXAGON_SYMMETRIC",
+      "displayName": "Hexagon (Symmetric)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 42
+      },
+      "configurationIdSerie70": "FX70HX",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "11_Fixed-Window_Hexagon-Symmetric_W48xH42_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "0be51bae26d96b2921ab3568c7ff7de8b2a4f70457ce055f8d0b5a886cb8bb9b",
+      "approvedReferenceRender": "11_Fixed-Window_Hexagon-Symmetric_W48xH42_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "3b3df4e03578e936e1420ab52985f94d2cf398abdd96066a3f82f42d2b238f7d",
+      "frameBBox": [
+        171,
+        172,
+        1080,
+        967
+      ],
+      "glassCentroid": [
+        626.182,
+        570.958
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            171,
+            1039
+          ],
+          "tipEnd": [
+            1080,
+            1039
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            93,
+            172
+          ],
+          "tipEnd": [
+            93,
+            967
+          ],
+          "label": "H. 42\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "DISPLAY_DERIVED_FROM_SYMMETRIC_HEXAGON_GEOMETRY",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3376,
+        "exteriorToGlazingRatio": 1.9624
+      }
+    },
+    {
+      "index": 12,
+      "shapeKey": "OCTAGON_SYMMETRIC",
+      "displayName": "Octagon (Symmetric)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 48
+      },
+      "configurationIdSerie70": "FX70OC",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "12_Fixed-Window_Octagon-Symmetric_W48xH48_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "d48fbc5fc77f51b7b7d3579632373982606dc50048b77d38aefbe342002c53c5",
+      "approvedReferenceRender": "12_Fixed-Window_Octagon-Symmetric_W48xH48_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "9a6c51067fdd556e7bd70f3b8bc7e48beb9ec18e6a87f79cc6a7143ce8b69e65",
+      "frameBBox": [
+        173,
+        117,
+        1070,
+        996
+      ],
+      "glassCentroid": [
+        621.154,
+        557.567
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            173,
+            1068
+          ],
+          "tipEnd": [
+            1070,
+            1068
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            95,
+            117
+          ],
+          "tipEnd": [
+            95,
+            996
+          ],
+          "label": "H. 48\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "DERIVED_SYMMETRIC_BOUNDING_HEIGHT_EQUALS_WIDTH",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3393,
+        "exteriorToGlazingRatio": 1.9474
+      }
+    },
+    {
+      "index": 13,
+      "shapeKey": "PICTURE_WINDOW",
+      "displayName": "Picture Window (O)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": "FX70PW",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "13_Fixed-Window_Picture-Window-O_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "725f20d160a8c4169b623d8c43ef21e3812f50bd7d360b13f0af85cb5f7e5473",
+      "approvedReferenceRender": "13_Fixed-Window_Picture-Window-O_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "22fbcf798942b13427fbfafdfc0f5d4fa089c1e0705b9c301c9896f366f88c3b",
+      "frameBBox": [
+        161,
+        80,
+        867,
+        1015
+      ],
+      "glassCentroid": [
+        514.421,
+        549.638
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            161,
+            1087
+          ],
+          "tipEnd": [
+            867,
+            1087
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            83,
+            80
+          ],
+          "tipEnd": [
+            83,
+            1015
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3396,
+        "exteriorToGlazingRatio": 1.9444
+      }
+    },
+    {
+      "index": 14,
+      "shapeKey": "QUARTER_CIRCLE",
+      "displayName": "Quarter Circle",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 48
+      },
+      "configurationIdSerie70": "FX70QC",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "14_Fixed-Window_Quarter-Circle_W48xH48_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "86dba36da71625bb35e2af7186724f446ee5e90a39426a7334c3d767fb15f75a",
+      "approvedReferenceRender": "14_Fixed-Window_Quarter-Circle_W48xH48_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "744a516c5a323836553eb3ccc2cca5c9bad99110752a0fd68cd415e3ebd82fc8",
+      "frameBBox": [
+        184,
+        149,
+        970,
+        1008
+      ],
+      "glassCentroid": [
+        524.076,
+        640.598
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            184,
+            1080
+          ],
+          "tipEnd": [
+            970,
+            1080
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            106,
+            149
+          ],
+          "tipEnd": [
+            106,
+            1008
+          ],
+          "label": "H. 48\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "DERIVED_EQUAL_RADII",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3375,
+        "exteriorToGlazingRatio": 1.9632
+      }
+    },
+    {
+      "index": 15,
+      "shapeKey": "TOMBSTONE",
+      "displayName": "Tombstone",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": "FX70AR",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "15_Fixed-Window_Tombstone_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "ee7403ec48e4ea6ff19a755f9eb0e56a08e0fa34f8598cb592a904a2ad39a268",
+      "approvedReferenceRender": "15_Fixed-Window_Tombstone_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "952e70dc4a0e1df4e2de4894788bbdb6cbddb3f8300deecf33cf52abc6470328",
+      "frameBBox": [
+        211,
+        67,
+        903,
+        1072
+      ],
+      "glassCentroid": [
+        556.88,
+        598.185
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            211,
+            1144
+          ],
+          "tipEnd": [
+            903,
+            1144
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            133,
+            67
+          ],
+          "tipEnd": [
+            133,
+            1072
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.36,
+        "exteriorToGlazingRatio": 1.7778
+      }
+    },
+    {
+      "index": 16,
+      "shapeKey": "TRAPEZOID_LEFT",
+      "displayName": "Trapezoid (Left)",
+      "axes": [
+        "W",
+        "H1",
+        "H2"
+      ],
+      "requiresSecondaryHeight": true,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60,
+        "secondaryHeight": 36
+      },
+      "configurationIdSerie70": "FX70TRZL",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "16_Fixed-Window_Trapezoid-Left_W48xH60xH2-36_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "cd753deedbf8075c5a3995ede68a6b598d0ec836ea98970cb52d140785f7f8a2",
+      "approvedReferenceRender": "16_Fixed-Window_Trapezoid-Left_W48xH60xH2-36_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "62928ecdf5b983273e5c7d8349e0deb9235ff0cedf96f675e3860214f7aa672a",
+      "frameBBox": [
+        248,
+        179,
+        1006,
+        1028
+      ],
+      "glassCentroid": [
+        604.532,
+        662.77
+      ],
+      "secondaryTopY": 443,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            248,
+            1100
+          ],
+          "tipEnd": [
+            1006,
+            1100
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H1",
+          "side": "LEFT",
+          "tipStart": [
+            170,
+            179
+          ],
+          "tipEnd": [
+            170,
+            1028
+          ],
+          "label": "H1. 60\""
+        },
+        {
+          "axis": "H2",
+          "side": "RIGHT",
+          "tipStart": [
+            1084,
+            443
+          ],
+          "tipEnd": [
+            1084,
+            1028
+          ],
+          "label": "H2. 36\""
+        }
+      ],
+      "heightSides": {
+        "H1": "LEFT",
+        "H2": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3191,
+        "exteriorToGlazingRatio": 2.1333
+      }
+    },
+    {
+      "index": 17,
+      "shapeKey": "TRAPEZOID_RIGHT",
+      "displayName": "Trapezoid (Right)",
+      "axes": [
+        "W",
+        "H1",
+        "H2"
+      ],
+      "requiresSecondaryHeight": true,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60,
+        "secondaryHeight": 36
+      },
+      "configurationIdSerie70": null,
+      "configurationIdStatus": "NOT_PROVIDED_DO_NOT_INVENT",
+      "structuralAsset": "17_Fixed-Window_Trapezoid-Right_W48xH60xH2-36_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "b68e79325256006b56a4eee337c7c57a2b0b072023971dc0dc021234ba402e8a",
+      "approvedReferenceRender": "17_Fixed-Window_Trapezoid-Right_W48xH60xH2-36_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "25d249e370347b44d3f89f9c0fdca412da69404956445ce051e6969129f7bbed",
+      "frameBBox": [
+        247,
+        180,
+        992,
+        1027
+      ],
+      "glassCentroid": [
+        640.092,
+        663.283
+      ],
+      "secondaryTopY": 444,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            247,
+            1099
+          ],
+          "tipEnd": [
+            992,
+            1099
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H1",
+          "side": "RIGHT",
+          "tipStart": [
+            1070,
+            180
+          ],
+          "tipEnd": [
+            1070,
+            1027
+          ],
+          "label": "H1. 60\""
+        },
+        {
+          "axis": "H2",
+          "side": "LEFT",
+          "tipStart": [
+            169,
+            444
+          ],
+          "tipEnd": [
+            169,
+            1027
+          ],
+          "label": "H2. 36\""
+        }
+      ],
+      "heightSides": {
+        "H1": "RIGHT",
+        "H2": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.3261,
+        "exteriorToGlazingRatio": 2.0667
+      }
+    },
+    {
+      "index": 18,
+      "shapeKey": "TRIANGLE_90_LEFT",
+      "displayName": "Triangle 90 (Left)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": "FX70TRGL",
+      "configurationIdStatus": "CONFIRMED",
+      "structuralAsset": "18_Fixed-Window_Triangle-90-Left_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "b739434910861ca799a9262affdf73b46fdb4925135f08166a78080e8c81e04b",
+      "approvedReferenceRender": "18_Fixed-Window_Triangle-90-Left_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "c7eca255bc567934a769f1eae8088a51f779cbbf22975d9bf7178025fe70aa69",
+      "frameBBox": [
+        238,
+        67,
+        1128,
+        1083
+      ],
+      "glassCentroid": [
+        537.884,
+        741.762
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            238,
+            1155
+          ],
+          "tipEnd": [
+            1128,
+            1155
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "LEFT",
+          "tipStart": [
+            160,
+            67
+          ],
+          "tipEnd": [
+            160,
+            1083
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "LEFT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.359,
+        "exteriorToGlazingRatio": 1.7857
+      }
+    },
+    {
+      "index": 19,
+      "shapeKey": "TRIANGLE_90_RIGHT",
+      "displayName": "Triangle 90 (Right)",
+      "axes": [
+        "W",
+        "H"
+      ],
+      "requiresSecondaryHeight": false,
+      "sampleDimensionsInches": {
+        "width": 48,
+        "height": 60
+      },
+      "configurationIdSerie70": null,
+      "configurationIdStatus": "NOT_PROVIDED_DO_NOT_INVENT",
+      "structuralAsset": "19_Fixed-Window_Triangle-90-Right_W48xH60_White_Clear-Clear-PVB-White_C073_STRUCTURAL_FINAL.png",
+      "structuralAssetSha256": "f360d8c3edd0c25a8c2510677865c7e2a8e4394f960ef07ff848c1b587240e41",
+      "approvedReferenceRender": "19_Fixed-Window_Triangle-90-Right_W48xH60_White_Clear-Clear-PVB-White_C072_FINAL.png",
+      "approvedReferenceRenderSha256": "dde756cb3841a3e2cc9f8d1e4cb6e22b2e7dfba63bf977661a4805450bfd07d8",
+      "frameBBox": [
+        126,
+        67,
+        1016,
+        1083
+      ],
+      "glassCentroid": [
+        715.116,
+        741.762
+      ],
+      "secondaryTopY": null,
+      "dimensionGeometry": [
+        {
+          "axis": "W",
+          "tipStart": [
+            126,
+            1155
+          ],
+          "tipEnd": [
+            1016,
+            1155
+          ],
+          "label": "W. 48\""
+        },
+        {
+          "axis": "H",
+          "side": "RIGHT",
+          "tipStart": [
+            1094,
+            67
+          ],
+          "tipEnd": [
+            1094,
+            1083
+          ],
+          "label": "H. 60\""
+        }
+      ],
+      "heightSides": {
+        "H": "RIGHT"
+      },
+      "heightBasis": "EXPLICIT_SAMPLE_DIMENSION",
+      "sourceProfileBalance": {
+        "rule": "EXTERIOR_FRAME_WIDER_THAN_GLAZING",
+        "totalExteriorThicknessChanged": false,
+        "outerSilhouetteModifiedPixels": 0,
+        "glassBoundaryModifiedPixels": 0,
+        "glazingFraction": 0.359,
+        "exteriorToGlazingRatio": 1.7857
+      }
+    }
+  ]
+}

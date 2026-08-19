@@ -1,4 +1,4 @@
-// Authentic Evolution Casement Window runtime integration.
+// Authentic Evolution Casement Window C145 runtime integration.
 // Exterior view, closed state, outswing, with dynamic dimensions and finishes.
 import React, { useId } from "react";
 
@@ -49,16 +49,16 @@ export interface CasementFixedWindowDiagramProps {
 
 type Rect = GlassOverlayRect;
 
-const RELEASE = "C076_FINAL";
+const RELEASE = "C145_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
 const BACKGROUND_COLOR = "#F7F6F4";
 const DIMENSION_COLOR = "#2F3B45";
-const DEFAULT_ASSET_BASE_PATH = "/product-visuals/casement-window";
-const FIXED_RELEASE = "C078_FINAL";
+const DEFAULT_ASSET_BASE_PATH = "/product-visuals/casement-window/c145";
+const FIXED_RELEASE = "C145_FINAL";
 const DEFAULT_FIXED_ASSET_BASE_PATH =
-  "/product-visuals/casement-window";
+  "/product-visuals/casement-window/c145";
 const FIXED_ASSET_FILENAME =
-  "01_Casement-Fixed-Window_O_White_Clear-Clear-PVB-White_C078_STRUCTURAL_FINAL.png";
+  "01_Casement-Fixed-Window_O_White_Clear-Clear-PVB-White_C145_GLASS_VISIBLE_FINAL.png";
 export const DEFAULT_CASEMENT_FRAME_COLOR = "#FFFFFF";
 export const DEFAULT_CASEMENT_INDICATOR_COLOR = "#C6020C";
 
@@ -73,12 +73,13 @@ const SOURCE = {
   width: 1254,
   height: 1254,
   frame: { x: 161, y: 80, width: 706, height: 1032 },
-  glass: { x: 235, y: 156, width: 558, height: 881 },
+  // C145 documents this safe glass reveal inside the unchanged gasket.
+  glass: { x: 244, y: 164, width: 542, height: 865 },
 } as const;
 
 const ASSET_FILENAMES: Record<CasementWindowConfiguration, string> = {
-  XL: "01_Casement-Window_XL_Outswing_White_Clear-Clear-PVB-White_C076_STRUCTURAL_FINAL.png",
-  XR: "02_Casement-Window_XR_Outswing_White_Clear-Clear-PVB-White_C076_STRUCTURAL_FINAL.png",
+  XL: "01_Casement-Window_XL_Outswing_White_Clear-Clear-PVB-White_C145_STRUCTURAL_GLASS_VISIBLE_FINAL.png",
+  XR: "02_Casement-Window_XR_Outswing_White_Clear-Clear-PVB-White_C145_STRUCTURAL_GLASS_VISIBLE_FINAL.png",
 };
 
 function parsePositiveDimension(

@@ -1,4 +1,4 @@
-// Authentic Evolution runtime release C065 FINAL.
+// Authentic Evolution runtime release C148 FINAL.
 // Approved Horizontal Rolling Window family, exterior view.
 // Independent from the existing hinged-product O/X/XX runtime.
 import React, { useId } from "react";
@@ -10,6 +10,11 @@ import {
   type HorizontalRollerMovementPanel,
   type MovementIndicatorRect,
 } from "./movement-indicators";
+import {
+  HorizontalRollingScreenLayer,
+  type HorizontalRollingScreenPanelGeometry,
+  type HorizontalRollingScreenRect,
+} from "./screen-layer";
 
 export type HorizontalRollingWindowConfiguration = "OX" | "XO" | "XOX";
 export type HorizontalRollingWindowTwoLiteSplit =
@@ -36,7 +41,6 @@ interface HorizontalRollingWindowCommonProps {
   hasPrivacy?: boolean;
   showDimensions?: boolean;
   assetBasePath?: string;
-  screenOverlayBasePath?: string;
   idNamespace?: string;
   className?: string;
 }
@@ -58,7 +62,7 @@ export type HorizontalRollingWindowDiagramProps =
         }
     );
 
-const RELEASE = "C065_FINAL";
+const RELEASE = "C148_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
 const HALF_PRODUCT_REGION = {
   left: 220,
@@ -76,58 +80,45 @@ const DIMENSION_COLOR = "#2f3b45";
 const BACKGROUND_COLOR = "#f7f6f4";
 export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 const DEFAULT_ASSET_BASE_PATH =
-  "/product-visuals/horizontal-rolling-window/c042";
-const DEFAULT_SCREEN_OVERLAY_BASE_PATH =
-  "/product-visuals/horizontal-rolling-window/c057";
+  "/product-visuals/horizontal-rolling-window/c148";
 
 const ASSET_FILENAMES = {
-  XO_1_2_1_2: {
-    off: "horizontal-rolling-window-xo-1-2-1-2-white-clear-clear-pvb-clear-screen-off-c042.png",
-    on: "horizontal-rolling-window-xo-1-2-1-2-white-clear-clear-pvb-clear-screen-on-c042.png",
-  },
-  XO_1_3_2_3: {
-    off: "horizontal-rolling-window-xo-1-3-2-3-white-clear-clear-pvb-clear-screen-off-c042.png",
-    on: "horizontal-rolling-window-xo-1-3-2-3-white-clear-clear-pvb-clear-screen-on-c042.png",
-  },
-  XOX_1_3_1_3_1_3: {
-    off: "horizontal-rolling-window-xox-1-3-1-3-1-3-white-clear-clear-pvb-clear-screen-off-c042.png",
-    on: "horizontal-rolling-window-xox-1-3-1-3-1-3-white-clear-clear-pvb-clear-screen-on-c042.png",
-  },
-  XOX_1_4_1_2_1_4: {
-    off: "horizontal-rolling-window-xox-1-4-1-2-1-4-white-clear-clear-pvb-clear-screen-off-c042.png",
-    on: "horizontal-rolling-window-xox-1-4-1-2-1-4-white-clear-clear-pvb-clear-screen-on-c042.png",
-  },
+  XO_1_2_1_2:
+    "horizontal-rolling-window-xo-1-2-1-2-white-clear-clear-pvb-clear-screen-off-c148-sh-glass-visible-final.png",
+  XO_1_3_2_3:
+    "horizontal-rolling-window-xo-1-3-2-3-white-clear-clear-pvb-clear-screen-off-c148-sh-glass-visible-final.png",
+  XOX_1_3_1_3_1_3:
+    "horizontal-rolling-window-xox-1-3-1-3-1-3-white-clear-clear-pvb-clear-screen-off-c148-sh-glass-visible-final.png",
+  XOX_1_4_1_2_1_4:
+    "horizontal-rolling-window-xox-1-4-1-2-1-4-white-clear-clear-pvb-clear-screen-off-c148-sh-glass-visible-final.png",
 } as const;
 
 type AssetKey = keyof typeof ASSET_FILENAMES;
 type Panel = "O" | "X";
 
-const SCREEN_OVERLAY_FILENAMES: Record<AssetKey, string> = {
-  XO_1_2_1_2:
-    "horizontal-rolling-window-xo-1-2-1-2-white-clear-clear-pvb-clear-screen-overlay-soft-black-c057.png",
-  XO_1_3_2_3:
-    "horizontal-rolling-window-xo-1-3-2-3-white-clear-clear-pvb-clear-screen-overlay-soft-black-c057.png",
-  XOX_1_3_1_3_1_3:
-    "horizontal-rolling-window-xox-1-3-1-3-1-3-white-clear-clear-pvb-clear-screen-overlay-soft-black-c057.png",
-  XOX_1_4_1_2_1_4:
-    "horizontal-rolling-window-xox-1-4-1-2-1-4-white-clear-clear-pvb-clear-screen-overlay-soft-black-c057.png",
-};
-
 type AssetPanel =
-  | { kind: "O"; glass: MovementIndicatorRect }
-  | { kind: "X"; side: "left" | "right"; glass: MovementIndicatorRect };
+  | {
+      kind: "O";
+      glass: MovementIndicatorRect;
+      dlo: HorizontalRollingScreenRect;
+    }
+  | {
+      kind: "X";
+      side: "left" | "right";
+      glass: MovementIndicatorRect;
+      dlo: HorizontalRollingScreenRect;
+    };
 
 interface AssetIndicatorProfile {
   width: number;
   height: number;
   centerY: number;
   panels: readonly AssetPanel[];
-  glassAppearanceRects: readonly MovementIndicatorRect[];
 }
 
 /*
- * Geometry is measured from the immutable C042 product assets. Runtime maps
- * it into the current product rectangle, so dimensions remain fully dynamic.
+ * Geometry is measured from the immutable structural provenance and carried
+ * into C148. Runtime maps it into the current product rectangle, so dimensions remain fully dynamic.
  * OX uses the same canonical XO geometry inside the existing mirror group.
  */
 const ASSET_INDICATOR_PROFILES: Record<AssetKey, AssetIndicatorProfile> = {
@@ -135,19 +126,17 @@ const ASSET_INDICATOR_PROFILES: Record<AssetKey, AssetIndicatorProfile> = {
     width: 1400,
     height: 1120,
     centerY: 581.216,
-    glassAppearanceRects: [
-      { x: 55, y: 105, width: 604, height: 909 },
-      { x: 741, y: 105, width: 604, height: 909 },
-    ],
     panels: [
       {
         kind: "X",
         side: "left",
         glass: { x: 55, y: 14, width: 604, height: 1090.8 },
+        dlo: { x: 57, y: 108, width: 600, height: 904 },
       },
       {
         kind: "O",
         glass: { x: 741, y: 14, width: 604, height: 1090.8 },
+        dlo: { x: 741, y: 100, width: 604, height: 917 },
       },
     ],
   },
@@ -155,19 +144,17 @@ const ASSET_INDICATOR_PROFILES: Record<AssetKey, AssetIndicatorProfile> = {
     width: 1400,
     height: 933,
     centerY: 484.35,
-    glassAppearanceRects: [
-      { x: 46, y: 88, width: 387, height: 756 },
-      { x: 501, y: 88, width: 853, height: 756 },
-    ],
     panels: [
       {
         kind: "X",
         side: "left",
         glass: { x: 45.7663, y: 66, width: 387.1383, height: 792 },
+        dlo: { x: 46, y: 87, width: 387, height: 758 },
       },
       {
         kind: "O",
         glass: { x: 505.9307, y: 66, width: 849.3033, height: 792 },
+        dlo: { x: 506, y: 87, width: 849, height: 758 },
       },
     ],
   },
@@ -175,25 +162,23 @@ const ASSET_INDICATOR_PROFILES: Record<AssetKey, AssetIndicatorProfile> = {
     width: 1400,
     height: 933,
     centerY: 484.35,
-    glassAppearanceRects: [
-      { x: 46, y: 88, width: 387, height: 756 },
-      { x: 507, y: 88, width: 386, height: 756 },
-      { x: 967, y: 88, width: 387, height: 756 },
-    ],
     panels: [
       {
         kind: "X",
         side: "left",
         glass: { x: 45.7663, y: 66, width: 387.1383, height: 792 },
+        dlo: { x: 46, y: 87, width: 387, height: 758 },
       },
       {
         kind: "O",
         glass: { x: 505.9307, y: 66, width: 389.139, height: 792 },
+        dlo: { x: 506, y: 87, width: 389, height: 758 },
       },
       {
         kind: "X",
         side: "right",
         glass: { x: 967.0954, y: 66, width: 388.1386, height: 792 },
+        dlo: { x: 967, y: 87, width: 388, height: 758 },
       },
     ],
   },
@@ -201,25 +186,23 @@ const ASSET_INDICATOR_PROFILES: Record<AssetKey, AssetIndicatorProfile> = {
     width: 1400,
     height: 933,
     centerY: 484.35,
-    glassAppearanceRects: [
-      { x: 46, y: 88, width: 270, height: 756 },
-      { x: 390, y: 88, width: 620, height: 756 },
-      { x: 1084, y: 88, width: 270, height: 756 },
-    ],
     panels: [
       {
         kind: "X",
         side: "left",
         glass: { x: 45.7663, y: 66, width: 271.0968, height: 792 },
+        dlo: { x: 46, y: 87, width: 271, height: 758 },
       },
       {
         kind: "O",
         glass: { x: 389.8892, y: 66, width: 621.2219, height: 792 },
+        dlo: { x: 390, y: 87, width: 621, height: 758 },
       },
       {
         kind: "X",
         side: "right",
         glass: { x: 1084.1372, y: 66, width: 271.0968, height: 792 },
+        dlo: { x: 1084, y: 87, width: 271, height: 758 },
       },
     ],
   },
@@ -398,7 +381,7 @@ function joinAssetPath(basePath: string, filename: string): string {
 
 function safeId(value: string): string {
   const normalized = value.replace(/[^A-Za-z0-9_-]/g, "");
-  return normalized || "hrw-c057";
+  return normalized || "hrw-c148";
 }
 
 function frameTintPath(
@@ -415,7 +398,7 @@ function frameTintPath(
     `H ${productX}`,
     "Z",
   ];
-  for (const glass of profile.glassAppearanceRects) {
+  for (const glass of profile.panels.map((panel) => panel.dlo)) {
     const x = productX + (glass.x / profile.width) * productWidth;
     const y = productY + (glass.y / profile.height) * productHeight;
     const width = (glass.width / profile.width) * productWidth;
@@ -447,7 +430,6 @@ export function HorizontalRollingWindowDiagram(
     hasPrivacy = false,
     showDimensions = true,
     assetBasePath = DEFAULT_ASSET_BASE_PATH,
-    screenOverlayBasePath = DEFAULT_SCREEN_OVERLAY_BASE_PATH,
     idNamespace,
     className,
   } = props;
@@ -478,15 +460,13 @@ export function HorizontalRollingWindowDiagram(
     productRegion.top + (productRegion.height - productHeight) / 2;
 
   const reactId = useId();
-  const namespace = safeId(`${idNamespace ?? "hrw-c057"}-${reactId}`);
+  const namespace = safeId(`${idNamespace ?? "hrw-c148"}-${reactId}`);
   const titleId = `${namespace}-title`;
   const arrowStartId = `${namespace}-arrow-start`;
   const arrowEndId = `${namespace}-arrow-end`;
-  const assetPair = ASSET_FILENAMES[layout.assetKey];
-  const assetHref = joinAssetPath(assetBasePath, assetPair.off);
-  const screenOverlayHref = joinAssetPath(
-    screenOverlayBasePath,
-    SCREEN_OVERLAY_FILENAMES[layout.assetKey],
+  const assetHref = joinAssetPath(
+    assetBasePath,
+    ASSET_FILENAMES[layout.assetKey],
   );
   const indicatorProfile = ASSET_INDICATOR_PROFILES[layout.assetKey];
   const resolvedFrameTintPath = frameTintPath(
@@ -512,8 +492,27 @@ export function HorizontalRollingWindowDiagram(
             glass: mapRect(panel.glass),
           },
     );
-  const canonicalGlassAppearanceRects =
-    indicatorProfile.glassAppearanceRects.map(mapRect);
+  const glassAppearanceRects = indicatorProfile.panels.map((panel) =>
+    mapRect(panel.dlo),
+  );
+  const sourceScaleX = productWidth / indicatorProfile.width;
+  const sourceScaleY = productHeight / indicatorProfile.height;
+  const screenPanels: HorizontalRollingScreenPanelGeometry[] =
+    indicatorProfile.panels
+      .filter(
+        (panel): panel is Extract<AssetPanel, { kind: "X" }> =>
+          panel.kind === "X",
+      )
+      .map((panel) => {
+        const mesh = mapRect(panel.dlo);
+        const outer = mapRect({
+          x: panel.dlo.x - 26,
+          y: panel.dlo.y - 17,
+          width: panel.dlo.width + 52,
+          height: panel.dlo.height + 34,
+        });
+        return { outer, mesh, scaleX: sourceScaleX, scaleY: sourceScaleY };
+      });
   const movementPanels = layout.mirrorProduct
     ? [...canonicalMovementPanels].reverse()
     : canonicalMovementPanels;
@@ -532,8 +531,8 @@ export function HorizontalRollingWindowDiagram(
   const mirrorTransform = `translate(${2 * productX + productWidth} 0) scale(-1 1)`;
   const productLayers = (
     <g
-      data-part="c057-product-layers"
-      data-screen-composition-order="BASE__SCREEN_FOREGROUND__GLASS_APPEARANCE__INDICATORS__FRAME_TINT"
+      data-part="c148-product-layers"
+      data-screen-composition-order="C148_BASE__GLASS_APPEARANCE__FRAME_TINT__INDICATORS__PROCEDURAL_SCREEN"
     >
       <image
         href={assetHref}
@@ -542,33 +541,14 @@ export function HorizontalRollingWindowDiagram(
         width={productWidth}
         height={productHeight}
         preserveAspectRatio="none"
-        data-part="c042-screen-off-master"
+        data-part="c148-screen-off-master-with-visible-glass"
+        data-standalone-public-glass="VISIBLE"
       />
-      {screenEnabled ? (
-        <image
-          href={screenOverlayHref}
-          x={productX}
-          y={productY}
-          width={productWidth}
-          height={productHeight}
-          preserveAspectRatio="none"
-          data-part="c052-soft-black-screen-overlay"
-          data-screen-thread-color="#000000"
-          data-screen-strength-multiplier="3"
-        />
-      ) : null}
       <GlassAppearanceLayer
-        rects={canonicalGlassAppearanceRects}
+        rects={glassAppearanceRects}
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
-      />
-      <HorizontalRollerMovementIndicators
-        panels={movementPanels}
-        centerY={movementCenterY}
-        movementIndicatorColor={normalizedMovementIndicatorColor}
-        idNamespace={`${namespace}-movement`}
-        mirrorDirectionMetadata={layout.mirrorProduct}
       />
       {normalizedFrameColor !== DEFAULT_FRAME_COLOR ? (
         <path
@@ -577,9 +557,23 @@ export function HorizontalRollingWindowDiagram(
           fillRule="evenodd"
           clipRule="evenodd"
           style={{ mixBlendMode: "multiply" }}
-          data-part="c065-linked-window-screen-frame-tint"
+          data-part="c148-linked-window-frame-tint"
           data-frame-color={normalizedFrameColor}
-          data-frame-color-target="WINDOW_AND_SCREEN_FRAME"
+          data-frame-color-target="WINDOW_FRAME"
+        />
+      ) : null}
+      <HorizontalRollerMovementIndicators
+        panels={movementPanels}
+        centerY={movementCenterY}
+        movementIndicatorColor={normalizedMovementIndicatorColor}
+        idNamespace={`${namespace}-movement`}
+        mirrorDirectionMetadata={layout.mirrorProduct}
+      />
+      {screenEnabled ? (
+        <HorizontalRollingScreenLayer
+          panels={screenPanels}
+          frameColorHex={normalizedFrameColor}
+          idNamespace={`${namespace}-screen`}
         />
       ) : null}
     </g>

@@ -1,5 +1,7 @@
 import type { DiagramFamily, DiagramSpec } from "@/lib/types";
 
+import type { FixedWindowShape } from "./renderers/fixed/fixed-window-shape-diagram";
+
 type AuthenticSpecSource = {
   source: "diagramSpec" | "configuration";
 };
@@ -35,10 +37,16 @@ export type AuthenticCasementSpec = AuthenticSpecSource & {
   configuration: "XL" | "XR" | "O";
 };
 
+export type AuthenticFixedWindowSpec = AuthenticSpecSource & {
+  renderer: "FIXED_WINDOW_SHAPE";
+  shape: FixedWindowShape;
+};
+
 export type AuthenticWindowSpec =
   | AuthenticHorizontalRollingSpec
   | AuthenticSingleHungSpec
-  | AuthenticCasementSpec;
+  | AuthenticCasementSpec
+  | AuthenticFixedWindowSpec;
 
 type SpecRecord = Record<string, unknown>;
 
@@ -97,7 +105,9 @@ function rendererIsSupported(spec: SpecRecord): boolean {
     renderer === "AUTHENTIC_EVOLUTION" ||
     renderer === "HORIZONTAL_ROLLING_WINDOW" ||
     renderer === "SINGLE_HUNG_WINDOW" ||
-    renderer === "CASEMENT_WINDOW"
+    renderer === "CASEMENT_WINDOW" ||
+    renderer === "FIXED_WINDOW_SHAPE" ||
+    renderer === "FIXED_WINDOW_SHAPES"
   );
 }
 
@@ -293,6 +303,129 @@ function resolveCasement(
   };
 }
 
+const FIXED_SHAPE_BY_COMPACT_VALUE: Readonly<
+  Record<string, FixedWindowShape>
+> = {
+  CIRCLE: "CIRCLE",
+  FX70FC: "CIRCLE",
+  EYEBROW: "EYEBROW",
+  FX70EB: "EYEBROW",
+  FAN: "FAN",
+  FX70FN: "FAN",
+  HALFCIRCLE: "HALF_CIRCLE",
+  FX70HC: "HALF_CIRCLE",
+  HALFEYEBROWLEFT: "HALF_EYEBROW_LEFT",
+  FX70HEBL: "HALF_EYEBROW_LEFT",
+  HALFEYEBROWRIGHT: "HALF_EYEBROW_RIGHT",
+  HALFFANLEFT: "HALF_FAN_LEFT",
+  FX70HFNL: "HALF_FAN_LEFT",
+  HALFFANRIGHT: "HALF_FAN_RIGHT",
+  HALFTOMBSTONELEFT: "HALF_TOMBSTONE_LEFT",
+  FX70HARL: "HALF_TOMBSTONE_LEFT",
+  HALFTOMBSTONERIGHT: "HALF_TOMBSTONE_RIGHT",
+  HEXAGON: "HEXAGON_SYMMETRIC",
+  HEXAGONSYMMETRIC: "HEXAGON_SYMMETRIC",
+  FX70HX: "HEXAGON_SYMMETRIC",
+  OCTAGON: "OCTAGON_SYMMETRIC",
+  OCTAGONSYMMETRIC: "OCTAGON_SYMMETRIC",
+  FX70OC: "OCTAGON_SYMMETRIC",
+  O: "PICTURE_WINDOW",
+  PICTURE: "PICTURE_WINDOW",
+  PICTUREWINDOW: "PICTURE_WINDOW",
+  PICTUREWINDOWO: "PICTURE_WINDOW",
+  FX70PW: "PICTURE_WINDOW",
+  QUARTERCIRCLE: "QUARTER_CIRCLE",
+  FX70QC: "QUARTER_CIRCLE",
+  TOMBSTONE: "TOMBSTONE",
+  FX70AR: "TOMBSTONE",
+  TRAPEZOIDLEFT: "TRAPEZOID_LEFT",
+  FX70TRZL: "TRAPEZOID_LEFT",
+  TRAPEZOIDRIGHT: "TRAPEZOID_RIGHT",
+  TRIANGLE90LEFT: "TRIANGLE_90_LEFT",
+  FX70TRGL: "TRIANGLE_90_LEFT",
+  TRIANGLE90RIGHT: "TRIANGLE_90_RIGHT",
+};
+
+function fixedShapeFromValue(value: string): FixedWindowShape | null {
+  const normalized = normalizeLabel(value);
+  const compact = normalized.replace(/[^A-Z0-9]/g, "");
+  const exact = FIXED_SHAPE_BY_COMPACT_VALUE[compact];
+  if (exact) return exact;
+
+  const label = normalized
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\bFIXED\b/g, " ")
+    .replace(/\bWINDOW\b/g, " ")
+    .replace(/\bSHAPE\b/g, " ")
+    .replace(/\bSYMMETRIC\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const hasLeft = /\bLEFT\b/.test(label);
+  const hasRight = /\bRIGHT\b/.test(label);
+
+  if (/\bHALF\s+EYEBROW\b/.test(label)) {
+    if (hasLeft && !hasRight) return "HALF_EYEBROW_LEFT";
+    if (hasRight && !hasLeft) return "HALF_EYEBROW_RIGHT";
+    return null;
+  }
+  if (/\bHALF\s+FAN\b/.test(label)) {
+    if (hasLeft && !hasRight) return "HALF_FAN_LEFT";
+    if (hasRight && !hasLeft) return "HALF_FAN_RIGHT";
+    return null;
+  }
+  if (/\bHALF\s+TOMBSTONE\b/.test(label)) {
+    if (hasLeft && !hasRight) return "HALF_TOMBSTONE_LEFT";
+    if (hasRight && !hasLeft) return "HALF_TOMBSTONE_RIGHT";
+    return null;
+  }
+  if (/\bTRAPEZOID\b/.test(label)) {
+    if (hasLeft && !hasRight) return "TRAPEZOID_LEFT";
+    if (hasRight && !hasLeft) return "TRAPEZOID_RIGHT";
+    return null;
+  }
+  if (/\bTRIANGLE\b/.test(label)) {
+    if (hasLeft && !hasRight) return "TRIANGLE_90_LEFT";
+    if (hasRight && !hasLeft) return "TRIANGLE_90_RIGHT";
+    return null;
+  }
+  if (/\bQUARTER\s+CIRCLE\b/.test(label)) return "QUARTER_CIRCLE";
+  if (/\bHALF\s+CIRCLE\b/.test(label)) return "HALF_CIRCLE";
+  if (/\bPICTURE\b/.test(label)) return "PICTURE_WINDOW";
+  if (/\bHEXAGON\b/.test(label)) return "HEXAGON_SYMMETRIC";
+  if (/\bOCTAGON\b/.test(label)) return "OCTAGON_SYMMETRIC";
+  if (/\bEYEBROW\b/.test(label)) return "EYEBROW";
+  if (/\bTOMBSTONE\b/.test(label)) return "TOMBSTONE";
+  if (/\bCIRCLE\b/.test(label)) return "CIRCLE";
+  if (/\bFAN\b/.test(label)) return "FAN";
+
+  return null;
+}
+
+function resolveFixedWindow(
+  configurationLabel: string,
+  explicitSpec: SpecRecord | null,
+): AuthenticFixedWindowSpec | null {
+  if (explicitSpec && !rendererIsSupported(explicitSpec)) return null;
+
+  const explicitValue =
+    asTrimmedString(explicitSpec?.shape) ??
+    asTrimmedString(explicitSpec?.shapeKey) ??
+    asTrimmedString(explicitSpec?.configuration);
+  const explicitShape = explicitValue
+    ? fixedShapeFromValue(explicitValue)
+    : null;
+  if (explicitValue && !explicitShape) return null;
+
+  const shape = explicitShape ?? fixedShapeFromValue(configurationLabel);
+  if (!shape) return null;
+
+  return {
+    renderer: "FIXED_WINDOW_SHAPE",
+    shape,
+    source: explicitValue ? "diagramSpec" : "configuration",
+  };
+}
+
 export function resolveAuthenticWindowSpec({
   diagramFamily,
   configuration,
@@ -305,7 +438,8 @@ export function resolveAuthenticWindowSpec({
   if (
     diagramFamily !== "HORIZONTAL_SLIDER" &&
     diagramFamily !== "SINGLE_HUNG" &&
-    diagramFamily !== "CASEMENT"
+    diagramFamily !== "CASEMENT" &&
+    diagramFamily !== "FIXED_SHAPE"
   ) {
     return null;
   }
@@ -316,7 +450,10 @@ export function resolveAuthenticWindowSpec({
   const familyMatches =
     !explicitFamily ||
     explicitFamily === diagramFamily ||
-    (diagramFamily === "CASEMENT" && explicitFamily === "CASEMENT_WINDOW");
+    (diagramFamily === "CASEMENT" && explicitFamily === "CASEMENT_WINDOW") ||
+    (diagramFamily === "FIXED_SHAPE" &&
+      (explicitFamily === "FIXED_WINDOW_SHAPE" ||
+        explicitFamily === "FIXED_WINDOW_SHAPES"));
 
   if (!familyMatches) {
     return null;
@@ -328,6 +465,10 @@ export function resolveAuthenticWindowSpec({
 
   if (diagramFamily === "CASEMENT") {
     return resolveCasement(configuration ?? "", explicitSpec);
+  }
+
+  if (diagramFamily === "FIXED_SHAPE") {
+    return resolveFixedWindow(configuration ?? "", explicitSpec);
   }
 
   return resolveSingleHung(configuration ?? "", explicitSpec);
