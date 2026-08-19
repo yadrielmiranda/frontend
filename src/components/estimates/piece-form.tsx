@@ -104,6 +104,13 @@ type SystemConfigLink = {
   reinforcementOptions?: { optionId: number; option: NamedOption }[];
 };
 
+function withoutInactiveHeight(
+  values: PieceFormValues,
+  requiresHeight: boolean,
+): PieceFormValues {
+  return requiresHeight ? values : { ...values, height: null };
+}
+
 const MIN_HORIZONTAL_HEIGHT_IN = 18;
 
 function buildDefaultPanelsFromLayout(
@@ -820,6 +827,31 @@ export function PieceForm({
       : "Height";
 
   useEffect(() => {
+    if (
+      !selectedConfig ||
+      !selectedSysConf ||
+      dimensionRequirements.requiresHeight
+    ) {
+      return;
+    }
+
+    const currentHeight = getValues("height");
+
+    if (currentHeight !== "" && currentHeight != null) {
+      setValue("height", "", {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+    }
+  }, [
+    selectedConfig,
+    selectedSysConf,
+    dimensionRequirements.requiresHeight,
+    getValues,
+    setValue,
+  ]);
+
+  useEffect(() => {
     if (!requiresSashHeight && getValues("sashHeight")) {
       setValue("sashHeight", "", {
         shouldDirty: true,
@@ -1496,7 +1528,10 @@ export function PieceForm({
         return;
       }
 
-      const currentValues = getValues();
+      const currentValues = withoutInactiveHeight(
+        getValues(),
+        dimensionRequirements.requiresHeight,
+      );
 
       if (!selectedConfig) {
         toast.error("Please select a configuration first.");
@@ -2061,7 +2096,16 @@ export function PieceForm({
     "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-none";
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form
+      onSubmit={handleSubmit((values) =>
+        onSubmit(
+          withoutInactiveHeight(
+            values,
+            dimensionRequirements.requiresHeight,
+          ),
+        ),
+      )}
+    >
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 p-1">
         <div className="min-w-0">
           <Accordion

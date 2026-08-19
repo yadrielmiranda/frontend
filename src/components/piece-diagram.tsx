@@ -87,6 +87,26 @@ function firstPositiveDimension(
   return values.find(isPositiveDimension) ?? null;
 }
 
+function fixedHeightDerivedFromWidth(
+  shape: FixedWindowShape,
+  width: string | number,
+): number | null {
+  const numericWidth = positiveDimensionNumber(width);
+  if (numericWidth === null) return null;
+
+  if (shape === "HALF_CIRCLE") return numericWidth / 2;
+  if (
+    shape === "CIRCLE" ||
+    shape === "OCTAGON_SYMMETRIC" ||
+    shape === "QUARTER_CIRCLE"
+  ) {
+    return numericWidth;
+  }
+  if (shape === "HEXAGON_SYMMETRIC") return numericWidth * (42 / 48);
+
+  return null;
+}
+
 function resolveFixedDimensions(
   shape: FixedWindowShape,
   piece?: PieceDiagramData,
@@ -109,28 +129,16 @@ function resolveFixedDimensions(
       : null;
   }
 
-  let height = firstPositiveDimension(
+  const derivedHeight = fixedHeightDerivedFromWidth(shape, width);
+  if (derivedHeight !== null) {
+    return { width, height: derivedHeight, secondaryHeight: null };
+  }
+
+  const height = firstPositiveDimension(
     piece?.height,
     piece?.heightLeft,
     piece?.heightRight,
   );
-
-  if (height === null) {
-    const numericWidth = positiveDimensionNumber(width);
-    if (numericWidth !== null) {
-      if (shape === "HALF_CIRCLE") height = numericWidth / 2;
-      if (
-        shape === "CIRCLE" ||
-        shape === "OCTAGON_SYMMETRIC" ||
-        shape === "QUARTER_CIRCLE"
-      ) {
-        height = numericWidth;
-      }
-      if (shape === "HEXAGON_SYMMETRIC") {
-        height = numericWidth * (42 / 48);
-      }
-    }
-  }
 
   return height === null ? null : { width, height, secondaryHeight: null };
 }

@@ -77,7 +77,6 @@ export interface FixedWindowShapeSpec {
 
 interface CommonProps {
   width: FixedWindowDimension;
-  indicatorColor?: string;
   frameColorHex?: string;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -102,14 +101,12 @@ export type FixedWindowShapeDiagramProps = CommonProps &
       }
   );
 
-export const DEFAULT_FIXED_INDICATOR_COLOR = "#E00000";
 export const DEFAULT_FIXED_FRAME_COLOR = "#FFFFFF";
 
 const VIEWBOX_SIZE = 1254;
 const DIMENSION_COLOR = "#263742";
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/fixed-window-shapes/c073";
 const DIMENSION_FONT_SIZE = 31;
-const O_FONT_SIZE = 50;
 const ARROW_LENGTH = 11;
 const ARROW_HALF_WIDTH = 7;
 
@@ -391,9 +388,6 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
     throw new Error(`${spec.shapeKey} does not accept secondaryHeight`);
   }
 
-  const indicatorColor = normalizeHexColor(
-    props.indicatorColor ?? DEFAULT_FIXED_INDICATOR_COLOR,
-  );
   const frameColor = normalizeHexColor(
     props.frameColorHex ?? DEFAULT_FIXED_FRAME_COLOR,
     "frameColorHex",
@@ -496,19 +490,6 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
-      <text
-        x={spec.glassCentroid[0]}
-        y={spec.glassCentroid[1]}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="DejaVu Sans, Arial, sans-serif"
-        fontSize={O_FONT_SIZE}
-        fontWeight={400}
-        fill={indicatorColor}
-        data-indicator="O"
-      >
-        O
-      </text>
       {showDimensions
         ? spec.dimensionGeometry.map((geometry) => {
             const dynamicLabel = dimensionLabel(

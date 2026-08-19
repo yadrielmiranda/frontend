@@ -36,7 +36,6 @@ export interface CasementFixedWindowDiagramProps {
   configuration: CasementFixedWindowConfiguration;
   width: CasementWindowDimension;
   height: CasementWindowDimension;
-  indicatorColor?: string;
   frameColorHex?: string;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -300,40 +299,6 @@ function MovementIndicator({
   );
 }
 
-function FixedIndicator({
-  glass,
-  color,
-  clipId,
-}: {
-  glass: Rect;
-  color: string;
-  clipId: string;
-}) {
-  const scale = Math.max(
-    0.65,
-    Math.min(glass.width / SOURCE.glass.width, glass.height / SOURCE.glass.height),
-  );
-
-  return (
-    <text
-      x={glass.x + glass.width / 2}
-      y={glass.y + glass.height / 2}
-      textAnchor="middle"
-      dominantBaseline="central"
-      clipPath={`url(#${clipId})`}
-      fill={color}
-      fontFamily="Arial, Helvetica, sans-serif"
-      fontSize={50 * scale}
-      fontWeight={400}
-      opacity={0.86}
-      pointerEvents="none"
-      data-layer="FIXED_INDICATOR"
-    >
-      O
-    </text>
-  );
-}
-
 function Dimensions({
   frame,
   width,
@@ -560,16 +525,11 @@ export function CasementFixedWindowDiagram(
     props.frameColorHex ?? DEFAULT_CASEMENT_FRAME_COLOR,
     "frameColorHex",
   );
-  const indicatorColor = normalizeHexColor(
-    props.indicatorColor ?? DEFAULT_CASEMENT_INDICATOR_COLOR,
-    "indicatorColor",
-  );
   const generatedId = useId();
   const idPrefix = safeId(
     props.idNamespace ?? `ae-casement-fixed-${generatedId}`,
   );
   const titleId = `${idPrefix}-title`;
-  const glassClipId = `${idPrefix}-glass-clip`;
   const assetBasePath = (
     props.assetBasePath ?? DEFAULT_FIXED_ASSET_BASE_PATH
   ).replace(/\/+$/, "");
@@ -597,12 +557,7 @@ export function CasementFixedWindowDiagram(
       data-screen-rendered="false"
       data-frame-color={frameColor}
     >
-      <title id={titleId}>{`Casement Fixed Window O, non-operable, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
-      <defs>
-        <clipPath id={glassClipId}>
-          <rect {...glass} />
-        </clipPath>
-      </defs>
+      <title id={titleId}>{`Casement Fixed Window, non-operable, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
       <rect
         width={VIEWBOX.width}
         height={VIEWBOX.height}
@@ -625,11 +580,6 @@ export function CasementFixedWindowDiagram(
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
-      <FixedIndicator
-        glass={glass}
-        color={indicatorColor}
-        clipId={glassClipId}
-      />
       {props.showDimensions ?? true ? (
         <Dimensions frame={frame} width={widthLabel} height={heightLabel} />
       ) : null}
