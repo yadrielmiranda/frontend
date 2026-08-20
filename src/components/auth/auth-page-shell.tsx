@@ -36,7 +36,7 @@ export function AuthPageShell({
               >
                 <source
                   src="/branding/authentic-login-logo.webm"
-                  type="video/mp4"
+                  type="video/webm"
                 />
                 Your browser does not support video playback.
               </video>
