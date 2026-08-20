@@ -4,8 +4,14 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Info } from "lucide-react";
-import { CreateUserDto, UpdateUserDto, Role, User, InstallationPriceProfile } from "@/lib/types";
-import { createUser, updateUser} from "@/app/api/users.api";
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  Role,
+  User,
+  InstallationPriceProfile,
+} from "@/lib/types";
+import { createUser, updateUser } from "@/app/api/users.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +43,82 @@ type UserFormData = Omit<CreateUserDto, "password"> & {
   markupOverride?: string;
 };
 
-export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFormProps) {
+const MARKUP_PERCENT_PATTERN = /^-?(?:\d{1,8}(?:\.\d{1,16})?|\.\d{1,16})$/;
+
+function shiftDecimalString(value: string, places: number): string {
+  const match = value.trim().match(/^(-?)(?:(\d+)(?:\.(\d+))?|\.(\d+))$/);
+
+  if (!match) {
+    throw new Error("Custom markup must be a valid decimal number.");
+  }
+
+  const isNegative = match[1] === "-";
+  const whole = match[2] ?? "0";
+  const fraction = match[3] ?? match[4] ?? "";
+
+  let digits = `${whole}${fraction}`;
+  let decimalIndex = whole.length + places;
+
+  if (decimalIndex < 0) {
+    digits = `${"0".repeat(-decimalIndex)}${digits}`;
+    decimalIndex = 0;
+  } else if (decimalIndex > digits.length) {
+    digits = `${digits}${"0".repeat(decimalIndex - digits.length)}`;
+  }
+
+  const integerPart = (
+    decimalIndex === 0 ? "0" : digits.slice(0, decimalIndex)
+  ).replace(/^0+(?=\d)/, "");
+
+  const fractionPart = digits.slice(decimalIndex).replace(/0+$/, "");
+
+  const isZero = integerPart === "0" && fractionPart.length === 0;
+
+  return `${isNegative && !isZero ? "-" : ""}${integerPart || "0"}${
+    fractionPart ? `.${fractionPart}` : ""
+  }`;
+}
+
+function storedMarkupToPercent(
+  value: string | number | null | undefined,
+): string {
+  if (value === null || value === undefined) return "";
+
+  return shiftDecimalString(String(value), 2);
+}
+
+function percentToStoredMarkup(value: string): string {
+  const normalized = value.trim();
+
+  if (!MARKUP_PERCENT_PATTERN.test(normalized)) {
+    throw new Error(
+      "Custom markup must be a valid percentage with up to 16 decimal places.",
+    );
+  }
+
+  return shiftDecimalString(normalized, -2);
+}
+
+function isGreaterThanNegativeHundred(value: string): boolean {
+  const normalized = value.trim();
+
+  if (!normalized.startsWith("-")) return true;
+
+  const [whole = "0"] = normalized.slice(1).split(".");
+  const normalizedWhole = (whole || "0").replace(/^0+(?=\d)/, "");
+
+  if (normalizedWhole.length < 3) return true;
+  if (normalizedWhole.length > 3) return false;
+
+  return normalizedWhole < "100";
+}
+
+export function UserForm({
+  user,
+  roles,
+  profiles = [],
+  onProfileUpdate,
+}: UserFormProps) {
   const router = useRouter();
   const isEditMode = !!user;
   const isProfilePage = isEditMode && roles.length === 1;
@@ -46,9 +127,10 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
 
   const RequiredMark = () => <span className="text-red-500 ml-0.5">*</span>;
 
-  const [hasOverride, setHasOverride] = useState(
-    user?.markupOverride !== null && user?.markupOverride !== undefined
-  );
+  const initialHasOverride =
+    user?.markupOverride !== null && user?.markupOverride !== undefined;
+
+  const [hasOverride, setHasOverride] = useState(initialHasOverride);
 
   const {
     register,
@@ -72,9 +154,7 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
       postalCode: user?.postalCode || "",
       idRole: user?.idRole || roles.find((r) => r.name === "client")?.id,
       installationPriceProfileId: user?.installationPriceProfileId ?? null,
-      markupOverride: user?.markupOverride
-        ? String(Number((user.markupOverride * 100).toFixed(2)))
-        : "",
+      markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
     },
   });
@@ -140,21 +220,28 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
             postalCode: updatedUser.postalCode,
             username: updatedUser.username,
             idRole: updatedUser.idRole,
-            markupOverride: updatedUser.markupOverride
-              ? String(Number((updatedUser.markupOverride * 100).toFixed(2)))
-              : "",
+            markupOverride: storedMarkupToPercent(updatedUser.markupOverride),
           };
           reset(formValues);
 
           onProfileUpdate?.(updatedUser);
         } else {
-          let markupValue: number | null = null;
+          let markupValue: string | null = null;
+
           if (hasOverride) {
-            const parsedValue = parseFloat(data.markupOverride || "");
-            if (isNaN(parsedValue)) {
-              throw new Error("Custom markup must be a valid number.");
+            const rawMarkup = data.markupOverride?.trim() ?? "";
+
+            if (!MARKUP_PERCENT_PATTERN.test(rawMarkup)) {
+              throw new Error(
+                "Custom markup must be a valid percentage with up to 16 decimal places.",
+              );
             }
-            markupValue = parsedValue / 100;
+
+            if (!isGreaterThanNegativeHundred(rawMarkup)) {
+              throw new Error("Custom markup must be greater than -100%.");
+            }
+
+            markupValue = percentToStoredMarkup(rawMarkup);
           }
 
           const updateData: UpdateUserDto = {
@@ -190,7 +277,7 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
       }
 
       if (!isProfilePage) {
-        router.push("/settings/users");        
+        router.push("/settings/users");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");
@@ -198,6 +285,8 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
   });
 
   const showLoadingState = isSubmitting;
+  const hasUnsavedChanges =
+    isDirty || (isAdminEditMode && hasOverride !== initialHasOverride);
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
@@ -400,9 +489,13 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
               control={control}
               render={({ field }) => (
                 <Select
-                  value={field.value == null ? "ROLE_DEFAULT" : String(field.value)}
+                  value={
+                    field.value == null ? "ROLE_DEFAULT" : String(field.value)
+                  }
                   onValueChange={(value) =>
-                    field.onChange(value === "ROLE_DEFAULT" ? null : Number(value))
+                    field.onChange(
+                      value === "ROLE_DEFAULT" ? null : Number(value),
+                    )
                   }
                 >
                   <SelectTrigger id="installationPriceProfileId">
@@ -426,33 +519,73 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
       </div>
 
       {isAdminEditMode && (
-        <div className="space-y-4 rounded-lg border p-4 bg-slate-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label
-                htmlFor="override-switch"
-                className="font-semibold text-base"
-              >
-                Custom Markup Override
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Enable to assign a specific markup different from the role's
-                default.
-              </p>
+        <div className="space-y-4">
+          <div className="space-y-4 rounded-lg border p-4 bg-slate-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label
+                  htmlFor="override-switch"
+                  className="font-semibold text-base"
+                >
+                  Custom Markup Override
+                </Label>
+
+                <p className="text-sm text-muted-foreground">
+                  Enable to assign a specific markup different from the
+                  role&apos;s default.
+                </p>
+              </div>
+
+              <Checkbox
+                id="override-switch"
+                checked={hasOverride}
+                onCheckedChange={(checked) => setHasOverride(Boolean(checked))}
+                className="h-5 w-5"
+              />
             </div>
-            <Checkbox
-              id="override-switch"
-              checked={hasOverride}
-              onCheckedChange={(checked) => setHasOverride(Boolean(checked))}
-              className="h-5 w-5"
-            />
+
+            {hasOverride && (
+              <div>
+                <Label htmlFor="markupOverride">Custom Markup (%)</Label>
+
+                <Input
+                  id="markupOverride"
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  required
+                  {...register("markupOverride")}
+                  placeholder="Enter custom markup..."
+                />
+              </div>
+            )}
+
+            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              <Info className="mt-0.5 h-5 w-5 flex-shrink-0" />
+
+              <div>
+                <p className="font-semibold text-blue-900">How Markup Works</p>
+
+                <p className="text-blue-700">
+                  The user will use the markup from their assigned role (
+                  {`"${
+                    roles.find((role) => role.id === Number(selectedRoleId))
+                      ?.name
+                  }"`}
+                  , currently {Number((Number(defaultMarkup) * 100).toFixed(4))}
+                  %). If you enable and set a custom markup, that value will be
+                  used instead.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between rounded-md border p-3 bg-white">
+          <div className="flex items-center justify-between rounded-lg border bg-white p-4">
             <div>
               <Label htmlFor="isTaxExempt" className="font-semibold text-base">
                 Tax Exempt
               </Label>
+
               <p className="text-sm text-muted-foreground">
                 If enabled, this user will NOT be charged factory sales tax on
                 estimates.
@@ -472,34 +605,6 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
               )}
             />
           </div>
-
-          {hasOverride && (
-            <div>
-              <Label htmlFor="markupOverride">Custom Markup (%)</Label>
-              <Input
-                id="markupOverride"
-                type="number"
-                step="0.01"
-                {...register("markupOverride")}
-                placeholder="Enter custom markup..."
-              />
-            </div>
-          )}
-
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start gap-3">
-            <Info className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-blue-900">How Markup Works</p>
-              <p className="text-blue-700">
-                The user will use the markup from their assigned role (
-                {`"${
-                  roles.find((r) => r.id === Number(selectedRoleId))?.name
-                }"`}
-                , currently **{defaultMarkup * 100}%**). If you enable and set a
-                custom markup, that value will be used instead.
-              </p>
-            </div>
-          </div>
         </div>
       )}
 
@@ -512,17 +617,17 @@ export function UserForm({ user, roles, profiles = [], onProfileUpdate }: UserFo
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={!isDirty || showLoadingState}>
+        <Button type="submit" disabled={!hasUnsavedChanges || showLoadingState}>
           {showLoadingState && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           )}
           {showLoadingState
             ? "Saving..."
             : isProfilePage
-            ? "Update Profile"
-            : isEditMode
-            ? "Save Changes"
-            : "Create User"}
+              ? "Update Profile"
+              : isEditMode
+                ? "Save Changes"
+                : "Create User"}
         </Button>
       </div>
     </form>

@@ -1290,7 +1290,7 @@ export interface CreateUserDto {
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {
-  markupOverride?: number | null;
+  markupOverride?: string | null;
   isActive?: boolean;
 };
 
