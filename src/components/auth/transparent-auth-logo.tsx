@@ -168,8 +168,7 @@ export function TransparentAuthLogo() {
       <video
         ref={videoRef}
         autoPlay
-        muted
-        loop
+        muted        
         playsInline
         preload="auto"
         poster={POSTER}
