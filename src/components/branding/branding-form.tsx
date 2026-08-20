@@ -64,7 +64,7 @@ export function BrandingForm({
   const router = useRouter();
 
   const [brandingState, setBrandingState] = useState<Branding | undefined>(
-    branding
+    branding,
   );
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -81,7 +81,7 @@ export function BrandingForm({
       postalCode: brandingState?.postalCode ?? "",
       logoUrl: brandingState?.logoUrl ?? "",
     }),
-    [brandingState]
+    [brandingState],
   );
 
   const {
@@ -127,6 +127,22 @@ export function BrandingForm({
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+
+    const maxFileSize = 2 * 1024 * 1024;
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only PNG, JPG, and WEBP images are allowed.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      toast.error("Logo must be 2 MB or smaller.");
+      e.target.value = "";
+      return;
+    }
 
     try {
       setUploading(true);
@@ -264,7 +280,7 @@ export function BrandingForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             className="hidden"
             disabled={disableAll}
             onChange={handleLogoUpload}
