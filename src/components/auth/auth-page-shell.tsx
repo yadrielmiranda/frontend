@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TransparentAuthLogo } from "./transparent-auth-logo";
 
 type AuthPageShellProps = {
   title: string;
@@ -24,28 +25,7 @@ export function AuthPageShell({
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-8">
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_680px] lg:gap-14">
           <section className="flex flex-col items-center text-center lg:items-center lg:text-center">
-            <div className="relative h-44 w-full max-w-sm sm:h-56 lg:h-[330px] lg:max-w-lg">
-              <video
-                autoPlay
-                muted
-                playsInline
-                preload="auto"
-                poster="/branding/authentic-login-logo.png"
-                aria-label="Authentic Evolution Co animated logo"
-                className="h-full w-full object-contain drop-shadow-[0_22px_55px_rgba(220,38,38,0.35)]"
-              >
-                <source
-                  src="/branding/authentic-login-logo.webm"
-                  type="video/webm"
-                />
-                Your browser does not support video playback.
-              </video>
-              {/* Impide que Edge detecte el hover directamente sobre el video */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 z-10 cursor-default"
-              />
-            </div>
+            <TransparentAuthLogo />            
 
             <div className="mt-2 lg:mt-4">
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
