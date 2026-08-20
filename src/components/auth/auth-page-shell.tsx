@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 
 type AuthPageShellProps = {
@@ -26,12 +25,25 @@ export function AuthPageShell({
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_680px] lg:gap-14">
           <section className="flex flex-col items-center text-center lg:items-center lg:text-center">
             <div className="relative h-44 w-full max-w-sm sm:h-56 lg:h-[330px] lg:max-w-lg">
-              <Image
-                src="/branding/authentic-login-logo.png"
-                alt="Authentic Evolution Co"
-                fill
-                priority
-                className="object-contain drop-shadow-[0_22px_55px_rgba(220,38,38,0.35)]"
+              <video
+                autoPlay
+                muted
+                playsInline
+                preload="auto"
+                poster="/branding/authentic-login-logo.png"
+                aria-label="Authentic Evolution Co animated logo"
+                className="h-full w-full object-contain drop-shadow-[0_22px_55px_rgba(220,38,38,0.35)]"
+              >
+                <source
+                  src="/branding/authentic-login-logo.webm"
+                  type="video/mp4"
+                />
+                Your browser does not support video playback.
+              </video>
+              {/* Impide que Edge detecte el hover directamente sobre el video */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 z-10 cursor-default"
               />
             </div>
 
