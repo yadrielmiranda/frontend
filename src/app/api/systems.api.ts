@@ -116,7 +116,7 @@ export type SystemConfigOptionsManage = {
   idSystem: number;
   idConfig: number;
   system: { id: number; name: string };
-  config: { id: number; conf: string };
+  config: { id: number; conf: string; fixedPanelCount: number | null };
   allowScreen: boolean;
   isSelectableInEstimate: boolean;
 

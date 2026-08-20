@@ -20,6 +20,7 @@ export type CreateConfigData = {
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
   requiresWindowHeight?: boolean;
+  fixedPanelCount?: number | null;
 
   muntinLayout?: ConfigMuntinLayoutItemData[];
 };

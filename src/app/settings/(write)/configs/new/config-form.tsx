@@ -42,6 +42,7 @@ type ConfigBase = Pick<
   | "requiresLegHeight"
   | "requiresSashHeight"
   | "requiresWindowHeight"
+  | "fixedPanelCount"
   | "muntinLayout"
 >;
 
@@ -63,6 +64,7 @@ type FormValues = {
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
   requiresWindowHeight?: boolean;
+  fixedPanelCount: string;
   muntinLayout: LayoutFormItem[];
 };
 
@@ -114,6 +116,8 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       requiresLegHeight: config?.requiresLegHeight ?? false,
       requiresSashHeight: config?.requiresSashHeight ?? false,
       requiresWindowHeight: config?.requiresWindowHeight ?? false,
+      fixedPanelCount:
+        config?.fixedPanelCount == null ? "" : String(config.fixedPanelCount),
       muntinLayout: defaultLayout,
     },
   });
@@ -223,6 +227,11 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
       shouldValidate: true,
     });
 
+    setValue("fixedPanelCount", "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
     setValue("muntinLayout", [], {
       shouldDirty: true,
       shouldValidate: true,
@@ -286,6 +295,12 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
         requiresWindowHeight: isLinearMaterial
           ? false
           : Boolean(data.requiresWindowHeight),
+
+        fixedPanelCount: isLinearMaterial
+          ? null
+          : data.fixedPanelCount.trim() === ""
+            ? null
+            : Number(data.fixedPanelCount),
 
         muntinLayout: isLinearMaterial ? [] : normalizedLayout,
       };
@@ -584,6 +599,51 @@ export function ConfigForm({ config, products }: ConfigFormProps) {
           />
         </div>
       </div>
+
+      {!isLinearMaterial && (
+        <div className="space-y-3 rounded-md border p-4">
+          <div>
+            <p className="text-sm font-medium">Installation</p>
+            <p className="text-sm text-muted-foreground">
+              Define the physical panel count that this configuration always
+              contains.
+            </p>
+          </div>
+
+          <div className="max-w-sm space-y-2">
+            <Label htmlFor="fixedPanelCount">Fixed Panel Count</Label>
+            <Input
+              id="fixedPanelCount"
+              type="number"
+              min={1}
+              step={1}
+              placeholder="e.g., 2"
+              {...register("fixedPanelCount", {
+                validate: (value) => {
+                  if (value.trim() === "") return true;
+
+                  const panelCount = Number(value);
+
+                  return (
+                    (Number.isInteger(panelCount) && panelCount >= 1) ||
+                    "Fixed Panel Count must be a whole number greater than zero."
+                  );
+                },
+              })}
+            />
+            {errors.fixedPanelCount && (
+              <p className="text-sm text-destructive">
+                {errors.fixedPanelCount.message}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Total panels per opening, including fixed and operable panels.
+              Examples: OX = 2, XXX = 3. The estimate copies this value
+              automatically for installation pricing.
+            </p>
+          </div>
+        </div>
+      )}
 
       {!isLinearMaterial && (
         <div className="space-y-3 rounded-md border p-4">

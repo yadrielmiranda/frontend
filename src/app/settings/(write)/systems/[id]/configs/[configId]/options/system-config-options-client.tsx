@@ -646,6 +646,7 @@ function BillableDimensionsCard({
 function DimensionSettingsCard({
   isSelectableInEstimate,
   dimensionMode,
+  fixedPanelCount,
   requirements,
   isSaving,
   hasChanges,
@@ -656,6 +657,7 @@ function DimensionSettingsCard({
 }: {
   isSelectableInEstimate: boolean;
   dimensionMode: DimensionMode;
+  fixedPanelCount: number | null;
   requirements: DimensionRequirementsState;
   isSaving: boolean;
   hasChanges: boolean;
@@ -703,31 +705,44 @@ function DimensionSettingsCard({
             Standard mode uses the Required Dimensions configured directly in
             the Config screen. There are no System/Config-specific dimension
             fields to select here.
+            {fixedPanelCount != null
+              ? ` Panel Count is automatic: ${fixedPanelCount}.`
+              : ""}
           </div>
         )}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        {visibleRequirements.map((item) => (
-          <div
-            key={item.key}
-            className="flex items-start justify-between gap-4 rounded-md border p-3"
-          >
-            <div className="space-y-1">
-              <Label className="text-sm font-medium">{item.label}</Label>
-              <p className="text-xs text-muted-foreground">
-                {item.description}
-              </p>
-            </div>
+        {visibleRequirements.map((item) => {
+          const usesFixedPanelCount =
+            item.key === "requiresPanelCount" && fixedPanelCount != null;
 
-            <Switch
-              checked={requirements[item.key]}
-              onCheckedChange={(checked) =>
-                onRequirementChange(item.key, checked)
-              }
-            />
-          </div>
-        ))}
+          return (
+            <div
+              key={item.key}
+              className="flex items-start justify-between gap-4 rounded-md border p-3"
+            >
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">{item.label}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {usesFixedPanelCount
+                    ? `Automatic from Config: ${fixedPanelCount} panels.`
+                    : item.description}
+                </p>
+              </div>
+
+              <Switch
+                checked={
+                  usesFixedPanelCount ? true : requirements[item.key]
+                }
+                onCheckedChange={(checked) =>
+                  onRequirementChange(item.key, checked)
+                }
+                disabled={isSaving || usesFixedPanelCount}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -1607,6 +1622,7 @@ export function SystemConfigOptionsClient({
       <DimensionSettingsCard
         isSelectableInEstimate={isSelectableInEstimate}
         dimensionMode={dimensionMode}
+        fixedPanelCount={data.config.fixedPanelCount}
         requirements={effectiveRequirements}
         isSaving={isSavingDimensions}
         hasChanges={hasDimensionChanges}

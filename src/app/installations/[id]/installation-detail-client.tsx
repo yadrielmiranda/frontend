@@ -321,7 +321,9 @@ function dimensionRequirements(
     ),
     requiresLeftPanels: Boolean(sysConf?.requiresLeftPanels),
     requiresRightPanels: Boolean(sysConf?.requiresRightPanels),
-    requiresPanelCount: Boolean(sysConf?.requiresPanelCount),
+    requiresPanelCount:
+      piece.conf.fixedPanelCount == null &&
+      Boolean(sysConf?.requiresPanelCount),
     requiresHorizontalHeights: Boolean(
       sysConf?.requiresHorizontalHeights,
     ),

@@ -68,6 +68,19 @@ export function getConfigColumns({
       },
     },
     {
+      accessorKey: "fixedPanelCount",
+      header: "Fixed Panels",
+      cell: ({ row }) => {
+        const panelCount = row.original.fixedPanelCount;
+
+        return panelCount == null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <span>{panelCount}</span>
+        );
+      },
+    },
+    {
       accessorKey: "isActive",
       header: "Status",
       filterFn: "equals",

@@ -154,6 +154,7 @@ export interface Config {
   requiresLegHeight?: boolean;
   requiresSashHeight?: boolean;
   requiresWindowHeight?: boolean;
+  fixedPanelCount?: number | null;
 
   muntinLayout?: ConfigMuntinLayoutItem[] | null;
 

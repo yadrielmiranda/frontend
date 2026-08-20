@@ -797,6 +797,14 @@ export function PieceForm({
   const dimensionMode = selectedSysConf?.dimensionMode ?? "STANDARD";
   const isStandardDimensionMode = dimensionMode === "STANDARD";
 
+  const fixedPanelCount = useMemo(() => {
+    if (selectedConfig?.fixedPanelCount == null) return null;
+
+    const value = Number(selectedConfig.fixedPanelCount);
+
+    return Number.isInteger(value) && value >= 1 ? value : null;
+  }, [selectedConfig?.fixedPanelCount]);
+
   const dimensionRequirements = useMemo<PieceDimensionRequirements>(() => {
     if (isLinearMaterial) {
       return {
@@ -835,7 +843,8 @@ export function PieceForm({
         requiresRightSideliteWidth: false,
         requiresLeftPanels: false,
         requiresRightPanels: false,
-        requiresPanelCount: false,
+        requiresPanelCount:
+          fixedPanelCount !== null || !!selectedSysConf?.requiresPanelCount,
         requiresHorizontalHeights: false,
       };
     }
@@ -857,7 +866,8 @@ export function PieceForm({
       requiresRightSideliteWidth: !!selectedSysConf?.requiresRightSideliteWidth,
       requiresLeftPanels: !!selectedSysConf?.requiresLeftPanels,
       requiresRightPanels: !!selectedSysConf?.requiresRightPanels,
-      requiresPanelCount: !!selectedSysConf?.requiresPanelCount,
+      requiresPanelCount:
+        fixedPanelCount !== null || !!selectedSysConf?.requiresPanelCount,
       requiresHorizontalHeights: !!selectedSysConf?.requiresHorizontalHeights,
     };
   }, [
@@ -865,7 +875,11 @@ export function PieceForm({
     selectedConfig,
     selectedSysConf,
     isLinearMaterial,
+    fixedPanelCount,
   ]);
+
+  const requiresManualPanelCount =
+    dimensionRequirements.requiresPanelCount && fixedPanelCount === null;
 
   const screenAllowed = isLinearMaterial
     ? false
@@ -891,6 +905,17 @@ export function PieceForm({
 
   useEffect(() => {
     if (!selectedConfig || !selectedSysConf) return;
+
+    if (fixedPanelCount !== null) {
+      const currentPanelCount = Number(getValues("panelCount"));
+
+      if (currentPanelCount !== fixedPanelCount) {
+        setValue("panelCount", fixedPanelCount, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
 
     for (const [field, requirement] of STRING_DIMENSION_FIELDS) {
       const current = getValues(field);
@@ -933,6 +958,7 @@ export function PieceForm({
     selectedConfig,
     selectedSysConf,
     dimensionRequirements,
+    fixedPanelCount,
     getValues,
     setValue,
   ]);
@@ -1298,6 +1324,11 @@ export function PieceForm({
     if (!currentConfigId) {
       previousSysConfKeyRef.current = "";
 
+      setValue("panelCount", null, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+
       if (getValues("screen")) {
         setValue("screen", false, { shouldDirty: true });
       }
@@ -1315,6 +1346,10 @@ export function PieceForm({
     if (isLinearMaterial) {
       previousSysConfKeyRef.current = currentSysConfKey;
 
+      setValue("panelCount", null, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
       setValue("screen", false, { shouldDirty: true });
       setValue("highBottom", false, { shouldDirty: true });
       setValue("highBottomPercent", null, { shouldDirty: true });
@@ -1377,6 +1412,10 @@ export function PieceForm({
 
     previousSysConfKeyRef.current = currentSysConfKey;
 
+    setValue("panelCount", fixedPanelCount, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
     setValue("screen", screenAllowed, { shouldDirty: true });
 
     setValue("idActiveOption", selectedSysConf?.defaultActiveOptionId ?? null, {
@@ -1402,6 +1441,7 @@ export function PieceForm({
     systemId,
     idConf,
     selectedConfig,
+    fixedPanelCount,
     isLinearMaterial,
     screenAllowed,
     hasMuntinLayout,
@@ -1551,7 +1591,7 @@ export function PieceForm({
         fieldsToValidate.push("leftPanels");
       if (dimensionRequirements.requiresRightPanels)
         fieldsToValidate.push("rightPanels");
-      if (dimensionRequirements.requiresPanelCount)
+      if (requiresManualPanelCount)
         fieldsToValidate.push("panelCount");
 
       const isValid = await trigger(fieldsToValidate);
@@ -1830,6 +1870,12 @@ export function PieceForm({
         });
       }
 
+      const resolvedPanelCountForRequest =
+        fixedPanelCount ??
+        (requiresManualPanelCount
+          ? Number(currentValues.panelCount || 0)
+          : undefined);
+
       const pieceDtoToSend: CalculatePiecePayload = {
         mark: currentValues.mark ?? "",
         idProd: Number(currentValues.idProd),
@@ -1870,9 +1916,7 @@ export function PieceForm({
         rightPanels: dimensionRequirements.requiresRightPanels
           ? Number(currentValues.rightPanels || 0)
           : undefined,
-        panelCount: dimensionRequirements.requiresPanelCount
-          ? Number(currentValues.panelCount || 0)
-          : undefined,
+        panelCount: resolvedPanelCountForRequest,
         horizontalHeights: dimensionRequirements.requiresHorizontalHeights
           ? horizontalHeightsNorm
           : undefined,
@@ -2017,6 +2061,10 @@ export function PieceForm({
       setValue("customerPrice", customerUnitPrice);
       setValue("total", customerSubtotalLine);
       setValue("muntin", calculated.muntin ?? null, { shouldDirty: true });
+      setValue("panelCount", calculated.panelCount ?? null, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
 
       const dpPos =
         calculated.dpPosPsf === null || calculated.dpPosPsf === undefined
@@ -3211,7 +3259,25 @@ export function PieceForm({
                           </div>
                         )}
 
-                        {dimensionRequirements.requiresPanelCount && (
+                        {fixedPanelCount !== null && (
+                          <div className="w-[320px]">
+                            <Label className={fieldLabelClass}>
+                              Panel Count
+                            </Label>
+                            <Input
+                              className={inputClass}
+                              type="number"
+                              value={fixedPanelCount}
+                              disabled
+                              readOnly
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Automatic from configuration.
+                            </p>
+                          </div>
+                        )}
+
+                        {requiresManualPanelCount && (
                           <div className="w-[320px]">
                             <Label className={fieldLabelClass}>
                               Panel Count
