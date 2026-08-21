@@ -156,6 +156,8 @@ export function UserForm({
       installationPriceProfileId: user?.installationPriceProfileId ?? null,
       markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
+      dealerMode: user?.dealerMode ?? "EXTERNAL",
+      dealerAffiliation: user?.dealerAffiliation ?? "AUTHENTIC",
     },
   });
 
@@ -176,6 +178,10 @@ export function UserForm({
   }, [zip, setValue, watch]);
 
   const selectedRoleId = watch("idRole");
+  const selectedRoleName = roles.find(
+    (role) => role.id === Number(selectedRoleId),
+  )?.name;
+  const isDealerAccount = selectedRoleName === "dealer";
   const defaultMarkup =
     roles.find((r) => r.id === Number(selectedRoleId))?.markup || 0;
 
@@ -248,6 +254,12 @@ export function UserForm({
             idRole: Number(data.idRole),
             markupOverride: markupValue,
             isTaxExempt: data.isTaxExempt ?? false,
+            ...(isDealerAccount
+              ? {
+                  dealerMode: data.dealerMode,
+                  dealerAffiliation: data.dealerAffiliation,
+                }
+              : {}),
             installationPriceProfileId:
               data.installationPriceProfileId == null
                 ? null
@@ -263,13 +275,26 @@ export function UserForm({
           throw new Error("Password is required to create a new user.");
         }
 
-        const { markupOverride, ...rest } = data;
-
         const payload: CreateUserDto = {
-          ...(rest as Omit<CreateUserDto, "idRole" | "phone">),
-          idRole: Number(rest.idRole),
+          username: data.username,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
           phone: normalizedPhone, // ✅ aquí
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
           password: data.password,
+          idRole: Number(data.idRole),
+          isTaxExempt: data.isTaxExempt,
+          installationPriceProfileId: data.installationPriceProfileId,
+          ...(isDealerAccount
+            ? {
+                dealerMode: data.dealerMode,
+                dealerAffiliation: data.dealerAffiliation,
+              }
+            : {}),
         };
 
         await createUser(payload);
@@ -279,8 +304,10 @@ export function UserForm({
       if (!isProfilePage) {
         router.push("/settings/users");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save changes.");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save changes.",
+      );
     }
   });
 
@@ -477,6 +504,58 @@ export function UserForm({
               )}
             />
           </div>
+        )}
+
+        {!isProfilePage && isDealerAccount && (
+          <>
+            <div>
+              <Label htmlFor="dealerMode">Dealer Mode</Label>
+              <Controller
+                name="dealerMode"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? "EXTERNAL"}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="dealerMode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EXTERNAL">
+                        External — dealer pays
+                      </SelectItem>
+                      <SelectItem value="INTERNAL">
+                        Internal — final customer pays
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dealerAffiliation">Dealer Affiliation</Label>
+              <Controller
+                name="dealerAffiliation"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? "AUTHENTIC"}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="dealerAffiliation">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AUTHENTIC">Authentic</SelectItem>
+                      <SelectItem value="IMPACT">Impact</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+          </>
         )}
 
         {!isProfilePage && (

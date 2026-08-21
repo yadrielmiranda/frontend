@@ -8,6 +8,9 @@ export interface Role {
   installationPriceProfile?: InstallationPriceProfile | null;
 }
 
+export type DealerMode = "EXTERNAL" | "INTERNAL";
+export type DealerAffiliation = "IMPACT" | "AUTHENTIC";
+
 export interface User {
   id: number;
   username: string;
@@ -23,6 +26,8 @@ export interface User {
 
   markupOverride?: number | null;
   isTaxExempt: boolean;
+  dealerMode?: DealerMode | null;
+  dealerAffiliation?: DealerAffiliation | null;
 
   isActive: boolean;
   deletedAt?: string | null;
@@ -124,7 +129,9 @@ export interface ConfigMuntinLayoutItem {
 export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonValue =
-  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 export interface DiagramSpec {
   family: DiagramFamily;
@@ -132,7 +139,10 @@ export interface DiagramSpec {
 }
 
 export type DimensionMode =
-  "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
+  | "STANDARD"
+  | "ECO_WINDOWS_DOOR"
+  | "ECO_NOVO_DOOR"
+  | "WINDOW_WALL";
 
 export type BillableHeightMode = "ACTUAL_HEIGHT" | "WIDTH_PERCENTAGE" | "FIXED";
 
@@ -327,9 +337,27 @@ export interface EstimateStatus {
 }
 
 export type PaymentType =
-  "MATERIAL" | "INSTALLATION_DEPOSIT" | "PERMIT" | "INSTALLATION" | "EXTRA";
+  | "MATERIAL"
+  | "INSTALLATION_DEPOSIT"
+  | "PERMIT"
+  | "INSTALLATION"
+  | "EXTRA";
 export type PaymentStatus =
-  "PENDING" | "PAID" | "FAILED" | "CANCELED" | "EXPIRED" | "REFUNDED";
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "CANCELED"
+  | "EXPIRED"
+  | "REFUNDED";
+export type PaymentMethod =
+  | "CARD"
+  | "CHECK"
+  | "ZELLE"
+  | "CASH"
+  | "ACH"
+  | "WIRE"
+  | "OTHER";
+export type PaymentPayerType = "ACCOUNT_OWNER" | "CUSTOMER";
 
 export interface EstimatePayment {
   id: number;
@@ -341,6 +369,15 @@ export interface EstimatePayment {
   surchargeAmount: string | number;
   amount: string | number;
   stripeSessionId: string | null;
+  paymentMethod: PaymentMethod;
+  payerType: PaymentPayerType;
+  payerName?: string | null;
+  payerEmail?: string | null;
+  payerPhone?: string | null;
+  paidAt?: string | null;
+  manualReference?: string | null;
+  manualNote?: string | null;
+  recordedById?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -360,6 +397,9 @@ export interface Estimate {
   customerState?: string | null;
   customerPostalCode?: string | null;
   units: number;
+  dealerModeSnapshot?: DealerMode | null;
+  dealerAffiliationSnapshot?: DealerAffiliation | null;
+  ownerMarkupSnapshot?: string | number;
   rateT: number;
   priceT: number;
   netProfit: number;
@@ -383,10 +423,19 @@ export interface Estimate {
 }
 
 export type InstallationBillingUnit =
-  "UNIT" | "PANEL" | "SQFT" | "SQFT_RECTANGULAR" | "LINEAR_FOOT";
+  | "UNIT"
+  | "PANEL"
+  | "SQFT"
+  | "SQFT_RECTANGULAR"
+  | "LINEAR_FOOT";
 
 export type InstallationRuleMetric =
-  "NONE" | "WIDTH" | "HEIGHT" | "AREA" | "PANEL_COUNT" | "LENGTH";
+  | "NONE"
+  | "WIDTH"
+  | "HEIGHT"
+  | "AREA"
+  | "PANEL_COUNT"
+  | "LENGTH";
 
 export type InstallationLineOrigin = "AUTO" | "USER_SELECTED" | "FIELD_ADDED";
 
@@ -413,7 +462,9 @@ export type InstallationJobStatus =
   | "CANCELED";
 
 export type InstallationQuoteReason =
-  "REMEASUREMENT" | "PERMIT_REVISION" | "FIELD_CHANGE";
+  | "REMEASUREMENT"
+  | "PERMIT_REVISION"
+  | "FIELD_CHANGE";
 
 export type InstallationQuoteStatus =
   | "DRAFT"
@@ -518,7 +569,10 @@ export type EstimateRevisionStatus =
   | "SUPERSEDED";
 
 export type EstimateRevisionItemAction =
-  "UNCHANGED" | "UPDATE" | "REPLACE" | "REMOVE";
+  | "UNCHANGED"
+  | "UPDATE"
+  | "REPLACE"
+  | "REMOVE";
 
 export type EstimateRevisionChangeReason =
   | "REMEASUREMENT"
@@ -803,12 +857,23 @@ export interface Order {
   amount: number;
 
   price: number;
+  saleSubtotal: number;
   rate: number;
   netProfit: number;
+
+  dealerModeSnapshot?: DealerMode | null;
+  dealerAffiliationSnapshot?: DealerAffiliation | null;
+  impactMarkupRate: number;
+  factoryPriceWithMarkup: number;
+  impactProfit: number;
+  authenticProfit: number;
 
   poNumber?: string | null;
   rateReal?: number | null;
   netProfitReal?: number | null;
+  factoryPriceWithMarkupReal?: number | null;
+  impactProfitReal?: number | null;
+  authenticProfitReal?: number | null;
 
   updateStatus: string;
 
@@ -1116,6 +1181,7 @@ export type OrderWithRelations = Order & {
   estimate: Estimate;
   status: OrderStatus;
   user: User;
+  payment: EstimatePayment;
 };
 
 // --- Tipos para Creación y Actualización (DTOs del Frontend) ---
@@ -1287,6 +1353,8 @@ export interface CreateUserDto {
   idRole: number;
   isTaxExempt?: boolean;
   installationPriceProfileId?: number | null;
+  dealerMode?: DealerMode;
+  dealerAffiliation?: DealerAffiliation;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {
@@ -1309,6 +1377,9 @@ export interface UpdateOrderData {
 export interface Notification {
   id: number;
   message: string;
+  actionUrl: string | null;
+  actionLabel: string | null;
+  dedupeKey: string | null;
   isRead: boolean;
   createdAt: string;
   recipientId: number;

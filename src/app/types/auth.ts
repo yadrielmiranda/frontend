@@ -1,4 +1,3 @@
-
 export interface AuthUser {
   id: number;
   username: string;
@@ -6,6 +5,8 @@ export interface AuthUser {
   lastName: string;
   email: string;
   isTaxExempt: boolean;
+  dealerMode?: "EXTERNAL" | "INTERNAL" | null;
+  dealerAffiliation?: "IMPACT" | "AUTHENTIC" | null;
   role: {
     id: number;
     name: string;
@@ -14,5 +15,5 @@ export interface AuthUser {
 
 export interface LoginResponse {
   message?: string; // Mensaje de éxito del backend
-  user?: AuthUser;  // ¡Los datos del usuario ahora vendrán aquí!
+  user?: AuthUser; // ¡Los datos del usuario ahora vendrán aquí!
 }

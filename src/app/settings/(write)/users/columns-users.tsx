@@ -99,6 +99,31 @@ export const columns: ColumnDef<User>[] = [
     },
   },
   {
+    id: "dealerClassification",
+    accessorFn: (user) =>
+      user.role.name === "dealer"
+        ? `${user.dealerMode ?? "EXTERNAL"} ${
+            user.dealerAffiliation ?? "IMPACT"
+          }`
+        : "—",
+    header: "Dealer Type",
+    cell: ({ row }) => {
+      const user = row.original;
+      if (user.role.name !== "dealer") return "—";
+
+      return (
+        <div className="text-xs">
+          <div className="font-semibold capitalize">
+            {(user.dealerMode ?? "EXTERNAL").toLowerCase()}
+          </div>
+          <div className="text-muted-foreground capitalize">
+            {(user.dealerAffiliation ?? "IMPACT").toLowerCase()}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
     id: "status",
     accessorFn: (user) => getUserStatus(user),
     header: "Status",

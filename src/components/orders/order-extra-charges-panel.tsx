@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { OrderExtraCharge, OrderWithRelations } from "@/lib/types";
@@ -16,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
 import { titleCase } from "@/lib/installation-flow";
+import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
+import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 
 type DraftLine = {
   id: number;
@@ -37,11 +40,14 @@ export function OrderExtraChargesPanel({
   order,
   isOwner,
   isPrivileged,
+  canRecordManualPayment,
 }: {
   order: OrderWithRelations;
   isOwner: boolean;
   isPrivileged: boolean;
+  canRecordManualPayment: boolean;
 }) {
+  const router = useRouter();
   const [charges, setCharges] = useState(order.extraCharges ?? []);
   const [showForm, setShowForm] = useState(false);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine(1)]);
@@ -230,15 +236,53 @@ export function OrderExtraChargesPanel({
               </div>
             )}
 
-            {isOwner && charge.status === "PAYMENT_DUE" && (
-              <Button
-                className="mt-4 w-full"
-                disabled={busy}
-                onClick={() => pay(charge)}
-              >
-                <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
-                {formatMoney(Number(charge.total))}
-              </Button>
+            {isOwner &&
+              order.dealerModeSnapshot !== "INTERNAL" &&
+              charge.status === "PAYMENT_DUE" && (
+                <Button
+                  className="mt-4 w-full"
+                  disabled={busy}
+                  onClick={() => pay(charge)}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
+                  {formatMoney(Number(charge.total))}
+                </Button>
+              )}
+
+            {isOwner &&
+              order.dealerModeSnapshot === "INTERNAL" &&
+              charge.status === "PAYMENT_DUE" && (
+                <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                  <p>Send the payment link to the final customer.</p>
+                  <EstimatePaymentLinkActions
+                    estimateId={order.idEst}
+                    estimateNumber={order.estimate.number}
+                    showShare
+                    size="sm"
+                  />
+                </div>
+              )}
+
+            {canRecordManualPayment && charge.status === "PAYMENT_DUE" && (
+              <div className="mt-4 flex justify-end">
+                <ManualPaymentDialog
+                  estimateId={order.idEst}
+                  type="EXTRA"
+                  sequence={charge.sequence}
+                  amount={Number(charge.total)}
+                  label="Record extra charge payment"
+                  onRecorded={() => {
+                    setCharges((current) =>
+                      current.map((item) =>
+                        item.id === charge.id
+                          ? { ...item, status: "PAID" }
+                          : item,
+                      ),
+                    );
+                    router.refresh();
+                  }}
+                />
+              </div>
             )}
           </div>
         ))}

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getOrder } from "@/app/api/orders.api";
 import { isApiError } from "@/app/api/_base";
 import { getCurrentUser } from "@/lib/session";
-import { canEditOrders, canViewOrderFinancials } from "@/lib/rbac";
+import { canEditOrders, canViewOrderFinancials, isAdminRole } from "@/lib/rbac";
 import { OrderDetails } from "./order-details";
 import { getEstimateInstallation } from "@/app/api/installations.api";
 
@@ -46,6 +46,12 @@ export default async function OrderDetailsPage({
         isPrivileged={canEdit}
         canEdit={canEdit}
         canViewFinancials={canViewFinancials}
+        canRecordManualPayment={
+          isAdminRole(role) ||
+          (role === "dealer" &&
+            user.id === order.userId &&
+            order.dealerModeSnapshot === "INTERNAL")
+        }
       />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,11 +11,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { paidInstallationCredit } from "@/lib/installation-flow";
 import type {
+  DealerMode,
   EstimatePayment,
   InstallationJob,
   Order,
   PaymentType,
 } from "@/lib/types";
+import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
+import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 
 type CheckoutPaymentType = Extract<
   PaymentType,
@@ -51,8 +55,7 @@ export function resolveEstimatePaymentAction({
 
   if (!activeJob) {
     const materialPaid = materialPayments.some(
-      (payment) =>
-        payment.type === "MATERIAL" && payment.status === "PAID",
+      (payment) => payment.type === "MATERIAL" && payment.status === "PAID",
     );
 
     if (
@@ -102,14 +105,10 @@ export function resolveEstimatePaymentAction({
 
     return {
       type: "MATERIAL",
-      title: activeJob.permit
-        ? "Materials + City Fee"
-        : "Material payment",
+      title: activeJob.permit ? "Materials + City Fee" : "Material payment",
       description:
         "This payment creates the order. Installation will continue through its remaining stages.",
-      amount: roundMoney(
-        Number(activeJob.estimate.totalPayable) + cityFee,
-      ),
+      amount: roundMoney(materialAmount + cityFee),
     };
   }
 
@@ -147,6 +146,8 @@ export function EstimatePaymentCard({
   installationJob,
   currentUserId,
   materialAmount,
+  dealerMode,
+  canRecordManualPayment = false,
   className = "",
 }: {
   estimateId: number;
@@ -157,12 +158,18 @@ export function EstimatePaymentCard({
   installationJob: InstallationJob | null;
   currentUserId: number;
   materialAmount: number;
+  dealerMode?: DealerMode | null;
+  canRecordManualPayment?: boolean;
   className?: string;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
 
-  if (currentUserId !== estimateOwnerId) return null;
+  const isOwner = currentUserId === estimateOwnerId;
+  const isInternalDealer = dealerMode === "INTERNAL";
+
+  if (!isOwner && !canRecordManualPayment) return null;
 
   const action = resolveEstimatePaymentAction({
     estimateStatus,
@@ -244,7 +251,7 @@ export function EstimatePaymentCard({
         </div>
       </div>
 
-      {requiresDepositTerms && (
+      {requiresDepositTerms && isOwner && !isInternalDealer && (
         <label
           htmlFor="installation-deposit-terms"
           className={`mt-4 flex items-start gap-3 rounded-lg border-2 p-4 text-sm transition-colors ${
@@ -290,28 +297,65 @@ export function EstimatePaymentCard({
       )}
 
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
-          <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
-        </span>
-        <Button
-          type="button"
-          className="w-full sm:w-auto"
-          disabled={busy || (requiresDepositTerms && !depositTermsSatisfied)}
-          onClick={() => void handlePayment()}
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <CreditCard className="h-4 w-4" />
-          )}
-          {busy
-            ? "Opening checkout..."
-            : requiresDepositTerms && !depositTermsSatisfied
-              ? "Accept terms to continue"
-              : checkoutStarted
-                ? "Resume payment"
-                : "Continue to payment"}
-        </Button>
+        {isOwner && !isInternalDealer ? (
+          <>
+            <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
+              <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
+            </span>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={
+                busy || (requiresDepositTerms && !depositTermsSatisfied)
+              }
+              onClick={() => void handlePayment()}
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4" />
+              )}
+              {busy
+                ? "Opening checkout..."
+                : requiresDepositTerms && !depositTermsSatisfied
+                  ? "Accept terms to continue"
+                  : checkoutStarted
+                    ? "Resume payment"
+                    : "Continue to payment"}
+            </Button>
+          </>
+        ) : isOwner && isInternalDealer ? (
+          <div className="space-y-2 text-right">
+            <p className="text-sm text-slate-600">
+              Send this payment link to the final customer.
+            </p>
+            <EstimatePaymentLinkActions estimateId={estimateId} showShare />
+          </div>
+        ) : null}
+
+        {canRecordManualPayment && (
+          <ManualPaymentDialog
+            estimateId={estimateId}
+            type={action.type}
+            amount={action.amount}
+            requiresDepositTerms={
+              requiresDepositTerms && !depositTermsPreviouslyAccepted
+            }
+            depositTerms={installationJob?.depositTermsSnapshot}
+            label="Record verified payment"
+            onRecorded={(payment) => {
+              if (payment.order?.id) {
+                router.replace(`/orders/${payment.order.id}`);
+                return;
+              }
+              if (payment.installationJobId) {
+                router.replace(`/installations/${payment.installationJobId}`);
+                return;
+              }
+              router.replace("/estimates");
+            }}
+          />
+        )}
       </div>
     </section>
   );

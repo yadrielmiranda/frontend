@@ -64,10 +64,11 @@ export interface ValidatePieceRequest {
   horizontalHeights?: number[];
 }
 
-export function calculatePiece(data: CreatePieceData) {
+export function calculatePiece(data: CreatePieceData, estimateId?: number) {
   return apiFetch<CalculatedPiece>("/api/estimates/calculate-piece", {
     method: "POST",
     body: data,
+    query: { estimateId },
   });
 }
 
@@ -80,16 +81,11 @@ export function validatePiece(data: ValidatePieceRequest) {
 
 // crea inmediatamente el Estimate vacío
 // y devuelve el Estimate persistido con su id y número.
-export function initializeEstimate(
-  data: CreateEstimateHeaderData,
-) {
-  return apiFetch<EstimateWithRelations>(
-    "/api/estimates/initialize",
-    {
-      method: "POST",
-      body: data,
-    },
-  );
+export function initializeEstimate(data: CreateEstimateHeaderData) {
+  return apiFetch<EstimateWithRelations>("/api/estimates/initialize", {
+    method: "POST",
+    body: data,
+  });
 }
 
 // actualiza solamente el encabezado.
@@ -109,10 +105,7 @@ export function updateEstimateHeader(
 
 // calcula y guarda una pieza nueva
 // dentro de un Estimate ya persistido.
-export function addEstimatePiece(
-  estimateId: number,
-  data: CreatePieceData,
-) {
+export function addEstimatePiece(estimateId: number, data: CreatePieceData) {
   return apiFetch<EstimateWithRelations>(
     `/api/estimates/${estimateId}/pieces`,
     {
@@ -140,10 +133,7 @@ export function updateEstimatePiece(
 
 // elimina una pieza persistida
 // y devuelve el Estimate con sus totales actualizados.
-export function deleteEstimatePiece(
-  estimateId: number,
-  pieceId: number,
-) {
+export function deleteEstimatePiece(estimateId: number, pieceId: number) {
   return apiFetch<EstimateWithRelations>(
     `/api/estimates/${estimateId}/pieces/${pieceId}`,
     {
@@ -229,10 +219,7 @@ export function getOrCreateEstimatePublicToken(
 }
 
 export function getPublicEstimate(token: string) {
-  return apiFetch<EstimateWithRelations>(
-    `/api/public/estimates/${token}`,
-    {
-      cache: "no-store",
-    },
-  );
+  return apiFetch<EstimateWithRelations>(`/api/public/estimates/${token}`, {
+    cache: "no-store",
+  });
 }

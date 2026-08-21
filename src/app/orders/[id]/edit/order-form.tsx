@@ -142,7 +142,7 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
             {...register("poNumber")}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Optional. Leave blank if you don&apos;t have it yet.
+            Required before the real factory cost can be recorded.
           </p>
         </div>
 
@@ -156,6 +156,7 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
               <Input
                 id="rateReal"
                 type="number"
+                min="0.01"
                 step="0.01"
                 placeholder="0.00"
                 value={
@@ -172,8 +173,9 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
             )}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            When you set Rate Real, Net Profit Real will be calculated
-            automatically.
+            Once entered, the real material profit for Impact and Authentic is
+            calculated automatically from this Order&apos;s snapshots.
+            Installation profit is not included.
           </p>
         </div>
 

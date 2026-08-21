@@ -78,7 +78,10 @@ type SystemConfigLink = {
   config: Config;
 
   dimensionMode?:
-    "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
+    | "STANDARD"
+    | "ECO_WINDOWS_DOOR"
+    | "ECO_NOVO_DOOR"
+    | "WINDOW_WALL";
 
   requiresWidth?: boolean;
   requiresHeight?: boolean;
@@ -267,6 +270,7 @@ export interface PieceFormProps {
   muntinTypes: MuntinType[];
 
   canUseCustomerPricing: boolean;
+  estimateId?: number;
   startUnlocked?: boolean;
 }
 
@@ -1591,8 +1595,7 @@ export function PieceForm({
         fieldsToValidate.push("leftPanels");
       if (dimensionRequirements.requiresRightPanels)
         fieldsToValidate.push("rightPanels");
-      if (requiresManualPanelCount)
-        fieldsToValidate.push("panelCount");
+      if (requiresManualPanelCount) fieldsToValidate.push("panelCount");
 
       const isValid = await trigger(fieldsToValidate);
 
@@ -2035,7 +2038,7 @@ export function PieceForm({
         }
       }
 
-      const calculated = await calculatePiece(pieceDtoToSend);
+      const calculated = await calculatePiece(pieceDtoToSend, props.estimateId);
 
       const unitPrice = roundMoney(Number(calculated.price) || 0);
       const lineSubtotal = roundMoney(Number(calculated.subtotal) || 0);

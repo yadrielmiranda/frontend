@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Bell, Trash2, X } from "lucide-react";
@@ -21,7 +22,9 @@ import {
 import { toast } from "sonner";
 
 export function NotificationBell() {
-  const { notifications, unreadCount, setNotifications } = useAuth();
+  const router = useRouter();
+  const { notifications, unreadCount, setNotifications, refreshNotifications } =
+    useAuth();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleMarkAsRead = async (id: number) => {
@@ -35,6 +38,17 @@ export function NotificationBell() {
       );
     } catch (error) {
       toast.error("Could not mark as read.");
+    }
+  };
+
+  const handleNotificationSelect = async (
+    notification: (typeof notifications)[number],
+  ) => {
+    await handleMarkAsRead(notification.id);
+
+    const actionUrl = notification.actionUrl;
+    if (actionUrl?.startsWith("/") && !actionUrl.startsWith("//")) {
+      router.push(actionUrl);
     }
   };
 
@@ -62,7 +76,11 @@ export function NotificationBell() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) void refreshNotifications();
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -88,10 +106,7 @@ export function NotificationBell() {
                 <DropdownMenuItem
                   key={notification.id}
                   className={`flex items-start gap-2 cursor-pointer ${!notification.isRead ? "font-bold" : ""}`}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    handleMarkAsRead(notification.id);
-                  }}
+                  onSelect={() => void handleNotificationSelect(notification)}
                 >
                   <div className="flex-grow">
                     <p className="text-sm whitespace-normal">
@@ -100,6 +115,11 @@ export function NotificationBell() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(notification.createdAt).toLocaleString()}
                     </p>
+                    {notification.actionUrl && (
+                      <p className="mt-1 text-xs font-semibold text-primary">
+                        {notification.actionLabel || "Open"} →
+                      </p>
+                    )}
                   </div>
                   <Button
                     variant="ghost"

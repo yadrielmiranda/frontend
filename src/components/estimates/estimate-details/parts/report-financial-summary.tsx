@@ -41,10 +41,18 @@ function MoneyRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
-      <span className={strong ? "font-semibold text-slate-950" : "text-slate-600"}>
+      <span
+        className={strong ? "font-semibold text-slate-950" : "text-slate-600"}
+      >
         {label}
       </span>
-      <span className={strong ? "text-right font-semibold text-slate-950" : "text-right font-medium text-slate-900"}>
+      <span
+        className={
+          strong
+            ? "text-right font-semibold text-slate-950"
+            : "text-right font-medium text-slate-900"
+        }
+      >
         {children ?? value}
       </span>
     </div>
@@ -328,34 +336,63 @@ function AdminProfitability({
   estimate: EstimateWithRelations;
   ownerIsDealer: boolean;
 }) {
+  const internalDealer =
+    ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
+  const belongsToImpact =
+    ownerIsDealer && estimate.dealerAffiliationSnapshot === "IMPACT";
+  const expectedCompanyProfit = roundMoney(
+    internalDealer
+      ? numberValue(estimate.customerPriceT) - numberValue(estimate.priceT)
+      : numberValue(estimate.priceT) - numberValue(estimate.rateT),
+  );
+  const estimatedImpactProfit = belongsToImpact ? expectedCompanyProfit : 0;
+  const estimatedAuthenticProfit = belongsToImpact ? 0 : expectedCompanyProfit;
+  const saleChannel = ownerIsDealer
+    ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} · ${
+        estimate.dealerAffiliationSnapshot ?? "AUTHENTIC"
+      }`
+    : "DIRECT CLIENT · AUTHENTIC";
+  const calculationNote = internalDealer
+    ? "Expected profit uses customer material subtotal minus internal material subtotal. The dealer's intermediate pricing markup is excluded."
+    : ownerIsDealer
+      ? "Expected profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded."
+      : "Expected profit uses material sale subtotal minus estimated factory rate.";
+
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
       <div className="bg-slate-50 px-4 py-3">
         <h4 className="text-sm font-semibold text-slate-900">
-          Internal profitability
+          Estimated material profitability
         </h4>
         <p className="mt-0.5 text-xs text-slate-500">
-          Materials only · before taxes
+          Admin only · materials only · before taxes · installation excluded
         </p>
       </div>
       <div className="grid gap-x-8 px-4 py-1 sm:grid-cols-2">
+        <MoneyRow label="Sale channel" value={saleChannel} />
         <MoneyRow
-          label="Production cost"
+          label="Estimated factory rate"
           value={formatMoney(numberValue(estimate.rateT))}
         />
         <MoneyRow
-          label="Impact Plus profit"
-          value={formatMoney(numberValue(estimate.netProfit))}
+          label="Estimated Impact profit"
+          value={formatMoney(estimatedImpactProfit)}
           strong
         />
-        {ownerIsDealer && (
-          <MoneyRow
-            label="Dealer profit"
-            value={formatMoney(numberValue(estimate.netProfitD))}
-            strong
-          />
-        )}
+        <MoneyRow
+          label="Estimated Authentic profit"
+          value={formatMoney(estimatedAuthenticProfit)}
+          strong
+        />
+        <MoneyRow
+          label="Estimated total company profit"
+          value={formatMoney(expectedCompanyProfit)}
+          strong
+        />
       </div>
+      <p className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
+        {calculationNote}
+      </p>
     </div>
   );
 }
@@ -387,17 +424,12 @@ export function ReportFinancialSummary({
     reportKind === "dealer-customer-total" ||
     isDealerRole(estimate.user?.role?.name);
   const projectTotalOnly = reportKind === "dealer-customer-total";
-  const customerFacing =
-    reportKind === "dealer-customer" || projectTotalOnly;
-  const selectedMaterial = customerFacing
-    ? customerMaterial
-    : internalMaterial;
+  const customerFacing = reportKind === "dealer-customer" || projectTotalOnly;
+  const selectedMaterial = customerFacing ? customerMaterial : internalMaterial;
   const comparisonView =
     reportKind === "dealer" || (reportKind === "admin" && ownerIsDealer);
 
-  const installationTotal = numberValue(
-    installationSummary?.installationTotal,
-  );
+  const installationTotal = numberValue(installationSummary?.installationTotal);
   const permitFee = installationSummary?.permitIncluded
     ? numberValue(installationSummary.permitFee)
     : 0;
@@ -427,14 +459,15 @@ export function ReportFinancialSummary({
       (installationSummary.quoteStatus !== "APPROVED" ||
         installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
   );
-  const calculatedIncompleteTotal =
-    cityFeePending || installationAmountPending;
+  const calculatedIncompleteTotal = cityFeePending || installationAmountPending;
   const incompleteTotal =
     projectTotalOnly &&
     typeof estimate.publicProjectTotalIncomplete === "boolean"
       ? estimate.publicProjectTotalIncomplete
       : calculatedIncompleteTotal;
-  const projectLabel = incompleteTotal ? "Current Project Total" : "Project Total";
+  const projectLabel = incompleteTotal
+    ? "Current Project Total"
+    : "Project Total";
 
   return (
     <section className="mt-10 space-y-4">
@@ -498,7 +531,9 @@ export function ReportFinancialSummary({
               <MoneyRow
                 label="Dealer Profit · materials only, pre-tax"
                 value={formatMoney(
-                  roundMoney(customerMaterial.subtotal - internalMaterial.subtotal),
+                  roundMoney(
+                    customerMaterial.subtotal - internalMaterial.subtotal,
+                  ),
                 )}
               />
             )}
@@ -529,10 +564,7 @@ export function ReportFinancialSummary({
       </div>
 
       {reportKind === "admin" && (
-        <AdminProfitability
-          estimate={estimate}
-          ownerIsDealer={ownerIsDealer}
-        />
+        <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
     </section>
   );

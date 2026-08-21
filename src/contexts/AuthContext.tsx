@@ -30,6 +30,7 @@ type AuthContextType = {
   notifications: Notification[];
   unreadCount: number;
   setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
+  refreshNotifications: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const notificationsInFlightRef = useRef(false);
+  const refreshNotifications = useCallback(async () => {
+    if (notificationsInFlightRef.current) return;
+    notificationsInFlightRef.current = true;
+
+    try {
+      const latest = await getNotifications();
+      setNotifications(latest);
+    } catch {
+      // Session probing owns authentication errors. Notification refresh is silent.
+    } finally {
+      notificationsInFlightRef.current = false;
+    }
+  }, []);
 
   // ---------------------------------------
   // ✅ Refs de control
@@ -180,9 +196,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const onFocus = () => probeBackendSession();
+    const onFocus = () => {
+      probeBackendSession();
+      refreshNotifications();
+    };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") probeBackendSession();
+      if (document.visibilityState === "visible") {
+        probeBackendSession();
+        refreshNotifications();
+      }
     };
 
     window.addEventListener("focus", onFocus);
@@ -192,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [isAuthenticated, probeBackendSession]);
+  }, [isAuthenticated, probeBackendSession, refreshNotifications]);
 
   // ---------------------------------------
   // ✅ Probe periódico: detecta expiración del backend sin esperar idle UI
@@ -212,13 +234,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (probeInFlightRef.current) return;
 
       probeBackendSession();
+      refreshNotifications();
     }, PROBE_EVERY_MS);
 
     return () => {
       if (periodicProbeRef.current) clearInterval(periodicProbeRef.current);
       periodicProbeRef.current = null;
     };
-  }, [isAuthenticated, probeBackendSession]);
+  }, [isAuthenticated, probeBackendSession, refreshNotifications]);
 
   // ---------------------------------------
   // ✅ Fetch inicial (al montar / revalidate)
@@ -290,7 +313,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     socket.on("new_notification", (newNotification: Notification) => {
       toast.info(newNotification.message);
-      setNotifications((prev) => [newNotification, ...prev]);
+      setNotifications((prev) => [
+        newNotification,
+        ...prev.filter((item) => item.id !== newNotification.id),
+      ]);
     });
 
     return () => {
@@ -310,6 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     notifications,
     unreadCount,
     setNotifications,
+    refreshNotifications,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

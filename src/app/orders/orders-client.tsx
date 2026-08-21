@@ -8,11 +8,16 @@ import { getOrderColumns } from "./columns-orders";
 export function OrdersClient({
   initialOrders,
   canEdit,
+  canViewFinancials,
 }: {
   initialOrders: OrderWithRelations[];
   canEdit: boolean;
+  canViewFinancials: boolean;
 }) {
-  const columns = useMemo(() => getOrderColumns({ canEdit }), [canEdit]);
+  const columns = useMemo(
+    () => getOrderColumns({ canEdit, canViewFinancials }),
+    [canEdit, canViewFinancials],
+  );
 
   return (
     <DataTable

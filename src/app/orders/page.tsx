@@ -1,17 +1,16 @@
 import { getOrders } from "@/app/api/orders.api";
 import { getCurrentUser } from "@/lib/session";
 import { OrdersClient } from "./orders-client";
-import { canEditOrders } from "@/lib/rbac";
+import { canEditOrders, canViewOrderFinancials } from "@/lib/rbac";
 import { notFound } from "next/navigation";
 
 export default async function OrdersPage() {
-
   const user = await getCurrentUser();
   if (!user) notFound();
-  
-  
-  const role = user.role?.name ?? null;  
+
+  const role = user.role?.name ?? null;
   const canEdit = canEditOrders(role);
+  const canViewFinancials = canViewOrderFinancials(role);
   const orders = await getOrders();
 
   return (
@@ -26,7 +25,11 @@ export default async function OrdersPage() {
       </div>
 
       <div className="rounded-xl border bg-white shadow-sm p-4">
-        <OrdersClient initialOrders={orders} canEdit={canEdit} />
+        <OrdersClient
+          initialOrders={orders}
+          canEdit={canEdit}
+          canViewFinancials={canViewFinancials}
+        />
       </div>
     </div>
   );

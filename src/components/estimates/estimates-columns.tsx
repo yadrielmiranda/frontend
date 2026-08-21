@@ -4,12 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  CreditCard,
-  Loader2,
-  MoreHorizontal,
-  RefreshCw,
-} from "lucide-react";
+import { CreditCard, Loader2, MoreHorizontal, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +34,7 @@ import {
   isOperatorRole,
 } from "@/lib/rbac";
 import type { DataTableDateRangeValue } from "@/components/data-table";
+import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 
 // =============================
 // Helpers
@@ -261,13 +257,15 @@ export const getEstimateColumns = (
         const [isRecalculating, setIsRecalculating] = useState(false);
         const router = useRouter();
 
-        const statusName = estimate.status?.name ??
-          (estimate.order ? "Ordered" : "Unknown");
+        const statusName =
+          estimate.status?.name ?? (estimate.order ? "Ordered" : "Unknown");
         const statusLower = statusName.trim().toLowerCase();
 
         const isOwner = currentUser?.id === estimate.idUser;
         const showOwnerActions = isOwner;
         const isDealer = currentUser?.role?.name === "dealer";
+        const isInternalDealer =
+          isDealer && estimate.dealerModeSnapshot === "INTERNAL";
 
         const isActive = statusLower === "active";
         const isExpired = statusLower === "expired";
@@ -300,11 +298,26 @@ export const getEstimateColumns = (
           isActive &&
           !estimate.order &&
           isOwner &&
+          !isInternalDealer &&
           !isPaid &&
           hasPayableMaterial &&
           (!estimate.installationJob ||
             estimate.installationJob.status === "CANCELED" ||
             estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING");
+
+        const paymentInstallation = hasActiveInstallation
+          ? estimate.installationJob
+          : null;
+        const internalPaymentDue = paymentInstallation
+          ? [
+              "DEPOSIT_PAYMENT_PENDING",
+              "PERMIT_PAYMENT_PENDING",
+              "MATERIAL_PAYMENT_PENDING",
+              "INSTALLATION_PAYMENT_PENDING",
+            ].includes(paymentInstallation.status)
+          : isActive && !estimate.order && !isPaid && hasPayableMaterial;
+        const canCopyPaymentLink =
+          isInternalDealer && isOwner && internalPaymentDue;
 
         const canRecalculate =
           isExpired && !estimate.order && isOwner && !isPaymentLocked;
@@ -364,6 +377,14 @@ export const getEstimateColumns = (
                 )}
                 {isPaying ? "Opening..." : "Pay now"}
               </Button>
+            )}
+
+            {canCopyPaymentLink && (
+              <EstimatePaymentLinkActions
+                estimateId={estimate.id}
+                estimateNumber={estimate.number}
+                size="sm"
+              />
             )}
 
             <DropdownMenu>
@@ -428,16 +449,16 @@ export const getEstimateColumns = (
                   !isOrdered &&
                   !isPaymentLocked &&
                   !hasActiveInstallation && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                      onSelect={() => setShowDeleteConfirm(true)}
-                    >
-                      Delete Estimate
-                    </DropdownMenuItem>
-                  </>
-                )}
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                        onSelect={() => setShowDeleteConfirm(true)}
+                      >
+                        Delete Estimate
+                      </DropdownMenuItem>
+                    </>
+                  )}
               </DropdownMenuContent>
             </DropdownMenu>
 

@@ -47,6 +47,7 @@ interface PieceModalProps {
   muntinPatterns: MuntinPattern[];
   muntinTypes: MuntinType[];
   canUseCustomerPricing: boolean;
+  estimateId?: number;
   startUnlocked?: boolean;
 }
 
@@ -69,6 +70,7 @@ export function PieceModal({
   muntinPatterns,
   muntinTypes,
   canUseCustomerPricing,
+  estimateId,
   startUnlocked = false,
 }: PieceModalProps) {
   return (
@@ -97,6 +99,7 @@ export function PieceModal({
           muntinPatterns={muntinPatterns}
           muntinTypes={muntinTypes}
           canUseCustomerPricing={canUseCustomerPricing}
+          estimateId={estimateId}
           startUnlocked={startUnlocked}
         />
       </DialogContent>

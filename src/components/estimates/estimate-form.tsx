@@ -48,7 +48,7 @@ import { PieceModal } from "./piece-modal";
 import { CustomerDetailsCard } from "./customer-details-card";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
-import { canSetCustomerOnEstimate } from "@/lib/rbac";
+import { canSetCustomerOnEstimate, isAdminRole } from "@/lib/rbac";
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
 
 function mapPieceMuntinToForm(
@@ -190,6 +190,8 @@ export function EstimateForm({
 
   const canUseCustomerPricing = canSetCustomerOnEstimate(role);
   const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
+  const dealerMode =
+    estimate?.dealerModeSnapshot ?? estimate?.user?.dealerMode ?? null;
   const isTaxExempt = estimate
     ? Boolean(estimate.user.isTaxExempt)
     : Boolean(user?.isTaxExempt);
@@ -1239,104 +1241,103 @@ export function EstimateForm({
         )}
 
         <fieldset disabled={readOnly} className="space-y-8">
-        <div className="p-6 border rounded-lg bg-slate-50">
-          <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
+          <div className="p-6 border rounded-lg bg-slate-50">
+            <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
 
-          <EstimateDetailsLeft
-            isEditMode={isEditMode}
-            estimateNumber={estimate?.number}
-            canUseCustomerPricing={canUseCustomerPricing}
-            nameError={errors.name?.message}
-            nameRegister={register("name", {
-              required: "The name is required",
-            })}
-            defaultFrameColorId={getValues("defaultFrameColorId")}
-            frameColors={globalFrameColors}
-            onDefaultColorChange={handleDefaultColorChange}
-            defaultTintId={getValues("defaultTintId")}
-            defaultCoatingId={getValues("defaultCoatingId")}
-            tints={globalTints}
-            coatings={globalCoatings}
-            onDefaultTintChange={handleDefaultTintChange}
-            onDefaultCoatingChange={handleDefaultCoatingChange}
-            generalDealerMarkupRegister={register("generalDealerMarkup", {
-              valueAsNumber: true,
-              min: 0,
-            })}
-            onApplyGeneralMarkup={handleApplyGeneralMarkup}
-            customerTaxRateRegister={register("customerTaxRate", {
-              valueAsNumber: true,
-              min: 0,
-            })}
-            onCustomerTaxBlur={(value) => {
-              const v = roundMoney(Number(value) || 0, 2);
-              setValue("customerTaxRate", v, { shouldDirty: true });
-            }}
-          />
+            <EstimateDetailsLeft
+              isEditMode={isEditMode}
+              estimateNumber={estimate?.number}
+              canUseCustomerPricing={canUseCustomerPricing}
+              nameError={errors.name?.message}
+              nameRegister={register("name", {
+                required: "The name is required",
+              })}
+              defaultFrameColorId={getValues("defaultFrameColorId")}
+              frameColors={globalFrameColors}
+              onDefaultColorChange={handleDefaultColorChange}
+              defaultTintId={getValues("defaultTintId")}
+              defaultCoatingId={getValues("defaultCoatingId")}
+              tints={globalTints}
+              coatings={globalCoatings}
+              onDefaultTintChange={handleDefaultTintChange}
+              onDefaultCoatingChange={handleDefaultCoatingChange}
+              generalDealerMarkupRegister={register("generalDealerMarkup", {
+                valueAsNumber: true,
+                min: 0,
+              })}
+              onApplyGeneralMarkup={handleApplyGeneralMarkup}
+              customerTaxRateRegister={register("customerTaxRate", {
+                valueAsNumber: true,
+                min: 0,
+              })}
+              onCustomerTaxBlur={(value) => {
+                const v = roundMoney(Number(value) || 0, 2);
+                setValue("customerTaxRate", v, { shouldDirty: true });
+              }}
+            />
 
-          {canUseCustomerPricing && (
-            <div className="mt-6">
-              <CustomerDetailsCard
-                register={register}
-                control={control}
-                errors={errors}
-              />
-            </div>
-          )}
+            {canUseCustomerPricing && (
+              <div className="mt-6">
+                <CustomerDetailsCard
+                  register={register}
+                  control={control}
+                  errors={errors}
+                />
+              </div>
+            )}
 
-          <PiecesBreakdownBar
-            totalUnits={summary.totalUnits}
-            pieceBreakdown={summary.pieceBreakdown}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold">Pieces</h3>
-            <Button type="button" variant="green" onClick={handleAddNewPiece}>
-              + Add Piece
-            </Button>
+            <PiecesBreakdownBar
+              totalUnits={summary.totalUnits}
+              pieceBreakdown={summary.pieceBreakdown}
+            />
           </div>
 
-          {canUseCustomerPricing ? (
-            <PiecesDealerTable
-              fields={fields as any}
-              watchedPieces={watchedPieces}
-              productsWithBrands={productsWithBrands}
-              systemsWithConfigs={systemsWithConfigs}
-              frameColors={frameColors}
-              crystals={crystals}
-              tints={tints}
-              coatings={coatings}
-              privacies={privacies}
-              muntinPatterns={muntinPatterns}
-              muntinTypes={muntinTypes}
-              formatCurrency={formatCurrency}
-              onDuplicate={handleDuplicatePiece}
-              onEdit={handleEditPiece}
-              onRemove={handleRemovePiece}
-            />
-          ) : (
-            <PiecesClientList
-              fields={fields as any}
-              watchedPieces={watchedPieces}
-              productsWithBrands={productsWithBrands}
-              systemsWithConfigs={systemsWithConfigs}
-              frameColors={frameColors}
-              crystals={crystals}
-              tints={tints}
-              coatings={coatings}
-              privacies={privacies}
-              muntinPatterns={muntinPatterns}
-              muntinTypes={muntinTypes}
-              formatCurrency={formatCurrency}
-              onDuplicate={handleDuplicatePiece}
-              onEdit={handleEditPiece}
-              onRemove={handleRemovePiece}
-            />
-          )}
-        </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold">Pieces</h3>
+              <Button type="button" variant="green" onClick={handleAddNewPiece}>
+                + Add Piece
+              </Button>
+            </div>
 
+            {canUseCustomerPricing ? (
+              <PiecesDealerTable
+                fields={fields as any}
+                watchedPieces={watchedPieces}
+                productsWithBrands={productsWithBrands}
+                systemsWithConfigs={systemsWithConfigs}
+                frameColors={frameColors}
+                crystals={crystals}
+                tints={tints}
+                coatings={coatings}
+                privacies={privacies}
+                muntinPatterns={muntinPatterns}
+                muntinTypes={muntinTypes}
+                formatCurrency={formatCurrency}
+                onDuplicate={handleDuplicatePiece}
+                onEdit={handleEditPiece}
+                onRemove={handleRemovePiece}
+              />
+            ) : (
+              <PiecesClientList
+                fields={fields as any}
+                watchedPieces={watchedPieces}
+                productsWithBrands={productsWithBrands}
+                systemsWithConfigs={systemsWithConfigs}
+                frameColors={frameColors}
+                crystals={crystals}
+                tints={tints}
+                coatings={coatings}
+                privacies={privacies}
+                muntinPatterns={muntinPatterns}
+                muntinTypes={muntinTypes}
+                formatCurrency={formatCurrency}
+                onDuplicate={handleDuplicatePiece}
+                onEdit={handleEditPiece}
+                onRemove={handleRemovePiece}
+              />
+            )}
+          </div>
         </fieldset>
 
         {isEditMode && estimate && currentUserId && (
@@ -1373,7 +1374,18 @@ export function EstimateForm({
             materialPayments={estimate.payments ?? []}
             installationJob={financialInstallation}
             currentUserId={currentUserId}
-            materialAmount={summary.totalPayable}
+            materialAmount={
+              dealerMode === "INTERNAL"
+                ? summary.dealerGrandTotal
+                : summary.totalPayable
+            }
+            dealerMode={dealerMode}
+            canRecordManualPayment={
+              isAdminRole(role) ||
+              (role === "dealer" &&
+                dealerMode === "INTERNAL" &&
+                currentUserId === estimate.idUser)
+            }
           />
         )}
 
@@ -1421,6 +1433,7 @@ export function EstimateForm({
         muntinPatterns={muntinPatterns}
         muntinTypes={muntinTypes}
         canUseCustomerPricing={canUseCustomerPricing}
+        estimateId={estimate?.id}
       />
 
       <ColorUpdateAlertDialog

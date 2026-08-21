@@ -20,10 +20,12 @@ import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 
 export function getOrderColumns({
   canEdit,
+  canViewFinancials,
 }: {
   canEdit: boolean;
+  canViewFinancials: boolean;
 }): ColumnDef<OrderWithRelations>[] {
-  return [
+  const columns: ColumnDef<OrderWithRelations>[] = [
     { accessorKey: "number", header: "Order #" },
     { accessorKey: "estimate.number", header: "Estimate #" },
     {
@@ -43,48 +45,79 @@ export function getOrderColumns({
         </div>
       ),
     },
-   {
-  accessorKey: "status.name",
-  header: "Status",
-  cell: ({ row }) => (
-    <OrderStatusBadge name={row.original.status?.name} />
-  ),
-},
     {
-      id: "actions",
-      cell: ({ row }) => {
-        const order = row.original;
-
-        return (
-          <div className="text-right">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Actions">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem asChild>
-                  <Link href={`/orders/${order.id}`}>View Details</Link>
-                </DropdownMenuItem>
-
-                {canEdit && (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/orders/${order.id}/edit`} className="flex items-center">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Status
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
+      accessorKey: "status.name",
+      header: "Status",
+      cell: ({ row }) => <OrderStatusBadge name={row.original.status?.name} />,
     },
   ];
+
+  if (canViewFinancials) {
+    columns.splice(
+      -1,
+      0,
+      {
+        id: "authenticProfitReal",
+        header: "Authentic Material Profit",
+        cell: ({ row }) =>
+          row.original.authenticProfitReal == null
+            ? "Pending"
+            : formatMoney(Number(row.original.authenticProfitReal)),
+      },
+      {
+        id: "impactProfitReal",
+        header: "Impact Material Profit",
+        cell: ({ row }) =>
+          row.original.impactProfitReal == null
+            ? "Pending"
+            : formatMoney(Number(row.original.impactProfitReal)),
+      },
+    );
+  }
+
+  columns.push({
+    id: "actions",
+    cell: ({ row }) => {
+      const order = row.original;
+
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                aria-label="Actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link href={`/orders/${order.id}`}>View Details</Link>
+              </DropdownMenuItem>
+
+              {canEdit && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/orders/${order.id}/edit`}
+                    className="flex items-center"
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Status
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
+  });
+
+  return columns;
 }

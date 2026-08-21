@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, CreditCard } from "lucide-react";
 import { toast } from "sonner";
@@ -15,23 +16,34 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
+import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
+import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import {
   installationStageLabel,
   paidInstallationCredit,
   paymentTypeLabel,
 } from "@/lib/installation-flow";
 
+const percent = (value: string | number | null | undefined) =>
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(Number(value ?? 0));
+
 export function OrderInstallationPanel({
   order,
   initialJob,
   isOwner,
   isPrivileged,
+  canRecordManualPayment,
 }: {
   order: OrderWithRelations;
   initialJob: InstallationJob;
   isOwner: boolean;
   isPrivileged: boolean;
+  canRecordManualPayment: boolean;
 }) {
+  const router = useRouter();
   const [job, setJob] = useState(initialJob);
   const [busy, setBusy] = useState(false);
   const [responseNote, setResponseNote] = useState("");
@@ -43,8 +55,10 @@ export function OrderInstallationPanel({
   );
   const proposedAppointment = job.appointments.find(
     (appointment) =>
-      appointment.type === "INSTALLATION" &&
-      appointment.status === "PROPOSED",
+      appointment.type === "INSTALLATION" && appointment.status === "PROPOSED",
+  );
+  const installationPayments = job.payments.filter((payment) =>
+    ["INSTALLATION_DEPOSIT", "PERMIT", "INSTALLATION"].includes(payment.type),
   );
 
   const payInstallation = async () => {
@@ -159,42 +173,86 @@ export function OrderInstallationPanel({
       )}
 
       <div className="mt-6 space-y-2 border-t pt-4">
-        <h3 className="text-sm font-semibold">Payment history</h3>
-        {job.payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No payments yet.</p>
+        <h3 className="text-sm font-semibold">
+          Installation and permit payment history
+        </h3>
+        {installationPayments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No installation or permit payments yet.
+          </p>
         ) : (
-          job.payments.map((payment) => (
+          installationPayments.map((payment) => (
             <div
               key={payment.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"
             >
-              <span>
-                {paymentTypeLabel(payment.type)}
-                {payment.type === "EXTRA" ? ` #${payment.sequence}` : ""}
-              </span>
-              <span className="text-muted-foreground">
-                {formatMoney(Number(payment.baseAmount))}
+              <span>{paymentTypeLabel(payment.type)}</span>
+              <span className="text-right text-muted-foreground">
+                <span className="block">
+                  {formatMoney(Number(payment.baseAmount))}
+                </span>
+                {Number(payment.surchargeAmount) > 0 && (
+                  <span className="block text-xs">
+                    + {formatMoney(Number(payment.surchargeAmount))} card fee (
+                    {percent(payment.surchargePercent)}%) ={" "}
+                    {formatMoney(Number(payment.amount))} charged
+                  </span>
+                )}
               </span>
               <Badge
                 variant={payment.status === "PAID" ? "default" : "secondary"}
               >
                 {payment.status}
               </Badge>
+              <span className="text-xs text-muted-foreground">
+                {payment.paymentMethod}
+                {payment.manualReference ? ` · ${payment.manualReference}` : ""}
+              </span>
             </div>
           ))
         )}
       </div>
 
-      {isOwner && job.status === "INSTALLATION_PAYMENT_PENDING" && (
-        <Button
-          className="mt-4 w-full"
-          disabled={busy}
-          onClick={payInstallation}
-        >
-          <CreditCard className="mr-2 h-4 w-4" /> Pay installation balance ·{" "}
-          {formatMoney(installationBalance)}
-        </Button>
-      )}
+      {isOwner &&
+        order.dealerModeSnapshot !== "INTERNAL" &&
+        job.status === "INSTALLATION_PAYMENT_PENDING" && (
+          <Button
+            className="mt-4 w-full"
+            disabled={busy}
+            onClick={payInstallation}
+          >
+            <CreditCard className="mr-2 h-4 w-4" /> Pay installation balance ·{" "}
+            {formatMoney(installationBalance)}
+          </Button>
+        )}
+
+      {isOwner &&
+        order.dealerModeSnapshot === "INTERNAL" &&
+        job.status === "INSTALLATION_PAYMENT_PENDING" && (
+          <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            <p>Send the payment link to the final customer.</p>
+            <EstimatePaymentLinkActions
+              estimateId={order.idEst}
+              estimateNumber={order.estimate.number}
+              showShare
+              size="sm"
+            />
+          </div>
+        )}
+
+      {canRecordManualPayment &&
+        job.status === "INSTALLATION_PAYMENT_PENDING" &&
+        installationBalance > 0 && (
+          <div className="mt-4 flex justify-end">
+            <ManualPaymentDialog
+              estimateId={order.idEst}
+              type="INSTALLATION"
+              amount={installationBalance}
+              label="Record installation payment"
+              onRecorded={() => router.refresh()}
+            />
+          </div>
+        )}
 
       {isOwner && proposedAppointment && (
         <div className="mt-4 space-y-3 rounded-lg border border-blue-200 p-4">
