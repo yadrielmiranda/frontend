@@ -2,6 +2,12 @@
 // Approved Horizontal Rolling Window family, exterior view.
 // Independent from the existing hinged-product O/X/XX runtime.
 import React, { useId } from "react";
+import {
+  DIMENSION_COLOR,
+  DIMENSION_FONT_FAMILY,
+  DIMENSION_FONT_WEIGHT,
+  dimensionMetrics,
+} from "../dimension-style";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
   DEFAULT_MOVEMENT_INDICATOR_COLOR,
@@ -76,7 +82,8 @@ const FAMILY_PRODUCT_REGION = {
   width: 1400,
   height: 933,
 } as const;
-const DIMENSION_COLOR = "#2f3b45";
+const DIMENSIONS = dimensionMetrics(VIEWBOX.width);
+const SEGMENT_DIMENSION_FONT_SIZE = DIMENSIONS.fontSize * 0.9;
 export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 const DEFAULT_ASSET_BASE_PATH =
   "/product-visuals/horizontal-rolling-window/c148";
@@ -624,25 +631,31 @@ export function HorizontalRollingWindowDiagram(
       <defs>
         <marker
           id={arrowStartId}
-          markerWidth="14"
-          markerHeight="14"
-          refX="1"
-          refY="7"
+          markerWidth={DIMENSIONS.terminalLength}
+          markerHeight={DIMENSIONS.terminalHalfWidth * 2}
+          refX={DIMENSIONS.terminalLength / 14}
+          refY={DIMENSIONS.terminalHalfWidth}
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M 14 0 L 0 7 L 14 14 Z" fill={DIMENSION_COLOR} />
+          <path
+            d={`M ${DIMENSIONS.terminalLength} 0 L 0 ${DIMENSIONS.terminalHalfWidth} L ${DIMENSIONS.terminalLength} ${DIMENSIONS.terminalHalfWidth * 2} Z`}
+            fill={DIMENSION_COLOR}
+          />
         </marker>
         <marker
           id={arrowEndId}
-          markerWidth="14"
-          markerHeight="14"
-          refX="13"
-          refY="7"
+          markerWidth={DIMENSIONS.terminalLength}
+          markerHeight={DIMENSIONS.terminalHalfWidth * 2}
+          refX={(DIMENSIONS.terminalLength * 13) / 14}
+          refY={DIMENSIONS.terminalHalfWidth}
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M 0 0 L 14 7 L 0 14 Z" fill={DIMENSION_COLOR} />
+          <path
+            d={`M 0 0 L ${DIMENSIONS.terminalLength} ${DIMENSIONS.terminalHalfWidth} L 0 ${DIMENSIONS.terminalHalfWidth * 2} Z`}
+            fill={DIMENSION_COLOR}
+          />
         </marker>
       </defs>
 
@@ -656,8 +669,8 @@ export function HorizontalRollingWindowDiagram(
         <g
           fill="none"
           stroke={DIMENSION_COLOR}
-          strokeWidth="4"
-          fontFamily="Arial, Helvetica, sans-serif"
+          strokeWidth={DIMENSIONS.strokeWidth}
+          fontFamily={DIMENSION_FONT_FAMILY}
         >
           {!layout.preserveC040DimensionLayout
             ? liteSegments.map((segment, index) => (
@@ -676,8 +689,8 @@ export function HorizontalRollingWindowDiagram(
                     textAnchor="middle"
                     fill={DIMENSION_COLOR}
                     stroke="none"
-                    fontSize="58"
-                    fontWeight="700"
+                    fontSize={SEGMENT_DIMENSION_FONT_SIZE}
+                    fontWeight={DIMENSION_FONT_WEIGHT}
                   >
                     W. {formatDimension(segment.nominalWidth)}&quot;
                   </text>
@@ -710,19 +723,18 @@ export function HorizontalRollingWindowDiagram(
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="64"
-            fontWeight="700"
+            fontSize={DIMENSIONS.fontSize}
+            fontWeight={DIMENSION_FONT_WEIGHT}
           >
-            {layout.preserveC040DimensionLayout ? "W." : "TOTAL W."}{" "}
-            {formatDimension(resolvedWidth)}&quot;
+            W. {formatDimension(resolvedWidth)}&quot;
           </text>
           <text
             x={verticalX + 44}
             y={productY + productHeight / 2 + 14}
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="64"
-            fontWeight="700"
+            fontSize={DIMENSIONS.fontSize}
+            fontWeight={DIMENSION_FONT_WEIGHT}
           >
             H. {formatDimension(resolvedHeight)}&quot;
           </text>

@@ -3,6 +3,12 @@ import React, { useId } from "react";
 import type { DiagramFamily, DimensionMode } from "@/lib/types";
 
 import {
+  DIMENSION_COLOR,
+  DIMENSION_FONT_FAMILY,
+  DIMENSION_FONT_WEIGHT,
+  dimensionMetrics,
+} from "../dimension-style";
+import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
 } from "../glass-appearance";
@@ -127,7 +133,6 @@ export interface PieceDiagramProps extends SharedMaterialProps {
 }
 
 const DEFAULT_FRAME_COLOR = "#FFFFFF";
-const DIMENSION_COLOR = "#2F3B45";
 const ASSET_BASE = "/product-visuals/french-door/series-600";
 const MIXED_HALF_OVERLAP = 0.25;
 
@@ -558,14 +563,15 @@ function DimensionArrows({
   variant: PieceDiagramVariant;
 }) {
   const scale = variant === "report" ? 0.94 : 1;
-  const stroke = Math.max(height * 0.0025, 0.16) * scale;
-  const font = Math.max(height * 0.032, 2.2) * scale;
+  const metrics = dimensionMetrics(height);
+  const stroke = metrics.strokeWidth * scale;
+  const font = metrics.fontSize * scale;
   const widthY = height + height * 0.055;
   const widthTextY = widthY + height * 0.045;
   const heightX = width + height * 0.055;
   const heightTextX = heightX + height * 0.03;
-  const arrowDepth = height * 0.012;
-  const arrowHalf = height * 0.0065;
+  const arrowDepth = metrics.terminalLength * scale;
+  const arrowHalf = metrics.terminalHalfWidth * scale;
 
   return (
     <g
@@ -580,16 +586,22 @@ function DimensionArrows({
           <line x1={0} y1={height} x2={0} y2={widthY + arrowHalf} strokeWidth={stroke} />
           <line x1={width} y1={height} x2={width} y2={widthY + arrowHalf} strokeWidth={stroke} />
           <line x1={0} y1={widthY} x2={width} y2={widthY} strokeWidth={stroke} />
-          <path d={`M 0 ${widthY} L ${arrowDepth} ${widthY - arrowHalf} L ${arrowDepth} ${widthY + arrowHalf} Z`} />
-          <path d={`M ${width} ${widthY} L ${width - arrowDepth} ${widthY - arrowHalf} L ${width - arrowDepth} ${widthY + arrowHalf} Z`} />
+          <path
+            d={`M 0 ${widthY} L ${arrowDepth} ${widthY - arrowHalf} L ${arrowDepth} ${widthY + arrowHalf} Z`}
+            stroke="none"
+          />
+          <path
+            d={`M ${width} ${widthY} L ${width - arrowDepth} ${widthY - arrowHalf} L ${width - arrowDepth} ${widthY + arrowHalf} Z`}
+            stroke="none"
+          />
           <text
             x={width / 2}
             y={widthTextY}
             textAnchor="middle"
             stroke="none"
-            fontFamily="Arial, ui-sans-serif, system-ui, sans-serif"
+            fontFamily={DIMENSION_FONT_FAMILY}
             fontSize={font}
-            fontWeight={700}
+            fontWeight={DIMENSION_FONT_WEIGHT}
           >
             W. {formatDimension(width)}&quot;
           </text>
@@ -600,16 +612,22 @@ function DimensionArrows({
           <line x1={width} y1={0} x2={heightX + arrowHalf} y2={0} strokeWidth={stroke} />
           <line x1={width} y1={height} x2={heightX + arrowHalf} y2={height} strokeWidth={stroke} />
           <line x1={heightX} y1={0} x2={heightX} y2={height} strokeWidth={stroke} />
-          <path d={`M ${heightX} 0 L ${heightX - arrowHalf} ${arrowDepth} L ${heightX + arrowHalf} ${arrowDepth} Z`} />
-          <path d={`M ${heightX} ${height} L ${heightX - arrowHalf} ${height - arrowDepth} L ${heightX + arrowHalf} ${height - arrowDepth} Z`} />
+          <path
+            d={`M ${heightX} 0 L ${heightX - arrowHalf} ${arrowDepth} L ${heightX + arrowHalf} ${arrowDepth} Z`}
+            stroke="none"
+          />
+          <path
+            d={`M ${heightX} ${height} L ${heightX - arrowHalf} ${height - arrowDepth} L ${heightX + arrowHalf} ${height - arrowDepth} Z`}
+            stroke="none"
+          />
           <text
             x={heightTextX}
             y={height / 2}
             dominantBaseline="middle"
             stroke="none"
-            fontFamily="Arial, ui-sans-serif, system-ui, sans-serif"
+            fontFamily={DIMENSION_FONT_FAMILY}
             fontSize={font}
-            fontWeight={700}
+            fontWeight={DIMENSION_FONT_WEIGHT}
           >
             H. {formatDimension(height)}&quot;
           </text>
@@ -793,8 +811,9 @@ function MixedDimensions({
   layout: ResolvedMixedLayout;
   variant: PieceDiagramVariant;
 }) {
-  const font = layout.height * (variant === "report" ? 0.027 : 0.03);
-  const stroke = Math.max(layout.height * 0.0024, 0.16);
+  const metrics = dimensionMetrics(layout.height);
+  const font = metrics.fontSize * (variant === "report" ? 0.86 : 0.92);
+  const stroke = metrics.strokeWidth;
   const topY = -layout.height * 0.055;
   const labelY = -layout.height * 0.075;
   const tickTop = topY - layout.height * 0.012;
@@ -810,9 +829,9 @@ function MixedDimensions({
             y={labelY}
             textAnchor="middle"
             stroke="none"
-            fontFamily="Arial, ui-sans-serif, system-ui, sans-serif"
+            fontFamily={DIMENSION_FONT_FAMILY}
             fontSize={font}
-            fontWeight={700}
+            fontWeight={DIMENSION_FONT_WEIGHT}
           >
             W. {formatDimension(piece.width)}&quot;
           </text>

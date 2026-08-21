@@ -1,6 +1,12 @@
 // Authentic Evolution · Single Hung Window · C065 FINAL
 // Approved visual source: C064_REVIEW approved by the user on 2026-08-08.
 import React, { useId } from "react";
+import {
+  DIMENSION_COLOR,
+  DIMENSION_FONT_FAMILY,
+  DIMENSION_FONT_WEIGHT,
+  dimensionMetrics,
+} from "../dimension-style";
 import { GlassAppearanceLayer } from "../glass-appearance";
 
 export type SingleHungConfiguration =
@@ -70,7 +76,7 @@ export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 
 const RELEASE = "C065_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
-const DIMENSION_COLOR = "#2F3B45";
+const DIMENSIONS = dimensionMetrics(VIEWBOX.width);
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/single-hung-window/c065";
 
 const PRODUCT_REGION = {
@@ -668,19 +674,25 @@ function Dimensions({
   const sideX = x2 + 105;
   const middleY = y1 + frame.height / 2;
   const labelGap = 78;
-  const head = 13;
+  const head = DIMENSIONS.terminalLength;
+  const halfHead = DIMENSIONS.terminalHalfWidth;
   return (
     <g data-dimensions="VISIBLE">
       <g fill={DIMENSION_COLOR} stroke={DIMENSION_COLOR} strokeLinecap="round" strokeLinejoin="round">
-        <path d={`M ${x1} ${bottomY} L ${x2} ${bottomY}`} fill="none" strokeWidth={4} />
-        <path d={`M ${x1} ${bottomY} l ${head} -7 v 14 z`} stroke="none" />
-        <path d={`M ${x2} ${bottomY} l -${head} -7 v 14 z`} stroke="none" />
-        <path d={`M ${sideX} ${y1} L ${sideX} ${middleY - labelGap / 2}`} fill="none" strokeWidth={4} />
-        <path d={`M ${sideX} ${middleY + labelGap / 2} L ${sideX} ${y2}`} fill="none" strokeWidth={4} />
-        <path d={`M ${sideX} ${y1} l -7 ${head} h 14 z`} stroke="none" />
-        <path d={`M ${sideX} ${y2} l -7 -${head} h 14 z`} stroke="none" />
+        <path d={`M ${x1} ${bottomY} L ${x2} ${bottomY}`} fill="none" strokeWidth={DIMENSIONS.strokeWidth} />
+        <path d={`M ${x1} ${bottomY} l ${head} -${halfHead} v ${halfHead * 2} z`} stroke="none" />
+        <path d={`M ${x2} ${bottomY} l -${head} -${halfHead} v ${halfHead * 2} z`} stroke="none" />
+        <path d={`M ${sideX} ${y1} L ${sideX} ${middleY - labelGap / 2}`} fill="none" strokeWidth={DIMENSIONS.strokeWidth} />
+        <path d={`M ${sideX} ${middleY + labelGap / 2} L ${sideX} ${y2}`} fill="none" strokeWidth={DIMENSIONS.strokeWidth} />
+        <path d={`M ${sideX} ${y1} l -${halfHead} ${head} h ${halfHead * 2} z`} stroke="none" />
+        <path d={`M ${sideX} ${y2} l -${halfHead} -${head} h ${halfHead * 2} z`} stroke="none" />
       </g>
-      <g fill={DIMENSION_COLOR} fontFamily="Arial, Helvetica, sans-serif" fontWeight={700} fontSize={64}>
+      <g
+        fill={DIMENSION_COLOR}
+        fontFamily={DIMENSION_FONT_FAMILY}
+        fontWeight={DIMENSION_FONT_WEIGHT}
+        fontSize={DIMENSIONS.fontSize}
+      >
         <text x={(x1 + x2) / 2} y={bottomY + 74} textAnchor="middle">{`W. ${width}`}</text>
         <text x={sideX + 28} y={middleY + 13} textAnchor="start">{`H. ${height}`}</text>
       </g>

@@ -2,6 +2,12 @@
 // Exterior fixed view with database-driven frame and glass finishes.
 import React, { useId } from "react";
 
+import {
+  DIMENSION_COLOR,
+  DIMENSION_FONT_FAMILY,
+  DIMENSION_FONT_WEIGHT,
+  dimensionMetrics,
+} from "../dimension-style";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
 export const FIXED_WINDOW_SHAPE_KEYS = [
@@ -104,11 +110,8 @@ export type FixedWindowShapeDiagramProps = CommonProps &
 export const DEFAULT_FIXED_FRAME_COLOR = "#FFFFFF";
 
 const VIEWBOX_SIZE = 1254;
-const DIMENSION_COLOR = "#263742";
+const DIMENSIONS = dimensionMetrics(VIEWBOX_SIZE);
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/fixed-window-shapes/c073";
-const DIMENSION_FONT_SIZE = 40;
-const ARROW_LENGTH = 11;
-const ARROW_HALF_WIDTH = 7;
 
 function normalizedGlassTint(value?: string | null): string | null {
   const tint = value?.trim();
@@ -300,22 +303,29 @@ function HorizontalDimension({
   const [x1] = geometry.tipEnd;
   return (
     <g data-axis={geometry.axis}>
-      <line x1={x0} y1={y} x2={x1} y2={y} stroke={DIMENSION_COLOR} strokeWidth={2} />
+      <line
+        x1={x0}
+        y1={y}
+        x2={x1}
+        y2={y}
+        stroke={DIMENSION_COLOR}
+        strokeWidth={DIMENSIONS.strokeWidth}
+      />
       <polygon
-        points={`${x0},${y} ${x0 + ARROW_LENGTH},${y - ARROW_HALF_WIDTH} ${x0 + ARROW_LENGTH},${y + ARROW_HALF_WIDTH}`}
+        points={`${x0},${y} ${x0 + DIMENSIONS.terminalLength},${y - DIMENSIONS.terminalHalfWidth} ${x0 + DIMENSIONS.terminalLength},${y + DIMENSIONS.terminalHalfWidth}`}
         fill={DIMENSION_COLOR}
       />
       <polygon
-        points={`${x1},${y} ${x1 - ARROW_LENGTH},${y - ARROW_HALF_WIDTH} ${x1 - ARROW_LENGTH},${y + ARROW_HALF_WIDTH}`}
+        points={`${x1},${y} ${x1 - DIMENSIONS.terminalLength},${y - DIMENSIONS.terminalHalfWidth} ${x1 - DIMENSIONS.terminalLength},${y + DIMENSIONS.terminalHalfWidth}`}
         fill={DIMENSION_COLOR}
       />
       <text
         x={(x0 + x1) / 2}
         y={y + 43}
         textAnchor="middle"
-        fontFamily="DejaVu Sans, Arial, sans-serif"
-        fontSize={DIMENSION_FONT_SIZE}
-        fontWeight={700}
+        fontFamily={DIMENSION_FONT_FAMILY}
+        fontSize={DIMENSIONS.fontSize}
+        fontWeight={DIMENSION_FONT_WEIGHT}
         fill={DIMENSION_COLOR}
       >
         {label}
@@ -337,14 +347,28 @@ function VerticalDimension({
   const gap = 58;
   return (
     <g data-axis={geometry.axis} data-side={geometry.side}>
-      <line x1={x} y1={y0} x2={x} y2={middle - gap / 2} stroke={DIMENSION_COLOR} strokeWidth={2} />
-      <line x1={x} y1={middle + gap / 2} x2={x} y2={y1} stroke={DIMENSION_COLOR} strokeWidth={2} />
+      <line
+        x1={x}
+        y1={y0}
+        x2={x}
+        y2={middle - gap / 2}
+        stroke={DIMENSION_COLOR}
+        strokeWidth={DIMENSIONS.strokeWidth}
+      />
+      <line
+        x1={x}
+        y1={middle + gap / 2}
+        x2={x}
+        y2={y1}
+        stroke={DIMENSION_COLOR}
+        strokeWidth={DIMENSIONS.strokeWidth}
+      />
       <polygon
-        points={`${x},${y0} ${x - ARROW_HALF_WIDTH},${y0 + ARROW_LENGTH} ${x + ARROW_HALF_WIDTH},${y0 + ARROW_LENGTH}`}
+        points={`${x},${y0} ${x - DIMENSIONS.terminalHalfWidth},${y0 + DIMENSIONS.terminalLength} ${x + DIMENSIONS.terminalHalfWidth},${y0 + DIMENSIONS.terminalLength}`}
         fill={DIMENSION_COLOR}
       />
       <polygon
-        points={`${x},${y1} ${x - ARROW_HALF_WIDTH},${y1 - ARROW_LENGTH} ${x + ARROW_HALF_WIDTH},${y1 - ARROW_LENGTH}`}
+        points={`${x},${y1} ${x - DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength} ${x + DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength}`}
         fill={DIMENSION_COLOR}
       />
       <text
@@ -352,9 +376,9 @@ function VerticalDimension({
         y={middle}
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="DejaVu Sans, Arial, sans-serif"
-        fontSize={DIMENSION_FONT_SIZE}
-        fontWeight={700}
+        fontFamily={DIMENSION_FONT_FAMILY}
+        fontSize={DIMENSIONS.fontSize}
+        fontWeight={DIMENSION_FONT_WEIGHT}
         fill={DIMENSION_COLOR}
       >
         {label}

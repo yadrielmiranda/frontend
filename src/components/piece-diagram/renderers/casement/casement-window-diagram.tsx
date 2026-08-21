@@ -6,6 +6,12 @@ import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
 } from "../glass-appearance";
+import {
+  DIMENSION_COLOR,
+  DIMENSION_FONT_FAMILY,
+  DIMENSION_FONT_WEIGHT,
+  dimensionMetrics,
+} from "../dimension-style";
 
 export const CASEMENT_WINDOW_CONFIGURATIONS = ["XL", "XR"] as const;
 export type CasementWindowConfiguration =
@@ -50,7 +56,7 @@ type Rect = GlassOverlayRect;
 
 const RELEASE = "C145_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
-const DIMENSION_COLOR = "#2F3B45";
+const DIMENSIONS = dimensionMetrics(VIEWBOX.width);
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/casement-window/c145";
 const FIXED_RELEASE = "C145_FINAL";
 const DEFAULT_FIXED_ASSET_BASE_PATH =
@@ -311,7 +317,8 @@ function Dimensions({
   const sideX = frame.x + frame.width + 105;
   const middleY = frame.y + frame.height / 2;
   const labelGap = 78;
-  const head = 13;
+  const head = DIMENSIONS.terminalLength;
+  const halfHead = DIMENSIONS.terminalHalfWidth;
 
   return (
     <g
@@ -322,33 +329,39 @@ function Dimensions({
       <path
         d={`M ${frame.x} ${bottomY} H ${frame.x + frame.width}`}
         fill="none"
-        strokeWidth={4}
+        strokeWidth={DIMENSIONS.strokeWidth}
       />
-      <path d={`M ${frame.x} ${bottomY} l ${head} -7 v 14 z`} stroke="none" />
       <path
-        d={`M ${frame.x + frame.width} ${bottomY} l -${head} -7 v 14 z`}
+        d={`M ${frame.x} ${bottomY} l ${head} -${halfHead} v ${halfHead * 2} z`}
+        stroke="none"
+      />
+      <path
+        d={`M ${frame.x + frame.width} ${bottomY} l -${head} -${halfHead} v ${halfHead * 2} z`}
         stroke="none"
       />
       <path
         d={`M ${sideX} ${frame.y} V ${middleY - labelGap / 2}`}
         fill="none"
-        strokeWidth={4}
+        strokeWidth={DIMENSIONS.strokeWidth}
       />
       <path
         d={`M ${sideX} ${middleY + labelGap / 2} V ${frame.y + frame.height}`}
         fill="none"
-        strokeWidth={4}
+        strokeWidth={DIMENSIONS.strokeWidth}
       />
-      <path d={`M ${sideX} ${frame.y} l -7 ${head} h 14 z`} stroke="none" />
       <path
-        d={`M ${sideX} ${frame.y + frame.height} l -7 -${head} h 14 z`}
+        d={`M ${sideX} ${frame.y} l -${halfHead} ${head} h ${halfHead * 2} z`}
+        stroke="none"
+      />
+      <path
+        d={`M ${sideX} ${frame.y + frame.height} l -${halfHead} -${head} h ${halfHead * 2} z`}
         stroke="none"
       />
       <g
         stroke="none"
-        fontFamily="Arial, Helvetica, sans-serif"
-        fontWeight={700}
-        fontSize={64}
+        fontFamily={DIMENSION_FONT_FAMILY}
+        fontWeight={DIMENSION_FONT_WEIGHT}
+        fontSize={DIMENSIONS.fontSize}
       >
         <text
           x={frame.x + frame.width / 2}
