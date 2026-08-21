@@ -1192,7 +1192,7 @@ export function PieceDiagram({
   const offsetX = (maxDimension - scaledWidth) / 2;
   const offsetY = (maxDimension - scaledHeight) / 2;
 
-  const fontSize = variant === "report" ? 9 : 12;
+  const fontSize = variant === "report" ? 11 : 15;
 
   const containerClasses =
     variant === "report"

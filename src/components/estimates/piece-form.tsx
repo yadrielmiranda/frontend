@@ -69,6 +69,20 @@ type NamedOption = {
   name: string;
 };
 
+type NamedOptionLink = {
+  optionId: number;
+  option: NamedOption;
+};
+
+function canonicalLinkedOptions(
+  links: readonly NamedOptionLink[] | undefined,
+): NamedOption[] {
+  return (links ?? []).map(({ optionId, option }) => ({
+    id: Number(optionId),
+    name: option.name,
+  }));
+}
+
 type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
@@ -101,10 +115,10 @@ type SystemConfigLink = {
   defaultSillOptionId?: number | null;
   defaultReinforcementOptionId?: number | null;
 
-  activeOptions?: { optionId: number; option: NamedOption }[];
-  preparationOptions?: { optionId: number; option: NamedOption }[];
-  sillOptions?: { optionId: number; option: NamedOption }[];
-  reinforcementOptions?: { optionId: number; option: NamedOption }[];
+  activeOptions?: NamedOptionLink[];
+  preparationOptions?: NamedOptionLink[];
+  sillOptions?: NamedOptionLink[];
+  reinforcementOptions?: NamedOptionLink[];
 };
 
 type PieceDimensionRequirements = {
@@ -986,18 +1000,12 @@ export function PieceForm({
   }, [highBottomAllowed, getValues, setValue]);
 
   const availableActiveOptions = useMemo(
-    () =>
-      (selectedSysConf?.activeOptions ?? [])
-        .map((item) => item.option)
-        .filter(Boolean),
+    () => canonicalLinkedOptions(selectedSysConf?.activeOptions),
     [selectedSysConf],
   );
 
   const availablePreparationOptions = useMemo(
-    () =>
-      (selectedSysConf?.preparationOptions ?? [])
-        .map((item) => item.option)
-        .filter(Boolean),
+    () => canonicalLinkedOptions(selectedSysConf?.preparationOptions),
     [selectedSysConf],
   );
 
@@ -1014,18 +1022,12 @@ export function PieceForm({
     )?.name ?? null;
 
   const availableSillOptions = useMemo(
-    () =>
-      (selectedSysConf?.sillOptions ?? [])
-        .map((item) => item.option)
-        .filter(Boolean),
+    () => canonicalLinkedOptions(selectedSysConf?.sillOptions),
     [selectedSysConf],
   );
 
   const availableReinforcementOptions = useMemo(
-    () =>
-      (selectedSysConf?.reinforcementOptions ?? [])
-        .map((item) => item.option)
-        .filter(Boolean),
+    () => canonicalLinkedOptions(selectedSysConf?.reinforcementOptions),
     [selectedSysConf],
   );
 

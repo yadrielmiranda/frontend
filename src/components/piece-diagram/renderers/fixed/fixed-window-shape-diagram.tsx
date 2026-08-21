@@ -106,7 +106,7 @@ export const DEFAULT_FIXED_FRAME_COLOR = "#FFFFFF";
 const VIEWBOX_SIZE = 1254;
 const DIMENSION_COLOR = "#263742";
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/fixed-window-shapes/c073";
-const DIMENSION_FONT_SIZE = 31;
+const DIMENSION_FONT_SIZE = 40;
 const ARROW_LENGTH = 11;
 const ARROW_HALF_WIDTH = 7;
 
@@ -463,7 +463,6 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
           />
         </mask>
       </defs>
-      <rect width={VIEWBOX_SIZE} height={VIEWBOX_SIZE} fill="#F7F4EF" />
       <image
         href={`${assetBasePath}/${spec.structuralAsset}`}
         x={0}

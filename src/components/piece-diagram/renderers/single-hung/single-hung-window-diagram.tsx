@@ -70,7 +70,6 @@ export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 
 const RELEASE = "C065_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
-const BACKGROUND_COLOR = "#FAF9F6";
 const DIMENSION_COLOR = "#2F3B45";
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/single-hung-window/c065";
 
@@ -681,7 +680,7 @@ function Dimensions({
         <path d={`M ${sideX} ${y1} l -7 ${head} h 14 z`} stroke="none" />
         <path d={`M ${sideX} ${y2} l -7 -${head} h 14 z`} stroke="none" />
       </g>
-      <g fill={DIMENSION_COLOR} fontFamily="Arial, Helvetica, sans-serif" fontWeight={700} fontSize={38}>
+      <g fill={DIMENSION_COLOR} fontFamily="Arial, Helvetica, sans-serif" fontWeight={700} fontSize={50}>
         <text x={(x1 + x2) / 2} y={bottomY + 74} textAnchor="middle">{`W. ${width}`}</text>
         <text x={sideX + 28} y={middleY + 13} textAnchor="start">{`H. ${height}`}</text>
       </g>
@@ -887,7 +886,6 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
       data-height={resolvedHeight}
     >
       <title>{`Single Hung ${layout.configuration}`}</title>
-      <rect width={VIEWBOX.width} height={VIEWBOX.height} fill={BACKGROUND_COLOR} />
       <g
         transform={productTransform}
         data-layer="DIMENSIONALLY_SCALED_PRODUCT"

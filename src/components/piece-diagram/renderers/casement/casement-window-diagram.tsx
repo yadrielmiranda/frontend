@@ -50,7 +50,6 @@ type Rect = GlassOverlayRect;
 
 const RELEASE = "C145_FINAL";
 const VIEWBOX = { width: 2048, height: 2048 } as const;
-const BACKGROUND_COLOR = "#F7F6F4";
 const DIMENSION_COLOR = "#2F3B45";
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/casement-window/c145";
 const FIXED_RELEASE = "C145_FINAL";
@@ -349,7 +348,7 @@ function Dimensions({
         stroke="none"
         fontFamily="Arial, Helvetica, sans-serif"
         fontWeight={700}
-        fontSize={38}
+        fontSize={50}
       >
         <text
           x={frame.x + frame.width / 2}
@@ -452,11 +451,6 @@ export function CasementWindowDiagram(
           <rect {...glass} />
         </clipPath>
       </defs>
-      <rect
-        width={VIEWBOX.width}
-        height={VIEWBOX.height}
-        fill={BACKGROUND_COLOR}
-      />
       <StructuralBase href={assetHref} frame={frame} />
       <GlassAppearanceLayer
         rects={[glass]}
@@ -558,11 +552,6 @@ export function CasementFixedWindowDiagram(
       data-frame-color={frameColor}
     >
       <title id={titleId}>{`Casement Fixed Window, non-operable, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
-      <rect
-        width={VIEWBOX.width}
-        height={VIEWBOX.height}
-        fill={BACKGROUND_COLOR}
-      />
       <StructuralBase href={assetHref} frame={frame} />
       <GlassAppearanceLayer
         rects={[glass]}

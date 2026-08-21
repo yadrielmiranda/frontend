@@ -559,7 +559,7 @@ function DimensionArrows({
 }) {
   const scale = variant === "report" ? 0.94 : 1;
   const stroke = Math.max(height * 0.0025, 0.16) * scale;
-  const font = Math.max(height * 0.025, 1.7) * scale;
+  const font = Math.max(height * 0.032, 2.2) * scale;
   const widthY = height + height * 0.055;
   const widthTextY = widthY + height * 0.045;
   const heightX = width + height * 0.055;
@@ -793,7 +793,7 @@ function MixedDimensions({
   layout: ResolvedMixedLayout;
   variant: PieceDiagramVariant;
 }) {
-  const font = layout.height * (variant === "report" ? 0.021 : 0.023);
+  const font = layout.height * (variant === "report" ? 0.027 : 0.03);
   const stroke = Math.max(layout.height * 0.0024, 0.16);
   const topY = -layout.height * 0.055;
   const labelY = -layout.height * 0.075;

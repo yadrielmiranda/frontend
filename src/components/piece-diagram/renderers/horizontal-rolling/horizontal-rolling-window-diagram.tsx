@@ -77,7 +77,6 @@ const FAMILY_PRODUCT_REGION = {
   height: 933,
 } as const;
 const DIMENSION_COLOR = "#2f3b45";
-const BACKGROUND_COLOR = "#f7f6f4";
 export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 const DEFAULT_ASSET_BASE_PATH =
   "/product-visuals/horizontal-rolling-window/c148";
@@ -647,14 +646,6 @@ export function HorizontalRollingWindowDiagram(
         </marker>
       </defs>
 
-      <rect
-        x="0"
-        y="0"
-        width={VIEWBOX.width}
-        height={VIEWBOX.height}
-        fill={BACKGROUND_COLOR}
-      />
-
       {layout.mirrorProduct ? (
         <g transform={mirrorTransform}>{productLayers}</g>
       ) : (
@@ -685,7 +676,7 @@ export function HorizontalRollingWindowDiagram(
                     textAnchor="middle"
                     fill={DIMENSION_COLOR}
                     stroke="none"
-                    fontSize="36"
+                    fontSize="46"
                     fontWeight="700"
                   >
                     W. {formatDimension(segment.nominalWidth)}&quot;
@@ -719,7 +710,7 @@ export function HorizontalRollingWindowDiagram(
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="42"
+            fontSize="52"
             fontWeight="700"
           >
             {layout.preserveC040DimensionLayout ? "W." : "TOTAL W."}{" "}
@@ -730,7 +721,7 @@ export function HorizontalRollingWindowDiagram(
             y={productY + productHeight / 2 + 14}
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="42"
+            fontSize="52"
             fontWeight="700"
           >
             H. {formatDimension(resolvedHeight)}&quot;
