@@ -676,7 +676,7 @@ export function HorizontalRollingWindowDiagram(
                     textAnchor="middle"
                     fill={DIMENSION_COLOR}
                     stroke="none"
-                    fontSize="46"
+                    fontSize="58"
                     fontWeight="700"
                   >
                     W. {formatDimension(segment.nominalWidth)}&quot;
@@ -710,7 +710,7 @@ export function HorizontalRollingWindowDiagram(
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="52"
+            fontSize="64"
             fontWeight="700"
           >
             {layout.preserveC040DimensionLayout ? "W." : "TOTAL W."}{" "}
@@ -721,7 +721,7 @@ export function HorizontalRollingWindowDiagram(
             y={productY + productHeight / 2 + 14}
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize="52"
+            fontSize="64"
             fontWeight="700"
           >
             H. {formatDimension(resolvedHeight)}&quot;

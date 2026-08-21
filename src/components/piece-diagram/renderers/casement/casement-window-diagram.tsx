@@ -348,7 +348,7 @@ function Dimensions({
         stroke="none"
         fontFamily="Arial, Helvetica, sans-serif"
         fontWeight={700}
-        fontSize={50}
+        fontSize={64}
       >
         <text
           x={frame.x + frame.width / 2}

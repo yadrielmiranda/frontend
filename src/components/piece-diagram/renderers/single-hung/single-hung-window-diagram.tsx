@@ -680,7 +680,7 @@ function Dimensions({
         <path d={`M ${sideX} ${y1} l -7 ${head} h 14 z`} stroke="none" />
         <path d={`M ${sideX} ${y2} l -7 -${head} h 14 z`} stroke="none" />
       </g>
-      <g fill={DIMENSION_COLOR} fontFamily="Arial, Helvetica, sans-serif" fontWeight={700} fontSize={50}>
+      <g fill={DIMENSION_COLOR} fontFamily="Arial, Helvetica, sans-serif" fontWeight={700} fontSize={64}>
         <text x={(x1 + x2) / 2} y={bottomY + 74} textAnchor="middle">{`W. ${width}`}</text>
         <text x={sideX + 28} y={middleY + 13} textAnchor="start">{`H. ${height}`}</text>
       </g>
