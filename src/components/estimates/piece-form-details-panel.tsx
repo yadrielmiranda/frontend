@@ -387,6 +387,7 @@ export function PieceFormDetailsPanel({
           <div className="w-full max-w-[260px]">
             <PieceDiagram
               diagramFamily={selectedProduct?.diagramFamily}
+              systemName={systemName}
               configuration={configName ?? undefined}
               diagramSpec={selectedSysConf?.config?.diagramSpec}
               dimensionMode={selectedSysConf?.dimensionMode}
@@ -396,6 +397,8 @@ export function PieceFormDetailsPanel({
               hasCoating={hasCoating}
               hasPrivacy={hasPrivacy}
               screenEnabled={Boolean(piece.screen)}
+              activeOptionName={activeName}
+              preparationOptionName={preparationName}
             />
           </div>
         </div>

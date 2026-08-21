@@ -1001,6 +1001,16 @@ export function PieceForm({
     [selectedSysConf],
   );
 
+  const selectedActiveOptionName =
+    availableActiveOptions.find(
+      (option) => option.id === Number(pieceValues.idActiveOption),
+    )?.name ?? null;
+
+  const selectedPreparationOptionName =
+    availablePreparationOptions.find(
+      (option) => option.id === Number(pieceValues.idPreparationOption),
+    )?.name ?? null;
+
   const availableSillOptions = useMemo(
     () =>
       (selectedSysConf?.sillOptions ?? [])
@@ -4003,6 +4013,7 @@ export function PieceForm({
               <PieceDiagram
                 variant="editor"
                 diagramFamily={selectedProduct?.diagramFamily}
+                systemName={selectedSystem?.name}
                 configuration={selectedConfig?.conf}
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
@@ -4012,6 +4023,8 @@ export function PieceForm({
                 hasCoating={hasCoating}
                 hasPrivacy={hasPrivacy}
                 screenEnabled={Boolean(pieceValues.screen)}
+                activeOptionName={selectedActiveOptionName}
+                preparationOptionName={selectedPreparationOptionName}
               />
             </div>
           </div>

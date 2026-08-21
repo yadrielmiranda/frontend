@@ -11,6 +11,8 @@ import {
   CasementFixedWindowDiagram,
   CasementWindowDiagram,
 } from "./piece-diagram/renderers/casement/casement-window-diagram";
+import { PieceDiagram as Series600DoorDiagram } from "./piece-diagram/renderers/french-door/series-600-door-diagram";
+import { resolveSharedFrenchDoor } from "./piece-diagram/renderers/french-door/series-600-door-resolver";
 import {
   FixedWindowShapeDiagram,
   type FixedWindowMultiHeightShape,
@@ -25,6 +27,7 @@ export type { PieceDiagramData, PieceDiagramVariant };
 
 export interface PieceDiagramProps {
   diagramFamily?: DiagramFamily;
+  systemName?: string | null;
   configuration?: string;
   diagramSpec?: DiagramSpec | null;
   dimensionMode?: DimensionMode;
@@ -34,6 +37,8 @@ export interface PieceDiagramProps {
   hasCoating?: boolean;
   hasPrivacy?: boolean;
   screenEnabled?: boolean;
+  activeOptionName?: string | null;
+  preparationOptionName?: string | null;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -152,6 +157,7 @@ function safeFrameColor(value?: string | null): string {
 
 export function PieceDiagram({
   diagramFamily,
+  systemName,
   configuration,
   diagramSpec,
   dimensionMode = "STANDARD",
@@ -161,9 +167,66 @@ export function PieceDiagram({
   hasCoating = false,
   hasPrivacy = false,
   screenEnabled = false,
+  activeOptionName,
+  preparationOptionName,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
+  const resolvedSharedFrenchDoor =
+    diagramFamily === "FRENCH_DOOR"
+      ? resolveSharedFrenchDoor({
+          systemName,
+          configuration,
+          piece,
+          activeOptionName,
+          preparationOptionName,
+        })
+      : null;
+  const hasUnsupportedAzuriaLowE =
+    hasCoating && glassTintHex?.trim().toUpperCase() === "#7FB7D9";
+
+  if (resolvedSharedFrenchDoor && !hasUnsupportedAzuriaLowE) {
+    const sharedDoorProps = {
+      diagramFamily: "FRENCH_DOOR" as const,
+      dimensionMode,
+      frameColorHex,
+      glassTintHex,
+      hasCoating,
+      interlayerProfile: hasPrivacy
+        ? ("PVB_WHITE_090_TRANSLUCENT" as const)
+        : ("PVB_CLEAR_090" as const),
+      showDimensions: true,
+      variant,
+      className,
+    } as const;
+
+    if (resolvedSharedFrenchDoor.kind === "MIXED") {
+      return (
+        <Series600DoorDiagram
+          {...sharedDoorProps}
+          visualTemplate="ECO_SERIES_600_MIXED_ASSEMBLY_EXTERIOR"
+          configuration={resolvedSharedFrenchDoor.configuration}
+          series600MixedPieces={resolvedSharedFrenchDoor.pieces}
+        />
+      );
+    }
+
+    return (
+      <Series600DoorDiagram
+        {...sharedDoorProps}
+        visualTemplate={resolvedSharedFrenchDoor.visualTemplate}
+        configuration={resolvedSharedFrenchDoor.configuration}
+        piece={{
+          ...resolvedSharedFrenchDoor.piece,
+          privacy: hasPrivacy,
+        }}
+        exteriorHingeSide={resolvedSharedFrenchDoor.exteriorHingeSide}
+        activeLeaf={resolvedSharedFrenchDoor.activeLeaf}
+        boreCount={resolvedSharedFrenchDoor.boreCount}
+      />
+    );
+  }
+
   const resolvedSpec = resolveAuthenticWindowSpec({
     diagramFamily,
     configuration,
