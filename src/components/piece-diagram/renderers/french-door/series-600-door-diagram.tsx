@@ -1706,11 +1706,20 @@ function Series600XApprovedPhotoDiagram({
     hingeSide === "left" ? `translate(${width} 0) scale(-1 1)` : undefined;
   const indicatorGlassX =
     hingeSide === "left" ? width - glassX - glassWidth : glassX;
+  const productClipId = `${toSvgIdToken(
+    movementIndicatorIdNamespace ?? "series600-x",
+  )}-product-frame-clip`;
 
   return (
     <>
+      <defs>
+        <clipPath id={productClipId} clipPathUnits="userSpaceOnUse">
+          <rect x={0} y={0} width={width} height={height} />
+        </clipPath>
+      </defs>
       <g
         transform={mirroredTransform}
+        clipPath={`url(#${productClipId})`}
         data-visual-template="ECO_SERIES_600_X_EXTERIOR"
         data-approved-reference="C017_STRUCTURAL_MASTER"
         data-structural-master-sha256="5c649b973262f3acc02ba8db10807186123315d2a0a556b278159713085b8758"
@@ -3371,7 +3380,7 @@ function Series600MixedDimensionLayer({
           fontSize={totalFontSize}
           fontWeight={800}
         >
-          TOTAL W. {formatDimension(totalWidth)}&quot;
+          W. {formatDimension(totalWidth)}&quot;
         </text>
       </g>
 
@@ -3418,7 +3427,7 @@ function Series600MixedDimensionLayer({
           fontSize={heightFontSize}
           fontWeight={800}
         >
-          TOTAL H. {formatDimension(commonHeight)}&quot;
+          H. {formatDimension(commonHeight)}&quot;
         </text>
       </g>
     </g>
@@ -3578,10 +3587,14 @@ export function Series600MixedAssemblyDiagram({
         display: "flex",
         width: "100%",
         height: "100%",
+        minHeight: 0,
+        maxHeight: "100%",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         boxSizing: "border-box",
+        overflow: "hidden",
+        backgroundColor: "transparent",
         border: variant === "report" ? undefined : "1px solid #E5E7EB",
         borderRadius: variant === "report" ? undefined : 6,
         padding: variant === "report" ? undefined : 8,
@@ -3616,7 +3629,7 @@ export function Series600MixedAssemblyDiagram({
         aria-label={`Eco Series 600 ${configuration} mixed assembly, exterior view, total width ${formatDimension(layout.totalWidth)} inches by common height ${formatDimension(layout.commonHeight)} inches`}
         style={
           {
-            backgroundColor: variant !== "report" ? "#F8F7F5" : undefined,
+            backgroundColor: "transparent",
             printColorAdjust: "exact",
             WebkitPrintColorAdjust: "exact",
           } as React.CSSProperties
@@ -3640,17 +3653,6 @@ export function Series600MixedAssemblyDiagram({
               </clipPath>
             ))}
         </defs>
-
-        {variant !== "report" && (
-          <rect
-            x={viewBoxX}
-            y={viewBoxY}
-            width={viewBoxWidth}
-            height={viewBoxHeight}
-            fill="#F1F0EE"
-            data-part="studio-backdrop"
-          />
-        )}
 
         {renderOrder.map((piece) => (
           <Series600MixedPieceDiagram
@@ -3812,7 +3814,6 @@ export function PieceDiagram({
   const series600PrepHoleRimGradientId = `${idToken}-series600-prep-hole-rim`;
   const series600PrepHoleGradientId = `${idToken}-series600-prep-hole`;
   const series600ContactShadowGradientId = `${idToken}-series600-contact-shadow`;
-  const series600StudioBackdropGradientId = `${idToken}-series600-studio-backdrop`;
   const series600ProductDepthFilterId = `${idToken}-series600-product-depth`;
   const series600ProfileDepthFilterId = `${idToken}-series600-profile-depth`;
   const series600HingeDepthFilterId = `${idToken}-series600-hinge-depth`;
@@ -4272,10 +4273,14 @@ export function PieceDiagram({
         display: "flex",
         width: "100%",
         height: "100%",
+        minHeight: 0,
+        maxHeight: "100%",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         boxSizing: "border-box",
+        overflow: "hidden",
+        backgroundColor: "transparent",
         border: variant === "report" ? undefined : "1px solid #E5E7EB",
         borderRadius: variant === "report" ? undefined : 6,
         padding: variant === "report" ? undefined : 8,
@@ -4320,10 +4325,7 @@ export function PieceDiagram({
             "--frame-fill": frameFill,
             "--glass-fill": glassPaint,
             "--glass-opacity": String(glassOpacity),
-            backgroundColor:
-              isSeries600Exterior && variant !== "report"
-                ? "#F8F7F5"
-                : undefined,
+            backgroundColor: "transparent",
             printColorAdjust: "exact",
             WebkitPrintColorAdjust: "exact",
           } as React.CSSProperties
@@ -4550,17 +4552,6 @@ export function PieceDiagram({
             <stop offset="100%" stopColor="#718087" stopOpacity={0} />
           </radialGradient>
 
-          <radialGradient
-            id={series600StudioBackdropGradientId}
-            cx="48%"
-            cy="38%"
-            r="72%"
-          >
-            <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="64%" stopColor="#F8F7F5" />
-            <stop offset="100%" stopColor="#ECEBE8" />
-          </radialGradient>
-
           <filter
             id={series600ProductDepthFilterId}
             x="-18%"
@@ -4636,17 +4627,6 @@ export function PieceDiagram({
             <path d="M0 0 L3.6 1.8 L0 3.6 Z" fill="#46515C" />
           </marker>
         </defs>
-
-        {isSeries600Exterior && variant !== "report" && (
-          <rect
-            x={viewBoxX}
-            y={viewBoxY}
-            width={viewBoxWidth}
-            height={viewBoxHeight}
-            fill="#F1F0EE"
-            data-part="studio-backdrop"
-          />
-        )}
 
         {shouldShowDimensions &&
           (isSeries600Exterior && dimensions.displayHeight !== null ? (

@@ -122,8 +122,12 @@ function activeSide(
 ): PieceDiagramActiveLeaf | null {
   const normalized = normalizeWords(activeOptionName);
 
-  if (normalized === "LEFT ACTIVE") return "left";
-  if (normalized === "RIGHT ACTIVE") return "right";
+  if (normalized.includes("LEFT") && normalized.includes("ACTIVE")) {
+    return "left";
+  }
+  if (normalized.includes("RIGHT") && normalized.includes("ACTIVE")) {
+    return "right";
+  }
 
   return null;
 }
@@ -132,7 +136,10 @@ function xxBoreCount(
   preparationOptionName?: string | null,
 ): PieceDiagramBoreCount | null {
   const normalized = normalizeWords(preparationOptionName);
-  if (!normalized) return null;
+  // XX defaults to the standard two-bore preparation while the form finishes
+  // resolving its associated option. This avoids dropping to the legacy
+  // generic diagram during an Active-option change.
+  if (!normalized) return 2;
 
   if (
     normalized.includes("INACT HANDLE PREP") ||

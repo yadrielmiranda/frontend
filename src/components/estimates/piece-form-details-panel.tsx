@@ -126,12 +126,12 @@ export function PieceFormDetailsPanel({
 
   const activeName =
     selectedSysConf?.activeOptions?.find(
-      (o) => o.optionId === Number(piece.idActiveOption),
+      (o) => Number(o.optionId) === Number(piece.idActiveOption),
     )?.option?.name ?? null;
 
   const preparationName =
     selectedSysConf?.preparationOptions?.find(
-      (o) => o.optionId === Number(piece.idPreparationOption),
+      (o) => Number(o.optionId) === Number(piece.idPreparationOption),
     )?.option?.name ?? null;
 
   const sillName =

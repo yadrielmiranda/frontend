@@ -1003,12 +1003,14 @@ export function PieceForm({
 
   const selectedActiveOptionName =
     availableActiveOptions.find(
-      (option) => option.id === Number(pieceValues.idActiveOption),
+      (option) =>
+        Number(option.id) === Number(pieceValues.idActiveOption),
     )?.name ?? null;
 
   const selectedPreparationOptionName =
     availablePreparationOptions.find(
-      (option) => option.id === Number(pieceValues.idPreparationOption),
+      (option) =>
+        Number(option.id) === Number(pieceValues.idPreparationOption),
     )?.name ?? null;
 
   const availableSillOptions = useMemo(
@@ -4009,7 +4011,7 @@ export function PieceForm({
             <Label className="text-center block mb-2 font-semibold text-gray-600">
               Preview
             </Label>
-            <div className="p-4 border rounded-lg bg-slate-50 min-h-[400px] flex items-center justify-center">
+            <div className="flex h-[clamp(400px,65vh,640px)] items-center justify-center overflow-hidden rounded-lg border bg-slate-50 p-4">
               <PieceDiagram
                 variant="editor"
                 diagramFamily={selectedProduct?.diagramFamily}
