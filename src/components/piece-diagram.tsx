@@ -182,19 +182,15 @@ export function PieceDiagram({
           preparationOptionName,
         })
       : null;
-  const hasUnsupportedAzuriaLowE =
-    hasCoating && glassTintHex?.trim().toUpperCase() === "#7FB7D9";
 
-  if (resolvedSharedFrenchDoor && !hasUnsupportedAzuriaLowE) {
+  if (resolvedSharedFrenchDoor) {
     const sharedDoorProps = {
       diagramFamily: "FRENCH_DOOR" as const,
       dimensionMode,
       frameColorHex,
       glassTintHex,
       hasCoating,
-      interlayerProfile: hasPrivacy
-        ? ("PVB_WHITE_090_TRANSLUCENT" as const)
-        : ("PVB_CLEAR_090" as const),
+      hasPrivacy,
       showDimensions: true,
       variant,
       className,
@@ -216,10 +212,7 @@ export function PieceDiagram({
         {...sharedDoorProps}
         visualTemplate={resolvedSharedFrenchDoor.visualTemplate}
         configuration={resolvedSharedFrenchDoor.configuration}
-        piece={{
-          ...resolvedSharedFrenchDoor.piece,
-          privacy: hasPrivacy,
-        }}
+        piece={resolvedSharedFrenchDoor.piece}
         exteriorHingeSide={resolvedSharedFrenchDoor.exteriorHingeSide}
         activeLeaf={resolvedSharedFrenchDoor.activeLeaf}
         boreCount={resolvedSharedFrenchDoor.boreCount}
