@@ -23,6 +23,7 @@ import {
 } from "@/app/api/estimates.api";
 import type {
   CreatePieceData,
+  EstimateCustomerChargeSummary,
   EstimateWithRelations,
   UpdateEstimateHeaderData,
 } from "@/lib/types";
@@ -50,6 +51,7 @@ import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 import { canSetCustomerOnEstimate, isAdminRole } from "@/lib/rbac";
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
+import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -206,6 +208,10 @@ export function EstimateForm({
   const [financialInstallation, setFinancialInstallation] = useState(
     initialInstallation ?? null,
   );
+  const [customerChargesSummary, setCustomerChargesSummary] =
+    useState<EstimateCustomerChargeSummary | null>(
+      estimate?.customerChargesSummary ?? null,
+    );
 
   const globalTints = useMemo(
     () => tints.filter((tint) => tint.isActive && tint.isGlobal),
@@ -1363,13 +1369,40 @@ export function EstimateForm({
           />
         )}
 
+        {isEditMode &&
+          estimate &&
+          ownerRole === "dealer" &&
+          dealerMode === "EXTERNAL" && (
+            <DealerCustomerChargesCard
+              estimateId={estimate.id}
+              initialSummary={estimate.customerChargesSummary ?? null}
+              refreshKey={[
+                financialInstallation?.id ?? "none",
+                financialInstallation?.status ?? "none",
+                financialInstallation?.quotes?.[0]?.id ?? "none",
+                financialInstallation?.quotes?.[0]?.status ?? "none",
+                financialInstallation?.quotes?.[0]?.total ?? "none",
+                financialInstallation?.permit?.cityFee ?? "none",
+              ].join(":")}
+              editable={
+                role === "dealer" &&
+                currentUserId === estimate.idUser &&
+                estimate.status?.name === "Active" &&
+                !estimate.order
+              }
+              onSummaryChange={setCustomerChargesSummary}
+            />
+          )}
+
         <EstimateFinancialSummary
           ownerRole={ownerRole}
+          dealerMode={dealerMode}
           ownerIsTaxExempt={isTaxExempt}
           taxRate={taxRate}
           customerTaxRatePercent={Number(customerTaxRatePercent) || 0}
           materialSummary={summary}
           installationJob={isEditMode ? financialInstallation : null}
+          customerChargesSummary={customerChargesSummary}
         />
 
         {isEditMode && estimate && currentUserId && (

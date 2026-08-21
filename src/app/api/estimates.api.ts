@@ -4,6 +4,9 @@ import type {
   CreateEstimateHeaderData,
   UpdateEstimateHeaderData,
   CreatePieceData,
+  EstimateCustomerChargePricingMode,
+  EstimateCustomerChargeSource,
+  EstimateCustomerChargeSummary,
 } from "../../lib/types";
 
 export interface CalculatedPiece extends CreatePieceData {
@@ -222,4 +225,58 @@ export function getPublicEstimate(token: string) {
   return apiFetch<EstimateWithRelations>(`/api/public/estimates/${token}`, {
     cache: "no-store",
   });
+}
+
+export function getEstimateCustomerCharges(estimateId: number) {
+  return apiFetch<EstimateCustomerChargeSummary | null>(
+    `/api/estimates/${estimateId}/customer-charges`,
+    { cache: "no-store" },
+  );
+}
+
+export function saveSystemCustomerCharge(
+  estimateId: number,
+  data: {
+    source: Exclude<EstimateCustomerChargeSource, "CUSTOM">;
+    sourceRefId?: number | null;
+    pricingMode: EstimateCustomerChargePricingMode;
+    value: number;
+    usedInCustomerQuote: boolean;
+  },
+) {
+  return apiFetch<EstimateCustomerChargeSummary>(
+    `/api/estimates/${estimateId}/customer-charges/system`,
+    { method: "PUT", body: data },
+  );
+}
+
+export function createDealerCustomerCharge(
+  estimateId: number,
+  data: { description: string; amount: number },
+) {
+  return apiFetch<EstimateCustomerChargeSummary>(
+    `/api/estimates/${estimateId}/customer-charges`,
+    { method: "POST", body: data },
+  );
+}
+
+export function updateDealerCustomerCharge(
+  estimateId: number,
+  chargeId: number,
+  data: { description?: string; amount?: number },
+) {
+  return apiFetch<EstimateCustomerChargeSummary>(
+    `/api/estimates/${estimateId}/customer-charges/${chargeId}`,
+    { method: "PATCH", body: data },
+  );
+}
+
+export function deleteEstimateCustomerCharge(
+  estimateId: number,
+  chargeId: number,
+) {
+  return apiFetch<EstimateCustomerChargeSummary>(
+    `/api/estimates/${estimateId}/customer-charges/${chargeId}`,
+    { method: "DELETE" },
+  );
 }

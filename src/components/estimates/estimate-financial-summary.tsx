@@ -4,15 +4,14 @@ import type { ReactNode } from "react";
 import { ReceiptText } from "lucide-react";
 
 import type {
+  DealerMode,
+  EstimateCustomerChargeSummary,
   EstimateRevisionTotals,
   InstallationJob,
   InstallationQuote,
 } from "@/lib/types";
 import { formatMoney, roundMoney } from "@/lib/formatters";
-import {
-  paidBaseFor,
-  paidInstallationCredit,
-} from "@/lib/installation-flow";
+import { paidBaseFor, paidInstallationCredit } from "@/lib/installation-flow";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,10 +83,7 @@ function additionalServiceTotals(
   const grouped = new Map<number, AdditionalServiceTotal>();
 
   for (const line of quote.lines) {
-    if (
-      line.origin !== "USER_SELECTED" &&
-      line.origin !== "FIELD_ADDED"
-    ) {
+    if (line.origin !== "USER_SELECTED" && line.origin !== "FIELD_ADDED") {
       continue;
     }
 
@@ -192,22 +188,93 @@ function TaxAmount({ total }: { total: MaterialTotals }) {
   );
 }
 
+function ExternalDealerServiceSummary({
+  summary,
+}: {
+  summary: EstimateCustomerChargeSummary | null;
+}) {
+  const lines = summary?.lines ?? [];
+
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+        <span>Installation &amp; services</span>
+        <span className="text-right">Your Cost</span>
+        <span className="text-right">Customer Price</span>
+      </div>
+
+      {lines.length > 0 ? (
+        lines.map((line) => (
+          <div
+            key={line.sourceKey ?? `dealer-${line.id}`}
+            className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm"
+          >
+            <span className="text-slate-700">
+              {line.description}
+              {line.origin === "DEALER" && (
+                <span className="ml-2 text-[11px] text-slate-500">
+                  Dealer-created
+                </span>
+              )}
+            </span>
+            <span className="text-right font-medium">
+              {line.origin === "DEALER"
+                ? "—"
+                : line.systemAmount == null
+                  ? "Pending"
+                  : formatMoney(numberValue(line.systemAmount))}
+            </span>
+            <span className="text-right font-medium">
+              {!line.usedInCustomerQuote
+                ? "Not used"
+                : line.customerAmount == null
+                  ? "Pending"
+                  : formatMoney(numberValue(line.customerAmount))}
+            </span>
+          </div>
+        ))
+      ) : (
+        <div className="border-t px-4 py-3 text-sm text-muted-foreground">
+          No installation or service charges included.
+        </div>
+      )}
+
+      {summary && lines.length > 0 && (
+        <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t bg-slate-50/60 px-4 py-3 text-sm font-semibold">
+          <span>Services total</span>
+          <span className="text-right">
+            {formatMoney(numberValue(summary.systemTotal))}
+          </span>
+          <span className="text-right">
+            {formatMoney(numberValue(summary.customerTotal))}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function EstimateFinancialSummary({
   ownerRole,
+  dealerMode,
   ownerIsTaxExempt,
   taxRate,
   customerTaxRatePercent,
   materialSummary,
   installationJob,
+  customerChargesSummary,
 }: {
   ownerRole: string;
+  dealerMode: DealerMode | null;
   ownerIsTaxExempt: boolean;
   taxRate: number;
   customerTaxRatePercent: number;
   materialSummary: EstimateFinancialMaterialSummary;
   installationJob: InstallationJob | null;
+  customerChargesSummary: EstimateCustomerChargeSummary | null;
 }) {
   const isDealerEstimate = canSetCustomerOnEstimate(ownerRole);
+  const isExternalDealer = isDealerEstimate && dealerMode === "EXTERNAL";
   const activeJob =
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
@@ -282,18 +349,20 @@ export function EstimateFinancialSummary({
     ? paidBaseFor(activeJob, "INSTALLATION_DEPOSIT")
     : 0;
   const installationBalance = activeJob
-    ? roundMoney(
-        Math.max(0, quoteTotal - paidInstallationCredit(activeJob)),
-      )
+    ? roundMoney(Math.max(0, quoteTotal - paidInstallationCredit(activeJob)))
     : 0;
   const sharedChargesTotal = roundMoney(
     quoteTotal + permitFee + (cityFee ?? 0) + retainedDeposit,
   );
+  const customerChargesTotal =
+    isExternalDealer && customerChargesSummary
+      ? numberValue(customerChargesSummary.customerTotal)
+      : sharedChargesTotal;
   const internalProjectTotal = roundMoney(
     internalMaterial.total + sharedChargesTotal,
   );
   const customerProjectTotal = roundMoney(
-    customerMaterial.total + sharedChargesTotal,
+    customerMaterial.total + customerChargesTotal,
   );
   const dealerProfit = roundMoney(
     customerMaterial.subtotal - internalMaterial.subtotal,
@@ -394,68 +463,72 @@ export function EstimateFinancialSummary({
           </div>
         )}
 
-        <div className="rounded-lg border px-4 py-3">
-          <h4 className="mb-1 text-sm font-semibold">
-            Installation &amp; services
-          </h4>
+        {isExternalDealer ? (
+          <ExternalDealerServiceSummary summary={customerChargesSummary} />
+        ) : (
+          <div className="rounded-lg border px-4 py-3">
+            <h4 className="mb-1 text-sm font-semibold">
+              Installation &amp; services
+            </h4>
 
-          <SummaryRow label="Installation">
-            <span className="flex flex-wrap items-center justify-end gap-2">
-              <Badge
-                variant="outline"
-                className={installationStatus.className}
-              >
-                {installationStatus.label}
-              </Badge>
-              {activeJob && quote ? formatMoney(baseInstallationTotal) : null}
-              {activeJob && !quote ? "Pending" : null}
-            </span>
-          </SummaryRow>
+            <SummaryRow label="Installation">
+              <span className="flex flex-wrap items-center justify-end gap-2">
+                <Badge
+                  variant="outline"
+                  className={installationStatus.className}
+                >
+                  {installationStatus.label}
+                </Badge>
+                {activeJob && quote ? formatMoney(baseInstallationTotal) : null}
+                {activeJob && !quote ? "Pending" : null}
+              </span>
+            </SummaryRow>
 
-          {activeJob && (
-            <>
-              {extras.length > 0 ? (
-                extras.map((service) => (
+            {activeJob && (
+              <>
+                {extras.length > 0 ? (
+                  extras.map((service) => (
+                    <SummaryRow
+                      key={service.serviceId}
+                      label={service.name}
+                      value={formatMoney(service.amount)}
+                    />
+                  ))
+                ) : (
                   <SummaryRow
-                    key={service.serviceId}
-                    label={service.name}
-                    value={formatMoney(service.amount)}
+                    label="Additional services"
+                    value="None included"
                   />
-                ))
-              ) : (
-                <SummaryRow
-                  label="Additional services"
-                  value="None included"
-                />
-              )}
+                )}
 
-              {activeJob.permit ? (
-                <>
-                  <SummaryRow
-                    label="Permit Fee"
-                    value={formatMoney(permitFee)}
-                  />
-                  <SummaryRow
-                    label="City Fee"
-                    value={cityFee == null ? "Pending" : formatMoney(cityFee)}
-                  />
-                </>
-              ) : (
-                <>
-                  <SummaryRow label="Permit service" value="Not included" />
-                  <SummaryRow label="City Fee" value="Not applicable" />
-                </>
-              )}
+                {activeJob.permit ? (
+                  <>
+                    <SummaryRow
+                      label="Permit Fee"
+                      value={formatMoney(permitFee)}
+                    />
+                    <SummaryRow
+                      label="City Fee"
+                      value={cityFee == null ? "Pending" : formatMoney(cityFee)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <SummaryRow label="Permit service" value="Not included" />
+                    <SummaryRow label="City Fee" value="Not applicable" />
+                  </>
+                )}
 
-              {isDealerEstimate && (
-                <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-                  Services and fees are shown once and added equally to both
-                  project totals.
-                </p>
-              )}
-            </>
-          )}
-        </div>
+                {isDealerEstimate && (
+                  <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+                    The system installation price is the final customer price
+                    for this account.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {retainedDeposit > 0 && (
           <div className="rounded-lg border px-4 py-3">
@@ -500,14 +573,14 @@ export function EstimateFinancialSummary({
           )}
           {awaitingDeposit && (
             <p className="mt-1 text-xs text-blue-800">
-              Installation is proposed and is not confirmed until the deposit
-              is paid.
+              Installation is proposed and is not confirmed until the deposit is
+              paid.
             </p>
           )}
           {projected && !awaitingDeposit && !proposedRevision && (
             <p className="mt-1 text-xs text-blue-800">
-              Installation amounts remain preliminary until the current quote
-              is approved.
+              Installation amounts remain preliminary until the current quote is
+              approved.
             </p>
           )}
           {proposedRevision && (

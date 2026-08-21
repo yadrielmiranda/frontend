@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
 import type {
+  EstimateCustomerChargeSummary,
   EstimateInstallationReportSummary,
   EstimateWithRelations,
 } from "@/lib/types";
@@ -168,6 +169,147 @@ function ComparativeMaterialSummary({
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ExternalDealerChargesSummary({
+  summary,
+  comparison,
+}: {
+  summary: EstimateCustomerChargeSummary;
+  comparison: boolean;
+}) {
+  const customerLines = summary.lines.filter(
+    (line) => line.usedInCustomerQuote,
+  );
+  const displayedLines = comparison ? summary.lines : customerLines;
+
+  if (displayedLines.length === 0) {
+    return (
+      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+          Installation &amp; services
+        </div>
+        <div className="px-4 py-1">
+          <MoneyRow label="Installation">
+            <Badge
+              variant="outline"
+              className="border-amber-300 bg-amber-50 text-amber-800"
+            >
+              Not included
+            </Badge>
+          </MoneyRow>
+        </div>
+      </div>
+    );
+  }
+
+  if (!comparison) {
+    return (
+      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+          Installation &amp; services
+        </div>
+        <div className="px-4 py-1">
+          {displayedLines.map((line) => (
+            <MoneyRow
+              key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
+              label={line.description}
+              value={
+                line.customerAmount == null
+                  ? "Pending"
+                  : formatMoney(numberValue(line.customerAmount))
+              }
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="px-4 py-3 text-left">Installation &amp; services</th>
+            <th className="px-4 py-3 text-right">Dealer Cost</th>
+            <th className="px-4 py-3 text-right">Customer Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {displayedLines.map((line) => (
+            <tr
+              key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
+              className="border-t border-slate-200"
+            >
+              <td className="px-4 py-3 text-slate-600">
+                {line.description}
+                {line.origin === "DEALER" && (
+                  <span className="ml-2 text-[11px] text-slate-400">
+                    Dealer-created
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right font-medium">
+                {line.origin === "DEALER"
+                  ? "—"
+                  : line.systemAmount == null
+                    ? "Pending"
+                    : formatMoney(numberValue(line.systemAmount))}
+              </td>
+              <td className="px-4 py-3 text-right font-medium">
+                {!line.usedInCustomerQuote
+                  ? "Not used"
+                  : line.customerAmount == null
+                    ? "Pending"
+                    : formatMoney(numberValue(line.customerAmount))}
+              </td>
+            </tr>
+          ))}
+          <tr className="border-t border-slate-200 bg-slate-50/60 font-semibold">
+            <td className="px-4 py-3">Services total</td>
+            <td className="px-4 py-3 text-right">
+              {formatMoney(numberValue(summary.systemTotal))}
+            </td>
+            <td className="px-4 py-3 text-right">
+              {formatMoney(numberValue(summary.customerTotal))}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ExternalDealerProjectScope({
+  summary,
+}: {
+  summary: EstimateCustomerChargeSummary;
+}) {
+  const customerLines = summary.lines.filter(
+    (line) => line.usedInCustomerQuote,
+  );
+
+  return (
+    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+        Project scope
+      </div>
+      <div className="px-4 py-1">
+        {customerLines.length > 0 ? (
+          customerLines.map((line) => (
+            <MoneyRow
+              key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
+              label={line.description}
+              value={line.customerAmount == null ? "Pending" : "Included"}
+            />
+          ))
+        ) : (
+          <MoneyRow label="Installation" value="Not included" />
+        )}
+      </div>
     </div>
   );
 }
@@ -428,6 +570,9 @@ export function ReportFinancialSummary({
   const selectedMaterial = customerFacing ? customerMaterial : internalMaterial;
   const comparisonView =
     reportKind === "dealer" || (reportKind === "admin" && ownerIsDealer);
+  const externalDealerCharges = ownerIsDealer
+    ? (estimate.customerChargesSummary ?? null)
+    : null;
 
   const installationTotal = numberValue(installationSummary?.installationTotal);
   const permitFee = installationSummary?.permitIncluded
@@ -435,14 +580,18 @@ export function ReportFinancialSummary({
     : 0;
   const cityFee = numberValue(installationSummary?.cityFee);
   const sharedCharges = roundMoney(installationTotal + permitFee + cityFee);
+  const customerServiceCharges = externalDealerCharges
+    ? numberValue(externalDealerCharges.customerTotal)
+    : sharedCharges;
   const internalProjectTotal = roundMoney(
     internalMaterial.total + sharedCharges,
   );
   const customerProjectTotal = roundMoney(
-    customerMaterial.total + sharedCharges,
+    customerMaterial.total + customerServiceCharges,
   );
   const calculatedSelectedProjectTotal = roundMoney(
-    selectedMaterial.total + sharedCharges,
+    selectedMaterial.total +
+      (customerFacing ? customerServiceCharges : sharedCharges),
   );
   const selectedProjectTotal =
     projectTotalOnly && estimate.publicProjectTotal != null
@@ -459,7 +608,15 @@ export function ReportFinancialSummary({
       (installationSummary.quoteStatus !== "APPROVED" ||
         installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
   );
-  const calculatedIncompleteTotal = cityFeePending || installationAmountPending;
+  const externalChargesIncomplete = externalDealerCharges
+    ? customerFacing
+      ? externalDealerCharges.customerTotalIncomplete
+      : externalDealerCharges.systemTotalIncomplete ||
+        externalDealerCharges.customerTotalIncomplete
+    : false;
+  const calculatedIncompleteTotal = externalDealerCharges
+    ? externalChargesIncomplete
+    : cityFeePending || installationAmountPending;
   const incompleteTotal =
     projectTotalOnly &&
     typeof estimate.publicProjectTotalIncomplete === "boolean"
@@ -483,7 +640,11 @@ export function ReportFinancialSummary({
       </div>
 
       {projectTotalOnly ? (
-        <ProjectScopeSummary summary={installationSummary} />
+        externalDealerCharges ? (
+          <ExternalDealerProjectScope summary={externalDealerCharges} />
+        ) : (
+          <ProjectScopeSummary summary={installationSummary} />
+        )
       ) : (
         <>
           <div className="break-inside-avoid">
@@ -498,7 +659,14 @@ export function ReportFinancialSummary({
             )}
           </div>
 
-          <InstallationSummary summary={installationSummary} />
+          {externalDealerCharges ? (
+            <ExternalDealerChargesSummary
+              summary={externalDealerCharges}
+              comparison={comparisonView}
+            />
+          ) : (
+            <InstallationSummary summary={installationSummary} />
+          )}
         </>
       )}
 
@@ -546,19 +714,26 @@ export function ReportFinancialSummary({
           />
         )}
 
-        {installationAmountPending && (
+        {!externalDealerCharges && installationAmountPending && (
           <p className="pb-1 text-xs font-medium text-amber-800">
             Installation amount is pending.
           </p>
         )}
-        {cityFeePending && (
+        {!externalDealerCharges && cityFeePending && (
           <p className="pb-1 text-xs font-medium text-amber-800">
             Final total is pending the City Fee.
           </p>
         )}
-        {preliminaryInstallation && !installationAmountPending && (
-          <p className="pb-1 text-xs text-blue-800">
-            Installation is proposed and is not yet confirmed.
+        {!externalDealerCharges &&
+          preliminaryInstallation &&
+          !installationAmountPending && (
+            <p className="pb-1 text-xs text-blue-800">
+              Installation is proposed and is not yet confirmed.
+            </p>
+          )}
+        {externalDealerCharges?.customerTotalIncomplete && customerFacing && (
+          <p className="pb-1 text-xs font-medium text-amber-800">
+            Customer service pricing is incomplete.
           </p>
         )}
       </div>

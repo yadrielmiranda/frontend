@@ -786,6 +786,46 @@ export interface EstimateInstallationReportSummary {
   cityFee: string | number | null;
 }
 
+export type EstimateCustomerChargeOrigin = "SYSTEM" | "DEALER";
+export type EstimateCustomerChargeSource =
+  | "INSTALLATION"
+  | "INSTALLATION_SERVICE"
+  | "PERMIT"
+  | "CITY_FEE"
+  | "CUSTOM";
+export type EstimateCustomerChargePricingMode =
+  | "SAME"
+  | "PERCENTAGE"
+  | "AMOUNT"
+  | "FINAL";
+
+export interface EstimateCustomerChargeSummaryLine {
+  id: number | null;
+  origin: EstimateCustomerChargeOrigin;
+  source: EstimateCustomerChargeSource;
+  sourceKey: string | null;
+  sourceRefId: number | null;
+  description: string;
+  systemAmount: string | number | null;
+  customerAmount: string | number | null;
+  pricingMode: EstimateCustomerChargePricingMode | null;
+  pricingValue: string | number | null;
+  usedInCustomerQuote: boolean;
+  needsReview: boolean;
+  sortOrder: number;
+}
+
+export interface EstimateCustomerChargeSummary {
+  enabled: true;
+  lines: EstimateCustomerChargeSummaryLine[];
+  systemTotal: string | number;
+  customerTotal: string | number;
+  knownSystemMargin: string | number;
+  dealerCreatedTotal: string | number;
+  systemTotalIncomplete: boolean;
+  customerTotalIncomplete: boolean;
+}
+
 export type InstallationListScope = "active" | "completed" | "canceled" | "all";
 
 export interface InstallationListQuery {
@@ -1172,6 +1212,7 @@ export type EstimateWithRelations = Estimate & {
   user: User;
   branding?: Branding | null;
   installationSummary?: EstimateInstallationReportSummary | null;
+  customerChargesSummary?: EstimateCustomerChargeSummary | null;
   publicPricingMode?: "detailed" | "total";
   publicProjectTotal?: string | number;
   publicProjectTotalIncomplete?: boolean;
