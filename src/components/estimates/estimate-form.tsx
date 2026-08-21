@@ -190,8 +190,15 @@ export function EstimateForm({
 
   const canUseCustomerPricing = canSetCustomerOnEstimate(role);
   const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
-  const dealerMode =
-    estimate?.dealerModeSnapshot ?? estimate?.user?.dealerMode ?? null;
+  const useCurrentDealerClassification = Boolean(
+    estimate && estimate.status?.name === "Active" && !estimate.order,
+  );
+  const dealerMode = useCurrentDealerClassification
+    ? (estimate?.user?.dealerMode ?? estimate?.dealerModeSnapshot ?? null)
+    : (estimate?.dealerModeSnapshot ??
+      estimate?.user?.dealerMode ??
+      user?.dealerMode ??
+      null);
   const isTaxExempt = estimate
     ? Boolean(estimate.user.isTaxExempt)
     : Boolean(user?.isTaxExempt);

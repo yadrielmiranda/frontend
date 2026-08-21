@@ -264,8 +264,12 @@ export const getEstimateColumns = (
         const isOwner = currentUser?.id === estimate.idUser;
         const showOwnerActions = isOwner;
         const isDealer = currentUser?.role?.name === "dealer";
-        const isInternalDealer =
-          isDealer && estimate.dealerModeSnapshot === "INTERNAL";
+        const effectiveDealerMode = isOwner
+          ? (estimate.user?.dealerMode ??
+            currentUser?.dealerMode ??
+            estimate.dealerModeSnapshot)
+          : (estimate.dealerModeSnapshot ?? estimate.user?.dealerMode);
+        const isInternalDealer = isDealer && effectiveDealerMode === "INTERNAL";
 
         const isActive = statusLower === "active";
         const isExpired = statusLower === "expired";
