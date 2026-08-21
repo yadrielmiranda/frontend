@@ -70,17 +70,25 @@ type NamedOption = {
 };
 
 type NamedOptionLink = {
-  optionId: number;
-  option: NamedOption;
+  optionId?: number;
+  id?: number;
+  name?: string;
+  option?: NamedOption | null;
 };
 
 function canonicalLinkedOptions(
   links: readonly NamedOptionLink[] | undefined,
 ): NamedOption[] {
-  return (links ?? []).map(({ optionId, option }) => ({
-    id: Number(optionId),
-    name: option.name,
-  }));
+  return (links ?? []).flatMap((link) => {
+    const nestedId = Number(link.option?.id);
+    const linkedId = Number(link.optionId ?? link.id);
+    const id = Number.isInteger(nestedId) && nestedId > 0 ? nestedId : linkedId;
+    const name = link.option?.name ?? link.name;
+
+    return Number.isInteger(id) && id > 0 && typeof name === "string"
+      ? [{ id, name }]
+      : [];
+  });
 }
 
 type SystemConfigLink = {
@@ -348,6 +356,8 @@ export function PieceForm({
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
   const [isMuntinOpen, setIsMuntinOpen] = useState(true);
+  const [previewActiveOption, setPreviewActiveOption] =
+    useState<NamedOption | null>(null);
 
   const [dimensionPolicies, setDimensionPolicies] = useState<PolicyListItem[]>(
     [],
@@ -1009,11 +1019,14 @@ export function PieceForm({
     [selectedSysConf],
   );
 
+  const selectedActiveOptionId = Number(pieceValues.idActiveOption);
+  const selectedActiveOption = availableActiveOptions.find(
+    (option) => option.id === selectedActiveOptionId,
+  );
   const selectedActiveOptionName =
-    availableActiveOptions.find(
-      (option) =>
-        Number(option.id) === Number(pieceValues.idActiveOption),
-    )?.name ?? null;
+    (previewActiveOption?.id === selectedActiveOptionId
+      ? previewActiveOption.name
+      : selectedActiveOption?.name) ?? null;
 
   const selectedPreparationOptionName =
     availablePreparationOptions.find(
@@ -1311,6 +1324,10 @@ export function PieceForm({
       ? `${Number(initialData.idSyst)}:${Number(initialData.idConf)}`
       : "",
   );
+
+  useEffect(() => {
+    setPreviewActiveOption(null);
+  }, [systemId, idConf]);
 
   useEffect(() => {
     const defaultItems = [
@@ -2580,7 +2597,15 @@ export function PieceForm({
                             render={({ field }) => (
                               <Select
                                 disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
+                                onValueChange={(value) => {
+                                  const nextOption =
+                                    availableActiveOptions.find(
+                                      (option) => String(option.id) === value,
+                                    ) ?? null;
+
+                                  setPreviewActiveOption(nextOption);
+                                  field.onChange(nextOption?.id ?? null);
+                                }}
                                 key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
                                 value={
                                   field.value == null
