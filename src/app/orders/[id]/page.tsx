@@ -44,6 +44,7 @@ export default async function OrderDetailsPage({
         installation={installation}
         isOwner={user.id === order.userId}
         isPrivileged={canEdit}
+        isAdmin={isAdminRole(role)}
         canEdit={canEdit}
         canViewFinancials={canViewFinancials}
         canRecordManualPayment={

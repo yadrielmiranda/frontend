@@ -8,6 +8,7 @@ import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { OrderInstallationPanel } from "@/components/orders/order-installation-panel";
 import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-panel";
 import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
+import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
 
 const percent = (value: string | number | null | undefined) =>
   new Intl.NumberFormat("en-US", {
@@ -20,6 +21,7 @@ export function OrderDetails({
   installation,
   isOwner,
   isPrivileged,
+  isAdmin,
   canEdit,
   canViewFinancials,
   canRecordManualPayment,
@@ -28,6 +30,7 @@ export function OrderDetails({
   installation: InstallationJob | null;
   isOwner: boolean;
   isPrivileged: boolean;
+  isAdmin: boolean;
   canEdit: boolean;
   canViewFinancials: boolean;
   canRecordManualPayment: boolean;
@@ -117,6 +120,15 @@ export function OrderDetails({
       </div>
 
       <OrderMaterialPanel order={order} />
+
+      <OrderDeliveryPanel
+        order={order}
+        installation={installation}
+        isOwner={isOwner}
+        isPrivileged={isPrivileged}
+        isAdmin={isAdmin}
+        canRecordManualPayment={canRecordManualPayment}
+      />
 
       {installation && (
         <OrderInstallationPanel

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getEstimate } from "@/app/api/estimates.api";
 import { getEstimateInstallation } from "@/app/api/installations.api";
+import { getOrder } from "@/app/api/orders.api";
 import type { PaymentType } from "@/lib/types";
 
 type Status = "checking" | "done" | "failed";
@@ -30,6 +31,7 @@ export default function CheckoutSuccessContent() {
     return value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
+      value === "DELIVERY" ||
       value === "EXTRA"
       ? value
       : "MATERIAL";
@@ -55,6 +57,30 @@ export default function CheckoutSuccessContent() {
     const tick = async () => {
       try {
         const est = await getEstimate(estimateId);
+
+        if (paymentType === "DELIVERY") {
+          const oid = est.order?.id != null ? Number(est.order.id) : null;
+          if (oid && Number.isFinite(oid)) {
+            const order = await getOrder(oid);
+            const delivery = order.deliveries?.find(
+              (item) => item.sequence === sequence,
+            );
+            if (
+              delivery?.payment?.status === "PAID" ||
+              (delivery && delivery.status !== "PAYMENT_DUE")
+            ) {
+              if (redirectedRef.current) return;
+              redirectedRef.current = true;
+              setStatus("done");
+              setOrderId(oid);
+              toast.success("Delivery payment confirmed.");
+              router.replace(`/orders/${oid}`);
+              return;
+            }
+          }
+          setAttempt((value) => value + 1);
+          return;
+        }
 
         if (paymentType !== "MATERIAL") {
           const installation = await getEstimateInstallation(estimateId);

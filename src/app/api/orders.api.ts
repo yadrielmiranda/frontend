@@ -1,6 +1,9 @@
 import { apiFetch } from "./_base";
 import type {
   OrderExtraCharge,
+  OrderDelivery,
+  DeliveryType,
+  Order,
   OrderWithRelations,
   UpdateOrderData,
   OrderStatus,
@@ -68,5 +71,56 @@ export function respondOrderExtraCharge(
       method: "POST",
       body: { decision, comment },
     },
+  );
+}
+
+export function selectOrderPickup(orderId: number) {
+  return apiFetch<Order>(
+    `/api/orders/${orderId}/fulfillment/pickup`,
+    { method: "POST" },
+  );
+}
+
+export function completeOrderPickup(orderId: number) {
+  return apiFetch<Order>(
+    `/api/orders/${orderId}/fulfillment/pickup/complete`,
+    { method: "POST" },
+  );
+}
+
+export type CreateOrderDeliveryInput = {
+  type?: DeliveryType;
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  taxable?: boolean;
+  internalReason?: string;
+};
+
+export function createOrderDelivery(
+  orderId: number,
+  data: CreateOrderDeliveryInput,
+) {
+  return apiFetch<OrderDelivery>(`/api/orders/${orderId}/deliveries`, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export function scheduleOrderDelivery(
+  deliveryId: number,
+  scheduledFor: string,
+) {
+  return apiFetch<OrderDelivery>(
+    `/api/orders/deliveries/${deliveryId}/schedule`,
+    { method: "PATCH", body: { scheduledFor } },
+  );
+}
+
+export function completeOrderDelivery(deliveryId: number) {
+  return apiFetch<OrderDelivery>(
+    `/api/orders/deliveries/${deliveryId}/complete`,
+    { method: "POST" },
   );
 }

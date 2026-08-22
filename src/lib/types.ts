@@ -341,6 +341,7 @@ export type PaymentType =
   | "INSTALLATION_DEPOSIT"
   | "PERMIT"
   | "INSTALLATION"
+  | "DELIVERY"
   | "EXTRA";
 export type PaymentStatus =
   | "PENDING"
@@ -378,6 +379,7 @@ export interface EstimatePayment {
   manualReference?: string | null;
   manualNote?: string | null;
   recordedById?: number | null;
+  deliveryId?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -917,6 +919,10 @@ export interface Order {
 
   updateStatus: string;
 
+  fulfillmentMethod: OrderFulfillmentMethod;
+  fulfillmentSelectedAt?: string | null;
+  pickupCompletedAt?: string | null;
+
   idEst: number;
   statusId: number;
   userId: number;
@@ -924,6 +930,64 @@ export interface Order {
   createdAt?: string;
   updatedAt?: string;
   extraCharges?: OrderExtraCharge[];
+  deliveries?: OrderDelivery[];
+}
+
+export type OrderFulfillmentMethod =
+  | "UNDECIDED"
+  | "CUSTOMER_PICKUP"
+  | "COMPANY_DELIVERY"
+  | "INSTALLATION_DELIVERY";
+
+export type DeliveryType =
+  | "STANDARD"
+  | "INSTALLATION_OVERRIDE"
+  | "PRE_DELIVERY"
+  | "REDELIVERY";
+
+export type DeliveryStatus =
+  | "PAYMENT_DUE"
+  | "READY_TO_SCHEDULE"
+  | "SCHEDULED"
+  | "COMPLETED"
+  | "CANCELED";
+
+export interface OrderDelivery {
+  id: number;
+  orderId: number;
+  sequence: number;
+  type: DeliveryType;
+  status: DeliveryStatus;
+  vehicleProfile: string;
+  routeProvider: string;
+  originStreet: string;
+  originCity: string;
+  originState: string;
+  originPostalCode: string;
+  destinationStreet: string;
+  destinationCity: string;
+  destinationState: string;
+  destinationPostalCode: string;
+  distanceMeters: number;
+  roadMiles: string | number;
+  basePriceSnapshot: string | number;
+  includedMilesSnapshot: string | number;
+  additionalMilePriceSnapshot: string | number;
+  additionalMiles: number;
+  tollAmount: string | number;
+  taxable: boolean;
+  taxRateSnapshot: string | number;
+  subtotal: string | number;
+  taxAmount: string | number;
+  total: string | number;
+  internalReason?: string | null;
+  payment?: EstimatePayment | null;
+  scheduledFor?: string | null;
+  paidAt?: string | null;
+  completedAt?: string | null;
+  canceledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type OrderExtraChargeStatus =

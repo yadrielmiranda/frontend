@@ -85,6 +85,7 @@ export function paymentTypeLabel(type: PaymentType): string {
   if (type === "PERMIT") return "Permit";
   if (type === "MATERIAL") return "Material + City Fee";
   if (type === "INSTALLATION") return "Installation";
+  if (type === "DELIVERY") return "Delivery";
   return "Extra charge";
 }
 

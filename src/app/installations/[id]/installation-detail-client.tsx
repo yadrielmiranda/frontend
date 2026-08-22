@@ -899,6 +899,21 @@ export function InstallationDetailClient({
   );
   const canProposeAppointment =
     canManageAppointmentScheduling && !blockingAppointment;
+  const installationOrder = job.estimate.order;
+  const deliveryOverride = installationOrder?.deliveries?.find(
+    (delivery) =>
+      delivery.type === "INSTALLATION_OVERRIDE" &&
+      delivery.status !== "CANCELED",
+  );
+  const deliveryOverridePaid =
+    !deliveryOverride || deliveryOverride.payment?.status === "PAID";
+  const orderReadyToStartInstallation = Boolean(
+    installationOrder &&
+      (installationOrder.status?.name === "Delivered" ||
+        (installationOrder.status?.name === "Ready to pick up" &&
+          installationOrder.fulfillmentMethod === "INSTALLATION_DELIVERY")) &&
+      deliveryOverridePaid,
+  );
 
   const run = async (
     action: () => Promise<InstallationJob>,
@@ -1814,7 +1829,10 @@ export function InstallationDetailClient({
                     </p>
                   </div>
                 )}
-              {privileged && canProposeAppointment && (
+              {privileged &&
+                canProposeAppointment &&
+                (appointmentType !== "INSTALLATION" ||
+                  deliveryOverridePaid) && (
                 <>
                   <Label>
                     {rescheduleRequested ? "New proposed" : "Proposed"}{" "}
@@ -1869,7 +1887,7 @@ export function InstallationDetailClient({
               )}
               {privileged &&
                 job.status === "SCHEDULED" &&
-                job.estimate.order?.status?.name === "Delivered" && (
+                orderReadyToStartInstallation && (
                   <Button
                     className="w-full"
                     disabled={busy}

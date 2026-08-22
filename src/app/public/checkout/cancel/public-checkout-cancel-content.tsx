@@ -21,6 +21,7 @@ export default function PublicCheckoutCancelContent() {
     return value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
+      value === "DELIVERY" ||
       value === "EXTRA"
       ? value
       : "MATERIAL";

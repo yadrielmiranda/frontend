@@ -34,6 +34,7 @@ export default function CheckoutCancelContent() {
     return value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
+      value === "DELIVERY" ||
       value === "EXTRA"
       ? value
       : "MATERIAL";
@@ -92,7 +93,10 @@ export default function CheckoutCancelContent() {
       if (result.status === "paid") {
         toast.success("Payment confirmed.");
 
-        if (paymentType === "MATERIAL" && result.orderId) {
+        if (
+          (paymentType === "MATERIAL" || paymentType === "DELIVERY") &&
+          result.orderId
+        ) {
           router.replace(`/orders/${result.orderId}`);
         } else if (
           paymentType === "PERMIT" ||
@@ -112,7 +116,9 @@ export default function CheckoutCancelContent() {
       }
 
       toast.success("Payment canceled.");
-      if (
+      if (paymentType === "DELIVERY" && result.orderId) {
+        router.replace(`/orders/${result.orderId}`);
+      } else if (
         paymentType === "MATERIAL" ||
         paymentType === "PERMIT" ||
         paymentType === "INSTALLATION_DEPOSIT"
