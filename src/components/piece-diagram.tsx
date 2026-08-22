@@ -68,8 +68,28 @@ function positiveDimensionNumber(value: unknown): number | null {
     : null;
 }
 
-function isPositiveDimension(value: unknown): value is string | number {
-  return positiveDimensionNumber(value) !== null;
+function normalizePieceDimensions(
+  piece?: PieceDiagramData,
+): PieceDiagramData | undefined {
+  if (!piece) return undefined;
+
+  const normalize = (value: unknown) =>
+    positiveDimensionNumber(value) ?? undefined;
+
+  return {
+    ...piece,
+    width: normalize(piece.width),
+    height: normalize(piece.height),
+    heightLeft: normalize(piece.heightLeft),
+    heightRight: normalize(piece.heightRight),
+    legHeight: normalize(piece.legHeight),
+    sashHeight: normalize(piece.sashHeight),
+    windowHeight: normalize(piece.windowHeight),
+    doorWidth: normalize(piece.doorWidth),
+    doorHeight: normalize(piece.doorHeight),
+    leftSideliteWidth: normalize(piece.leftSideliteWidth),
+    rightSideliteWidth: normalize(piece.rightSideliteWidth),
+  };
 }
 
 const MULTI_HEIGHT_FIXED_SHAPES = new Set<FixedWindowShape>([
@@ -81,33 +101,33 @@ const MULTI_HEIGHT_FIXED_SHAPES = new Set<FixedWindowShape>([
 ]);
 
 type ResolvedFixedDimensions = {
-  width: string | number;
-  height: string | number;
-  secondaryHeight: string | number | null;
+  width: number;
+  height: number;
+  secondaryHeight: number | null;
 };
 
-function firstPositiveDimension(
-  ...values: unknown[]
-): string | number | null {
-  return values.find(isPositiveDimension) ?? null;
+function firstPositiveDimension(...values: unknown[]): number | null {
+  for (const value of values) {
+    const parsed = positiveDimensionNumber(value);
+    if (parsed !== null) return parsed;
+  }
+
+  return null;
 }
 
 function fixedHeightDerivedFromWidth(
   shape: FixedWindowShape,
-  width: string | number,
+  width: number,
 ): number | null {
-  const numericWidth = positiveDimensionNumber(width);
-  if (numericWidth === null) return null;
-
-  if (shape === "HALF_CIRCLE") return numericWidth / 2;
+  if (shape === "HALF_CIRCLE") return width / 2;
   if (
     shape === "CIRCLE" ||
     shape === "OCTAGON_SYMMETRIC" ||
     shape === "QUARTER_CIRCLE"
   ) {
-    return numericWidth;
+    return width;
   }
-  if (shape === "HEXAGON_SYMMETRIC") return numericWidth * (42 / 48);
+  if (shape === "HEXAGON_SYMMETRIC") return width * (42 / 48);
 
   return null;
 }
@@ -172,12 +192,13 @@ export function PieceDiagram({
   variant = "editor",
   className,
 }: PieceDiagramProps) {
+  const normalizedPiece = normalizePieceDimensions(piece);
   const resolvedSharedFrenchDoor =
     diagramFamily === "FRENCH_DOOR"
       ? resolveSharedFrenchDoor({
           systemName,
           configuration,
-          piece,
+          piece: normalizedPiece,
           activeOptionName,
           preparationOptionName,
         })
@@ -227,15 +248,17 @@ export function PieceDiagram({
   });
   const fixedDimensions =
     resolvedSpec?.renderer === "FIXED_WINDOW_SHAPE"
-      ? resolveFixedDimensions(resolvedSpec.shape, piece)
+      ? resolveFixedDimensions(resolvedSpec.shape, normalizedPiece)
       : null;
-  const width = fixedDimensions?.width ?? piece?.width;
-  const height = fixedDimensions?.height ?? piece?.height;
+  const width =
+    fixedDimensions?.width ?? positiveDimensionNumber(normalizedPiece?.width);
+  const height =
+    fixedDimensions?.height ?? positiveDimensionNumber(normalizedPiece?.height);
 
   if (
     !resolvedSpec ||
-    !isPositiveDimension(width) ||
-    !isPositiveDimension(height) ||
+    width === null ||
+    height === null ||
     (resolvedSpec.renderer === "FIXED_WINDOW_SHAPE" && !fixedDimensions)
   ) {
     return (
@@ -243,7 +266,7 @@ export function PieceDiagram({
         diagramFamily={diagramFamily}
         configuration={configuration}
         dimensionMode={dimensionMode}
-        piece={piece}
+        piece={normalizedPiece}
         frameColorHex={frameColorHex}
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
@@ -341,8 +364,8 @@ export function PieceDiagram({
       <SingleHungWindowDiagram
         {...sharedProps}
         configuration={resolvedSpec.configuration}
-        sashHeight={piece?.sashHeight}
-        windowHeight={piece?.windowHeight}
+        sashHeight={normalizedPiece?.sashHeight}
+        windowHeight={normalizedPiece?.windowHeight}
       />
     );
   } else if (
