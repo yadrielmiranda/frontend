@@ -125,7 +125,6 @@ export function PieceFormDetailsPanel({
   const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const activeName =
-    piece.activeOptionName ??
     selectedSysConf?.activeOptions?.find(
       (o) => o.optionId === Number(piece.idActiveOption),
     )?.option?.name ??

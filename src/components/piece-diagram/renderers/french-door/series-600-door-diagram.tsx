@@ -583,8 +583,6 @@ function DimensionArrows({
     >
       {showWidth ? (
         <g>
-          <line x1={0} y1={height} x2={0} y2={widthY + arrowHalf} strokeWidth={stroke} />
-          <line x1={width} y1={height} x2={width} y2={widthY + arrowHalf} strokeWidth={stroke} />
           <line x1={0} y1={widthY} x2={width} y2={widthY} strokeWidth={stroke} />
           <path
             d={`M 0 ${widthY} L ${arrowDepth} ${widthY - arrowHalf} L ${arrowDepth} ${widthY + arrowHalf} Z`}
@@ -609,8 +607,6 @@ function DimensionArrows({
       ) : null}
       {showHeight ? (
         <g>
-          <line x1={width} y1={0} x2={heightX + arrowHalf} y2={0} strokeWidth={stroke} />
-          <line x1={width} y1={height} x2={heightX + arrowHalf} y2={height} strokeWidth={stroke} />
           <line x1={heightX} y1={0} x2={heightX} y2={height} strokeWidth={stroke} />
           <path
             d={`M ${heightX} 0 L ${heightX - arrowHalf} ${arrowDepth} L ${heightX + arrowHalf} ${arrowDepth} Z`}

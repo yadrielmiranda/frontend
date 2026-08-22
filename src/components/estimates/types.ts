@@ -32,8 +32,6 @@ export interface PieceFormValues extends CreatePieceData {
   highBottomPercent?: number | null;
 
   idActiveOption?: number | null;
-  /** UI-only semantic value used by the preview; it is not sent to the API. */
-  activeOptionName?: string | null;
   idPreparationOption?: number | null;
   idSillOption?: number | null;
   idReinforcementOption?: number | null;

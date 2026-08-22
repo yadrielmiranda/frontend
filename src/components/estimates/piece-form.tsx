@@ -1004,8 +1004,7 @@ export function PieceForm({
   const selectedActiveOption = availableActiveOptions.find(
     (option) => option.id === selectedActiveOptionId,
   );
-  const selectedActiveOptionName =
-    selectedActiveOption?.name ?? pieceValues.activeOptionName ?? null;
+  const selectedActiveOptionName = selectedActiveOption?.name ?? null;
 
   const selectedPreparationOptionName =
     availablePreparationOptions.find(
@@ -1351,7 +1350,6 @@ export function PieceForm({
 
       setValue("muntin", null, { shouldDirty: false });
       setValue("idActiveOption", null, { shouldDirty: false });
-      setValue("activeOptionName", null, { shouldDirty: false });
       setValue("idPreparationOption", null, { shouldDirty: false });
       setValue("idSillOption", null, { shouldDirty: false });
       setValue("idReinforcementOption", null, { shouldDirty: false });
@@ -1378,7 +1376,6 @@ export function PieceForm({
 
       setValue("muntin", null, { shouldDirty: true });
       setValue("idActiveOption", null, { shouldDirty: true });
-      setValue("activeOptionName", null, { shouldDirty: false });
       setValue("idPreparationOption", null, { shouldDirty: true });
       setValue("idSillOption", null, { shouldDirty: true });
       setValue("idReinforcementOption", null, { shouldDirty: true });
@@ -1391,13 +1388,8 @@ export function PieceForm({
         setValue("screen", false, { shouldDirty: false });
       }
 
-      if (
-        availableActiveOptions.length === 0 &&
-        getValues("idActiveOption") &&
-        !getValues("activeOptionName")
-      ) {
+      if (availableActiveOptions.length === 0 && getValues("idActiveOption")) {
         setValue("idActiveOption", null, { shouldDirty: false });
-        setValue("activeOptionName", null, { shouldDirty: false });
       }
 
       if (
@@ -1441,15 +1433,8 @@ export function PieceForm({
     });
     setValue("screen", screenAllowed, { shouldDirty: true });
 
-    const defaultActiveOptionId =
-      selectedSysConf?.defaultActiveOptionId ?? null;
-    const defaultActiveOption = availableActiveOptions.find(
-      (option) => option.id === Number(defaultActiveOptionId),
-    );
-
-    setValue("idActiveOption", defaultActiveOptionId, { shouldDirty: true });
-    setValue("activeOptionName", defaultActiveOption?.name ?? null, {
-      shouldDirty: false,
+    setValue("idActiveOption", selectedSysConf?.defaultActiveOptionId ?? null, {
+      shouldDirty: true,
     });
 
     setValue(
@@ -2599,11 +2584,6 @@ export function PieceForm({
                                     ) ?? null;
 
                                   field.onChange(nextOption?.id ?? null);
-                                  setValue(
-                                    "activeOptionName",
-                                    nextOption?.name ?? null,
-                                    { shouldDirty: false },
-                                  );
                                 }}
                                 key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
                                 value={
