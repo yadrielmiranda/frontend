@@ -125,16 +125,15 @@ export function PieceFormDetailsPanel({
   const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const activeName =
+    piece.activeOptionName ??
     selectedSysConf?.activeOptions?.find(
-      (o) =>
-        Number(o.option?.id ?? o.optionId) === Number(piece.idActiveOption),
-    )?.option?.name ?? null;
+      (o) => o.optionId === Number(piece.idActiveOption),
+    )?.option?.name ??
+    null;
 
   const preparationName =
     selectedSysConf?.preparationOptions?.find(
-      (o) =>
-        Number(o.option?.id ?? o.optionId) ===
-        Number(piece.idPreparationOption),
+      (o) => o.optionId === Number(piece.idPreparationOption),
     )?.option?.name ?? null;
 
   const sillName =

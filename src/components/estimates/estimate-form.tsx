@@ -149,6 +149,7 @@ function mapEstimatePieceToForm(
     muntin: mapPieceMuntinToForm(piece),
 
     idActiveOption: piece.idActiveOption ?? null,
+    activeOptionName: piece.activeOption?.name ?? null,
     idPreparationOption: piece.idPreparationOption ?? null,
     idSillOption: piece.idSillOption ?? null,
     idReinforcementOption: piece.idReinforcementOption ?? null,
@@ -1126,6 +1127,7 @@ export function EstimateForm({
       highBottomPercent: null,
 
       idActiveOption: null,
+      activeOptionName: null,
       idPreparationOption: null,
       idSillOption: null,
       idReinforcementOption: null,

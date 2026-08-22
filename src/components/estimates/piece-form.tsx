@@ -69,28 +69,6 @@ type NamedOption = {
   name: string;
 };
 
-type NamedOptionLink = {
-  optionId?: number;
-  id?: number;
-  name?: string;
-  option?: NamedOption | null;
-};
-
-function canonicalLinkedOptions(
-  links: readonly NamedOptionLink[] | undefined,
-): NamedOption[] {
-  return (links ?? []).flatMap((link) => {
-    const nestedId = Number(link.option?.id);
-    const linkedId = Number(link.optionId ?? link.id);
-    const id = Number.isInteger(nestedId) && nestedId > 0 ? nestedId : linkedId;
-    const name = link.option?.name ?? link.name;
-
-    return Number.isInteger(id) && id > 0 && typeof name === "string"
-      ? [{ id, name }]
-      : [];
-  });
-}
-
 type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
@@ -123,10 +101,10 @@ type SystemConfigLink = {
   defaultSillOptionId?: number | null;
   defaultReinforcementOptionId?: number | null;
 
-  activeOptions?: NamedOptionLink[];
-  preparationOptions?: NamedOptionLink[];
-  sillOptions?: NamedOptionLink[];
-  reinforcementOptions?: NamedOptionLink[];
+  activeOptions?: { optionId: number; option: NamedOption }[];
+  preparationOptions?: { optionId: number; option: NamedOption }[];
+  sillOptions?: { optionId: number; option: NamedOption }[];
+  reinforcementOptions?: { optionId: number; option: NamedOption }[];
 };
 
 type PieceDimensionRequirements = {
@@ -356,9 +334,6 @@ export function PieceForm({
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
   const [isMuntinOpen, setIsMuntinOpen] = useState(true);
-  const [previewActiveOption, setPreviewActiveOption] =
-    useState<NamedOption | null>(null);
-
   const [dimensionPolicies, setDimensionPolicies] = useState<PolicyListItem[]>(
     [],
   );
@@ -1010,12 +985,18 @@ export function PieceForm({
   }, [highBottomAllowed, getValues, setValue]);
 
   const availableActiveOptions = useMemo(
-    () => canonicalLinkedOptions(selectedSysConf?.activeOptions),
+    () =>
+      (selectedSysConf?.activeOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
     [selectedSysConf],
   );
 
   const availablePreparationOptions = useMemo(
-    () => canonicalLinkedOptions(selectedSysConf?.preparationOptions),
+    () =>
+      (selectedSysConf?.preparationOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
     [selectedSysConf],
   );
 
@@ -1024,9 +1005,7 @@ export function PieceForm({
     (option) => option.id === selectedActiveOptionId,
   );
   const selectedActiveOptionName =
-    (previewActiveOption?.id === selectedActiveOptionId
-      ? previewActiveOption.name
-      : selectedActiveOption?.name) ?? null;
+    selectedActiveOption?.name ?? pieceValues.activeOptionName ?? null;
 
   const selectedPreparationOptionName =
     availablePreparationOptions.find(
@@ -1035,12 +1014,18 @@ export function PieceForm({
     )?.name ?? null;
 
   const availableSillOptions = useMemo(
-    () => canonicalLinkedOptions(selectedSysConf?.sillOptions),
+    () =>
+      (selectedSysConf?.sillOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
     [selectedSysConf],
   );
 
   const availableReinforcementOptions = useMemo(
-    () => canonicalLinkedOptions(selectedSysConf?.reinforcementOptions),
+    () =>
+      (selectedSysConf?.reinforcementOptions ?? [])
+        .map((item) => item.option)
+        .filter(Boolean),
     [selectedSysConf],
   );
 
@@ -1326,10 +1311,6 @@ export function PieceForm({
   );
 
   useEffect(() => {
-    setPreviewActiveOption(null);
-  }, [systemId, idConf]);
-
-  useEffect(() => {
     const defaultItems = [
       "item-frame",
       ...(hasOptionsSection ? ["item-options"] : []),
@@ -1370,6 +1351,7 @@ export function PieceForm({
 
       setValue("muntin", null, { shouldDirty: false });
       setValue("idActiveOption", null, { shouldDirty: false });
+      setValue("activeOptionName", null, { shouldDirty: false });
       setValue("idPreparationOption", null, { shouldDirty: false });
       setValue("idSillOption", null, { shouldDirty: false });
       setValue("idReinforcementOption", null, { shouldDirty: false });
@@ -1396,6 +1378,7 @@ export function PieceForm({
 
       setValue("muntin", null, { shouldDirty: true });
       setValue("idActiveOption", null, { shouldDirty: true });
+      setValue("activeOptionName", null, { shouldDirty: false });
       setValue("idPreparationOption", null, { shouldDirty: true });
       setValue("idSillOption", null, { shouldDirty: true });
       setValue("idReinforcementOption", null, { shouldDirty: true });
@@ -1408,8 +1391,13 @@ export function PieceForm({
         setValue("screen", false, { shouldDirty: false });
       }
 
-      if (availableActiveOptions.length === 0 && getValues("idActiveOption")) {
+      if (
+        availableActiveOptions.length === 0 &&
+        getValues("idActiveOption") &&
+        !getValues("activeOptionName")
+      ) {
         setValue("idActiveOption", null, { shouldDirty: false });
+        setValue("activeOptionName", null, { shouldDirty: false });
       }
 
       if (
@@ -1453,8 +1441,15 @@ export function PieceForm({
     });
     setValue("screen", screenAllowed, { shouldDirty: true });
 
-    setValue("idActiveOption", selectedSysConf?.defaultActiveOptionId ?? null, {
-      shouldDirty: true,
+    const defaultActiveOptionId =
+      selectedSysConf?.defaultActiveOptionId ?? null;
+    const defaultActiveOption = availableActiveOptions.find(
+      (option) => option.id === Number(defaultActiveOptionId),
+    );
+
+    setValue("idActiveOption", defaultActiveOptionId, { shouldDirty: true });
+    setValue("activeOptionName", defaultActiveOption?.name ?? null, {
+      shouldDirty: false,
     });
 
     setValue(
@@ -2603,8 +2598,12 @@ export function PieceForm({
                                       (option) => String(option.id) === value,
                                     ) ?? null;
 
-                                  setPreviewActiveOption(nextOption);
                                   field.onChange(nextOption?.id ?? null);
+                                  setValue(
+                                    "activeOptionName",
+                                    nextOption?.name ?? null,
+                                    { shouldDirty: false },
+                                  );
                                 }}
                                 key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
                                 value={
