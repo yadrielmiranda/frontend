@@ -389,6 +389,7 @@ export function PieceFormDetailsPanel({
             <PieceDiagram
               diagramFamily={selectedProduct?.diagramFamily}
               systemName={systemName}
+              brandName={brandName}
               configuration={configName ?? undefined}
               diagramSpec={selectedSysConf?.config?.diagramSpec}
               dimensionMode={selectedSysConf?.dimensionMode}

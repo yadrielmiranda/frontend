@@ -1,0 +1,4289 @@
+{
+  "release": "C139_FINAL",
+  "catalog": [
+    {
+      "configuration": "O-XX",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "01_O_XX_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 307,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1124.6667,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "O-XX",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "02_O_XX_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 307,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1124.6667,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 2,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "01_OX_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "dimensionBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 447,
+          "y": 214,
+          "width": 438,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 918,
+          "y": 217,
+          "width": 432,
+          "height": 706
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 1,
+          "direction": "LEFT",
+          "outer": {
+            "x": 898,
+            "y": 197,
+            "width": 472,
+            "height": 746
+          },
+          "mesh": {
+            "x": 910,
+            "y": 209,
+            "width": 448,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "OX-XO",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "09_OX-XO_ECO_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "dimensionBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 182,
+          "y": 214,
+          "width": 328.5,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 547.5,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "O",
+          "direction": "-",
+          "x": 1289.5,
+          "y": 214,
+          "width": 328.5,
+          "height": 712
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 1,
+          "direction": "LEFT",
+          "outer": {
+            "x": 527.5,
+            "y": 197,
+            "width": 372.5,
+            "height": 746
+          },
+          "mesh": {
+            "x": 539.5,
+            "y": 209,
+            "width": 348.5,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        },
+        {
+          "panelIndex": 2,
+          "direction": "RIGHT",
+          "outer": {
+            "x": 900,
+            "y": 197,
+            "width": 372.5,
+            "height": 746
+          },
+          "mesh": {
+            "x": 912,
+            "y": 209,
+            "width": 348.5,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "OX-XO",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "11_OX-XO_NOVO_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "dimensionBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 182,
+          "y": 214,
+          "width": 328.5,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 547.5,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "O",
+          "direction": "-",
+          "x": 1289.5,
+          "y": 214,
+          "width": 328.5,
+          "height": 712
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 1,
+          "direction": "LEFT",
+          "outer": {
+            "x": 527.5,
+            "y": 197,
+            "width": 372.5,
+            "height": 746
+          },
+          "mesh": {
+            "x": 539.5,
+            "y": 209,
+            "width": 348.5,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        },
+        {
+          "panelIndex": 2,
+          "direction": "RIGHT",
+          "outer": {
+            "x": 900,
+            "y": 197,
+            "width": 372.5,
+            "height": 746
+          },
+          "mesh": {
+            "x": 912,
+            "y": 209,
+            "width": 348.5,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "OX-XX",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "03_OX_XX_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 237,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1265,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OX-XX",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "04_OX_XX_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 237,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1265,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXO",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "07_OXO_LOCK_RIGHT_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        250,
+        175,
+        1300,
+        790
+      ],
+      "dimensionBox": [
+        250,
+        175,
+        1300,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 287,
+          "y": 214,
+          "width": 384.6667,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 704.6667,
+          "y": 217,
+          "width": 390.6667,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "O",
+          "direction": "-",
+          "x": 1128.3333,
+          "y": 214,
+          "width": 384.6667,
+          "height": 712
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 1,
+          "direction": "LEFT",
+          "outer": {
+            "x": 684.6667,
+            "y": 197,
+            "width": 430.6667,
+            "height": 746
+          },
+          "mesh": {
+            "x": 696.6667,
+            "y": 209,
+            "width": 406.6667,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "OXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 3,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "26_OXX_ECO_NOVO_3T_SCREEN_OFF_C085_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 307,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1124.6667,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXX-XXO",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "21_OXX_XXO_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 623,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "O",
+          "direction": "-",
+          "x": 2406,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXX-XXO",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "22_OXX_XXO_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 623,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "O",
+          "direction": "-",
+          "x": 2406,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXX-XXX",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "23_OXX_XXX_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 623,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2408,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXX-XXX",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "24_OXX_XXX_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 623,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2408,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 4,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "29_OXXX_ECO_NOVO_4T_SCREEN_OFF_C085_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 237,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1265,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXXX-XXXO",
+      "manufacturer": "ECO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "37_OXXX_XXXO_ECO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 263,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "O",
+          "direction": "-",
+          "x": 2765.5,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXXX-XXXO",
+      "manufacturer": "NOVO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "38_OXXX_XXXO_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 263,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "O",
+          "direction": "-",
+          "x": 2765.5,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXXX-XXXX",
+      "manufacturer": "ECO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "39_OXXX_XXXX_ECO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 263,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "X",
+          "direction": "L",
+          "x": 2767.5,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "OXXX-XXXX",
+      "manufacturer": "NOVO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "40_OXXX_XXXX_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "O",
+          "direction": "-",
+          "x": 263,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "X",
+          "direction": "L",
+          "x": 2767.5,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 1,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "11_PX_ECO_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        300,
+        165,
+        1200,
+        810
+      ],
+      "dimensionBox": [
+        900,
+        175,
+        600,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 930,
+          "y": 217,
+          "width": 530,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 2,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "12_PXX_ECO_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1830,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1470,
+        810
+      ],
+      "dimensionBox": [
+        670,
+        175,
+        980,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 700,
+          "y": 217,
+          "width": 437,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 1173,
+          "y": 217,
+          "width": 437,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXX-XX",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "13_PXX_XX_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        530,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 560,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 897.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 1245,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1592.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXX-XX",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "14_PXX_XX_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        530,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 560,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 897.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 1245,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1592.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXX-XXP",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": true,
+      "pocketRight": true,
+      "structuralAsset": "15_PXX_XXP_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2460,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        2100,
+        810
+      ],
+      "dimensionBox": [
+        530,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 560,
+          "y": 217,
+          "width": 300,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 900,
+          "y": 217,
+          "width": 310,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 1250,
+          "y": 217,
+          "width": 310,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1600,
+          "y": 217,
+          "width": 300,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXX-XXP",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": true,
+      "pocketRight": true,
+      "structuralAsset": "16_PXX_XXP_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2460,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        2100,
+        810
+      ],
+      "dimensionBox": [
+        530,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 560,
+          "y": 217,
+          "width": 300,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 900,
+          "y": 217,
+          "width": 310,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 1250,
+          "y": 217,
+          "width": 310,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1600,
+          "y": 217,
+          "width": 300,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 3,
+      "panelCount": 3,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "25_PXXX_ECO_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2040,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1680,
+        810
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 630,
+          "y": 217,
+          "width": 368.6667,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 1034.6667,
+          "y": 217,
+          "width": 380.6667,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1451.3333,
+          "y": 217,
+          "width": 368.6667,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXX-XXX",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "31_PXXX_XXX_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        420,
+        165,
+        2520,
+        740
+      ],
+      "dimensionBox": [
+        780,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 799,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 1151,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1510,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1869,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2228,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2587,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXX-XXX",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "32_PXXX_XXX_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        420,
+        165,
+        2520,
+        740
+      ],
+      "dimensionBox": [
+        780,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 799,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 1151,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1510,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1869,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2228,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2587,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXX-XXXP",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": true,
+      "pocketRight": true,
+      "structuralAsset": "33_PXXX_XXXP_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        165,
+        2880,
+        740
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 619,
+          "y": 202,
+          "width": 329,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 972,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1332,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2052,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2412,
+          "y": 202,
+          "width": 329,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXX-XXXP",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": true,
+      "pocketRight": true,
+      "structuralAsset": "34_PXXX_XXXP_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        165,
+        2880,
+        740
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 619,
+          "y": 202,
+          "width": 329,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 972,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1332,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2052,
+          "y": 202,
+          "width": 336,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2412,
+          "y": 202,
+          "width": 329,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "PXXXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 4,
+      "panelCount": 4,
+      "pocketLeft": true,
+      "pocketRight": false,
+      "structuralAsset": "41_PXXXX_ECO_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        530,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "L",
+          "x": 560,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 897.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1245,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1592.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XO",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 2,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "03_XO_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "dimensionBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 450,
+          "y": 217,
+          "width": 432,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "O",
+          "direction": "-",
+          "x": 915,
+          "y": 214,
+          "width": 438,
+          "height": 712
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 0,
+          "direction": "RIGHT",
+          "outer": {
+            "x": 430,
+            "y": 197,
+            "width": 472,
+            "height": 746
+          },
+          "mesh": {
+            "x": 442,
+            "y": 209,
+            "width": 448,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "XP",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 1,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "17_XP_ECO_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        300,
+        165,
+        1200,
+        810
+      ],
+      "dimensionBox": [
+        300,
+        175,
+        600,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 340,
+          "y": 217,
+          "width": 530,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 2,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "05_XX_2T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "dimensionBox": [
+        410,
+        175,
+        980,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 450,
+          "y": 217,
+          "width": 432,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 918,
+          "y": 217,
+          "width": 432,
+          "height": 706
+        }
+      ],
+      "screenPanels": [
+        {
+          "panelIndex": 1,
+          "direction": "LEFT",
+          "outer": {
+            "x": 898,
+            "y": 197,
+            "width": 472,
+            "height": 746
+          },
+          "mesh": {
+            "x": 910,
+            "y": 209,
+            "width": 448,
+            "height": 722
+          },
+          "railThickness": 12,
+          "layerOrder": "ABOVE_GLASS_INDICATORS_AND_HARDWARE"
+        }
+      ]
+    },
+    {
+      "configuration": "XX-O",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "05_XX_O_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 310,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "O",
+          "direction": "-",
+          "x": 1121.6667,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-O",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "06_XX_O_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 310,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "O",
+          "direction": "-",
+          "x": 1121.6667,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XO",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "07_XX_XO_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 240,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "O",
+          "direction": "-",
+          "x": 1262,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XO",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "08_XX_XO_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 240,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "O",
+          "direction": "-",
+          "x": 1262,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XX",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "09_XX_XX_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 240,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1265,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XX",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "10_XX_XX_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 240,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1265,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XXP",
+      "manufacturer": "ECO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "18_XX_XXP_ECO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        180,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 220,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 557.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 905,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1252.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XX-XXP",
+      "manufacturer": "NOVO",
+      "tracks": 2,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "19_XX_XXP_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        180,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 220,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 557.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 905,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1252.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXO",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 3,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "27_XXO_ECO_NOVO_3T_SCREEN_OFF_C085_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 310,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "O",
+          "direction": "-",
+          "x": 1121.6667,
+          "y": 214,
+          "width": 371.3333,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXP",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 2,
+      "panelCount": 2,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "20_XXP_ECO_NOVO_2T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1830,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1470,
+        810
+      ],
+      "dimensionBox": [
+        180,
+        175,
+        980,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 220,
+          "y": 217,
+          "width": 437,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 693,
+          "y": 217,
+          "width": 437,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 3,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "28_XXX_ECO_NOVO_3T_SCREEN_OFF_C085_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "dimensionBox": [
+        270,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 310,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 711.3333,
+          "y": 217,
+          "width": 377.3333,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1124.6667,
+          "y": 217,
+          "width": 365.3333,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXO",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "26_XXX_XXO_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 625,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "O",
+          "direction": "-",
+          "x": 2406,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXO",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "27_XXX_XXO_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 625,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "O",
+          "direction": "-",
+          "x": 2406,
+          "y": 200,
+          "width": 331,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXX",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "28_XXX_XXX_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 625,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2408,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXX",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "29_XXX_XXX_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "dimensionBox": [
+        600,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 625,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 976,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1334,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050,
+          "y": 202,
+          "width": 334,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "L",
+          "x": 2408,
+          "y": 202,
+          "width": 327,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXXP",
+      "manufacturer": "ECO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "35_XXX_XXXP_ECO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        420,
+        165,
+        2520,
+        740
+      ],
+      "dimensionBox": [
+        420,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 445,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 797,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1156,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1515,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1874,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2233,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXX-XXXP",
+      "manufacturer": "NOVO",
+      "tracks": 3,
+      "panelCount": 6,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "36_XXX_XXXP_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        420,
+        165,
+        2520,
+        740
+      ],
+      "dimensionBox": [
+        420,
+        175,
+        2160,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 445,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 797,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 1156,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1515,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1874,
+          "y": 202,
+          "width": 335,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2233,
+          "y": 202,
+          "width": 328,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXO",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 4,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "30_XXXO_ECO_NOVO_4T_SCREEN_OFF_C085_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "dimensionBox": [
+        200,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 240,
+          "y": 217,
+          "width": 295,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 575,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 305,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "O",
+          "direction": "-",
+          "x": 1262,
+          "y": 214,
+          "width": 301,
+          "height": 712
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXP",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 3,
+      "panelCount": 3,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "30_XXXP_ECO_NOVO_3T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2040,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1680,
+        810
+      ],
+      "dimensionBox": [
+        180,
+        175,
+        1260,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 220,
+          "y": 217,
+          "width": 368.6667,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 624.6667,
+          "y": 217,
+          "width": 380.6667,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 1041.3333,
+          "y": 217,
+          "width": 368.6667,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXX",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 4,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "13_XXXX_4T_SCREEN_OFF_C083_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        1800,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "dimensionBox": [
+        145,
+        175,
+        1510,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 185,
+          "y": 217,
+          "width": 322.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 547.5,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 920,
+          "y": 217,
+          "width": 332.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1292.5,
+          "y": 217,
+          "width": 322.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXX-XXXO",
+      "manufacturer": "ECO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "42_XXXX_XXXO_ECO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 265,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "O",
+          "direction": "-",
+          "x": 2765.5,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXX-XXXO",
+      "manufacturer": "NOVO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "43_XXXX_XXXO_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 265,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "O",
+          "direction": "-",
+          "x": 2765.5,
+          "y": 200,
+          "width": 331.5,
+          "height": 670
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXX-XXXX",
+      "manufacturer": "ECO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "44_XXXX_XXXX_ECO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 265,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "X",
+          "direction": "L",
+          "x": 2767.5,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXX-XXXX",
+      "manufacturer": "NOVO",
+      "tracks": 4,
+      "panelCount": 8,
+      "pocketLeft": false,
+      "pocketRight": false,
+      "structuralAsset": "45_XXXX_XXXX_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        3360,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "dimensionBox": [
+        240,
+        175,
+        2880,
+        720
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 265,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "L",
+          "x": 616.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "L",
+          "x": 975,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "L",
+          "x": 1333.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 4,
+          "kind": "X",
+          "direction": "R",
+          "x": 1692,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 5,
+          "kind": "X",
+          "direction": "R",
+          "x": 2050.5,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 6,
+          "kind": "X",
+          "direction": "R",
+          "x": 2409,
+          "y": 202,
+          "width": 334.5,
+          "height": 666
+        },
+        {
+          "panelIndex": 7,
+          "kind": "X",
+          "direction": "L",
+          "x": 2767.5,
+          "y": 202,
+          "width": 327.5,
+          "height": 666
+        }
+      ],
+      "screenPanels": []
+    },
+    {
+      "configuration": "XXXXP",
+      "manufacturer": "ECO_NOVO",
+      "tracks": 4,
+      "panelCount": 4,
+      "pocketLeft": false,
+      "pocketRight": true,
+      "structuralAsset": "46_XXXXP_ECO_NOVO_4T_SCREEN_OFF_C088_STRUCTURAL.png",
+      "viewBox": [
+        0,
+        0,
+        2110,
+        1250
+      ],
+      "structuralAssetPlacementBox": [
+        180,
+        165,
+        1750,
+        810
+      ],
+      "dimensionBox": [
+        180,
+        175,
+        1400,
+        790
+      ],
+      "glassDlos": [
+        {
+          "panelIndex": 0,
+          "kind": "X",
+          "direction": "R",
+          "x": 220,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 1,
+          "kind": "X",
+          "direction": "R",
+          "x": 557.5,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 2,
+          "kind": "X",
+          "direction": "R",
+          "x": 905,
+          "y": 217,
+          "width": 307.5,
+          "height": 706
+        },
+        {
+          "panelIndex": 3,
+          "kind": "X",
+          "direction": "R",
+          "x": 1252.5,
+          "y": 217,
+          "width": 297.5,
+          "height": 706
+        }
+      ],
+      "screenPanels": []
+    }
+  ]
+}

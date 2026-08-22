@@ -4022,6 +4022,7 @@ export function PieceForm({
                 variant="editor"
                 diagramFamily={selectedProduct?.diagramFamily}
                 systemName={selectedSystem?.name}
+                brandName={selectedSystem?.brandProduct?.brand?.name}
                 configuration={selectedConfig?.conf}
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}

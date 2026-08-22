@@ -21,6 +21,8 @@ import {
 } from "./piece-diagram/renderers/fixed/fixed-window-shape-diagram";
 import { HorizontalRollingWindowDiagram } from "./piece-diagram/renderers/horizontal-rolling/horizontal-rolling-window-diagram";
 import { SingleHungWindowDiagram } from "./piece-diagram/renderers/single-hung/single-hung-window-diagram";
+import { SlidingGlassDoorDiagram } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-diagram";
+import { resolveSlidingGlassDoorSpec } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-spec";
 import { resolveAuthenticWindowSpec } from "./piece-diagram/window-renderer-spec";
 
 export type { PieceDiagramData, PieceDiagramVariant };
@@ -28,6 +30,7 @@ export type { PieceDiagramData, PieceDiagramVariant };
 export interface PieceDiagramProps {
   diagramFamily?: DiagramFamily;
   systemName?: string | null;
+  brandName?: string | null;
   configuration?: string;
   diagramSpec?: DiagramSpec | null;
   dimensionMode?: DimensionMode;
@@ -178,6 +181,7 @@ function safeFrameColor(value?: string | null): string {
 export function PieceDiagram({
   diagramFamily,
   systemName,
+  brandName,
   configuration,
   diagramSpec,
   dimensionMode = "STANDARD",
@@ -193,6 +197,11 @@ export function PieceDiagram({
   className,
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
+  const containerClasses =
+    variant === "report"
+      ? "flex h-full w-full items-center justify-center"
+      : "flex h-full w-full items-center justify-center overflow-hidden rounded-md border p-2";
+  const rendererClasses = "h-full w-full";
   const resolvedSharedFrenchDoor =
     diagramFamily === "FRENCH_DOOR"
       ? resolveSharedFrenchDoor({
@@ -241,6 +250,46 @@ export function PieceDiagram({
     );
   }
 
+  const resolvedSlidingGlassDoor =
+    diagramFamily === "SLIDING_DOOR"
+      ? resolveSlidingGlassDoorSpec({
+          configuration,
+          diagramSpec,
+          brandName,
+        })
+      : null;
+  const slidingWidth = positiveDimensionNumber(normalizedPiece?.width);
+  const slidingHeight = positiveDimensionNumber(normalizedPiece?.height);
+
+  if (
+    resolvedSlidingGlassDoor &&
+    slidingWidth !== null &&
+    slidingHeight !== null
+  ) {
+    return (
+      <div
+        className={[containerClasses, className ?? ""].join(" ")}
+        data-dimension-mode={dimensionMode}
+        data-diagram-family={diagramFamily}
+        data-diagram-renderer="SLIDING_GLASS_DOOR"
+        data-diagram-spec-source="C139_CATALOG"
+      >
+        <SlidingGlassDoorDiagram
+          spec={resolvedSlidingGlassDoor}
+          width={slidingWidth}
+          height={slidingHeight}
+          screenEnabled={Boolean(screenEnabled)}
+          frameColorHex={safeFrameColor(frameColorHex)}
+          glassTintHex={glassTintHex}
+          hasCoating={hasCoating}
+          hasPrivacy={hasPrivacy}
+          showDimensions
+          className={rendererClasses}
+        />
+      </div>
+    );
+  }
+
   const resolvedSpec = resolveAuthenticWindowSpec({
     diagramFamily,
     configuration,
@@ -277,11 +326,6 @@ export function PieceDiagram({
     );
   }
 
-  const containerClasses =
-    variant === "report"
-      ? "flex h-full w-full items-center justify-center"
-      : "flex h-full w-full items-center justify-center overflow-hidden rounded-md border p-2";
-  const rendererClasses = "h-full w-full";
   const frameColor = safeFrameColor(frameColorHex);
   const sharedProps = {
     width,
