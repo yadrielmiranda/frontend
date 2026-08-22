@@ -262,7 +262,7 @@ export function InstallationsTable({
                 <TableHead>Customer</TableHead>
                 <TableHead>Stage</TableHead>
                 <TableHead>Next appointment</TableHead>
-                <TableHead className="text-center">Openings</TableHead>
+                <TableHead className="text-center">Units</TableHead>
                 <TableHead>Latest quote</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -346,7 +346,7 @@ export function InstallationsTable({
                         )}
                       </TableCell>
                       <TableCell className="text-center font-medium">
-                        {job.openings}
+                        {job.unitCount}
                       </TableCell>
                       <TableCell>
                         {job.latestQuote ? (

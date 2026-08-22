@@ -858,7 +858,7 @@ export interface InstallationJobSummary {
     };
     order?: { id: number; number: string } | null;
   };
-  openings: number;
+  unitCount: number;
   latestQuote: {
     id: number;
     version: number;
