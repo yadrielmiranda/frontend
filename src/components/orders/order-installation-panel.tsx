@@ -23,6 +23,8 @@ import {
   paidInstallationCredit,
   paymentTypeLabel,
 } from "@/lib/installation-flow";
+import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
+import { getCardPaymentBreakdown } from "@/lib/card-payment";
 
 const percent = (value: string | number | null | undefined) =>
   new Intl.NumberFormat("en-US", {
@@ -35,12 +37,14 @@ export function OrderInstallationPanel({
   initialJob,
   isOwner,
   isPrivileged,
+  cardSurchargeFraction,
   canRecordManualPayment,
 }: {
   order: OrderWithRelations;
   initialJob: InstallationJob;
   isOwner: boolean;
   isPrivileged: boolean;
+  cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
   const router = useRouter();
@@ -60,6 +64,17 @@ export function OrderInstallationPanel({
   const installationPayments = job.payments.filter((payment) =>
     ["INSTALLATION_DEPOSIT", "PERMIT", "INSTALLATION"].includes(payment.type),
   );
+  const activeInstallationCheckout = installationPayments.find(
+    (payment) =>
+      payment.type === "INSTALLATION" &&
+      payment.status === "PENDING" &&
+      Boolean(payment.stripeSessionId),
+  );
+  const installationCardBreakdown = getCardPaymentBreakdown({
+    baseAmount: installationBalance,
+    surchargeFraction: cardSurchargeFraction,
+    payment: activeInstallationCheckout,
+  });
 
   const payInstallation = async () => {
     setBusy(true);
@@ -216,14 +231,28 @@ export function OrderInstallationPanel({
       {isOwner &&
         order.dealerModeSnapshot !== "INTERNAL" &&
         job.status === "INSTALLATION_PAYMENT_PENDING" && (
-          <Button
-            className="mt-4 w-full"
-            disabled={busy}
-            onClick={payInstallation}
-          >
-            <CreditCard className="mr-2 h-4 w-4" /> Pay installation balance ·{" "}
-            {formatMoney(installationBalance)}
-          </Button>
+          <div className="mt-4 space-y-2">
+            <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
+              <div className="flex items-center justify-between gap-3 font-semibold">
+                <span>Card charge total</span>
+                <span>
+                  {formatMoney(installationCardBreakdown.totalAmount)}
+                </span>
+              </div>
+              <CardFeeBreakdown
+                breakdown={installationCardBreakdown}
+                className="mt-2"
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={payInstallation}
+            >
+              <CreditCard className="mr-2 h-4 w-4" /> Pay installation balance ·{" "}
+              {formatMoney(installationCardBreakdown.totalAmount)}
+            </Button>
+          </div>
         )}
 
       {isOwner &&

@@ -19,6 +19,8 @@ import { formatMoney } from "@/lib/formatters";
 import { titleCase } from "@/lib/installation-flow";
 import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
+import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
+import { getCardPaymentBreakdown } from "@/lib/card-payment";
 
 type DraftLine = {
   id: number;
@@ -40,11 +42,13 @@ export function OrderExtraChargesPanel({
   order,
   isOwner,
   isPrivileged,
+  cardSurchargeFraction,
   canRecordManualPayment,
 }: {
   order: OrderWithRelations;
   isOwner: boolean;
   isPrivileged: boolean;
+  cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
   const router = useRouter();
@@ -170,122 +174,142 @@ export function OrderExtraChargesPanel({
           <p className="text-sm text-muted-foreground">No extra charges.</p>
         )}
 
-        {charges.map((charge) => (
-          <div key={charge.id} className="rounded-lg border p-4">
-            <div className="flex items-center justify-between gap-3">
-              <strong>Extra charge #{charge.sequence}</strong>
-              <Badge
-                variant={charge.status === "PAID" ? "default" : "secondary"}
-              >
-                {titleCase(charge.status)}
-              </Badge>
-            </div>
-            <div className="mt-3 space-y-2 text-sm">
-              {charge.lines.map((line) => (
-                <div key={line.id} className="flex justify-between gap-3">
-                  <span>
-                    {line.description} · {Number(line.quantity)} ×{" "}
-                    {formatMoney(Number(line.unitPrice))}
-                    {line.taxable ? " · taxable" : ""}
-                  </span>
-                  <span>{formatMoney(Number(line.subtotal))}</span>
-                </div>
-              ))}
-              {Number(charge.taxAmount) > 0 && (
-                <div className="flex justify-between border-t pt-2 text-muted-foreground">
-                  <span>Tax</span>
-                  <span>{formatMoney(Number(charge.taxAmount))}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t pt-2 font-semibold">
-                <span>Total</span>
-                <span>{formatMoney(Number(charge.total))}</span>
-              </div>
-              {charge.notes && (
-                <p className="text-muted-foreground">{charge.notes}</p>
-              )}
-            </div>
+        {charges.map((charge) => {
+          const cardBreakdown = getCardPaymentBreakdown({
+            baseAmount: Number(charge.total),
+            surchargeFraction: cardSurchargeFraction,
+            payment: charge.payment,
+          });
 
-            {isOwner && charge.status === "PENDING_CUSTOMER_APPROVAL" && (
-              <div className="mt-4 space-y-2 border-t pt-4">
-                <Textarea
-                  value={comments[charge.id] ?? ""}
-                  onChange={(event) =>
-                    setComments((current) => ({
-                      ...current,
-                      [charge.id]: event.target.value,
-                    }))
-                  }
-                  placeholder="Optional comment"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="destructive"
-                    disabled={busy}
-                    onClick={() => respond(charge, "REJECT")}
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    disabled={busy}
-                    onClick={() => respond(charge, "APPROVE")}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {isOwner &&
-              order.dealerModeSnapshot !== "INTERNAL" &&
-              charge.status === "PAYMENT_DUE" && (
-                <Button
-                  className="mt-4 w-full"
-                  disabled={busy}
-                  onClick={() => pay(charge)}
+          return (
+            <div key={charge.id} className="rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <strong>Extra charge #{charge.sequence}</strong>
+                <Badge
+                  variant={charge.status === "PAID" ? "default" : "secondary"}
                 >
-                  <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
-                  {formatMoney(Number(charge.total))}
-                </Button>
+                  {titleCase(charge.status)}
+                </Badge>
+              </div>
+              <div className="mt-3 space-y-2 text-sm">
+                {charge.lines.map((line) => (
+                  <div key={line.id} className="flex justify-between gap-3">
+                    <span>
+                      {line.description} · {Number(line.quantity)} ×{" "}
+                      {formatMoney(Number(line.unitPrice))}
+                      {line.taxable ? " · taxable" : ""}
+                    </span>
+                    <span>{formatMoney(Number(line.subtotal))}</span>
+                  </div>
+                ))}
+                {Number(charge.taxAmount) > 0 && (
+                  <div className="flex justify-between border-t pt-2 text-muted-foreground">
+                    <span>Tax</span>
+                    <span>{formatMoney(Number(charge.taxAmount))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-2 font-semibold">
+                  <span>Total</span>
+                  <span>{formatMoney(Number(charge.total))}</span>
+                </div>
+                {charge.notes && (
+                  <p className="text-muted-foreground">{charge.notes}</p>
+                )}
+              </div>
+
+              {isOwner && charge.status === "PENDING_CUSTOMER_APPROVAL" && (
+                <div className="mt-4 space-y-2 border-t pt-4">
+                  <Textarea
+                    value={comments[charge.id] ?? ""}
+                    onChange={(event) =>
+                      setComments((current) => ({
+                        ...current,
+                        [charge.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional comment"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="destructive"
+                      disabled={busy}
+                      onClick={() => respond(charge, "REJECT")}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      disabled={busy}
+                      onClick={() => respond(charge, "APPROVE")}
+                    >
+                      Approve
+                    </Button>
+                  </div>
+                </div>
               )}
 
-            {isOwner &&
-              order.dealerModeSnapshot === "INTERNAL" &&
-              charge.status === "PAYMENT_DUE" && (
-                <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                  <p>Send the payment link to the final customer.</p>
-                  <EstimatePaymentLinkActions
+              {isOwner &&
+                order.dealerModeSnapshot !== "INTERNAL" &&
+                charge.status === "PAYMENT_DUE" && (
+                  <div className="mt-4 space-y-2">
+                    <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
+                      <div className="flex items-center justify-between gap-3 font-semibold">
+                        <span>Card charge total</span>
+                        <span>{formatMoney(cardBreakdown.totalAmount)}</span>
+                      </div>
+                      <CardFeeBreakdown
+                        breakdown={cardBreakdown}
+                        className="mt-2"
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={busy}
+                      onClick={() => pay(charge)}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
+                      {formatMoney(cardBreakdown.totalAmount)}
+                    </Button>
+                  </div>
+                )}
+
+              {isOwner &&
+                order.dealerModeSnapshot === "INTERNAL" &&
+                charge.status === "PAYMENT_DUE" && (
+                  <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    <p>Send the payment link to the final customer.</p>
+                    <EstimatePaymentLinkActions
+                      estimateId={order.idEst}
+                      estimateNumber={order.estimate.number}
+                      showShare
+                      size="sm"
+                    />
+                  </div>
+                )}
+
+              {canRecordManualPayment && charge.status === "PAYMENT_DUE" && (
+                <div className="mt-4 flex justify-end">
+                  <ManualPaymentDialog
                     estimateId={order.idEst}
-                    estimateNumber={order.estimate.number}
-                    showShare
-                    size="sm"
+                    type="EXTRA"
+                    sequence={charge.sequence}
+                    amount={Number(charge.total)}
+                    label="Record extra charge payment"
+                    onRecorded={() => {
+                      setCharges((current) =>
+                        current.map((item) =>
+                          item.id === charge.id
+                            ? { ...item, status: "PAID" }
+                            : item,
+                        ),
+                      );
+                      router.refresh();
+                    }}
                   />
                 </div>
               )}
-
-            {canRecordManualPayment && charge.status === "PAYMENT_DUE" && (
-              <div className="mt-4 flex justify-end">
-                <ManualPaymentDialog
-                  estimateId={order.idEst}
-                  type="EXTRA"
-                  sequence={charge.sequence}
-                  amount={Number(charge.total)}
-                  label="Record extra charge payment"
-                  onRecorded={() => {
-                    setCharges((current) =>
-                      current.map((item) =>
-                        item.id === charge.id
-                          ? { ...item, status: "PAID" }
-                          : item,
-                      ),
-                    );
-                    router.refresh();
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
         {showForm && (
           <div className="space-y-3 rounded-lg border border-dashed p-4">

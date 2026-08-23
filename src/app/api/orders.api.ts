@@ -75,17 +75,16 @@ export function respondOrderExtraCharge(
 }
 
 export function selectOrderPickup(orderId: number) {
-  return apiFetch<Order>(
-    `/api/orders/${orderId}/fulfillment/pickup`,
-    { method: "POST" },
-  );
+  return apiFetch<{
+    order: Order;
+    canceledDelivery: OrderDelivery | null;
+  }>(`/api/orders/${orderId}/fulfillment/pickup`, { method: "POST" });
 }
 
 export function completeOrderPickup(orderId: number) {
-  return apiFetch<Order>(
-    `/api/orders/${orderId}/fulfillment/pickup/complete`,
-    { method: "POST" },
-  );
+  return apiFetch<Order>(`/api/orders/${orderId}/fulfillment/pickup/complete`, {
+    method: "POST",
+  });
 }
 
 export type CreateOrderDeliveryInput = {

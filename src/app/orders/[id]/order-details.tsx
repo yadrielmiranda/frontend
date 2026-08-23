@@ -24,6 +24,7 @@ export function OrderDetails({
   isAdmin,
   canEdit,
   canViewFinancials,
+  cardSurchargeFraction,
   canRecordManualPayment,
 }: {
   order: OrderWithRelations;
@@ -33,6 +34,7 @@ export function OrderDetails({
   isAdmin: boolean;
   canEdit: boolean;
   canViewFinancials: boolean;
+  cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
   const orderPaymentBase = Number(
@@ -127,6 +129,7 @@ export function OrderDetails({
         isOwner={isOwner}
         isPrivileged={isPrivileged}
         isAdmin={isAdmin}
+        cardSurchargeFraction={cardSurchargeFraction}
         canRecordManualPayment={canRecordManualPayment}
       />
 
@@ -136,6 +139,7 @@ export function OrderDetails({
           initialJob={installation}
           isOwner={isOwner}
           isPrivileged={isPrivileged}
+          cardSurchargeFraction={cardSurchargeFraction}
           canRecordManualPayment={canRecordManualPayment}
         />
       )}
@@ -145,6 +149,7 @@ export function OrderDetails({
           order={order}
           isOwner={isOwner}
           isPrivileged={isPrivileged}
+          cardSurchargeFraction={cardSurchargeFraction}
           canRecordManualPayment={canRecordManualPayment}
         />
       )}

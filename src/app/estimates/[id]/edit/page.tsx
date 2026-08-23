@@ -76,8 +76,8 @@ export default async function EditEstimatePage({
       Boolean(depositPayment?.stripeSessionId));
   const installationLocksOwner = Boolean(
     installation &&
-    installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
-    installation.status !== "CANCELED",
+      installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
+      installation.status !== "CANCELED",
   );
 
   const canAccess = (isOwner || isPrivileged) && isActive && !estimate.order;
@@ -115,6 +115,9 @@ export default async function EditEstimatePage({
 
   const salesTaxParam = parameters.find((p) => p.key === "SALES_TAX");
   const taxRate = salesTaxParam ? salesTaxParam.value : 0;
+  const cardSurchargeFraction = Number(
+    parameters.find((p) => p.key === "CARD_SURCHARGE_PERCENT")?.value ?? 0,
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 md:px-8 py-6">
@@ -143,6 +146,7 @@ export default async function EditEstimatePage({
               isPrivileged={isPrivileged}
               readOnly={!canEdit}
               taxRate={taxRate}
+              cardSurchargeFraction={cardSurchargeFraction}
               productsWithBrands={productsWithBrands}
               systemsWithConfigs={systemsWithConfigs}
               frameColors={allFrameColors}

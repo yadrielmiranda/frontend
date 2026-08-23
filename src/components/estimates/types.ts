@@ -76,6 +76,7 @@ export interface EstimateFormProps {
   isPrivileged?: boolean;
   readOnly?: boolean;
   taxRate: number;
+  cardSurchargeFraction?: number;
   productsWithBrands: ProductWithBrands[];
   systemsWithConfigs: SystemWithConfigs[];
   frameColors: FrameColor[];

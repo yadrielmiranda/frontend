@@ -19,6 +19,8 @@ import type {
 } from "@/lib/types";
 import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
+import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
+import { getCardPaymentBreakdown } from "@/lib/card-payment";
 
 type CheckoutPaymentType = Extract<
   PaymentType,
@@ -147,6 +149,7 @@ export function EstimatePaymentCard({
   currentUserId,
   materialAmount,
   dealerMode,
+  cardSurchargeFraction = 0,
   canRecordManualPayment = false,
   className = "",
 }: {
@@ -159,6 +162,7 @@ export function EstimatePaymentCard({
   currentUserId: number;
   materialAmount: number;
   dealerMode?: DealerMode | null;
+  cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
   className?: string;
 }) {
@@ -199,6 +203,18 @@ export function EstimatePaymentCard({
       payment.status === "PENDING" &&
       Boolean(payment.stripeSessionId),
   );
+  const activeCheckoutPayment = paymentPool.find(
+    (payment) =>
+      payment.type === action.type &&
+      payment.status === "PENDING" &&
+      Boolean(payment.stripeSessionId),
+  );
+  const showCardCheckoutAmounts = isOwner && !isInternalDealer;
+  const cardBreakdown = getCardPaymentBreakdown({
+    baseAmount: action.amount,
+    surchargeFraction: cardSurchargeFraction,
+    payment: activeCheckoutPayment,
+  });
 
   const handlePayment = async () => {
     if (requiresDepositTerms && !depositTermsSatisfied) {
@@ -243,11 +259,23 @@ export function EstimatePaymentCard({
           </div>
         </div>
 
-        <div className="shrink-0 text-left sm:text-right">
-          <p className="text-xs font-medium text-slate-500">Due now</p>
-          <p className="text-2xl font-semibold tracking-tight text-slate-950">
-            {formatMoney(action.amount)}
+        <div className="shrink-0 text-left sm:min-w-80 sm:text-right">
+          <p className="text-xs font-medium text-slate-500">
+            {showCardCheckoutAmounts ? "Card charge total" : "Due now"}
           </p>
+          <p className="text-2xl font-semibold tracking-tight text-slate-950">
+            {formatMoney(
+              showCardCheckoutAmounts
+                ? cardBreakdown.totalAmount
+                : action.amount,
+            )}
+          </p>
+          {showCardCheckoutAmounts && (
+            <CardFeeBreakdown
+              breakdown={cardBreakdown}
+              className="mt-2 text-left"
+            />
+          )}
         </div>
       </div>
 

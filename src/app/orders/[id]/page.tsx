@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/session";
 import { canEditOrders, canViewOrderFinancials, isAdminRole } from "@/lib/rbac";
 import { OrderDetails } from "./order-details";
 import { getEstimateInstallation } from "@/app/api/installations.api";
+import { getGlobalParameters } from "@/app/api/global-parameters.api";
 
 export default async function OrderDetailsPage({
   params,
@@ -35,7 +36,14 @@ export default async function OrderDetailsPage({
   }
 
   if (!order) notFound();
-  const installation = await getEstimateInstallation(order.idEst);
+  const [installation, parameters] = await Promise.all([
+    getEstimateInstallation(order.idEst),
+    getGlobalParameters(),
+  ]);
+  const cardSurchargeFraction = Number(
+    parameters.find((parameter) => parameter.key === "CARD_SURCHARGE_PERCENT")
+      ?.value ?? 0,
+  );
 
   return (
     <div className="container mx-auto py-10 max-w-5xl">
@@ -47,6 +55,7 @@ export default async function OrderDetailsPage({
         isAdmin={isAdminRole(role)}
         canEdit={canEdit}
         canViewFinancials={canViewFinancials}
+        cardSurchargeFraction={cardSurchargeFraction}
         canRecordManualPayment={
           isAdminRole(role) ||
           (role === "dealer" &&

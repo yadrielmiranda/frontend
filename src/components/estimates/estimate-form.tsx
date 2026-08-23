@@ -175,6 +175,7 @@ export function EstimateForm({
   isPrivileged = false,
   readOnly = false,
   taxRate,
+  cardSurchargeFraction = 0,
   productsWithBrands,
   systemsWithConfigs,
   frameColors,
@@ -1420,6 +1421,7 @@ export function EstimateForm({
                 : summary.totalPayable
             }
             dealerMode={dealerMode}
+            cardSurchargeFraction={cardSurchargeFraction}
             canRecordManualPayment={
               isAdminRole(role) ||
               (role === "dealer" &&
