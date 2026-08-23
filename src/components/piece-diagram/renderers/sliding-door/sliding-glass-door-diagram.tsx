@@ -5,6 +5,7 @@ import {
   DIMENSION_FONT_FAMILY,
   DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
+  expandedViewBox,
 } from "../dimension-style";
 import {
   GlassAppearanceLayer,
@@ -245,6 +246,25 @@ export function SlidingGlassDoorDiagram({
     VIEWBOX_SIZE - 150,
     assetRect.x + assetRect.width + 92,
   );
+  const viewportPadding = DIMENSIONS.fontSize * 0.3;
+  const viewBox = expandedViewBox(
+    { x: fullX, y: fullY, width: fullWidth, height: fullHeight },
+    showDimensions
+      ? {
+          top: viewportPadding,
+          right:
+            92 + 44 + DIMENSIONS.fontSize * 3.7 + viewportPadding,
+          bottom:
+            92 + 60 + DIMENSIONS.fontSize * 0.5 + viewportPadding,
+          left: viewportPadding,
+        }
+      : {
+          top: viewportPadding,
+          right: viewportPadding,
+          bottom: viewportPadding,
+          left: viewportPadding,
+        },
+  );
   const title = `Sliding Glass Door ${spec.configuration}, ${spec.manufacturer}, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches, screen ${screenVisible ? "on" : "off"}`;
 
   return (
@@ -252,7 +272,7 @@ export function SlidingGlassDoorDiagram({
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
-      viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
+      viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
       role="img"

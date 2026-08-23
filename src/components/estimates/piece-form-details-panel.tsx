@@ -384,8 +384,8 @@ export function PieceFormDetailsPanel({
           Product Image
         </h4>
 
-        <div className="flex items-center justify-center min-h-[180px]">
-          <div className="w-full max-w-[260px]">
+        <div className="flex h-[clamp(280px,24vw,380px)] items-center justify-center">
+          <div className="h-full w-full max-w-[640px]">
             <PieceDiagram
               diagramFamily={selectedProduct?.diagramFamily}
               systemName={systemName}

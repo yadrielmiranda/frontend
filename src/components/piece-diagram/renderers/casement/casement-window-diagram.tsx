@@ -11,6 +11,7 @@ import {
   DIMENSION_FONT_FAMILY,
   DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
+  expandedViewBox,
 } from "../dimension-style";
 
 export const CASEMENT_WINDOW_CONFIGURATIONS = ["XL", "XR"] as const;
@@ -378,6 +379,22 @@ function Dimensions({
   );
 }
 
+function casementViewBox(frame: Rect, showDimensions: boolean): string {
+  const padding = DIMENSIONS.fontSize * 0.3;
+
+  return expandedViewBox(
+    frame,
+    showDimensions
+      ? {
+          top: padding,
+          right: 105 + 28 + DIMENSIONS.fontSize * 3.7 + padding,
+          bottom: 105 + 74 + DIMENSIONS.fontSize * 0.5 + padding,
+          left: padding,
+        }
+      : { top: padding, right: padding, bottom: padding, left: padding },
+  );
+}
+
 export function CasementWindowDiagram(
   props: CasementWindowDiagramProps,
 ): React.ReactElement {
@@ -435,13 +452,14 @@ export function CasementWindowDiagram(
   const widthLabel = formatDimension(resolvedWidth);
   const heightLabel = formatDimension(resolvedHeight);
   const hingeSide = props.configuration === "XL" ? "LEFT" : "RIGHT";
+  const showDimensions = props.showDimensions ?? true;
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
-      viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+      viewBox={casementViewBox(frame, showDimensions)}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-labelledby={titleId}
@@ -487,7 +505,7 @@ export function CasementWindowDiagram(
         color={movementColor}
         clipId={glassClipId}
       />
-      {props.showDimensions ?? true ? (
+      {showDimensions ? (
         <Dimensions frame={frame} width={widthLabel} height={heightLabel} />
       ) : null}
     </svg>
@@ -543,13 +561,14 @@ export function CasementFixedWindowDiagram(
   const assetHref = `${assetBasePath}/${FIXED_ASSET_FILENAME}`;
   const widthLabel = formatDimension(resolvedWidth);
   const heightLabel = formatDimension(resolvedHeight);
+  const showDimensions = props.showDimensions ?? true;
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
-      viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+      viewBox={casementViewBox(frame, showDimensions)}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-labelledby={titleId}
@@ -582,7 +601,7 @@ export function CasementFixedWindowDiagram(
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
-      {props.showDimensions ?? true ? (
+      {showDimensions ? (
         <Dimensions frame={frame} width={widthLabel} height={heightLabel} />
       ) : null}
     </svg>

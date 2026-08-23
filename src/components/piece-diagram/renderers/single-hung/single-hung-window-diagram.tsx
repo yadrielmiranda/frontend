@@ -6,6 +6,7 @@ import {
   DIMENSION_FONT_FAMILY,
   DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
+  expandedViewBox,
 } from "../dimension-style";
 import { GlassAppearanceLayer } from "../glass-appearance";
 
@@ -870,6 +871,31 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
       ]
     : [targetGeometry.upperGlass, targetGeometry.lowerGlass];
   const showDimensions = props.showDimensions ?? true;
+  const viewportPadding = DIMENSIONS.fontSize * 0.3;
+  const viewBox = expandedViewBox(
+    targetFrame,
+    showDimensions
+      ? {
+          top: viewportPadding,
+          right:
+            105 +
+            28 +
+            DIMENSIONS.fontSize * 3.7 +
+            viewportPadding,
+          bottom:
+            105 +
+            74 +
+            DIMENSIONS.fontSize * 0.5 +
+            viewportPadding,
+          left: viewportPadding,
+        }
+      : {
+          top: viewportPadding,
+          right: viewportPadding,
+          bottom: viewportPadding,
+          left: viewportPadding,
+        },
+  );
   const sectionRatios = layout.sectionRatios
     .map((ratio) => Number(ratio.toFixed(6)))
     .join("-");
@@ -878,7 +904,8 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
-      viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+      viewBox={viewBox}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={`Single Hung ${layout.configuration}, screen ${props.screenEnabled ? "on" : "off"}`}
       className={props.className}

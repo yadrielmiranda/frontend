@@ -1,4 +1,4 @@
-// Authentic Evolution · Fixed Window / Shapes · C073 FINAL.
+// Authentic Evolution · Fixed Window / Shapes · C073 runtime + C157 assets.
 // Exterior fixed view with database-driven frame and glass finishes.
 import React, { useId } from "react";
 
@@ -7,6 +7,7 @@ import {
   DIMENSION_FONT_FAMILY,
   DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
+  expandedViewBox,
 } from "../dimension-style";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
@@ -387,6 +388,43 @@ function VerticalDimension({
   );
 }
 
+function fixedShapeViewBox(
+  spec: FixedWindowShapeSpec,
+  showDimensions: boolean,
+): string {
+  const [frameLeft, frameTop, frameRight, frameBottom] = spec.frameBBox;
+  let minX = frameLeft;
+  let minY = frameTop;
+  let maxX = frameRight;
+  let maxY = frameBottom;
+
+  if (showDimensions) {
+    for (const geometry of spec.dimensionGeometry) {
+      const [startX, startY] = geometry.tipStart;
+      const [endX, endY] = geometry.tipEnd;
+
+      minY = Math.min(minY, startY, endY);
+      maxY = Math.max(maxY, startY, endY);
+
+      if (geometry.axis === "W") {
+        minX = Math.min(minX, startX, endX);
+        maxX = Math.max(maxX, startX, endX);
+        maxY = Math.max(maxY, startY + 43 + DIMENSIONS.fontSize * 0.5);
+      } else {
+        const labelHalfWidth = DIMENSIONS.fontSize * 2.4;
+        minX = Math.min(minX, startX - labelHalfWidth, endX - labelHalfWidth);
+        maxX = Math.max(maxX, startX + labelHalfWidth, endX + labelHalfWidth);
+      }
+    }
+  }
+
+  const padding = DIMENSIONS.fontSize * 0.3;
+  return expandedViewBox(
+    { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+    { top: padding, right: padding, bottom: padding, left: padding },
+  );
+}
+
 export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   if (props.showDimensions !== undefined && typeof props.showDimensions !== "boolean") {
     throw new Error("showDimensions must be boolean when provided");
@@ -434,11 +472,13 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   return (
     <svg
       className={props.className}
-      viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
+      viewBox={fixedShapeViewBox(spec, showDimensions)}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-labelledby={titleId}
       data-ae-family="FIXED_WINDOW_SHAPES"
       data-ae-release="C073_FINAL"
+      data-ae-asset-release="C157_2048"
       data-shape={spec.shapeKey}
       data-configuration-id={spec.configurationIdSerie70 ?? undefined}
       data-frame-color={frameColor}

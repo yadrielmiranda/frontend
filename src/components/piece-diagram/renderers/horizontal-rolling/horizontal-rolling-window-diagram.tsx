@@ -7,6 +7,7 @@ import {
   DIMENSION_FONT_FAMILY,
   DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
+  expandedViewBox,
 } from "../dimension-style";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
@@ -534,6 +535,36 @@ export function HorizontalRollingWindowDiagram(
     productWidth +
     (layout.preserveC040DimensionLayout ? 112 : 85);
   const segmentY = productY - 60;
+  const viewportPadding = DIMENSIONS.fontSize * 0.3;
+  const sideDimensionOffset = layout.preserveC040DimensionLayout ? 112 : 85;
+  const bottomDimensionOffset =
+    layout.preserveC040DimensionLayout ? 112 : 137;
+  const viewBox = expandedViewBox(
+    { x: productX, y: productY, width: productWidth, height: productHeight },
+    showDimensions
+      ? {
+          top: layout.preserveC040DimensionLayout
+            ? viewportPadding
+            : 60 + 24 + SEGMENT_DIMENSION_FONT_SIZE + viewportPadding,
+          right:
+            sideDimensionOffset +
+            44 +
+            DIMENSIONS.fontSize * 3.7 +
+            viewportPadding,
+          bottom:
+            bottomDimensionOffset +
+            (layout.preserveC040DimensionLayout ? 64 : 59) +
+            DIMENSIONS.fontSize * 0.5 +
+            viewportPadding,
+          left: viewportPadding,
+        }
+      : {
+          top: viewportPadding,
+          right: viewportPadding,
+          bottom: viewportPadding,
+          left: viewportPadding,
+        },
+  );
   const mirrorTransform = `translate(${2 * productX + productWidth} 0) scale(-1 1)`;
   const productLayers = (
     <g
@@ -606,7 +637,7 @@ export function HorizontalRollingWindowDiagram(
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
-      viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+      viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
       role="img"

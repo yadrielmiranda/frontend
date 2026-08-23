@@ -178,6 +178,67 @@ function safeFrameColor(value?: string | null): string {
     : "#FFFFFF";
 }
 
+const PREVIEW_PIXELS_PER_INCH = 4.5;
+const PREVIEW_HORIZONTAL_ALLOWANCE = 96;
+const PREVIEW_VERTICAL_ALLOWANCE = 80;
+const PREVIEW_MINIMUM_SIDE = 140;
+
+function physicalPreviewSize(
+  width: number,
+  height: number,
+): React.CSSProperties {
+  return {
+    width: `${Math.max(
+      PREVIEW_MINIMUM_SIDE,
+      width * PREVIEW_PIXELS_PER_INCH + PREVIEW_HORIZONTAL_ALLOWANCE,
+    )}px`,
+    height: `${Math.max(
+      PREVIEW_MINIMUM_SIDE,
+      height * PREVIEW_PIXELS_PER_INCH + PREVIEW_VERTICAL_ALLOWANCE,
+    )}px`,
+    maxWidth: "100%",
+    maxHeight: "100%",
+    minWidth: 0,
+    minHeight: 0,
+  };
+}
+
+function DiagramShell({
+  width,
+  height,
+  variant,
+  className,
+  dataAttributes,
+  children,
+}: {
+  width: number;
+  height: number;
+  variant: PieceDiagramVariant;
+  className?: string;
+  dataAttributes?: Record<string, string | number | undefined>;
+  children: React.ReactNode;
+}) {
+  const containerClasses =
+    variant === "report"
+      ? "flex h-full w-full items-center justify-center overflow-hidden"
+      : "flex h-full w-full items-center justify-center overflow-hidden rounded-md border p-2";
+
+  return (
+    <div
+      className={[containerClasses, className ?? ""].join(" ")}
+      {...dataAttributes}
+    >
+      <div
+        className="flex shrink items-center justify-center"
+        style={physicalPreviewSize(width, height)}
+        data-preview-scale="SHARED_PHYSICAL_SCALE"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function PieceDiagram({
   diagramFamily,
   systemName,
@@ -197,10 +258,6 @@ export function PieceDiagram({
   className,
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
-  const containerClasses =
-    variant === "report"
-      ? "flex h-full w-full items-center justify-center"
-      : "flex h-full w-full items-center justify-center overflow-hidden rounded-md border p-2";
   const rendererClasses = "h-full w-full";
   const resolvedSharedFrenchDoor =
     diagramFamily === "FRENCH_DOOR"
@@ -222,31 +279,61 @@ export function PieceDiagram({
       hasCoating,
       hasPrivacy,
       showDimensions: true,
-      variant,
-      className,
+      variant: "report" as const,
+      className: rendererClasses,
     } as const;
 
-    if (resolvedSharedFrenchDoor.kind === "MIXED") {
-      return (
+    const doorDiagram =
+      resolvedSharedFrenchDoor.kind === "MIXED" ? (
         <Series600DoorDiagram
           {...sharedDoorProps}
           visualTemplate="ECO_SERIES_600_MIXED_ASSEMBLY_EXTERIOR"
           configuration={resolvedSharedFrenchDoor.configuration}
           series600MixedPieces={resolvedSharedFrenchDoor.pieces}
         />
+      ) : (
+        <Series600DoorDiagram
+          {...sharedDoorProps}
+          visualTemplate={resolvedSharedFrenchDoor.visualTemplate}
+          configuration={resolvedSharedFrenchDoor.configuration}
+          piece={resolvedSharedFrenchDoor.piece}
+          exteriorHingeSide={resolvedSharedFrenchDoor.exteriorHingeSide}
+          activeLeaf={resolvedSharedFrenchDoor.activeLeaf}
+          boreCount={resolvedSharedFrenchDoor.boreCount}
+        />
       );
-    }
+    const doorWidth =
+      resolvedSharedFrenchDoor.kind === "MIXED"
+        ? resolvedSharedFrenchDoor.pieces.reduce(
+            (total, doorPiece) =>
+              total + (positiveDimensionNumber(doorPiece.width) ?? 0),
+            0,
+          )
+        : resolvedSharedFrenchDoor.piece.width;
+    const doorHeight =
+      resolvedSharedFrenchDoor.kind === "MIXED"
+        ? Math.max(
+            ...resolvedSharedFrenchDoor.pieces.map(
+              (doorPiece) =>
+                positiveDimensionNumber(doorPiece.height) ?? 0,
+            ),
+          )
+        : resolvedSharedFrenchDoor.piece.height;
 
     return (
-      <Series600DoorDiagram
-        {...sharedDoorProps}
-        visualTemplate={resolvedSharedFrenchDoor.visualTemplate}
-        configuration={resolvedSharedFrenchDoor.configuration}
-        piece={resolvedSharedFrenchDoor.piece}
-        exteriorHingeSide={resolvedSharedFrenchDoor.exteriorHingeSide}
-        activeLeaf={resolvedSharedFrenchDoor.activeLeaf}
-        boreCount={resolvedSharedFrenchDoor.boreCount}
-      />
+      <DiagramShell
+        width={doorWidth}
+        height={doorHeight}
+        variant={variant}
+        className={className}
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": "FRENCH_DOOR",
+          "data-diagram-renderer": "SERIES_600_SHARED",
+        }}
+      >
+        {doorDiagram}
+      </DiagramShell>
     );
   }
 
@@ -267,12 +354,17 @@ export function PieceDiagram({
     slidingHeight !== null
   ) {
     return (
-      <div
-        className={[containerClasses, className ?? ""].join(" ")}
-        data-dimension-mode={dimensionMode}
-        data-diagram-family={diagramFamily}
-        data-diagram-renderer="SLIDING_GLASS_DOOR"
-        data-diagram-spec-source="C139_CATALOG"
+      <DiagramShell
+        width={slidingWidth}
+        height={slidingHeight}
+        variant={variant}
+        className={className}
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": diagramFamily,
+          "data-diagram-renderer": "SLIDING_GLASS_DOOR",
+          "data-diagram-spec-source": "C139_CATALOG",
+        }}
       >
         <SlidingGlassDoorDiagram
           spec={resolvedSlidingGlassDoor}
@@ -286,7 +378,7 @@ export function PieceDiagram({
           showDimensions
           className={rendererClasses}
         />
-      </div>
+      </DiagramShell>
     );
   }
 
@@ -310,7 +402,7 @@ export function PieceDiagram({
     height === null ||
     (resolvedSpec.renderer === "FIXED_WINDOW_SHAPE" && !fixedDimensions)
   ) {
-    return (
+    const legacyDiagram = (
       <LegacyPieceDiagram
         diagramFamily={diagramFamily}
         configuration={configuration}
@@ -320,9 +412,29 @@ export function PieceDiagram({
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
+        variant="report"
+        className={rendererClasses}
+      />
+    );
+    const legacyWidth = positiveDimensionNumber(normalizedPiece?.width);
+    const legacyHeight = positiveDimensionNumber(normalizedPiece?.height);
+
+    return legacyWidth !== null && legacyHeight !== null ? (
+      <DiagramShell
+        width={legacyWidth}
+        height={legacyHeight}
         variant={variant}
         className={className}
-      />
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": diagramFamily,
+          "data-diagram-renderer": "LEGACY",
+        }}
+      >
+        {legacyDiagram}
+      </DiagramShell>
+    ) : (
+      legacyDiagram
     );
   }
 
@@ -443,14 +555,19 @@ export function PieceDiagram({
   }
 
   return (
-    <div
-      className={[containerClasses, className ?? ""].join(" ")}
-      data-dimension-mode={dimensionMode}
-      data-diagram-family={diagramFamily}
-      data-diagram-renderer={resolvedSpec.renderer}
-      data-diagram-spec-source={resolvedSpec.source}
+    <DiagramShell
+      width={width}
+      height={height}
+      variant={variant}
+      className={className}
+      dataAttributes={{
+        "data-dimension-mode": dimensionMode,
+        "data-diagram-family": diagramFamily,
+        "data-diagram-renderer": resolvedSpec.renderer,
+        "data-diagram-spec-source": resolvedSpec.source,
+      }}
     >
       {renderedDiagram}
-    </div>
+    </DiagramShell>
   );
 }
