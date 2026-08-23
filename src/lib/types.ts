@@ -973,7 +973,7 @@ export interface OrderDelivery {
   basePriceSnapshot: string | number;
   includedMilesSnapshot: string | number;
   additionalMilePriceSnapshot: string | number;
-  additionalMiles: number;
+  additionalMiles: string | number;
   tollAmount: string | number;
   taxable: boolean;
   taxRateSnapshot: string | number;

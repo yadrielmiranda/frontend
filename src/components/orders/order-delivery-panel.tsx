@@ -591,12 +591,13 @@ export function OrderDeliveryPanel({
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>
-                    Additional miles · {delivery.additionalMiles} ×{" "}
+                    Additional miles ·{" "}
+                    {Number(delivery.additionalMiles).toFixed(2)} ×{" "}
                     {formatMoney(Number(delivery.additionalMilePriceSnapshot))}
                   </span>
                   <span>
                     {formatMoney(
-                      delivery.additionalMiles *
+                      Number(delivery.additionalMiles) *
                         Number(delivery.additionalMilePriceSnapshot),
                     )}
                   </span>
@@ -618,8 +619,8 @@ export function OrderDeliveryPanel({
                   <span>{formatMoney(Number(delivery.total))}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Additional miles are rounded upward. Return mileage is not
-                  charged automatically.
+                  Additional mileage is prorated using the measured one-way road
+                  distance. Return mileage is not charged automatically.
                 </p>
               </div>
 
