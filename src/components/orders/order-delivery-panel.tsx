@@ -156,6 +156,14 @@ export function OrderDeliveryPanel({
       toast.error("Complete the entire delivery address.");
       return;
     }
+    if (!/^[A-Za-z]{2}$/.test(address.state.trim())) {
+      toast.error("Enter the two-letter state code, for example FL.");
+      return;
+    }
+    if (!/^\d{5}(?:-\d{4})?$/.test(address.postalCode.trim())) {
+      toast.error("Enter a valid 5-digit ZIP code or ZIP+4.");
+      return;
+    }
     if (formType !== "STANDARD" && !internalReason.trim()) {
       toast.error("Enter the required internal reason.");
       return;
@@ -167,7 +175,7 @@ export function OrderDeliveryPanel({
         type: formType,
         street: address.street.trim(),
         city: address.city.trim(),
-        state: address.state.trim(),
+        state: address.state.trim().toUpperCase(),
         postalCode: address.postalCode.trim(),
         taxable: isAdmin ? taxable : undefined,
         internalReason:
@@ -184,7 +192,7 @@ export function OrderDeliveryPanel({
       setFormType(null);
       setInternalReason("");
       setTaxable(false);
-      toast.success("Delivery calculated and added for payment.");
+      toast.success("Delivery address verified and charge added for payment.");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -301,8 +309,8 @@ export function OrderDeliveryPanel({
         <div>
           <h2 className="text-lg font-semibold">Pickup &amp; Delivery</h2>
           <p className="text-sm text-muted-foreground">
-            Pickup is free. Delivery is calculated from the company address
-            using one-way road distance.
+            Pickup is free. A valid delivery address, including the correct ZIP
+            code, is required for delivery.
           </p>
         </div>
         <Badge variant="secondary">Pickup truck</Badge>
@@ -402,8 +410,8 @@ export function OrderDeliveryPanel({
           <div>
             <strong>{deliveryName(formType)}</strong>
             <p className="text-sm text-muted-foreground">
-              Google calculates the driving distance before the charge is
-              created.
+              Enter the complete delivery address, including the correct ZIP
+              code. It must be verified before a delivery charge can be created.
             </p>
           </div>
 
@@ -413,6 +421,7 @@ export function OrderDeliveryPanel({
               <Input
                 id="delivery-street"
                 value={address.street}
+                autoComplete="street-address"
                 onChange={(event) =>
                   setAddress((current) => ({
                     ...current,
@@ -426,6 +435,7 @@ export function OrderDeliveryPanel({
               <Input
                 id="delivery-city"
                 value={address.city}
+                autoComplete="address-level2"
                 onChange={(event) =>
                   setAddress((current) => ({
                     ...current,
@@ -440,11 +450,12 @@ export function OrderDeliveryPanel({
                 <Input
                   id="delivery-state"
                   value={address.state}
-                  maxLength={50}
+                  maxLength={2}
+                  autoComplete="address-level1"
                   onChange={(event) =>
                     setAddress((current) => ({
                       ...current,
-                      state: event.target.value,
+                      state: event.target.value.toUpperCase(),
                     }))
                   }
                 />
@@ -454,7 +465,10 @@ export function OrderDeliveryPanel({
                 <Input
                   id="delivery-zip"
                   value={address.postalCode}
-                  maxLength={20}
+                  maxLength={10}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="12345 or 12345-6789"
                   onChange={(event) =>
                     setAddress((current) => ({
                       ...current,
@@ -509,7 +523,7 @@ export function OrderDeliveryPanel({
               Cancel
             </Button>
             <Button disabled={busy} onClick={() => void calculateDelivery()}>
-              <MapPin className="h-4 w-4" /> Calculate &amp; create charge
+              <MapPin className="h-4 w-4" /> Verify address &amp; create charge
             </Button>
           </div>
         </div>
