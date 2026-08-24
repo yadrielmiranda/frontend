@@ -4,11 +4,10 @@ import React, { useId } from "react";
 
 import {
   DIMENSION_COLOR,
-  DIMENSION_FONT_FAMILY,
-  DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
 export const FIXED_WINDOW_SHAPE_KEYS = [
@@ -320,17 +319,14 @@ function HorizontalDimension({
         points={`${x1},${y} ${x1 - DIMENSIONS.terminalLength},${y - DIMENSIONS.terminalHalfWidth} ${x1 - DIMENSIONS.terminalLength},${y + DIMENSIONS.terminalHalfWidth}`}
         fill={DIMENSION_COLOR}
       />
-      <text
+      <DimensionText
         x={(x0 + x1) / 2}
         y={y + 43}
         textAnchor="middle"
-        fontFamily={DIMENSION_FONT_FAMILY}
-        fontSize={DIMENSIONS.fontSize}
-        fontWeight={DIMENSION_FONT_WEIGHT}
-        fill={DIMENSION_COLOR}
+        fallbackFontSize={DIMENSIONS.fontSize}
       >
         {label}
-      </text>
+      </DimensionText>
     </g>
   );
 }
@@ -345,7 +341,7 @@ function VerticalDimension({
   const [x, y0] = geometry.tipStart;
   const [, y1] = geometry.tipEnd;
   const middle = (y0 + y1) / 2;
-  const gap = 58;
+  const gap = 110;
   return (
     <g data-axis={geometry.axis} data-side={geometry.side}>
       <line
@@ -372,18 +368,15 @@ function VerticalDimension({
         points={`${x},${y1} ${x - DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength} ${x + DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength}`}
         fill={DIMENSION_COLOR}
       />
-      <text
+      <DimensionText
         x={x}
         y={middle}
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily={DIMENSION_FONT_FAMILY}
-        fontSize={DIMENSIONS.fontSize}
-        fontWeight={DIMENSION_FONT_WEIGHT}
-        fill={DIMENSION_COLOR}
+        fallbackFontSize={DIMENSIONS.fontSize}
       >
         {label}
-      </text>
+      </DimensionText>
     </g>
   );
 }

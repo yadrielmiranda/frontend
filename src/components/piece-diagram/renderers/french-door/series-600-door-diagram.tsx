@@ -4,10 +4,9 @@ import type { DiagramFamily, DimensionMode } from "@/lib/types";
 
 import {
   DIMENSION_COLOR,
-  DIMENSION_FONT_FAMILY,
-  DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
@@ -592,17 +591,15 @@ function DimensionArrows({
             d={`M ${width} ${widthY} L ${width - arrowDepth} ${widthY - arrowHalf} L ${width - arrowDepth} ${widthY + arrowHalf} Z`}
             stroke="none"
           />
-          <text
+          <DimensionText
             x={width / 2}
             y={widthTextY}
             textAnchor="middle"
             stroke="none"
-            fontFamily={DIMENSION_FONT_FAMILY}
-            fontSize={font}
-            fontWeight={DIMENSION_FONT_WEIGHT}
+            fallbackFontSize={font}
           >
             W. {formatDimension(width)}&quot;
-          </text>
+          </DimensionText>
         </g>
       ) : null}
       {showHeight ? (
@@ -616,17 +613,15 @@ function DimensionArrows({
             d={`M ${heightX} ${height} L ${heightX - arrowHalf} ${height - arrowDepth} L ${heightX + arrowHalf} ${height - arrowDepth} Z`}
             stroke="none"
           />
-          <text
+          <DimensionText
             x={heightTextX}
             y={height / 2}
             dominantBaseline="middle"
             stroke="none"
-            fontFamily={DIMENSION_FONT_FAMILY}
-            fontSize={font}
-            fontWeight={DIMENSION_FONT_WEIGHT}
+            fallbackFontSize={font}
           >
             H. {formatDimension(height)}&quot;
-          </text>
+          </DimensionText>
         </g>
       ) : null}
     </g>
@@ -808,7 +803,7 @@ function MixedDimensions({
   variant: PieceDiagramVariant;
 }) {
   const metrics = dimensionMetrics(layout.height);
-  const font = metrics.fontSize * (variant === "report" ? 0.86 : 0.92);
+  const font = metrics.fontSize;
   const stroke = metrics.strokeWidth;
   const topY = -layout.height * 0.055;
   const labelY = -layout.height * 0.075;
@@ -820,17 +815,15 @@ function MixedDimensions({
       {layout.pieces.map((piece) => (
         <g key={`dimension-${piece.index}`} fill={DIMENSION_COLOR} stroke={DIMENSION_COLOR}>
           <line x1={piece.logicalLeft} y1={topY} x2={piece.logicalRight} y2={topY} strokeWidth={stroke} />
-          <text
+          <DimensionText
             x={(piece.logicalLeft + piece.logicalRight) / 2}
             y={labelY}
             textAnchor="middle"
             stroke="none"
-            fontFamily={DIMENSION_FONT_FAMILY}
-            fontSize={font}
-            fontWeight={DIMENSION_FONT_WEIGHT}
+            fallbackFontSize={font}
           >
             W. {formatDimension(piece.width)}&quot;
-          </text>
+          </DimensionText>
         </g>
       ))}
       {layout.boundaries.map((boundary, index) => (

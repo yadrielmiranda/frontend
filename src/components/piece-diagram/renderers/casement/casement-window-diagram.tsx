@@ -8,11 +8,10 @@ import {
 } from "../glass-appearance";
 import {
   DIMENSION_COLOR,
-  DIMENSION_FONT_FAMILY,
-  DIMENSION_FONT_WEIGHT,
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 
 export const CASEMENT_WINDOW_CONFIGURATIONS = ["XL", "XR"] as const;
 export type CasementWindowConfiguration =
@@ -358,22 +357,23 @@ function Dimensions({
         d={`M ${sideX} ${frame.y + frame.height} l -${halfHead} -${head} h ${halfHead * 2} z`}
         stroke="none"
       />
-      <g
-        stroke="none"
-        fontFamily={DIMENSION_FONT_FAMILY}
-        fontWeight={DIMENSION_FONT_WEIGHT}
-        fontSize={DIMENSIONS.fontSize}
-      >
-        <text
+      <g stroke="none">
+        <DimensionText
           x={frame.x + frame.width / 2}
           y={bottomY + 74}
           textAnchor="middle"
+          fallbackFontSize={DIMENSIONS.fontSize}
         >
           {`W. ${width}\"`}
-        </text>
-        <text x={sideX + 28} y={middleY + 13} textAnchor="start">
+        </DimensionText>
+        <DimensionText
+          x={sideX + 28}
+          y={middleY + 13}
+          textAnchor="start"
+          fallbackFontSize={DIMENSIONS.fontSize}
+        >
           {`H. ${height}\"`}
-        </text>
+        </DimensionText>
       </g>
     </g>
   );

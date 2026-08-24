@@ -3,6 +3,8 @@ import React from "react";
 
 import type { DiagramFamily, DimensionMode } from "@/lib/types";
 
+import { DimensionText } from "./renderers/dimension-text";
+
 type DiagramValue = string | number | null | undefined;
 
 export type PieceDiagramVariant = "editor" | "report";
@@ -1235,27 +1237,25 @@ export function PieceDiagram({
             <stop offset="100%" stopColor={glassShadowTone} />
           </radialGradient>
         </defs>
-        <text
+        <DimensionText
           x={offsetX + scaledWidth / 2}
           y={offsetY - 10}
           textAnchor="middle"
-          fontSize={fontSize}
-          fill="black"
+          fallbackFontSize={fontSize}
         >
           {formatDimension(dimensions.displayWidth)}&quot;
-        </text>
+        </DimensionText>
 
         {dimensions.displayHeight !== null && (
-          <text
+          <DimensionText
             x={-(offsetY + scaledHeight / 2)}
             y={offsetX - 15}
             transform="rotate(-90)"
             textAnchor="middle"
-            fontSize={fontSize}
-            fill="black"
+            fallbackFontSize={fontSize}
           >
             {formatDimension(dimensions.displayHeight)}&quot;
-          </text>
+          </DimensionText>
         )}
 
         <g transform={`translate(${offsetX}, ${offsetY})`}>

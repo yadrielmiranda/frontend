@@ -9,6 +9,7 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
   DEFAULT_MOVEMENT_INDICATOR_COLOR,
@@ -84,7 +85,6 @@ const FAMILY_PRODUCT_REGION = {
   height: 933,
 } as const;
 const DIMENSIONS = dimensionMetrics(VIEWBOX.width);
-const SEGMENT_DIMENSION_FONT_SIZE = DIMENSIONS.fontSize * 0.9;
 export const DEFAULT_FRAME_COLOR = "#FFFFFF";
 const DEFAULT_ASSET_BASE_PATH =
   "/product-visuals/horizontal-rolling-window/c148";
@@ -545,7 +545,7 @@ export function HorizontalRollingWindowDiagram(
       ? {
           top: layout.preserveC040DimensionLayout
             ? viewportPadding
-            : 60 + 24 + SEGMENT_DIMENSION_FONT_SIZE + viewportPadding,
+            : 60 + 24 + DIMENSIONS.fontSize + viewportPadding,
           right:
             sideDimensionOffset +
             44 +
@@ -714,17 +714,17 @@ export function HorizontalRollingWindowDiagram(
                     markerStart={`url(#${arrowStartId})`}
                     markerEnd={`url(#${arrowEndId})`}
                   />
-                  <text
+                  <DimensionText
                     x={(segment.x1 + segment.x2) / 2}
                     y={segmentY - 24}
                     textAnchor="middle"
                     fill={DIMENSION_COLOR}
                     stroke="none"
-                    fontSize={SEGMENT_DIMENSION_FONT_SIZE}
+                    fallbackFontSize={DIMENSIONS.fontSize}
                     fontWeight={DIMENSION_FONT_WEIGHT}
                   >
                     W. {formatDimension(segment.nominalWidth)}&quot;
-                  </text>
+                  </DimensionText>
                 </g>
               ))
             : null}
@@ -745,7 +745,7 @@ export function HorizontalRollingWindowDiagram(
             markerStart={`url(#${arrowStartId})`}
             markerEnd={`url(#${arrowEndId})`}
           />
-          <text
+          <DimensionText
             x={productX + productWidth / 2}
             y={
               horizontalY +
@@ -754,21 +754,21 @@ export function HorizontalRollingWindowDiagram(
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize={DIMENSIONS.fontSize}
+            fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
           >
             W. {formatDimension(resolvedWidth)}&quot;
-          </text>
-          <text
+          </DimensionText>
+          <DimensionText
             x={verticalX + 44}
             y={productY + productHeight / 2 + 14}
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize={DIMENSIONS.fontSize}
+            fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
           >
             H. {formatDimension(resolvedHeight)}&quot;
-          </text>
+          </DimensionText>
         </g>
       ) : null}
     </svg>

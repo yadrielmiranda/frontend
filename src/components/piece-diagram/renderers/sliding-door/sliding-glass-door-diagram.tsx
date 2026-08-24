@@ -7,6 +7,7 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
@@ -382,27 +383,27 @@ export function SlidingGlassDoorDiagram({
             markerStart={`url(#${arrowStartId})`}
             markerEnd={`url(#${arrowEndId})`}
           />
-          <text
+          <DimensionText
             x={productRect.x + productRect.width / 2}
             y={horizontalY + 60}
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize={DIMENSIONS.fontSize}
+            fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
           >
             W. {formatDimension(resolvedWidth)}&quot;
-          </text>
-          <text
+          </DimensionText>
+          <DimensionText
             x={verticalX + 44}
             y={productRect.y + productRect.height / 2 + 14}
             fill={DIMENSION_COLOR}
             stroke="none"
-            fontSize={DIMENSIONS.fontSize}
+            fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
           >
             H. {formatDimension(resolvedHeight)}&quot;
-          </text>
+          </DimensionText>
         </g>
       ) : null}
     </svg>

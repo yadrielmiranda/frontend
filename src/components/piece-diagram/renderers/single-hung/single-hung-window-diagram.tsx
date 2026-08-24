@@ -8,6 +8,7 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
+import { DimensionText } from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 
 export type SingleHungConfiguration =
@@ -692,10 +693,19 @@ function Dimensions({
         fill={DIMENSION_COLOR}
         fontFamily={DIMENSION_FONT_FAMILY}
         fontWeight={DIMENSION_FONT_WEIGHT}
-        fontSize={DIMENSIONS.fontSize}
       >
-        <text x={(x1 + x2) / 2} y={bottomY + 74} textAnchor="middle">{`W. ${width}`}</text>
-        <text x={sideX + 28} y={middleY + 13} textAnchor="start">{`H. ${height}`}</text>
+        <DimensionText
+          x={(x1 + x2) / 2}
+          y={bottomY + 74}
+          textAnchor="middle"
+          fallbackFontSize={DIMENSIONS.fontSize}
+        >{`W. ${width}`}</DimensionText>
+        <DimensionText
+          x={sideX + 28}
+          y={middleY + 13}
+          textAnchor="start"
+          fallbackFontSize={DIMENSIONS.fontSize}
+        >{`H. ${height}`}</DimensionText>
       </g>
     </g>
   );
