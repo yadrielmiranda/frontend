@@ -15,7 +15,7 @@ import {
 
 export const DIMENSION_SCREEN_FONT_SIZE_PX = 20;
 export const DIMENSION_LABEL_OUTWARD_GAP_PX = 10;
-export const DIMENSION_LABEL_BELOW_LINE_PX = 28;
+export const DIMENSION_LABEL_BELOW_LINE_PX = 24;
 export const DIMENSION_LABEL_ABOVE_LINE_PX = -10;
 
 type DimensionTextProps = Omit<
