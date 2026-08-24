@@ -9,7 +9,12 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_ABOVE_LINE_PX,
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
   DEFAULT_MOVEMENT_INDICATOR_COLOR,
@@ -637,6 +642,7 @@ export function HorizontalRollingWindowDiagram(
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
+      overflow="visible"
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
@@ -716,12 +722,13 @@ export function HorizontalRollingWindowDiagram(
                   />
                   <DimensionText
                     x={(segment.x1 + segment.x2) / 2}
-                    y={segmentY - 24}
+                    y={segmentY}
                     textAnchor="middle"
                     fill={DIMENSION_COLOR}
                     stroke="none"
                     fallbackFontSize={DIMENSIONS.fontSize}
                     fontWeight={DIMENSION_FONT_WEIGHT}
+                    screenOffsetYPx={DIMENSION_LABEL_ABOVE_LINE_PX}
                   >
                     W. {formatDimension(segment.nominalWidth)}&quot;
                   </DimensionText>
@@ -747,25 +754,26 @@ export function HorizontalRollingWindowDiagram(
           />
           <DimensionText
             x={productX + productWidth / 2}
-            y={
-              horizontalY +
-              (layout.preserveC040DimensionLayout ? 64 : 59)
-            }
+            y={horizontalY}
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
+            screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
           >
             W. {formatDimension(resolvedWidth)}&quot;
           </DimensionText>
           <DimensionText
-            x={verticalX + 44}
-            y={productY + productHeight / 2 + 14}
+            x={verticalX}
+            y={productY + productHeight / 2}
             fill={DIMENSION_COLOR}
             stroke="none"
+            textAnchor="start"
+            dominantBaseline="central"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
+            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(resolvedHeight)}&quot;
           </DimensionText>

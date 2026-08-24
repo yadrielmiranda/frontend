@@ -8,7 +8,11 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 
 export type SingleHungConfiguration =
@@ -696,15 +700,18 @@ function Dimensions({
       >
         <DimensionText
           x={(x1 + x2) / 2}
-          y={bottomY + 74}
+          y={bottomY}
           textAnchor="middle"
           fallbackFontSize={DIMENSIONS.fontSize}
+          screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
         >{`W. ${width}`}</DimensionText>
         <DimensionText
-          x={sideX + 28}
-          y={middleY + 13}
+          x={sideX}
+          y={middleY}
           textAnchor="start"
+          dominantBaseline="central"
           fallbackFontSize={DIMENSIONS.fontSize}
+          screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
         >{`H. ${height}`}</DimensionText>
       </g>
     </g>
@@ -914,6 +921,7 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
+      overflow="visible"
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       role="img"

@@ -1210,6 +1210,7 @@ export function PieceDiagram({
       <svg
         width="100%"
         height="100%"
+        overflow="visible"
         viewBox={`-44 -32 ${maxDimension + 88} ${maxDimension + 64}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"

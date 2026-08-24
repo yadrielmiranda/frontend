@@ -7,7 +7,11 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
 export const FIXED_WINDOW_SHAPE_KEYS = [
@@ -324,7 +328,7 @@ function HorizontalDimension({
         y={y}
         textAnchor="middle"
         fallbackFontSize={DIMENSIONS.fontSize}
-        screenOffsetYPx={28}
+        screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
       >
         {label}
       </DimensionText>
@@ -367,7 +371,11 @@ function VerticalDimension({
         textAnchor={isLeft ? "end" : "start"}
         dominantBaseline="central"
         fallbackFontSize={DIMENSIONS.fontSize}
-        screenOffsetXPx={isLeft ? -10 : 10}
+        screenOffsetXPx={
+          isLeft
+            ? -DIMENSION_LABEL_OUTWARD_GAP_PX
+            : DIMENSION_LABEL_OUTWARD_GAP_PX
+        }
       >
         {label}
       </DimensionText>
@@ -459,6 +467,7 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   return (
     <svg
       className={props.className}
+      overflow="visible"
       viewBox={fixedShapeViewBox(spec, showDimensions)}
       preserveAspectRatio="xMidYMid meet"
       role="img"

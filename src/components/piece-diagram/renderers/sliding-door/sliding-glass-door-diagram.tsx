@@ -7,7 +7,11 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
@@ -273,6 +277,7 @@ export function SlidingGlassDoorDiagram({
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
+      overflow="visible"
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
@@ -385,22 +390,26 @@ export function SlidingGlassDoorDiagram({
           />
           <DimensionText
             x={productRect.x + productRect.width / 2}
-            y={horizontalY + 60}
+            y={horizontalY}
             textAnchor="middle"
             fill={DIMENSION_COLOR}
             stroke="none"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
+            screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
           >
             W. {formatDimension(resolvedWidth)}&quot;
           </DimensionText>
           <DimensionText
-            x={verticalX + 44}
-            y={productRect.y + productRect.height / 2 + 14}
+            x={verticalX}
+            y={productRect.y + productRect.height / 2}
             fill={DIMENSION_COLOR}
             stroke="none"
+            textAnchor="start"
+            dominantBaseline="central"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
+            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(resolvedHeight)}&quot;
           </DimensionText>

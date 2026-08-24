@@ -11,7 +11,11 @@ import {
   dimensionMetrics,
   expandedViewBox,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 
 export const CASEMENT_WINDOW_CONFIGURATIONS = ["XL", "XR"] as const;
 export type CasementWindowConfiguration =
@@ -360,17 +364,20 @@ function Dimensions({
       <g stroke="none">
         <DimensionText
           x={frame.x + frame.width / 2}
-          y={bottomY + 74}
+          y={bottomY}
           textAnchor="middle"
           fallbackFontSize={DIMENSIONS.fontSize}
+          screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
         >
           {`W. ${width}\"`}
         </DimensionText>
         <DimensionText
-          x={sideX + 28}
-          y={middleY + 13}
+          x={sideX}
+          y={middleY}
           textAnchor="start"
+          dominantBaseline="central"
           fallbackFontSize={DIMENSIONS.fontSize}
+          screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
         >
           {`H. ${height}\"`}
         </DimensionText>
@@ -459,6 +466,7 @@ export function CasementWindowDiagram(
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
+      overflow="visible"
       viewBox={casementViewBox(frame, showDimensions)}
       preserveAspectRatio="xMidYMid meet"
       role="img"
@@ -568,6 +576,7 @@ export function CasementFixedWindowDiagram(
       xmlns="http://www.w3.org/2000/svg"
       width="100%"
       height="100%"
+      overflow="visible"
       viewBox={casementViewBox(frame, showDimensions)}
       preserveAspectRatio="xMidYMid meet"
       role="img"

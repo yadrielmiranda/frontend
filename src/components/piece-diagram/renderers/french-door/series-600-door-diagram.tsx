@@ -6,7 +6,12 @@ import {
   DIMENSION_COLOR,
   dimensionMetrics,
 } from "../dimension-style";
-import { DimensionText } from "../dimension-text";
+import {
+  DIMENSION_LABEL_ABOVE_LINE_PX,
+  DIMENSION_LABEL_BELOW_LINE_PX,
+  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DimensionText,
+} from "../dimension-text";
 import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
@@ -566,9 +571,7 @@ function DimensionArrows({
   const stroke = metrics.strokeWidth * scale;
   const font = metrics.fontSize * scale;
   const widthY = height + height * 0.055;
-  const widthTextY = widthY + height * 0.045;
   const heightX = width + height * 0.055;
-  const heightTextX = heightX + height * 0.03;
   const arrowDepth = metrics.terminalLength * scale;
   const arrowHalf = metrics.terminalHalfWidth * scale;
 
@@ -593,10 +596,11 @@ function DimensionArrows({
           />
           <DimensionText
             x={width / 2}
-            y={widthTextY}
+            y={widthY}
             textAnchor="middle"
             stroke="none"
             fallbackFontSize={font}
+            screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
           >
             W. {formatDimension(width)}&quot;
           </DimensionText>
@@ -614,11 +618,13 @@ function DimensionArrows({
             stroke="none"
           />
           <DimensionText
-            x={heightTextX}
+            x={heightX}
             y={height / 2}
             dominantBaseline="middle"
+            textAnchor="start"
             stroke="none"
             fallbackFontSize={font}
+            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(height)}&quot;
           </DimensionText>
@@ -806,7 +812,6 @@ function MixedDimensions({
   const font = metrics.fontSize;
   const stroke = metrics.strokeWidth;
   const topY = -layout.height * 0.055;
-  const labelY = -layout.height * 0.075;
   const tickTop = topY - layout.height * 0.012;
   const tickBottom = -layout.height * 0.01;
 
@@ -817,10 +822,11 @@ function MixedDimensions({
           <line x1={piece.logicalLeft} y1={topY} x2={piece.logicalRight} y2={topY} strokeWidth={stroke} />
           <DimensionText
             x={(piece.logicalLeft + piece.logicalRight) / 2}
-            y={labelY}
+            y={topY}
             textAnchor="middle"
             stroke="none"
             fallbackFontSize={font}
+            screenOffsetYPx={DIMENSION_LABEL_ABOVE_LINE_PX}
           >
             W. {formatDimension(piece.width)}&quot;
           </DimensionText>
@@ -891,6 +897,7 @@ export function Series600MixedAssemblyDiagram({
         xmlns="http://www.w3.org/2000/svg"
         width="100%"
         height="100%"
+        overflow="visible"
         viewBox={`${-left} ${-top} ${layout.totalWidth + left + right} ${layout.height + top + bottom}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
@@ -1069,6 +1076,7 @@ export function PieceDiagram({
         xmlns="http://www.w3.org/2000/svg"
         width="100%"
         height="100%"
+        overflow="visible"
         viewBox={`${-left} ${-top} ${width + left + right} ${height + top + bottom}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
