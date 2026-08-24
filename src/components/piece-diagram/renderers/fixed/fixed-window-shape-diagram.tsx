@@ -321,9 +321,10 @@ function HorizontalDimension({
       />
       <DimensionText
         x={(x0 + x1) / 2}
-        y={y + 43}
+        y={y}
         textAnchor="middle"
         fallbackFontSize={DIMENSIONS.fontSize}
+        screenOffsetYPx={28}
       >
         {label}
       </DimensionText>
@@ -341,20 +342,12 @@ function VerticalDimension({
   const [x, y0] = geometry.tipStart;
   const [, y1] = geometry.tipEnd;
   const middle = (y0 + y1) / 2;
-  const gap = 110;
+  const isLeft = geometry.side === "LEFT";
   return (
     <g data-axis={geometry.axis} data-side={geometry.side}>
       <line
         x1={x}
         y1={y0}
-        x2={x}
-        y2={middle - gap / 2}
-        stroke={DIMENSION_COLOR}
-        strokeWidth={DIMENSIONS.strokeWidth}
-      />
-      <line
-        x1={x}
-        y1={middle + gap / 2}
         x2={x}
         y2={y1}
         stroke={DIMENSION_COLOR}
@@ -371,9 +364,10 @@ function VerticalDimension({
       <DimensionText
         x={x}
         y={middle}
-        textAnchor="middle"
+        textAnchor={isLeft ? "end" : "start"}
         dominantBaseline="central"
         fallbackFontSize={DIMENSIONS.fontSize}
+        screenOffsetXPx={isLeft ? -10 : 10}
       >
         {label}
       </DimensionText>

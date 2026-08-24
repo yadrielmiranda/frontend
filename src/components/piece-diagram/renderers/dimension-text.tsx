@@ -17,10 +17,12 @@ export const DIMENSION_SCREEN_FONT_SIZE_PX = 20;
 
 type DimensionTextProps = Omit<
   React.SVGProps<SVGTextElement>,
-  "fontSize" | "ref"
+  "dx" | "dy" | "fontSize" | "ref"
 > & {
   fallbackFontSize: number;
   screenFontSizePx?: number;
+  screenOffsetXPx?: number;
+  screenOffsetYPx?: number;
 };
 
 /**
@@ -30,25 +32,45 @@ type DimensionTextProps = Omit<
 export function DimensionText({
   fallbackFontSize,
   screenFontSizePx = DIMENSION_SCREEN_FONT_SIZE_PX,
+  screenOffsetXPx = 0,
+  screenOffsetYPx = 0,
   ...props
 }: DimensionTextProps) {
   const textRef = useRef<SVGTextElement>(null);
-  const [fontSize, setFontSize] = useState(fallbackFontSize);
+  const [layout, setLayout] = useState({
+    fontSize: fallbackFontSize,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   const updateFontSize = useCallback(() => {
     const matrix = textRef.current?.getScreenCTM();
     if (!matrix) return;
 
-    const renderedScale = Math.hypot(matrix.c, matrix.d);
-    if (!Number.isFinite(renderedScale) || renderedScale <= 0) return;
+    const renderedScaleX = Math.hypot(matrix.a, matrix.b);
+    const renderedScaleY = Math.hypot(matrix.c, matrix.d);
+    if (
+      !Number.isFinite(renderedScaleX) ||
+      !Number.isFinite(renderedScaleY) ||
+      renderedScaleX <= 0 ||
+      renderedScaleY <= 0
+    ) {
+      return;
+    }
 
-    const nextFontSize = Number(
-      (screenFontSizePx / renderedScale).toFixed(3),
+    const nextLayout = {
+      fontSize: Number((screenFontSizePx / renderedScaleY).toFixed(3)),
+      offsetX: Number((screenOffsetXPx / renderedScaleX).toFixed(3)),
+      offsetY: Number((screenOffsetYPx / renderedScaleY).toFixed(3)),
+    };
+    setLayout((current) =>
+      Math.abs(current.fontSize - nextLayout.fontSize) < 0.01 &&
+      Math.abs(current.offsetX - nextLayout.offsetX) < 0.01 &&
+      Math.abs(current.offsetY - nextLayout.offsetY) < 0.01
+        ? current
+        : nextLayout,
     );
-    setFontSize((current) =>
-      Math.abs(current - nextFontSize) < 0.01 ? current : nextFontSize,
-    );
-  }, [screenFontSizePx]);
+  }, [screenFontSizePx, screenOffsetXPx, screenOffsetYPx]);
 
   useLayoutEffect(() => {
     const text = textRef.current;
@@ -85,7 +107,9 @@ export function DimensionText({
       stroke={props.stroke ?? "none"}
       fontFamily={props.fontFamily ?? DIMENSION_FONT_FAMILY}
       fontWeight={props.fontWeight ?? DIMENSION_FONT_WEIGHT}
-      fontSize={fontSize}
+      fontSize={layout.fontSize}
+      dx={screenOffsetXPx === 0 ? undefined : layout.offsetX}
+      dy={screenOffsetYPx === 0 ? undefined : layout.offsetY}
       data-screen-font-size={screenFontSizePx}
     />
   );
