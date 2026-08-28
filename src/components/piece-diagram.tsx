@@ -23,6 +23,7 @@ import { HorizontalRollingWindowDiagram } from "./piece-diagram/renderers/horizo
 import { SingleHungWindowDiagram } from "./piece-diagram/renderers/single-hung/single-hung-window-diagram";
 import { SlidingGlassDoorDiagram } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-diagram";
 import { resolveSlidingGlassDoorSpec } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-spec";
+import { WindowWallDiagram } from "./piece-diagram/renderers/window-wall/window-wall-diagram";
 import { resolveAuthenticWindowSpec } from "./piece-diagram/window-renderer-spec";
 
 export type { PieceDiagramData, PieceDiagramVariant };
@@ -116,6 +117,11 @@ function firstPositiveDimension(...values: unknown[]): number | null {
   }
 
   return null;
+}
+
+function positiveInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function fixedHeightDerivedFromWidth(
@@ -333,6 +339,47 @@ export function PieceDiagram({
         }}
       >
         {doorDiagram}
+      </DiagramShell>
+    );
+  }
+
+  const windowWallWidth = positiveDimensionNumber(normalizedPiece?.width);
+  const windowWallHeight = positiveDimensionNumber(normalizedPiece?.height);
+
+  if (
+    diagramFamily === "WINDOW_WALL" &&
+    windowWallWidth !== null &&
+    windowWallHeight !== null
+  ) {
+    const windowWallPanelCount =
+      positiveInteger(normalizedPiece?.panelCount) ?? 1;
+
+    return (
+      <DiagramShell
+        width={windowWallWidth}
+        height={windowWallHeight}
+        variant={variant}
+        className={className}
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": diagramFamily,
+          "data-diagram-renderer": "WINDOW_WALL_DYNAMIC",
+          "data-diagram-spec-source": "C139_STRUCTURAL_REFERENCE",
+        }}
+      >
+        <WindowWallDiagram
+          width={windowWallWidth}
+          height={windowWallHeight}
+          panelCount={windowWallPanelCount}
+          horizontalHeights={normalizedPiece?.horizontalHeights}
+          activeOptionName={activeOptionName}
+          frameColorHex={safeFrameColor(frameColorHex)}
+          glassTintHex={glassTintHex}
+          hasCoating={hasCoating}
+          hasPrivacy={hasPrivacy}
+          showDimensions
+          className={rendererClasses}
+        />
       </DiagramShell>
     );
   }
