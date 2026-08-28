@@ -344,34 +344,50 @@ function frameSlices(frame: Rect, edges: FrameEdges): Slice[] {
   ];
 }
 
-function StructuralFrame({ href, frame, edges }: {
+function StructuralFrame({
+  href,
+  leftHref,
+  rightHref,
+  frame,
+  edges,
+}: {
   href: string;
+  leftHref?: string;
+  rightHref?: string;
   frame: Rect;
   edges: FrameEdges;
 }) {
   return (
     <g data-layer="WINDOW_WALL_STRUCTURAL_FRAME">
-      {frameSlices(frame, edges).map((slice) => (
-        <svg
-          key={slice.id}
-          x={slice.target.x}
-          y={slice.target.y}
-          width={Math.max(0, slice.target.width)}
-          height={Math.max(0, slice.target.height)}
-          viewBox={`${slice.source.x} ${slice.source.y} ${slice.source.width} ${slice.source.height}`}
-          preserveAspectRatio="none"
-          overflow="hidden"
-        >
-          <image
-            href={href}
-            x={0}
-            y={0}
-            width={SOURCE.width}
-            height={SOURCE.height}
+      {frameSlices(frame, edges).map((slice) => {
+        const sliceHref = slice.id.includes("left")
+          ? leftHref ?? href
+          : slice.id.includes("right")
+            ? rightHref ?? href
+            : href;
+
+        return (
+          <svg
+            key={slice.id}
+            x={slice.target.x}
+            y={slice.target.y}
+            width={Math.max(0, slice.target.width)}
+            height={Math.max(0, slice.target.height)}
+            viewBox={`${slice.source.x} ${slice.source.y} ${slice.source.width} ${slice.source.height}`}
             preserveAspectRatio="none"
-          />
-        </svg>
-      ))}
+            overflow="hidden"
+          >
+            <image
+              href={sliceHref}
+              x={0}
+              y={0}
+              width={SOURCE.width}
+              height={SOURCE.height}
+              preserveAspectRatio="none"
+            />
+          </svg>
+        );
+      })}
     </g>
   );
 }
@@ -391,14 +407,12 @@ function frameRingPath(frame: Rect, glass: Rect): string {
   ].join(" ");
 }
 
-function resolveCells({
+function resolvePanelCells({
   glass,
-  panelCount,
   horizontalHeights,
   totalHeight,
 }: {
   glass: Rect;
-  panelCount: number;
   horizontalHeights: readonly number[];
   totalHeight: number;
 }): Rect[] {
@@ -410,15 +424,12 @@ function resolveCells({
     const toBottom = physicalBoundaries[row + 1];
     const y = glass.y + (1 - toBottom / totalHeight) * glass.height;
     const height = ((toBottom - fromBottom) / totalHeight) * glass.height;
-
-    for (let panel = 0; panel < panelCount; panel += 1) {
-      cells.push({
-        x: glass.x + (panel / panelCount) * glass.width,
-        y,
-        width: glass.width / panelCount,
-        height,
-      });
-    }
+    cells.push({
+      x: glass.x,
+      y,
+      width: glass.width,
+      height,
+    });
   }
 
   return cells;
@@ -538,7 +549,6 @@ export function WindowWallDiagram({
   const namespace = safeId(`${idNamespace ?? "ae-window-wall"}-${reactId}`);
   const glassGradientId = `${namespace}-glass`;
   const outerFrameGradientId = `${namespace}-outer-frame`;
-  const mullionVerticalId = `${namespace}-mullion-v`;
   const mullionHorizontalId = `${namespace}-mullion-h`;
   const productScale = Math.min(
     PRODUCT_REGION.width / resolvedWidth,
@@ -554,14 +564,65 @@ export function WindowWallDiagram({
     width: resolvedWidth * productScale,
     height: resolvedHeight * productScale,
   };
-  const edges = resolveFrameEdges(frame);
-  const glass = innerRect(frame, edges);
-  const cells = resolveCells({
-    glass,
-    panelCount: resolvedPanelCount,
-    horizontalHeights: resolvedHorizontalHeights,
-    totalHeight: resolvedHeight,
+  const basePanelHref = joinAssetPath(
+    assetBasePath,
+    ASSET_BY_ATTACHMENT.NONE,
+  );
+  const leftAttachmentHref = joinAssetPath(
+    assetBasePath,
+    ASSET_BY_ATTACHMENT.LEFT,
+  );
+  const rightAttachmentHref = joinAssetPath(
+    assetBasePath,
+    ASSET_BY_ATTACHMENT.RIGHT,
+  );
+  const panelWidth = frame.width / resolvedPanelCount;
+  const panels = Array.from({ length: resolvedPanelCount }, (_, index) => {
+    const panelFrame: Rect = {
+      x: frame.x + index * panelWidth,
+      y: frame.y,
+      width: panelWidth,
+      height: frame.height,
+    };
+    const fullEdges = resolveFrameEdges(panelFrame);
+    const joinedEdge = (fullEdges.left + fullEdges.right) / 2;
+    const panelEdges: FrameEdges = {
+      left: index === 0 ? fullEdges.left : joinedEdge / 2,
+      right:
+        index === resolvedPanelCount - 1
+          ? fullEdges.right
+          : joinedEdge / 2,
+      top: fullEdges.top,
+      bottom: fullEdges.bottom,
+    };
+    const panelGlass = innerRect(panelFrame, panelEdges);
+    const hasInternalRightAttachment = index < resolvedPanelCount - 1;
+    const hasExternalLeftAttachment = attachment === "LEFT" && index === 0;
+    const hasExternalRightAttachment =
+      attachment === "RIGHT" && index === resolvedPanelCount - 1;
+
+    return {
+      index,
+      frame: panelFrame,
+      edges: panelEdges,
+      glass: panelGlass,
+      cells: resolvePanelCells({
+        glass: panelGlass,
+        horizontalHeights: resolvedHorizontalHeights,
+        totalHeight: resolvedHeight,
+      }),
+      href: basePanelHref,
+      leftHref: hasExternalLeftAttachment
+        ? leftAttachmentHref
+        : undefined,
+      rightHref:
+        hasInternalRightAttachment || hasExternalRightAttachment
+          ? rightAttachmentHref
+          : undefined,
+      internalAttachment: hasInternalRightAttachment ? "RIGHT" : "NONE",
+    };
   });
+  const cells = panels.flatMap((panel) => panel.cells);
   const panelMarkFontSize = Math.max(
     18,
     Math.min(
@@ -569,18 +630,23 @@ export function WindowWallDiagram({
       ...cells.map((cell) => Math.min(cell.width, cell.height) * 0.12),
     ),
   );
+  const minimumPanelGlassWidth = Math.min(
+    ...panels.map((panel) => panel.glass.width),
+  );
   const mullionThickness = Math.max(
     5,
     Math.min(
       frame.height * 0.035,
-      glass.width / resolvedPanelCount / 5,
-      glass.height / (resolvedHorizontalHeights.length + 1) / 5,
+      minimumPanelGlassWidth / 5,
+      panels[0].glass.height / (resolvedHorizontalHeights.length + 1) / 5,
     ),
   );
-  const href = joinAssetPath(
-    assetBasePath,
-    ASSET_BY_ATTACHMENT[attachment],
-  );
+  const attachmentPanel =
+    attachment === "RIGHT" ? panels[panels.length - 1] : panels[0];
+  const attachmentEdge =
+    attachment === "RIGHT"
+      ? attachmentPanel.edges.right
+      : attachmentPanel.edges.left;
   const viewportPadding = DIMENSIONS.fontSize * 0.3;
   const viewBox = expandedViewBox(
     frame,
@@ -614,6 +680,7 @@ export function WindowWallDiagram({
       data-family="WINDOW_WALL"
       data-release={RELEASE}
       data-view="EXTERIOR"
+      data-construction="REPEATED_JOINED_PANELS"
       data-panel-count={resolvedPanelCount}
       data-horizontal-heights={resolvedHorizontalHeights.join(",")}
       data-attachment={attachment}
@@ -647,13 +714,6 @@ export function WindowWallDiagram({
           <stop offset="34%" stopColor="#F7F8F6" />
           <stop offset="68%" stopColor="#D9DEDC" />
           <stop offset="100%" stopColor="#F4F5F3" />
-        </linearGradient>
-        <linearGradient id={mullionVerticalId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#BFC6C5" />
-          <stop offset="18%" stopColor="#F7F8F6" />
-          <stop offset="55%" stopColor="#E1E4E1" />
-          <stop offset="82%" stopColor="#FAFBF9" />
-          <stop offset="100%" stopColor="#AEB7B6" />
         </linearGradient>
         <linearGradient
           id={mullionHorizontalId}
@@ -691,14 +751,15 @@ export function WindowWallDiagram({
         <rect
           x={
             attachment === "LEFT"
-              ? frame.x - edges.left * 0.12
-              : frame.x + frame.width - edges.right * 0.24
+              ? frame.x - attachmentEdge * 0.12
+              : frame.x + frame.width - attachmentEdge * 0.24
           }
-          y={frame.y + edges.top * 0.08}
-          width={
-            attachment === "LEFT" ? edges.left * 0.36 : edges.right * 0.36
+          y={frame.y + attachmentPanel.edges.top * 0.08}
+          width={attachmentEdge * 0.36}
+          height={
+            frame.height -
+            (attachmentPanel.edges.top + attachmentPanel.edges.bottom) * 0.08
           }
-          height={frame.height - (edges.top + edges.bottom) * 0.08}
           fill={
             frameColor === DEFAULT_FRAME_COLOR
               ? `url(#${outerFrameGradientId})`
@@ -711,86 +772,78 @@ export function WindowWallDiagram({
         />
       ) : null}
 
-      <path
-        d={frameRingPath(frame, glass)}
-        fill={`url(#${outerFrameGradientId})`}
-        fillRule="evenodd"
-        clipRule="evenodd"
-        stroke="#AAB3B3"
-        strokeWidth={Math.max(1.5, frame.height * 0.002)}
-        data-layer="WINDOW_WALL_PROCEDURAL_FRAME_BASE"
-      />
+      <g data-layer="WINDOW_WALL_JOINED_PANEL_FRAMES">
+        {panels.map((panel) => (
+          <g
+            key={`panel-frame-${panel.index}`}
+            data-panel-index={panel.index}
+            data-internal-attachment={panel.internalAttachment}
+          >
+            <path
+              d={frameRingPath(panel.frame, panel.glass)}
+              fill={`url(#${outerFrameGradientId})`}
+              fillRule="evenodd"
+              clipRule="evenodd"
+              stroke="#AAB3B3"
+              strokeWidth={Math.max(1.5, frame.height * 0.002)}
+              data-layer="WINDOW_WALL_PROCEDURAL_FRAME_BASE"
+            />
 
-      <StructuralFrame href={href} frame={frame} edges={edges} />
+            <StructuralFrame
+              href={panel.href}
+              leftHref={panel.leftHref}
+              rightHref={panel.rightHref}
+              frame={panel.frame}
+              edges={panel.edges}
+            />
 
-      {frameColor !== DEFAULT_FRAME_COLOR ? (
-        <path
-          d={frameRingPath(frame, glass)}
-          fill={frameColor}
-          fillRule="evenodd"
-          clipRule="evenodd"
-          style={{ mixBlendMode: "multiply" }}
-          data-layer="WINDOW_WALL_FRAME_FINISH"
-        />
-      ) : null}
+            {frameColor !== DEFAULT_FRAME_COLOR ? (
+              <path
+                d={frameRingPath(panel.frame, panel.glass)}
+                fill={frameColor}
+                fillRule="evenodd"
+                clipRule="evenodd"
+                style={{ mixBlendMode: "multiply" }}
+                data-layer="WINDOW_WALL_FRAME_FINISH"
+              />
+            ) : null}
+          </g>
+        ))}
+      </g>
 
       <g data-layer="WINDOW_WALL_MULLIONS">
-        {Array.from({ length: resolvedPanelCount - 1 }, (_, index) => {
-          const centerX =
-            glass.x + ((index + 1) / resolvedPanelCount) * glass.width;
-          return (
-            <g key={`vertical-${index}`}>
-              <rect
-                x={centerX - mullionThickness / 2}
-                y={glass.y}
-                width={mullionThickness}
-                height={glass.height}
-                fill={`url(#${mullionVerticalId})`}
-                stroke="#667277"
-                strokeWidth={Math.max(1.5, mullionThickness * 0.07)}
-              />
-              {frameColor !== DEFAULT_FRAME_COLOR ? (
+        {panels.map((panel) =>
+          resolvedHorizontalHeights.map((horizontalHeight, index) => {
+            const centerY =
+              panel.glass.y +
+              (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
+            return (
+              <g
+                key={`horizontal-${panel.index}-${horizontalHeight}-${index}`}
+              >
                 <rect
-                  x={centerX - mullionThickness / 2}
-                  y={glass.y}
-                  width={mullionThickness}
-                  height={glass.height}
-                  fill={frameColor}
-                  style={{ mixBlendMode: "multiply" }}
-                />
-              ) : null}
-            </g>
-          );
-        })}
-
-        {resolvedHorizontalHeights.map((horizontalHeight, index) => {
-          const centerY =
-            glass.y +
-            (1 - horizontalHeight / resolvedHeight) * glass.height;
-          return (
-            <g key={`horizontal-${horizontalHeight}-${index}`}>
-              <rect
-                x={glass.x}
-                y={centerY - mullionThickness / 2}
-                width={glass.width}
-                height={mullionThickness}
-                fill={`url(#${mullionHorizontalId})`}
-                stroke="#667277"
-                strokeWidth={Math.max(1.5, mullionThickness * 0.07)}
-              />
-              {frameColor !== DEFAULT_FRAME_COLOR ? (
-                <rect
-                  x={glass.x}
+                  x={panel.glass.x}
                   y={centerY - mullionThickness / 2}
-                  width={glass.width}
+                  width={panel.glass.width}
                   height={mullionThickness}
-                  fill={frameColor}
-                  style={{ mixBlendMode: "multiply" }}
+                  fill={`url(#${mullionHorizontalId})`}
+                  stroke="#667277"
+                  strokeWidth={Math.max(1.5, mullionThickness * 0.07)}
                 />
-              ) : null}
-            </g>
-          );
-        })}
+                {frameColor !== DEFAULT_FRAME_COLOR ? (
+                  <rect
+                    x={panel.glass.x}
+                    y={centerY - mullionThickness / 2}
+                    width={panel.glass.width}
+                    height={mullionThickness}
+                    fill={frameColor}
+                    style={{ mixBlendMode: "multiply" }}
+                  />
+                ) : null}
+              </g>
+            );
+          }),
+        )}
       </g>
 
       <g
