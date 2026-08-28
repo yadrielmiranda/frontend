@@ -45,7 +45,7 @@ type PanelGeometry = Readonly<{
   cells: readonly Rect[];
 }>;
 
-const RELEASE = "C139_REFERENCE_MODULES_FINAL";
+const RELEASE = "C139_REFERENCE_MODULES_PROFILE_FIXED";
 const VIEWBOX_SIZE = 2048;
 const DIMENSIONS = dimensionMetrics(VIEWBOX_SIZE);
 const DEFAULT_FRAME_COLOR = "#FFFFFF";
@@ -59,19 +59,71 @@ const PRODUCT_REGION = {
   height: 1160,
 } as const;
 
-// Coordenadas medidas directamente sobre los renders C139 aprobados.
-const PANEL_SOURCE = {
-  glassInsetLeft: 95 / 1963,
-  glassInsetRight: 92 / 1963,
-  glassInsetTop: 96 / 1572,
-  glassInsetBottom: 96 / 1572,
-  leftAttachmentExtension: 48 / 1963,
-  rightAttachmentExtension: 37 / 1963,
+// Medidas de referencia impresas en el render O aprobado.
+const REFERENCE_OPENING = {
+  widthIn: 60,
+  heightIn: 48,
 } as const;
 
-// La unión proviene del encuentro real mostrado en el render de tres paneles.
-const INTERNAL_JOINT_WIDTH_RATIO = 168 / 2223;
-const HORIZONTAL_JOINT_HEIGHT_RATIO = 110 / 1572;
+// Coordenadas medidas directamente sobre los renders C139 aprobados.
+const PANEL_SOURCE = {
+  width: 1963,
+  height: 1572,
+  glassInsetLeftPx: 95,
+  glassInsetRightPx: 92,
+  glassInsetTopPx: 96,
+  glassInsetBottomPx: 96,
+  leftAttachmentExtensionPx: 48,
+  rightAttachmentExtensionPx: 37,
+} as const;
+
+const LEFT_ATTACHMENT_SOURCE = {
+  width: 2011,
+  height: 1572,
+  left: 143,
+  right: 92,
+  top: 96,
+  bottom: 96,
+} as const;
+
+const RIGHT_ATTACHMENT_SOURCE = {
+  width: 2000,
+  height: 1572,
+  left: 95,
+  right: 129,
+  top: 96,
+  bottom: 96,
+} as const;
+
+const PANEL_NINE_SLICE_SOURCE = {
+  width: PANEL_SOURCE.width,
+  height: PANEL_SOURCE.height,
+  left: PANEL_SOURCE.glassInsetLeftPx,
+  right: PANEL_SOURCE.glassInsetRightPx,
+  top: PANEL_SOURCE.glassInsetTopPx,
+  bottom: PANEL_SOURCE.glassInsetBottomPx,
+} as const;
+
+// Las uniones conservan el grosor físico observado en los renders aprobados.
+const INTERNAL_JOINT_WIDTH_IN = REFERENCE_OPENING.widthIn * (168 / 2223);
+const HORIZONTAL_JOINT_HEIGHT_IN =
+  REFERENCE_OPENING.heightIn * (110 / PANEL_SOURCE.height);
+const GASKET_STROKE_WIDTH_IN =
+  REFERENCE_OPENING.heightIn * (3 / PANEL_SOURCE.height);
+
+const INTERNAL_JOINT_SOURCE = {
+  width: 192,
+  height: 2048,
+  top: 125,
+  bottom: 125,
+} as const;
+
+const HORIZONTAL_JOINT_SOURCE = {
+  width: 2048,
+  height: 115,
+  left: 99,
+  right: 96,
+} as const;
 
 const ASSETS = {
   panel: "window-wall-o.png",
@@ -233,35 +285,356 @@ function frameRingPath(frame: Rect, glass: Rect): string {
   ].join(" ");
 }
 
+function fitOpposingSlices(
+  first: number,
+  second: number,
+  available: number,
+): readonly [number, number] {
+  const total = first + second;
+  if (total <= available || total <= 0) return [first, second];
+
+  const scale = Math.max(0, available / total);
+  return [first * scale, second * scale];
+}
+
+function CroppedImage({
+  href,
+  source,
+  target,
+  sourceImageWidth,
+  sourceImageHeight,
+  slice,
+}: {
+  href: string;
+  source: Rect;
+  target: Rect;
+  sourceImageWidth: number;
+  sourceImageHeight: number;
+  slice: string;
+}) {
+  if (
+    source.width <= 0 ||
+    source.height <= 0 ||
+    target.width <= 0 ||
+    target.height <= 0
+  ) {
+    return null;
+  }
+
+  return (
+    <svg
+      x={target.x}
+      y={target.y}
+      width={target.width}
+      height={target.height}
+      viewBox={`${source.x} ${source.y} ${source.width} ${source.height}`}
+      preserveAspectRatio="none"
+      overflow="hidden"
+      data-slice={slice}
+    >
+      <image
+        href={href}
+        x={0}
+        y={0}
+        width={sourceImageWidth}
+        height={sourceImageHeight}
+        preserveAspectRatio="none"
+      />
+    </svg>
+  );
+}
+
+function NineSliceImage({
+  href,
+  target,
+  sourceWidth,
+  sourceHeight,
+  sourceLeft,
+  sourceRight,
+  sourceTop,
+  sourceBottom,
+  targetLeft,
+  targetRight,
+  targetTop,
+  targetBottom,
+}: {
+  href: string;
+  target: Rect;
+  sourceWidth: number;
+  sourceHeight: number;
+  sourceLeft: number;
+  sourceRight: number;
+  sourceTop: number;
+  sourceBottom: number;
+  targetLeft: number;
+  targetRight: number;
+  targetTop: number;
+  targetBottom: number;
+}) {
+  const [fittedTargetLeft, fittedTargetRight] = fitOpposingSlices(
+    targetLeft,
+    targetRight,
+    target.width,
+  );
+  const [fittedTargetTop, fittedTargetBottom] = fitOpposingSlices(
+    targetTop,
+    targetBottom,
+    target.height,
+  );
+  const sourceXs = [0, sourceLeft, sourceWidth - sourceRight];
+  const sourceYs = [0, sourceTop, sourceHeight - sourceBottom];
+  const sourceWidths = [
+    sourceLeft,
+    sourceWidth - sourceLeft - sourceRight,
+    sourceRight,
+  ];
+  const sourceHeights = [
+    sourceTop,
+    sourceHeight - sourceTop - sourceBottom,
+    sourceBottom,
+  ];
+  const targetXs = [
+    target.x,
+    target.x + fittedTargetLeft,
+    target.x + target.width - fittedTargetRight,
+  ];
+  const targetYs = [
+    target.y,
+    target.y + fittedTargetTop,
+    target.y + target.height - fittedTargetBottom,
+  ];
+  const targetWidths = [
+    fittedTargetLeft,
+    target.width - fittedTargetLeft - fittedTargetRight,
+    fittedTargetRight,
+  ];
+  const targetHeights = [
+    fittedTargetTop,
+    target.height - fittedTargetTop - fittedTargetBottom,
+    fittedTargetBottom,
+  ];
+
+  return (
+    <>
+      {[0, 1, 2].flatMap((row) =>
+        [0, 1, 2].map((column) => (
+          <CroppedImage
+            key={`${row}-${column}`}
+            href={href}
+            source={{
+              x: sourceXs[column],
+              y: sourceYs[row],
+              width: sourceWidths[column],
+              height: sourceHeights[row],
+            }}
+            target={{
+              x: targetXs[column],
+              y: targetYs[row],
+              width: targetWidths[column],
+              height: targetHeights[row],
+            }}
+            sourceImageWidth={sourceWidth}
+            sourceImageHeight={sourceHeight}
+            slice={`${row}-${column}`}
+          />
+        )),
+      )}
+    </>
+  );
+}
+
 function SourcePanel({
   href,
   frame,
   attachment,
+  productScale,
 }: {
   href: string;
   frame: Rect;
   attachment: WindowWallAttachment;
+  productScale: number;
 }) {
+  const horizontalSourceScale =
+    REFERENCE_OPENING.widthIn / PANEL_SOURCE.width;
+  const verticalSourceScale =
+    REFERENCE_OPENING.heightIn / PANEL_SOURCE.height;
   const targetLeftExtension =
     attachment === "LEFT"
-      ? frame.width * PANEL_SOURCE.leftAttachmentExtension
+      ? PANEL_SOURCE.leftAttachmentExtensionPx *
+        horizontalSourceScale *
+        productScale
       : 0;
   const targetRightExtension =
     attachment === "RIGHT"
-      ? frame.width * PANEL_SOURCE.rightAttachmentExtension
+      ? PANEL_SOURCE.rightAttachmentExtensionPx *
+        horizontalSourceScale *
+        productScale
       : 0;
+  const source =
+    attachment === "LEFT"
+      ? LEFT_ATTACHMENT_SOURCE
+      : attachment === "RIGHT"
+        ? RIGHT_ATTACHMENT_SOURCE
+        : PANEL_NINE_SLICE_SOURCE;
+  const target: Rect = {
+    x: frame.x - targetLeftExtension,
+    y: frame.y,
+    width: frame.width + targetLeftExtension + targetRightExtension,
+    height: frame.height,
+  };
 
   return (
-    <image
-      href={href}
-      x={frame.x - targetLeftExtension}
-      y={frame.y}
-      width={frame.width + targetLeftExtension + targetRightExtension}
-      height={frame.height}
-      preserveAspectRatio="none"
+    <g
       data-layer="WINDOW_WALL_SOURCE_PANEL"
       data-source-attachment={attachment}
-    />
+    >
+      <NineSliceImage
+        href={href}
+        target={target}
+        sourceWidth={source.width}
+        sourceHeight={source.height}
+        sourceLeft={source.left}
+        sourceRight={source.right}
+        sourceTop={source.top}
+        sourceBottom={source.bottom}
+        targetLeft={source.left * horizontalSourceScale * productScale}
+        targetRight={source.right * horizontalSourceScale * productScale}
+        targetTop={source.top * verticalSourceScale * productScale}
+        targetBottom={source.bottom * verticalSourceScale * productScale}
+      />
+    </g>
+  );
+}
+
+function VerticalProfile({
+  href,
+  target,
+  targetTop,
+  targetBottom,
+}: {
+  href: string;
+  target: Rect;
+  targetTop: number;
+  targetBottom: number;
+}) {
+  const [fittedTop, fittedBottom] = fitOpposingSlices(
+    targetTop,
+    targetBottom,
+    target.height,
+  );
+  const sourceHeights = [
+    INTERNAL_JOINT_SOURCE.top,
+    INTERNAL_JOINT_SOURCE.height -
+      INTERNAL_JOINT_SOURCE.top -
+      INTERNAL_JOINT_SOURCE.bottom,
+    INTERNAL_JOINT_SOURCE.bottom,
+  ];
+  const sourceYs = [
+    0,
+    INTERNAL_JOINT_SOURCE.top,
+    INTERNAL_JOINT_SOURCE.height - INTERNAL_JOINT_SOURCE.bottom,
+  ];
+  const targetHeights = [
+    fittedTop,
+    target.height - fittedTop - fittedBottom,
+    fittedBottom,
+  ];
+  const targetYs = [
+    target.y,
+    target.y + fittedTop,
+    target.y + target.height - fittedBottom,
+  ];
+
+  return (
+    <>
+      {[0, 1, 2].map((index) => (
+        <CroppedImage
+          key={index}
+          href={href}
+          source={{
+            x: 0,
+            y: sourceYs[index],
+            width: INTERNAL_JOINT_SOURCE.width,
+            height: sourceHeights[index],
+          }}
+          target={{
+            x: target.x,
+            y: targetYs[index],
+            width: target.width,
+            height: targetHeights[index],
+          }}
+          sourceImageWidth={INTERNAL_JOINT_SOURCE.width}
+          sourceImageHeight={INTERNAL_JOINT_SOURCE.height}
+          slice={`vertical-${index}`}
+        />
+      ))}
+    </>
+  );
+}
+
+function HorizontalProfile({
+  href,
+  target,
+  targetLeft,
+  targetRight,
+}: {
+  href: string;
+  target: Rect;
+  targetLeft: number;
+  targetRight: number;
+}) {
+  const [fittedLeft, fittedRight] = fitOpposingSlices(
+    targetLeft,
+    targetRight,
+    target.width,
+  );
+  const sourceWidths = [
+    HORIZONTAL_JOINT_SOURCE.left,
+    HORIZONTAL_JOINT_SOURCE.width -
+      HORIZONTAL_JOINT_SOURCE.left -
+      HORIZONTAL_JOINT_SOURCE.right,
+    HORIZONTAL_JOINT_SOURCE.right,
+  ];
+  const sourceXs = [
+    0,
+    HORIZONTAL_JOINT_SOURCE.left,
+    HORIZONTAL_JOINT_SOURCE.width - HORIZONTAL_JOINT_SOURCE.right,
+  ];
+  const targetWidths = [
+    fittedLeft,
+    target.width - fittedLeft - fittedRight,
+    fittedRight,
+  ];
+  const targetXs = [
+    target.x,
+    target.x + fittedLeft,
+    target.x + target.width - fittedRight,
+  ];
+
+  return (
+    <>
+      {[0, 1, 2].map((index) => (
+        <CroppedImage
+          key={index}
+          href={href}
+          source={{
+            x: sourceXs[index],
+            y: 0,
+            width: sourceWidths[index],
+            height: HORIZONTAL_JOINT_SOURCE.height,
+          }}
+          target={{
+            x: targetXs[index],
+            y: target.y,
+            width: targetWidths[index],
+            height: target.height,
+          }}
+          sourceImageWidth={HORIZONTAL_JOINT_SOURCE.width}
+          sourceImageHeight={HORIZONTAL_JOINT_SOURCE.height}
+          slice={`horizontal-${index}`}
+        />
+      ))}
+    </>
   );
 }
 
@@ -384,6 +757,18 @@ export function WindowWallDiagram({
     PRODUCT_REGION.width / resolvedWidth,
     PRODUCT_REGION.height / resolvedHeight,
   );
+  const horizontalSourceScale =
+    REFERENCE_OPENING.widthIn / PANEL_SOURCE.width;
+  const verticalSourceScale =
+    REFERENCE_OPENING.heightIn / PANEL_SOURCE.height;
+  const glassInsetLeft =
+    PANEL_SOURCE.glassInsetLeftPx * horizontalSourceScale * productScale;
+  const glassInsetRight =
+    PANEL_SOURCE.glassInsetRightPx * horizontalSourceScale * productScale;
+  const glassInsetTop =
+    PANEL_SOURCE.glassInsetTopPx * verticalSourceScale * productScale;
+  const glassInsetBottom =
+    PANEL_SOURCE.glassInsetBottomPx * verticalSourceScale * productScale;
   const frame: Rect = {
     x:
       PRODUCT_REGION.x +
@@ -396,12 +781,11 @@ export function WindowWallDiagram({
   };
   const panelWidth = frame.width / resolvedPanelCount;
   const jointWidth = Math.max(
-    4,
-    Math.min(panelWidth * 0.18, panelWidth * INTERNAL_JOINT_WIDTH_RATIO),
+    2,
+    Math.min(panelWidth * 0.45, INTERNAL_JOINT_WIDTH_IN * productScale),
   );
-  const glassTop = frame.y + frame.height * PANEL_SOURCE.glassInsetTop;
-  const glassBottom =
-    frame.y + frame.height * (1 - PANEL_SOURCE.glassInsetBottom);
+  const glassTop = frame.y + glassInsetTop;
+  const glassBottom = frame.y + frame.height - glassInsetBottom;
   const panels: PanelGeometry[] = Array.from(
     { length: resolvedPanelCount },
     (_, index) => {
@@ -413,12 +797,11 @@ export function WindowWallDiagram({
       };
       const glassLeft =
         index === 0
-          ? panelFrame.x + panelWidth * PANEL_SOURCE.glassInsetLeft
+          ? panelFrame.x + glassInsetLeft
           : panelFrame.x + jointWidth / 2;
       const glassRight =
         index === resolvedPanelCount - 1
-          ? panelFrame.x +
-            panelWidth * (1 - PANEL_SOURCE.glassInsetRight)
+          ? panelFrame.x + panelWidth - glassInsetRight
           : panelFrame.x + panelWidth - jointWidth / 2;
       const glass: Rect = {
         x: glassLeft,
@@ -442,13 +825,16 @@ export function WindowWallDiagram({
   const cells = panels.flatMap((panel) => panel.cells);
   const minimumRowHeight = Math.min(...cells.map((cell) => cell.height));
   const horizontalJointHeight = Math.max(
-    5,
+    2,
     Math.min(
-      frame.height * HORIZONTAL_JOINT_HEIGHT_RATIO,
+      HORIZONTAL_JOINT_HEIGHT_IN * productScale,
       minimumRowHeight * 0.4,
     ),
   );
-  const gasketStrokeWidth = Math.max(1.5, frame.height * 0.0028);
+  const gasketStrokeWidth = Math.max(
+    1.25,
+    GASKET_STROKE_WIDTH_IN * productScale,
+  );
   const panelMarkFontSize = Math.max(
     18,
     Math.min(
@@ -474,11 +860,15 @@ export function WindowWallDiagram({
   );
   const attachmentLeftPadding =
     attachment === "LEFT"
-      ? frame.width * PANEL_SOURCE.leftAttachmentExtension
+      ? PANEL_SOURCE.leftAttachmentExtensionPx *
+        horizontalSourceScale *
+        productScale
       : 0;
   const attachmentRightPadding =
     attachment === "RIGHT"
-      ? frame.width * PANEL_SOURCE.rightAttachmentExtension
+      ? PANEL_SOURCE.rightAttachmentExtensionPx *
+        horizontalSourceScale *
+        productScale
       : 0;
   const viewportPadding = DIMENSIONS.fontSize * 0.3;
   const viewBox = expandedViewBox(
@@ -551,6 +941,7 @@ export function WindowWallDiagram({
             href={panelAsset}
             frame={panel.frame}
             attachment={attachment}
+            productScale={productScale}
           />
         ))}
       </g>
@@ -576,16 +967,22 @@ export function WindowWallDiagram({
         {panels.slice(0, -1).map((panel) => {
           const boundaryX = panel.frame.x + panel.frame.width;
           return (
-            <image
+            <g
               key={`internal-joint-${panel.index}`}
-              href={internalJointAsset}
-              x={boundaryX - jointWidth / 2}
-              y={frame.y}
-              width={jointWidth}
-              height={frame.height}
-              preserveAspectRatio="none"
               data-internal-attachment="RIGHT"
-            />
+            >
+              <VerticalProfile
+                href={internalJointAsset}
+                target={{
+                  x: boundaryX - jointWidth / 2,
+                  y: frame.y,
+                  width: jointWidth,
+                  height: frame.height,
+                }}
+                targetTop={glassInsetTop}
+                targetBottom={glassInsetBottom}
+              />
+            </g>
           );
         })}
       </g>
@@ -600,13 +997,10 @@ export function WindowWallDiagram({
         {panels.slice(0, -1).flatMap((panel) => {
           const boundaryX = panel.frame.x + panel.frame.width;
           const nextPanel = panels[panel.index + 1];
-          const leftSourceEnd =
-            boundaryX - panelWidth * PANEL_SOURCE.glassInsetRight;
+          const leftSourceEnd = boundaryX - glassInsetRight;
           const leftJointEdge = boundaryX - jointWidth / 2;
           const rightJointEdge = boundaryX + jointWidth / 2;
-          const rightSourceStart =
-            nextPanel.frame.x +
-            panelWidth * PANEL_SOURCE.glassInsetLeft;
+          const rightSourceStart = nextPanel.frame.x + glassInsetLeft;
 
           return [glassTop, glassBottom].flatMap((y, rowIndex) => [
             <path
@@ -628,15 +1022,22 @@ export function WindowWallDiagram({
               panel.glass.y +
               (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
             return (
-              <image
+              <g
                 key={`horizontal-${panel.index}-${horizontalHeight}-${index}`}
-                href={horizontalJointAsset}
-                x={panel.frame.x}
-                y={centerY - horizontalJointHeight / 2}
-                width={panel.frame.width}
-                height={horizontalJointHeight}
-                preserveAspectRatio="none"
-              />
+                data-horizontal-height={horizontalHeight}
+              >
+                <HorizontalProfile
+                  href={horizontalJointAsset}
+                  target={{
+                    x: panel.frame.x,
+                    y: centerY - horizontalJointHeight / 2,
+                    width: panel.frame.width,
+                    height: horizontalJointHeight,
+                  }}
+                  targetLeft={glassInsetLeft}
+                  targetRight={glassInsetRight}
+                />
+              </g>
             );
           }),
         )}
