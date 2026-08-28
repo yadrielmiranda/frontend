@@ -45,7 +45,7 @@ type PanelGeometry = Readonly<{
   cells: readonly Rect[];
 }>;
 
-const RELEASE = "C139_REFERENCE_MODULES_PROFILE_FIXED";
+const RELEASE = "C139_SOURCE_PROFILE_AND_ENDS_FIXED";
 const VIEWBOX_SIZE = 2048;
 const DIMENSIONS = dimensionMetrics(VIEWBOX_SIZE);
 const DEFAULT_FRAME_COLOR = "#FFFFFF";
@@ -57,12 +57,6 @@ const PRODUCT_REGION = {
   y: 250,
   width: 1430,
   height: 1160,
-} as const;
-
-// Medidas de referencia impresas en el render O aprobado.
-const REFERENCE_OPENING = {
-  widthIn: 60,
-  heightIn: 48,
 } as const;
 
 // Coordenadas medidas directamente sobre los renders C139 aprobados.
@@ -104,12 +98,16 @@ const PANEL_NINE_SLICE_SOURCE = {
   bottom: PANEL_SOURCE.glassInsetBottomPx,
 } as const;
 
-// Las uniones conservan el grosor físico observado en los renders aprobados.
-const INTERNAL_JOINT_WIDTH_IN = REFERENCE_OPENING.widthIn * (168 / 2223);
-const HORIZONTAL_JOINT_HEIGHT_IN =
-  REFERENCE_OPENING.heightIn * (110 / PANEL_SOURCE.height);
-const GASKET_STROKE_WIDTH_IN =
-  REFERENCE_OPENING.heightIn * (3 / PANEL_SOURCE.height);
+// Medidas tomadas del cuerpo visible del render original de tres paneles.
+const THREE_PANEL_SOURCE_BODY = {
+  width: 6627,
+  height: 1786,
+  jointWidth: 168,
+} as const;
+const INTERNAL_JOINT_WIDTH_RATIO =
+  THREE_PANEL_SOURCE_BODY.jointWidth / THREE_PANEL_SOURCE_BODY.height;
+const HORIZONTAL_JOINT_HEIGHT_RATIO = 110 / PANEL_SOURCE.height;
+const GASKET_STROKE_WIDTH_RATIO = 3 / PANEL_SOURCE.height;
 
 const INTERNAL_JOINT_SOURCE = {
   width: 192,
@@ -117,6 +115,8 @@ const INTERNAL_JOINT_SOURCE = {
   top: 125,
   bottom: 125,
 } as const;
+const INTERNAL_JOINT_CAP_RATIO =
+  INTERNAL_JOINT_SOURCE.top / INTERNAL_JOINT_SOURCE.height;
 
 const HORIZONTAL_JOINT_SOURCE = {
   width: 2048,
@@ -447,28 +447,24 @@ function SourcePanel({
   href,
   frame,
   attachment,
-  productScale,
+  profilePixelScale,
+  showOuterLeft,
+  showOuterRight,
 }: {
   href: string;
   frame: Rect;
   attachment: WindowWallAttachment;
-  productScale: number;
+  profilePixelScale: number;
+  showOuterLeft: boolean;
+  showOuterRight: boolean;
 }) {
-  const horizontalSourceScale =
-    REFERENCE_OPENING.widthIn / PANEL_SOURCE.width;
-  const verticalSourceScale =
-    REFERENCE_OPENING.heightIn / PANEL_SOURCE.height;
   const targetLeftExtension =
     attachment === "LEFT"
-      ? PANEL_SOURCE.leftAttachmentExtensionPx *
-        horizontalSourceScale *
-        productScale
+      ? PANEL_SOURCE.leftAttachmentExtensionPx * profilePixelScale
       : 0;
   const targetRightExtension =
     attachment === "RIGHT"
-      ? PANEL_SOURCE.rightAttachmentExtensionPx *
-        horizontalSourceScale *
-        productScale
+      ? PANEL_SOURCE.rightAttachmentExtensionPx * profilePixelScale
       : 0;
   const source =
     attachment === "LEFT"
@@ -487,6 +483,8 @@ function SourcePanel({
     <g
       data-layer="WINDOW_WALL_SOURCE_PANEL"
       data-source-attachment={attachment}
+      data-outer-left={showOuterLeft ? "VISIBLE" : "JOINED"}
+      data-outer-right={showOuterRight ? "VISIBLE" : "JOINED"}
     >
       <NineSliceImage
         href={href}
@@ -497,10 +495,14 @@ function SourcePanel({
         sourceRight={source.right}
         sourceTop={source.top}
         sourceBottom={source.bottom}
-        targetLeft={source.left * horizontalSourceScale * productScale}
-        targetRight={source.right * horizontalSourceScale * productScale}
-        targetTop={source.top * verticalSourceScale * productScale}
-        targetBottom={source.bottom * verticalSourceScale * productScale}
+        targetLeft={
+          showOuterLeft ? source.left * profilePixelScale : 0
+        }
+        targetRight={
+          showOuterRight ? source.right * profilePixelScale : 0
+        }
+        targetTop={source.top * profilePixelScale}
+        targetBottom={source.bottom * profilePixelScale}
       />
     </g>
   );
@@ -748,8 +750,7 @@ export function WindowWallDiagram({
     resolvedHeight,
   );
   const requestedAttachment = resolveWindowWallAttachment(activeOptionName);
-  const attachment =
-    resolvedPanelCount === 1 ? requestedAttachment : "NONE";
+  const attachment = requestedAttachment;
   const frameColor = normalizeFrameColor(frameColorHex);
   const namespace = safeId(`${idNamespace ?? "ae-window-wall"}-${reactId}`);
   const glassGradientId = `${namespace}-glass`;
@@ -757,18 +758,6 @@ export function WindowWallDiagram({
     PRODUCT_REGION.width / resolvedWidth,
     PRODUCT_REGION.height / resolvedHeight,
   );
-  const horizontalSourceScale =
-    REFERENCE_OPENING.widthIn / PANEL_SOURCE.width;
-  const verticalSourceScale =
-    REFERENCE_OPENING.heightIn / PANEL_SOURCE.height;
-  const glassInsetLeft =
-    PANEL_SOURCE.glassInsetLeftPx * horizontalSourceScale * productScale;
-  const glassInsetRight =
-    PANEL_SOURCE.glassInsetRightPx * horizontalSourceScale * productScale;
-  const glassInsetTop =
-    PANEL_SOURCE.glassInsetTopPx * verticalSourceScale * productScale;
-  const glassInsetBottom =
-    PANEL_SOURCE.glassInsetBottomPx * verticalSourceScale * productScale;
   const frame: Rect = {
     x:
       PRODUCT_REGION.x +
@@ -779,10 +768,20 @@ export function WindowWallDiagram({
     width: resolvedWidth * productScale,
     height: resolvedHeight * productScale,
   };
+  // Cada perfil conserva la proporción visual medida en la imagen original,
+  // aunque cambie la relación entre el ancho y el alto del opening.
+  const profilePixelScale = frame.height / PANEL_SOURCE.height;
+  const glassInsetLeft = PANEL_SOURCE.glassInsetLeftPx * profilePixelScale;
+  const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
+  const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
+  const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
   const panelWidth = frame.width / resolvedPanelCount;
   const jointWidth = Math.max(
     2,
-    Math.min(panelWidth * 0.45, INTERNAL_JOINT_WIDTH_IN * productScale),
+    Math.min(
+      panelWidth * 0.45,
+      frame.height * INTERNAL_JOINT_WIDTH_RATIO,
+    ),
   );
   const glassTop = frame.y + glassInsetTop;
   const glassBottom = frame.y + frame.height - glassInsetBottom;
@@ -827,13 +826,13 @@ export function WindowWallDiagram({
   const horizontalJointHeight = Math.max(
     2,
     Math.min(
-      HORIZONTAL_JOINT_HEIGHT_IN * productScale,
+      frame.height * HORIZONTAL_JOINT_HEIGHT_RATIO,
       minimumRowHeight * 0.4,
     ),
   );
   const gasketStrokeWidth = Math.max(
     1.25,
-    GASKET_STROKE_WIDTH_IN * productScale,
+    frame.height * GASKET_STROKE_WIDTH_RATIO,
   );
   const panelMarkFontSize = Math.max(
     18,
@@ -841,14 +840,6 @@ export function WindowWallDiagram({
       62,
       ...cells.map((cell) => Math.min(cell.width, cell.height) * 0.12),
     ),
-  );
-  const panelAsset = joinAssetPath(
-    assetBasePath,
-    attachment === "LEFT"
-      ? ASSETS.leftAttachment
-      : attachment === "RIGHT"
-        ? ASSETS.rightAttachment
-        : ASSETS.panel,
   );
   const internalJointAsset = joinAssetPath(
     assetBasePath,
@@ -860,15 +851,11 @@ export function WindowWallDiagram({
   );
   const attachmentLeftPadding =
     attachment === "LEFT"
-      ? PANEL_SOURCE.leftAttachmentExtensionPx *
-        horizontalSourceScale *
-        productScale
+      ? PANEL_SOURCE.leftAttachmentExtensionPx * profilePixelScale
       : 0;
   const attachmentRightPadding =
     attachment === "RIGHT"
-      ? PANEL_SOURCE.rightAttachmentExtensionPx *
-        horizontalSourceScale *
-        productScale
+      ? PANEL_SOURCE.rightAttachmentExtensionPx * profilePixelScale
       : 0;
   const viewportPadding = DIMENSIONS.fontSize * 0.3;
   const viewBox = expandedViewBox(
@@ -935,15 +922,35 @@ export function WindowWallDiagram({
       </defs>
 
       <g data-layer="WINDOW_WALL_APPROVED_PANEL_SOURCES">
-        {panels.map((panel) => (
-          <SourcePanel
-            key={`source-panel-${panel.index}`}
-            href={panelAsset}
-            frame={panel.frame}
-            attachment={attachment}
-            productScale={productScale}
-          />
-        ))}
+        {panels.map((panel) => {
+          const sourceAttachment: WindowWallAttachment =
+            attachment === "LEFT" && panel.index === 0
+              ? "LEFT"
+              : attachment === "RIGHT" &&
+                  panel.index === resolvedPanelCount - 1
+                ? "RIGHT"
+                : "NONE";
+          const sourceAsset = joinAssetPath(
+            assetBasePath,
+            sourceAttachment === "LEFT"
+              ? ASSETS.leftAttachment
+              : sourceAttachment === "RIGHT"
+                ? ASSETS.rightAttachment
+                : ASSETS.panel,
+          );
+
+          return (
+            <SourcePanel
+              key={`source-panel-${panel.index}`}
+              href={sourceAsset}
+              frame={panel.frame}
+              attachment={sourceAttachment}
+              profilePixelScale={profilePixelScale}
+              showOuterLeft={panel.index === 0}
+              showOuterRight={panel.index === resolvedPanelCount - 1}
+            />
+          );
+        })}
       </g>
 
       <g data-layer="WINDOW_WALL_DYNAMIC_GLASS_BASE">
@@ -979,8 +986,8 @@ export function WindowWallDiagram({
                   width: jointWidth,
                   height: frame.height,
                 }}
-                targetTop={glassInsetTop}
-                targetBottom={glassInsetBottom}
+                targetTop={frame.height * INTERNAL_JOINT_CAP_RATIO}
+                targetBottom={frame.height * INTERNAL_JOINT_CAP_RATIO}
               />
             </g>
           );
