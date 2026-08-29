@@ -75,10 +75,6 @@ const PANEL_SOURCE = {
 // de los attachments tienen recortes distintos aunque el perfil sea espejo.
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
 const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
-// Guarda de un píxel visible para evitar que el reescalado mezcle el vidrio
-// dinámico con los gaskets horizontales del PNG de Right Attachment.
-const RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX = 100;
-const RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX = 100;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -315,6 +311,7 @@ function CroppedImage({
   sourceImageWidth,
   sourceImageHeight,
   slice,
+  filterId,
 }: {
   href: string;
   source: Rect;
@@ -322,6 +319,7 @@ function CroppedImage({
   sourceImageWidth: number;
   sourceImageHeight: number;
   slice: string;
+  filterId?: string;
 }) {
   if (
     source.width <= 0 ||
@@ -350,6 +348,7 @@ function CroppedImage({
         width={sourceImageWidth}
         height={sourceImageHeight}
         preserveAspectRatio="none"
+        filter={filterId ? `url(#${filterId})` : undefined}
       />
     </svg>
   );
@@ -368,6 +367,7 @@ function NineSliceImage({
   targetRight,
   targetTop,
   targetBottom,
+  sourceFilterId,
 }: {
   href: string;
   target: Rect;
@@ -381,6 +381,7 @@ function NineSliceImage({
   targetRight: number;
   targetTop: number;
   targetBottom: number;
+  sourceFilterId?: string;
 }) {
   const [fittedTargetLeft, fittedTargetRight] = fitOpposingSlices(
     targetLeft,
@@ -447,6 +448,9 @@ function NineSliceImage({
             sourceImageWidth={sourceWidth}
             sourceImageHeight={sourceHeight}
             slice={`${row}-${column}`}
+            filterId={
+              row === 1 && column === 1 ? sourceFilterId : undefined
+            }
           />
         )),
       )}
@@ -461,6 +465,7 @@ function SourcePanel({
   profilePixelScale,
   showOuterLeft,
   showOuterRight,
+  sourceFilterId,
 }: {
   href: string;
   frame: Rect;
@@ -468,6 +473,7 @@ function SourcePanel({
   profilePixelScale: number;
   showOuterLeft: boolean;
   showOuterRight: boolean;
+  sourceFilterId?: string;
 }) {
   const targetLeftExtension =
     attachment === "LEFT"
@@ -514,6 +520,7 @@ function SourcePanel({
         }
         targetTop={source.top * profilePixelScale}
         targetBottom={source.bottom * profilePixelScale}
+        sourceFilterId={sourceFilterId}
       />
     </g>
   );
@@ -764,7 +771,7 @@ export function WindowWallDiagram({
   const attachment = requestedAttachment;
   const frameColor = normalizeFrameColor(frameColorHex);
   const namespace = safeId(`${idNamespace ?? "ae-window-wall"}-${reactId}`);
-  const glassGradientId = `${namespace}-glass`;
+  const sourceMarkFilterId = `${namespace}-remove-source-mark`;
   const productScale = Math.min(
     PRODUCT_REGION.width / resolvedWidth,
     PRODUCT_REGION.height / resolvedHeight,
@@ -784,14 +791,8 @@ export function WindowWallDiagram({
   const profilePixelScale = frame.height / PANEL_SOURCE.height;
   const glassInsetLeft = PANEL_SOURCE.glassInsetLeftPx * profilePixelScale;
   const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
-  const glassInsetTop =
-    (attachment === "RIGHT"
-      ? RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX
-      : PANEL_SOURCE.glassInsetTopPx) * profilePixelScale;
-  const glassInsetBottom =
-    (attachment === "RIGHT"
-      ? RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX
-      : PANEL_SOURCE.glassInsetBottomPx) * profilePixelScale;
+  const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
+  const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
   const exteriorGlassInsetLeft =
     attachment === "LEFT"
       ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
@@ -931,19 +932,53 @@ export function WindowWallDiagram({
     >
       <title>{`Window Wall ${resolvedPanelCount} equal panels`}</title>
       <defs>
-        <radialGradient
-          id={glassGradientId}
-          cx="28%"
-          cy="22%"
-          r="95%"
-          fx="24%"
-          fy="18%"
-        >
-          <stop offset="0%" stopColor="#F4FCFF" />
-          <stop offset="42%" stopColor="#DCEBED" />
-          <stop offset="78%" stopColor="#C9E0E5" />
-          <stop offset="100%" stopColor="#AACBD5" />
-        </radialGradient>
+        <filter id={sourceMarkFilterId} colorInterpolationFilters="sRGB">
+          <feColorMatrix
+            in="SourceGraphic"
+            type="matrix"
+            values={`
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0 0
+              8 -4 -4 0 0.4
+            `}
+            result="redMark"
+          />
+          <feMorphology
+            in="redMark"
+            operator="dilate"
+            radius="32"
+            result="sourceMarkArea"
+          />
+          <feGaussianBlur
+            in="sourceMarkArea"
+            stdDeviation="6"
+            result="sourceMarkAreaFeathered"
+          />
+          <feComposite
+            in="SourceGraphic"
+            in2="sourceMarkAreaFeathered"
+            operator="out"
+            result="sourceWithoutMark"
+          />
+          <feComposite
+            in="sourceMarkAreaFeathered"
+            in2="SourceAlpha"
+            operator="in"
+            result="sourceMarkAreaWithAlpha"
+          />
+          <feFlood floodColor="#DEEBEE" result="glassAtMark" />
+          <feComposite
+            in="glassAtMark"
+            in2="sourceMarkAreaWithAlpha"
+            operator="in"
+            result="markReplacement"
+          />
+          <feMerge>
+            <feMergeNode in="sourceWithoutMark" />
+            <feMergeNode in="markReplacement" />
+          </feMerge>
+        </filter>
       </defs>
 
       <g data-layer="WINDOW_WALL_APPROVED_PANEL_SOURCES">
@@ -973,21 +1008,13 @@ export function WindowWallDiagram({
               profilePixelScale={profilePixelScale}
               showOuterLeft={panel.index === 0}
               showOuterRight={panel.index === resolvedPanelCount - 1}
+              sourceFilterId={sourceMarkFilterId}
             />
           );
         })}
       </g>
 
-      <g data-layer="WINDOW_WALL_DYNAMIC_GLASS_BASE">
-        {cells.map((cell, index) => (
-          <rect
-            key={`glass-${index}`}
-            {...cell}
-            fill={`url(#${glassGradientId})`}
-          />
-        ))}
-      </g>
-
+      {/* El PNG ya contiene el vidrio base; aquí solo van efectos transparentes. */}
       <GlassAppearanceLayer
         rects={cells}
         glassTintHex={glassTintHex}
