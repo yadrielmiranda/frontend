@@ -74,10 +74,6 @@ const PANEL_SOURCE = {
 // Cada attachment conserva las medidas de su propio PNG aprobado.
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
 const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
-// Right necesita esta guarda vertical para que los efectos del vidrio no
-// alcancen sus juntas horizontales durante el reescalado del navegador.
-const RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX = 100;
-const RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX = 100;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -92,7 +88,11 @@ const RIGHT_ATTACHMENT_SOURCE = {
   width: 2000,
   height: 1572,
   left: 95,
-  right: 92,
+  // El corte incluye los 37 px de la extensión derecha, igual que Left
+  // incluye sus 48 px de extensión dentro del corte izquierdo.
+  right:
+    PANEL_SOURCE.glassInsetRightPx +
+    PANEL_SOURCE.rightAttachmentExtensionPx,
   top: 96,
   bottom: 96,
 } as const;
@@ -792,14 +792,8 @@ export function WindowWallDiagram({
   const profilePixelScale = frame.height / PANEL_SOURCE.height;
   const glassInsetLeft = PANEL_SOURCE.glassInsetLeftPx * profilePixelScale;
   const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
-  const glassInsetTop =
-    (attachment === "RIGHT"
-      ? RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX
-      : PANEL_SOURCE.glassInsetTopPx) * profilePixelScale;
-  const glassInsetBottom =
-    (attachment === "RIGHT"
-      ? RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX
-      : PANEL_SOURCE.glassInsetBottomPx) * profilePixelScale;
+  const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
+  const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
   const exteriorGlassInsetLeft =
     attachment === "LEFT"
       ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
