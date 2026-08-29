@@ -89,7 +89,9 @@ const RIGHT_ATTACHMENT_SOURCE = {
   width: 2000,
   height: 1572,
   left: 95,
-  right: 129,
+  // 2000 - 92 = 1908: el corte comienza en el gasket vertical real.
+  // Incluir aquí los 37 px del attachment cortaría por dentro del vidrio.
+  right: 92,
   top: 96,
   bottom: 96,
 } as const;
