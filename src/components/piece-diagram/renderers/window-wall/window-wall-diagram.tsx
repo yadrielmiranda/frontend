@@ -71,9 +71,10 @@ const PANEL_SOURCE = {
   rightAttachmentExtensionPx: 37,
 } as const;
 
-// Los attachments izquierdo y derecho son perfiles espejo. La diferencia de
-// padding transparente entre sus PNG no cambia el inset real del cristal.
-const ATTACHMENT_GLASS_INSET_PX = 52;
+// Estos valores siguen el borde interior del gasket en cada PNG. Los lienzos
+// de los attachments tienen recortes distintos aunque el perfil sea espejo.
+const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
+const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -781,11 +782,11 @@ export function WindowWallDiagram({
   const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
   const exteriorGlassInsetLeft =
     attachment === "LEFT"
-      ? ATTACHMENT_GLASS_INSET_PX * profilePixelScale
+      ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
       : glassInsetLeft;
   const exteriorGlassInsetRight =
     attachment === "RIGHT"
-      ? ATTACHMENT_GLASS_INSET_PX * profilePixelScale
+      ? RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX * profilePixelScale
       : glassInsetRight;
   const panelWidth = frame.width / resolvedPanelCount;
   const jointWidth = Math.max(
