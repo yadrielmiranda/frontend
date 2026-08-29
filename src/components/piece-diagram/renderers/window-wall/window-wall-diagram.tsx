@@ -68,12 +68,13 @@ const PANEL_SOURCE = {
   glassInsetTopPx: 96,
   glassInsetBottomPx: 96,
   leftAttachmentExtensionPx: 48,
-  rightAttachmentExtensionPx: 37,
+  rightAttachmentExtensionPx: 48,
 } as const;
 
-// Cada attachment conserva las medidas de su propio PNG aprobado.
+// Ambos attachments usan el mismo perfil, reflejado horizontalmente, para que
+// el navegador no rasterice con distinto grosor las juntas equivalentes.
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
-const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
+const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 52;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -85,16 +86,14 @@ const LEFT_ATTACHMENT_SOURCE = {
 } as const;
 
 const RIGHT_ATTACHMENT_SOURCE = {
-  width: 2000,
-  height: 1572,
+  width: LEFT_ATTACHMENT_SOURCE.width,
+  height: LEFT_ATTACHMENT_SOURCE.height,
+  // Cortes sobre los gaskets del perfil reflejado; así ninguna unión del
+  // nine-slice atraviesa el vidrio ni crea una franja vertical.
   left: 95,
-  // El corte incluye los 37 px de la extensión derecha, igual que Left
-  // incluye sus 48 px de extensión dentro del corte izquierdo.
-  right:
-    PANEL_SOURCE.glassInsetRightPx +
-    PANEL_SOURCE.rightAttachmentExtensionPx,
-  top: 96,
-  bottom: 96,
+  right: 103,
+  top: LEFT_ATTACHMENT_SOURCE.top,
+  bottom: LEFT_ATTACHMENT_SOURCE.bottom,
 } as const;
 
 const PANEL_NINE_SLICE_SOURCE = {
@@ -136,7 +135,6 @@ const HORIZONTAL_JOINT_SOURCE = {
 const ASSETS = {
   panel: "window-wall-o.png",
   leftAttachment: "window-wall-left-attachment.png",
-  rightAttachment: "window-wall-right-attachment.png",
   internalJoint: "window-wall-internal-joint.png",
   horizontalJoint: "window-wall-horizontal-joint.png",
 } as const;
@@ -313,6 +311,7 @@ function CroppedImage({
   sourceImageHeight,
   slice,
   filterId,
+  flipHorizontal,
 }: {
   href: string;
   source: Rect;
@@ -321,6 +320,7 @@ function CroppedImage({
   sourceImageHeight: number;
   slice: string;
   filterId?: string;
+  flipHorizontal?: boolean;
 }) {
   if (
     source.width <= 0 ||
@@ -350,6 +350,11 @@ function CroppedImage({
         height={sourceImageHeight}
         preserveAspectRatio="none"
         filter={filterId ? `url(#${filterId})` : undefined}
+        transform={
+          flipHorizontal
+            ? `translate(${sourceImageWidth} 0) scale(-1 1)`
+            : undefined
+        }
       />
     </svg>
   );
@@ -369,6 +374,7 @@ function NineSliceImage({
   targetTop,
   targetBottom,
   sourceFilterId,
+  flipHorizontal,
 }: {
   href: string;
   target: Rect;
@@ -383,6 +389,7 @@ function NineSliceImage({
   targetTop: number;
   targetBottom: number;
   sourceFilterId?: string;
+  flipHorizontal?: boolean;
 }) {
   const [fittedTargetLeft, fittedTargetRight] = fitOpposingSlices(
     targetLeft,
@@ -452,6 +459,7 @@ function NineSliceImage({
             filterId={
               row === 1 && column === 1 ? sourceFilterId : undefined
             }
+            flipHorizontal={flipHorizontal}
           />
         )),
       )}
@@ -522,6 +530,7 @@ function SourcePanel({
         targetTop={source.top * profilePixelScale}
         targetBottom={source.bottom * profilePixelScale}
         sourceFilterId={sourceFilterId}
+        flipHorizontal={attachment === "RIGHT"}
       />
     </g>
   );
@@ -992,11 +1001,9 @@ export function WindowWallDiagram({
                 : "NONE";
           const sourceAsset = joinAssetPath(
             assetBasePath,
-            sourceAttachment === "LEFT"
+            sourceAttachment === "LEFT" || sourceAttachment === "RIGHT"
               ? ASSETS.leftAttachment
-              : sourceAttachment === "RIGHT"
-                ? ASSETS.rightAttachment
-                : ASSETS.panel,
+              : ASSETS.panel,
           );
 
           return (
