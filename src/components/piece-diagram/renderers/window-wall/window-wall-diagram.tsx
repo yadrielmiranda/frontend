@@ -74,6 +74,10 @@ const PANEL_SOURCE = {
 // Cada attachment conserva las medidas de su propio PNG aprobado.
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
 const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
+// Right necesita esta guarda vertical para que los efectos del vidrio no
+// alcancen sus juntas horizontales durante el reescalado del navegador.
+const RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX = 100;
+const RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX = 100;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -365,7 +369,6 @@ function NineSliceImage({
   targetTop,
   targetBottom,
   sourceFilterId,
-  edgesOnTop = false,
 }: {
   href: string;
   target: Rect;
@@ -380,7 +383,6 @@ function NineSliceImage({
   targetTop: number;
   targetBottom: number;
   sourceFilterId?: string;
-  edgesOnTop?: boolean;
 }) {
   const [fittedTargetLeft, fittedTargetRight] = fitOpposingSlices(
     targetLeft,
@@ -424,58 +426,35 @@ function NineSliceImage({
     target.height - fittedTargetTop - fittedTargetBottom,
     fittedTargetBottom,
   ];
-  // En Right el centro se pinta primero. Así sus píxeles de vidrio nunca
-  // pueden suavizar ni cubrir las juntas horizontales de su propio PNG.
-  const sliceOrder: readonly (readonly [number, number])[] = edgesOnTop
-    ? [
-        [1, 1],
-        [0, 1],
-        [1, 0],
-        [1, 2],
-        [2, 1],
-        [0, 0],
-        [0, 2],
-        [2, 0],
-        [2, 2],
-      ]
-    : [
-        [0, 0],
-        [0, 1],
-        [0, 2],
-        [1, 0],
-        [1, 1],
-        [1, 2],
-        [2, 0],
-        [2, 1],
-        [2, 2],
-      ];
 
   return (
     <>
-      {sliceOrder.map(([row, column]) => (
-        <CroppedImage
-          key={`${row}-${column}`}
-          href={href}
-          source={{
-            x: sourceXs[column],
-            y: sourceYs[row],
-            width: sourceWidths[column],
-            height: sourceHeights[row],
-          }}
-          target={{
-            x: targetXs[column],
-            y: targetYs[row],
-            width: targetWidths[column],
-            height: targetHeights[row],
-          }}
-          sourceImageWidth={sourceWidth}
-          sourceImageHeight={sourceHeight}
-          slice={`${row}-${column}`}
-          filterId={
-            row === 1 && column === 1 ? sourceFilterId : undefined
-          }
-        />
-      ))}
+      {[0, 1, 2].flatMap((row) =>
+        [0, 1, 2].map((column) => (
+          <CroppedImage
+            key={`${row}-${column}`}
+            href={href}
+            source={{
+              x: sourceXs[column],
+              y: sourceYs[row],
+              width: sourceWidths[column],
+              height: sourceHeights[row],
+            }}
+            target={{
+              x: targetXs[column],
+              y: targetYs[row],
+              width: targetWidths[column],
+              height: targetHeights[row],
+            }}
+            sourceImageWidth={sourceWidth}
+            sourceImageHeight={sourceHeight}
+            slice={`${row}-${column}`}
+            filterId={
+              row === 1 && column === 1 ? sourceFilterId : undefined
+            }
+          />
+        )),
+      )}
     </>
   );
 }
@@ -543,7 +522,6 @@ function SourcePanel({
         targetTop={source.top * profilePixelScale}
         targetBottom={source.bottom * profilePixelScale}
         sourceFilterId={sourceFilterId}
-        edgesOnTop={attachment === "RIGHT"}
       />
     </g>
   );
@@ -814,8 +792,14 @@ export function WindowWallDiagram({
   const profilePixelScale = frame.height / PANEL_SOURCE.height;
   const glassInsetLeft = PANEL_SOURCE.glassInsetLeftPx * profilePixelScale;
   const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
-  const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
-  const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
+  const glassInsetTop =
+    (attachment === "RIGHT"
+      ? RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX
+      : PANEL_SOURCE.glassInsetTopPx) * profilePixelScale;
+  const glassInsetBottom =
+    (attachment === "RIGHT"
+      ? RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX
+      : PANEL_SOURCE.glassInsetBottomPx) * profilePixelScale;
   const exteriorGlassInsetLeft =
     attachment === "LEFT"
       ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
