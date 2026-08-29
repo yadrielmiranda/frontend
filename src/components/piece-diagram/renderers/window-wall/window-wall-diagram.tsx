@@ -71,6 +71,11 @@ const PANEL_SOURCE = {
   rightAttachmentExtensionPx: 37,
 } as const;
 
+// Los attachments reducen el perfil del lado activo en los renders aprobados;
+// sus gaskets no usan los insets laterales del panel O normal.
+const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
+const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 54;
+
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
   height: 1572,
@@ -775,6 +780,14 @@ export function WindowWallDiagram({
   const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
   const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
   const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
+  const exteriorGlassInsetLeft =
+    attachment === "LEFT"
+      ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
+      : glassInsetLeft;
+  const exteriorGlassInsetRight =
+    attachment === "RIGHT"
+      ? RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX * profilePixelScale
+      : glassInsetRight;
   const panelWidth = frame.width / resolvedPanelCount;
   const jointWidth = Math.max(
     2,
@@ -796,11 +809,11 @@ export function WindowWallDiagram({
       };
       const glassLeft =
         index === 0
-          ? panelFrame.x + glassInsetLeft
+          ? panelFrame.x + exteriorGlassInsetLeft
           : panelFrame.x + jointWidth / 2;
       const glassRight =
         index === resolvedPanelCount - 1
-          ? panelFrame.x + panelWidth - glassInsetRight
+          ? panelFrame.x + panelWidth - exteriorGlassInsetRight
           : panelFrame.x + panelWidth - jointWidth / 2;
       const glass: Rect = {
         x: glassLeft,
@@ -1041,8 +1054,16 @@ export function WindowWallDiagram({
                     width: panel.frame.width,
                     height: horizontalJointHeight,
                   }}
-                  targetLeft={glassInsetLeft}
-                  targetRight={glassInsetRight}
+                  targetLeft={
+                    panel.index === 0
+                      ? exteriorGlassInsetLeft
+                      : glassInsetLeft
+                  }
+                  targetRight={
+                    panel.index === resolvedPanelCount - 1
+                      ? exteriorGlassInsetRight
+                      : glassInsetRight
+                  }
                 />
               </g>
             );
