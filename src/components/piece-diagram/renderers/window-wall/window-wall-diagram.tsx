@@ -940,19 +940,19 @@ export function WindowWallDiagram({
               0 0 0 0 0
               0 0 0 0 0
               0 0 0 0 0
-              8 -4 -4 0 0.4
+              2 -1 -1 0 -0.25
             `}
             result="redMark"
           />
           <feMorphology
             in="redMark"
             operator="dilate"
-            radius="32"
+            radius="8"
             result="sourceMarkArea"
           />
           <feGaussianBlur
             in="sourceMarkArea"
-            stdDeviation="6"
+            stdDeviation="2"
             result="sourceMarkAreaFeathered"
           />
           <feComposite
@@ -961,16 +961,15 @@ export function WindowWallDiagram({
             operator="out"
             result="sourceWithoutMark"
           />
-          <feComposite
-            in="sourceMarkAreaFeathered"
-            in2="SourceAlpha"
-            operator="in"
-            result="sourceMarkAreaWithAlpha"
+          <feOffset
+            in="SourceGraphic"
+            dx="0"
+            dy="120"
+            result="cleanGlassAtMark"
           />
-          <feFlood floodColor="#DEEBEE" result="glassAtMark" />
           <feComposite
-            in="glassAtMark"
-            in2="sourceMarkAreaWithAlpha"
+            in="cleanGlassAtMark"
+            in2="sourceMarkAreaFeathered"
             operator="in"
             result="markReplacement"
           />
