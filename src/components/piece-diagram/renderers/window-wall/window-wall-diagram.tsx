@@ -75,6 +75,10 @@ const PANEL_SOURCE = {
 // de los attachments tienen recortes distintos aunque el perfil sea espejo.
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
 const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 56;
+// Guarda de un píxel visible para evitar que el reescalado mezcle el vidrio
+// dinámico con los gaskets horizontales del PNG de Right Attachment.
+const RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX = 100;
+const RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX = 100;
 
 const LEFT_ATTACHMENT_SOURCE = {
   width: 2011,
@@ -780,8 +784,14 @@ export function WindowWallDiagram({
   const profilePixelScale = frame.height / PANEL_SOURCE.height;
   const glassInsetLeft = PANEL_SOURCE.glassInsetLeftPx * profilePixelScale;
   const glassInsetRight = PANEL_SOURCE.glassInsetRightPx * profilePixelScale;
-  const glassInsetTop = PANEL_SOURCE.glassInsetTopPx * profilePixelScale;
-  const glassInsetBottom = PANEL_SOURCE.glassInsetBottomPx * profilePixelScale;
+  const glassInsetTop =
+    (attachment === "RIGHT"
+      ? RIGHT_ATTACHMENT_GLASS_INSET_TOP_PX
+      : PANEL_SOURCE.glassInsetTopPx) * profilePixelScale;
+  const glassInsetBottom =
+    (attachment === "RIGHT"
+      ? RIGHT_ATTACHMENT_GLASS_INSET_BOTTOM_PX
+      : PANEL_SOURCE.glassInsetBottomPx) * profilePixelScale;
   const exteriorGlassInsetLeft =
     attachment === "LEFT"
       ? LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX * profilePixelScale
