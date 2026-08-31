@@ -139,7 +139,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-5 border-t border-slate-200 bg-white px-4 py-4 lg:border-l lg:border-t-0">
+        <div className="flex flex-col gap-5 border-t border-slate-200 bg-white px-4 py-4 lg:justify-between lg:gap-0 lg:border-l lg:border-t-0">
           <PriceRow label="Qty" value={piece.qty} />
           {showPrices ? (
             <>
@@ -147,14 +147,12 @@ export function PieceReportCard(props: PieceReportCardProps) {
                 label="Unit Price"
                 value={formatMoney(props.unitPrice)}
               />
-              <div className="mt-auto pt-2">
-                <PriceRow
-                  label="Subtotal"
-                  value={formatMoney(props.subtotal)}
-                  strong
-                  success
-                />
-              </div>
+              <PriceRow
+                label="Subtotal"
+                value={formatMoney(props.subtotal)}
+                strong
+                success
+              />
             </>
           ) : null}
         </div>
