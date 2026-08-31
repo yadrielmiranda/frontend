@@ -43,6 +43,7 @@ export interface PieceDiagramProps {
   screenEnabled?: boolean;
   activeOptionName?: string | null;
   preparationOptionName?: string | null;
+  showDimensions?: boolean;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -235,9 +236,19 @@ function DiagramShell({
       {...dataAttributes}
     >
       <div
-        className="flex shrink items-center justify-center"
-        style={physicalPreviewSize(width, height)}
-        data-preview-scale="SHARED_PHYSICAL_SCALE"
+        className={
+          variant === "report"
+            ? "flex h-full w-full items-center justify-center"
+            : "flex shrink items-center justify-center"
+        }
+        style={
+          variant === "report"
+            ? { width: "100%", height: "100%" }
+            : physicalPreviewSize(width, height)
+        }
+        data-preview-scale={
+          variant === "report" ? "REPORT_FIT" : "SHARED_PHYSICAL_SCALE"
+        }
       >
         {children}
       </div>
@@ -260,6 +271,7 @@ export function PieceDiagram({
   screenEnabled = false,
   activeOptionName,
   preparationOptionName,
+  showDimensions = true,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
@@ -284,7 +296,7 @@ export function PieceDiagram({
       glassTintHex,
       hasCoating,
       hasPrivacy,
-      showDimensions: true,
+      showDimensions,
       variant: "report" as const,
       className: rendererClasses,
     } as const;
@@ -320,8 +332,7 @@ export function PieceDiagram({
       resolvedSharedFrenchDoor.kind === "MIXED"
         ? Math.max(
             ...resolvedSharedFrenchDoor.pieces.map(
-              (doorPiece) =>
-                positiveDimensionNumber(doorPiece.height) ?? 0,
+              (doorPiece) => positiveDimensionNumber(doorPiece.height) ?? 0,
             ),
           )
         : resolvedSharedFrenchDoor.piece.height;
@@ -377,7 +388,7 @@ export function PieceDiagram({
           glassTintHex={glassTintHex}
           hasCoating={hasCoating}
           hasPrivacy={hasPrivacy}
-          showDimensions
+          showDimensions={showDimensions}
           className={rendererClasses}
         />
       </DiagramShell>
@@ -422,7 +433,7 @@ export function PieceDiagram({
           glassTintHex={glassTintHex}
           hasCoating={hasCoating}
           hasPrivacy={hasPrivacy}
-          showDimensions
+          showDimensions={showDimensions}
           className={rendererClasses}
         />
       </DiagramShell>
@@ -459,6 +470,7 @@ export function PieceDiagram({
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
+        showDimensions={showDimensions}
         variant="report"
         className={rendererClasses}
       />
@@ -494,7 +506,7 @@ export function PieceDiagram({
     glassTintHex,
     hasCoating,
     hasPrivacy,
-    showDimensions: true,
+    showDimensions,
     className: rendererClasses,
   } as const;
 
@@ -509,7 +521,7 @@ export function PieceDiagram({
       glassTintHex,
       hasCoating,
       hasPrivacy,
-      showDimensions: true,
+      showDimensions,
       className: rendererClasses,
     } as const;
 
@@ -584,14 +596,13 @@ export function PieceDiagram({
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
-        showDimensions
+        showDimensions={showDimensions}
         className={rendererClasses}
       />
     );
   } else if (
     resolvedSpec.renderer === "CASEMENT_WINDOW" &&
-    (resolvedSpec.configuration === "XL" ||
-      resolvedSpec.configuration === "XR")
+    (resolvedSpec.configuration === "XL" || resolvedSpec.configuration === "XR")
   ) {
     renderedDiagram = (
       <CasementWindowDiagram

@@ -8,22 +8,28 @@ import { isDealerRole } from "@/lib/rbac";
 function buildBrandingModel(estimate: EstimateWithRelations) {
   const branding = estimate.branding ?? null;
 
-  const brandingName = branding?.name ?? "Impact Plus";
+  const brandingName = branding?.name?.trim() || null;
+  const brandingLocality = [branding?.city, branding?.state]
+    .filter(Boolean)
+    .join(", ");
+  const brandingCityLine = [brandingLocality, branding?.postalCode]
+    .filter(Boolean)
+    .join(" ");
   const brandingAddressLine =
-    branding?.street || branding?.city || branding?.state || branding?.postalCode
-      ? [branding?.street, branding?.city, branding?.state, branding?.postalCode]
-          .filter(Boolean)
-          .join(", ")
+    branding?.street ||
+    branding?.city ||
+    branding?.state ||
+    branding?.postalCode
+      ? [branding?.street, brandingCityLine].filter(Boolean).join(", ")
       : null;
 
   const brandingEmail = branding?.email ?? null;
   const brandingPhone = branding?.phone ?? null;
   const brandingWebsite = branding?.website ?? null;
 
-  const logoSrc =
-    branding?.logoUrl
-      ? `${branding.logoUrl}?v=${encodeURIComponent(branding.updatedAt ?? "")}`
-      : null;
+  const logoSrc = branding?.logoUrl
+    ? `${branding.logoUrl}?v=${encodeURIComponent(branding.updatedAt ?? "")}`
+    : null;
 
   return {
     brandingName,
@@ -47,10 +53,7 @@ export function EstimateReportShell({
   internal?: boolean;
 }) {
   const b = buildBrandingModel(estimate);
-  const customerName = [
-    estimate.customerFirstName,
-    estimate.customerLastName,
-  ]
+  const customerName = [estimate.customerFirstName, estimate.customerLastName]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -86,101 +89,123 @@ export function EstimateReportShell({
   return (
     <div
       id="printable-area"
-      className="bg-white rounded-lg shadow-md p-6 sm:p-10 font-sans"
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white font-sans shadow-sm print:rounded-none print:border-0 print:shadow-none"
+      data-estimate-report={estimate.id}
     >
-      <header className="flex flex-col justify-between gap-6 border-b pb-6 sm:flex-row sm:items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Estimate</h1>
-          <p className="text-gray-500 mt-1">Number: {estimate.number}</p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {statusName ? (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
-                {statusName}
-              </span>
-            ) : null}
+      <div className="p-5 sm:p-8">
+        <header className="grid items-start gap-6 border-b border-slate-200 pb-6 lg:grid-cols-[1fr_auto_1fr]">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-[0.08em] text-slate-950 sm:text-4xl">
+              Estimate
+            </h1>
+            <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+              Number
+            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-3">
+              <p className="text-xl font-bold text-slate-950">
+                {estimate.number}
+              </p>
+              {statusName ? (
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase text-slate-700">
+                  {statusName}
+                </span>
+              ) : null}
+            </div>
 
             {internal && reportLabel ? (
-              <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
-                Internal · {reportLabel}
+              <span className="mt-3 inline-flex rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase text-white">
+                Internal - {reportLabel}
               </span>
             ) : null}
           </div>
-        </div>
 
-        <div className="text-right">
-          {b.logoSrc ? (
-            <div className="flex justify-end mb-2">
+          <div className="flex min-h-20 items-center justify-center lg:min-w-48">
+            {b.logoSrc ? (
               <img
                 src={b.logoSrc}
                 alt="Logo"
-                className="h-12 w-auto object-contain"
+                className="max-h-24 max-w-64 object-contain"
               />
-            </div>
-          ) : null}
+            ) : null}
+          </div>
 
-          <h2 className="text-xl font-semibold text-gray-700">{b.brandingName}</h2>
+          <div className="text-left lg:text-right">
+            {b.brandingName ? (
+              <h2 className="text-xl font-bold text-slate-900">
+                {b.brandingName}
+              </h2>
+            ) : null}
+            {b.brandingAddressLine ? (
+              <p className="mt-2 text-xs text-slate-500">
+                {b.brandingAddressLine}
+              </p>
+            ) : null}
+            {b.brandingEmail ? (
+              <p className="mt-1 text-xs text-slate-500">{b.brandingEmail}</p>
+            ) : null}
+            {b.brandingWebsite ? (
+              <p className="mt-1 text-xs text-slate-500">{b.brandingWebsite}</p>
+            ) : null}
+            {b.brandingPhone ? (
+              <p className="mt-1 text-xs text-slate-500">{b.brandingPhone}</p>
+            ) : null}
+          </div>
+        </header>
 
-          {b.brandingAddressLine ? (
-            <p className="text-sm text-gray-500">{b.brandingAddressLine}</p>
-          ) : null}
-
-          {b.brandingEmail ? (
-            <p className="text-sm text-gray-500">{b.brandingEmail}</p>
-          ) : null}
-
-          {b.brandingPhone ? (
-            <p className="text-sm text-gray-500">{b.brandingPhone}</p>
-          ) : null}
-
-          {b.brandingWebsite ? (
-            <p className="text-sm text-gray-500">{b.brandingWebsite}</p>
-          ) : null}
-        </div>
-      </header>
-
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 my-8">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            Prepared For
-          </h3>
-          <p className="font-medium text-gray-800 text-lg">{preparedFor}</p>
-          {projectName ? (
-            <p className="mt-1 text-sm text-gray-600">Project: {projectName}</p>
-          ) : null}
-          {contactEmail ? (
-            <p className="mt-2 text-sm text-gray-500">{contactEmail}</p>
-          ) : null}
-          {contactPhone ? (
-            <p className="text-sm text-gray-500">{contactPhone}</p>
-          ) : null}
-          {contactAddress ? (
-            <p className="text-sm text-gray-500">{contactAddress}</p>
-          ) : null}
-        </div>
-
-        <div className="md:text-right">
-          <p className="text-sm text-gray-500 mt-1">
-            Date: {formatDateEn(estimate.date)}
-          </p>
-          {estimate.expiresAt ? (
-            <p className="mt-1 text-sm text-gray-500">
-              Valid through: {formatDateEn(estimate.expiresAt)}
+        <section className="my-6 grid gap-5 rounded-xl border border-slate-200 bg-slate-50/70 px-5 py-4 md:grid-cols-[1.1fr_1.5fr_auto] md:items-center">
+          <div>
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Prepared For
+            </h3>
+            <p className="mt-1 text-lg font-bold text-slate-950">
+              {preparedFor}
             </p>
-          ) : null}
-        </div>
-      </section>
+            {projectName ? (
+              <p className="mt-1 text-xs text-slate-600">
+                Project: {projectName}
+              </p>
+            ) : null}
+          </div>
 
-      {children}
+          <div className="space-y-1 text-xs text-slate-600">
+            {contactEmail ? <p>{contactEmail}</p> : null}
+            {contactPhone ? <p>{contactPhone}</p> : null}
+            {contactAddress ? <p>{contactAddress}</p> : null}
+          </div>
 
-      <footer className="mt-12 pt-6 border-t text-center text-xs text-gray-500">
-        <p>
-          {estimate.expiresAt
-            ? `This estimate is valid through ${formatDateEn(estimate.expiresAt)}.`
-            : "This estimate is valid for 30 days."}{" "}
-          Thank you for your business.
-        </p>
-      </footer>
+          <div className="space-y-3 md:text-right">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Date
+              </p>
+              <p className="text-xs font-semibold text-slate-900">
+                {formatDateEn(estimate.date)}
+              </p>
+            </div>
+            {estimate.expiresAt ? (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Valid Through
+                </p>
+                <p className="text-xs font-semibold text-slate-900">
+                  {formatDateEn(estimate.expiresAt)}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {children}
+
+        <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-[11px] text-slate-500">
+          <p>
+            {estimate.expiresAt
+              ? `This estimate is valid through ${formatDateEn(estimate.expiresAt)}.`
+              : "This estimate is valid for 30 days."}{" "}
+            Thank you for your business.
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }

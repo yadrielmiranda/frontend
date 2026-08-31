@@ -27,7 +27,7 @@ export default async function PublicEstimatePage({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-6xl">
         <EstimateReportShell estimate={estimate}>
           <EstimateViewDealerPublic
             estimate={estimate}

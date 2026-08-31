@@ -279,7 +279,7 @@ export function EstimateDetails({
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
             <BackLink href="/estimates" label="Back to Estimates" />

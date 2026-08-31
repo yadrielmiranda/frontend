@@ -129,9 +129,7 @@ export interface ConfigMuntinLayoutItem {
 export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonValue =
-  | JsonPrimitive
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 export interface DiagramSpec {
   family: DiagramFamily;
@@ -139,10 +137,7 @@ export interface DiagramSpec {
 }
 
 export type DimensionMode =
-  | "STANDARD"
-  | "ECO_WINDOWS_DOOR"
-  | "ECO_NOVO_DOOR"
-  | "WINDOW_WALL";
+  "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
 
 export type BillableHeightMode = "ACTUAL_HEIGHT" | "WIDTH_PERCENTAGE" | "FIXED";
 
@@ -344,20 +339,9 @@ export type PaymentType =
   | "DELIVERY"
   | "EXTRA";
 export type PaymentStatus =
-  | "PENDING"
-  | "PAID"
-  | "FAILED"
-  | "CANCELED"
-  | "EXPIRED"
-  | "REFUNDED";
+  "PENDING" | "PAID" | "FAILED" | "CANCELED" | "EXPIRED" | "REFUNDED";
 export type PaymentMethod =
-  | "CARD"
-  | "CHECK"
-  | "ZELLE"
-  | "CASH"
-  | "ACH"
-  | "WIRE"
-  | "OTHER";
+  "CARD" | "CHECK" | "ZELLE" | "CASH" | "ACH" | "WIRE" | "OTHER";
 export type PaymentPayerType = "ACCOUNT_OWNER" | "CUSTOMER";
 
 export interface EstimatePayment {
@@ -425,19 +409,10 @@ export interface Estimate {
 }
 
 export type InstallationBillingUnit =
-  | "UNIT"
-  | "PANEL"
-  | "SQFT"
-  | "SQFT_RECTANGULAR"
-  | "LINEAR_FOOT";
+  "UNIT" | "PANEL" | "SQFT" | "SQFT_RECTANGULAR" | "LINEAR_FOOT";
 
 export type InstallationRuleMetric =
-  | "NONE"
-  | "WIDTH"
-  | "HEIGHT"
-  | "AREA"
-  | "PANEL_COUNT"
-  | "LENGTH";
+  "NONE" | "WIDTH" | "HEIGHT" | "AREA" | "PANEL_COUNT" | "LENGTH";
 
 export type InstallationLineOrigin = "AUTO" | "USER_SELECTED" | "FIELD_ADDED";
 
@@ -464,9 +439,7 @@ export type InstallationJobStatus =
   | "CANCELED";
 
 export type InstallationQuoteReason =
-  | "REMEASUREMENT"
-  | "PERMIT_REVISION"
-  | "FIELD_CHANGE";
+  "REMEASUREMENT" | "PERMIT_REVISION" | "FIELD_CHANGE";
 
 export type InstallationQuoteStatus =
   | "DRAFT"
@@ -571,10 +544,7 @@ export type EstimateRevisionStatus =
   | "SUPERSEDED";
 
 export type EstimateRevisionItemAction =
-  | "UNCHANGED"
-  | "UPDATE"
-  | "REPLACE"
-  | "REMOVE";
+  "UNCHANGED" | "UPDATE" | "REPLACE" | "REMOVE";
 
 export type EstimateRevisionChangeReason =
   | "REMEASUREMENT"
@@ -790,16 +760,9 @@ export interface EstimateInstallationReportSummary {
 
 export type EstimateCustomerChargeOrigin = "SYSTEM" | "DEALER";
 export type EstimateCustomerChargeSource =
-  | "INSTALLATION"
-  | "INSTALLATION_SERVICE"
-  | "PERMIT"
-  | "CITY_FEE"
-  | "CUSTOM";
+  "INSTALLATION" | "INSTALLATION_SERVICE" | "PERMIT" | "CITY_FEE" | "CUSTOM";
 export type EstimateCustomerChargePricingMode =
-  | "SAME"
-  | "PERCENTAGE"
-  | "AMOUNT"
-  | "FINAL";
+  "SAME" | "PERCENTAGE" | "AMOUNT" | "FINAL";
 
 export interface EstimateCustomerChargeSummaryLine {
   id: number | null;
@@ -940,17 +903,10 @@ export type OrderFulfillmentMethod =
   | "INSTALLATION_DELIVERY";
 
 export type DeliveryType =
-  | "STANDARD"
-  | "INSTALLATION_OVERRIDE"
-  | "PRE_DELIVERY"
-  | "REDELIVERY";
+  "STANDARD" | "INSTALLATION_OVERRIDE" | "PRE_DELIVERY" | "REDELIVERY";
 
 export type DeliveryStatus =
-  | "PAYMENT_DUE"
-  | "READY_TO_SCHEDULE"
-  | "SCHEDULED"
-  | "COMPLETED"
-  | "CANCELED";
+  "PAYMENT_DUE" | "READY_TO_SCHEDULE" | "SCHEDULED" | "COMPLETED" | "CANCELED";
 
 export interface OrderDelivery {
   id: number;
@@ -1195,6 +1151,12 @@ export interface PieceMuntinWithRelations {
   panels: PieceMuntinPanelRelation[];
 }
 
+export interface PieceDiagramMetadata {
+  dimensionMode: DimensionMode;
+  hasCoating: boolean;
+  hasPrivacy: boolean;
+}
+
 export interface PieceWithRelations extends Piece {
   prod: Product;
   bran: Brand;
@@ -1212,6 +1174,7 @@ export interface PieceWithRelations extends Piece {
   reinforcementOption?: ReinforcementOption | null;
 
   pieceMuntin?: PieceMuntinWithRelations | null;
+  diagramMetadata?: PieceDiagramMetadata;
 }
 
 export interface SysConfOptionLink<T> {

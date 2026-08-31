@@ -11,11 +11,7 @@ import type {
 } from "@/lib/types";
 
 export type EstimateReportKind =
-  | "client"
-  | "dealer-customer"
-  | "dealer-customer-total"
-  | "dealer"
-  | "admin";
+  "client" | "dealer-customer" | "dealer-customer-total" | "dealer" | "admin";
 
 type MaterialTotals = {
   subtotal: number;
@@ -33,13 +29,21 @@ function MoneyRow({
   label,
   value,
   strong = false,
+  accentValue = false,
   children,
 }: {
   label: string;
   value?: string;
   strong?: boolean;
+  accentValue?: boolean;
   children?: ReactNode;
 }) {
+  const valueClassName = accentValue
+    ? "text-right font-bold text-emerald-700"
+    : strong
+      ? "text-right font-semibold text-slate-950"
+      : "text-right font-medium text-slate-900";
+
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
       <span
@@ -47,15 +51,7 @@ function MoneyRow({
       >
         {label}
       </span>
-      <span
-        className={
-          strong
-            ? "text-right font-semibold text-slate-950"
-            : "text-right font-medium text-slate-900"
-        }
-      >
-        {children ?? value}
-      </span>
+      <span className={valueClassName}>{children ?? value}</span>
     </div>
   );
 }
@@ -186,23 +182,7 @@ function ExternalDealerChargesSummary({
   const displayedLines = comparison ? summary.lines : customerLines;
 
   if (displayedLines.length === 0) {
-    return (
-      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
-          Installation &amp; services
-        </div>
-        <div className="px-4 py-1">
-          <MoneyRow label="Installation">
-            <Badge
-              variant="outline"
-              className="border-amber-300 bg-amber-50 text-amber-800"
-            >
-              Not included
-            </Badge>
-          </MoneyRow>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (!comparison) {
@@ -292,23 +272,21 @@ function ExternalDealerProjectScope({
     (line) => line.usedInCustomerQuote,
   );
 
+  if (customerLines.length === 0) return null;
+
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
         Project scope
       </div>
       <div className="px-4 py-1">
-        {customerLines.length > 0 ? (
-          customerLines.map((line) => (
-            <MoneyRow
-              key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
-              label={line.description}
-              value={line.customerAmount == null ? "Pending" : "Included"}
-            />
-          ))
-        ) : (
-          <MoneyRow label="Installation" value="Not included" />
-        )}
+        {customerLines.map((line) => (
+          <MoneyRow
+            key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
+            label={line.description}
+            value={line.customerAmount == null ? "Pending" : "Included"}
+          />
+        ))}
       </div>
     </div>
   );
@@ -320,23 +298,7 @@ function InstallationSummary({
   summary: EstimateInstallationReportSummary | null;
 }) {
   if (!summary) {
-    return (
-      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
-          Installation &amp; services
-        </div>
-        <div className="px-4 py-1">
-          <MoneyRow label="Installation">
-            <Badge
-              variant="outline"
-              className="border-amber-300 bg-amber-50 text-amber-800"
-            >
-              Not included
-            </Badge>
-          </MoneyRow>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const status = installationStatus(summary);
@@ -406,23 +368,7 @@ function ProjectScopeSummary({
   summary: EstimateInstallationReportSummary | null;
 }) {
   if (!summary) {
-    return (
-      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
-          Project scope
-        </div>
-        <div className="px-4 py-1">
-          <MoneyRow label="Installation">
-            <Badge
-              variant="outline"
-              className="border-amber-300 bg-amber-50 text-amber-800"
-            >
-              Not included
-            </Badge>
-          </MoneyRow>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const status = installationStatus(summary);
@@ -573,6 +519,11 @@ export function ReportFinancialSummary({
   const externalDealerCharges = ownerIsDealer
     ? (estimate.customerChargesSummary ?? null)
     : null;
+  const hasServiceSummary = externalDealerCharges
+    ? comparisonView
+      ? externalDealerCharges.lines.length > 0
+      : externalDealerCharges.lines.some((line) => line.usedInCustomerQuote)
+    : Boolean(installationSummary);
 
   const installationTotal = numberValue(installationSummary?.installationTotal);
   const permitFee = installationSummary?.permitIncluded
@@ -605,8 +556,8 @@ export function ReportFinancialSummary({
   );
   const preliminaryInstallation = Boolean(
     installationSummary &&
-      (installationSummary.quoteStatus !== "APPROVED" ||
-        installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
+    (installationSummary.quoteStatus !== "APPROVED" ||
+      installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
   );
   const externalChargesIncomplete = externalDealerCharges
     ? customerFacing
@@ -629,14 +580,9 @@ export function ReportFinancialSummary({
   return (
     <section className="mt-10 space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900">
+        <h3 className="text-lg font-bold uppercase tracking-wide text-slate-950">
           Project Summary
         </h3>
-        <p className="mt-1 text-sm text-slate-500">
-          {projectTotalOnly
-            ? "Products and project scope with one complete customer price."
-            : "Materials, services, fees, and project totals."}
-        </p>
       </div>
 
       {projectTotalOnly ? (
@@ -646,7 +592,15 @@ export function ReportFinancialSummary({
           <ProjectScopeSummary summary={installationSummary} />
         )
       ) : (
-        <>
+        <div
+          className={
+            comparisonView
+              ? "space-y-4"
+              : hasServiceSummary
+                ? "grid items-start gap-4 lg:grid-cols-2"
+                : "grid items-start gap-4"
+          }
+        >
           <div className="break-inside-avoid">
             {comparisonView ? (
               <ComparativeMaterialSummary
@@ -667,10 +621,16 @@ export function ReportFinancialSummary({
           ) : (
             <InstallationSummary summary={installationSummary} />
           )}
-        </>
+        </div>
       )}
 
-      <div className="break-inside-avoid rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
+      <div
+        className={`break-inside-avoid rounded-xl border px-5 py-3 ${
+          comparisonView
+            ? "border-slate-300 bg-slate-100/80"
+            : "border-emerald-300 bg-emerald-50 px-6 py-5 [&>div>span:first-child]:text-lg [&>div>span:first-child]:uppercase [&>div>span:first-child]:tracking-wide [&>div>span:last-child]:text-2xl sm:[&>div>span:last-child]:text-3xl"
+        }`}
+      >
         {comparisonView ? (
           <>
             <MoneyRow
@@ -711,6 +671,7 @@ export function ReportFinancialSummary({
             label={projectLabel}
             value={formatMoney(selectedProjectTotal)}
             strong
+            accentValue
           />
         )}
 
@@ -741,6 +702,11 @@ export function ReportFinancialSummary({
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
+
+      <p className="pt-1 text-[11px] text-slate-500">
+        Product illustrations are visual references and are not to scale;
+        written specifications govern.
+      </p>
     </section>
   );
 }

@@ -37,6 +37,7 @@ interface PieceDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  showDimensions?: boolean;
   variant?: PieceDiagramVariant;
   className?: string;
 }
@@ -1091,6 +1092,7 @@ export function PieceDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  showDimensions = true,
   variant = "editor",
   className,
 }: PieceDiagramProps) {
@@ -1211,7 +1213,11 @@ export function PieceDiagram({
         width="100%"
         height="100%"
         overflow="visible"
-        viewBox={`-44 -32 ${maxDimension + 88} ${maxDimension + 64}`}
+        viewBox={
+          showDimensions
+            ? `-44 -32 ${maxDimension + 88} ${maxDimension + 64}`
+            : `-4 -4 ${maxDimension + 8} ${maxDimension + 8}`
+        }
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={`${resolvedDiagramFamily} piece diagram, exterior view`}
@@ -1238,26 +1244,30 @@ export function PieceDiagram({
             <stop offset="100%" stopColor={glassShadowTone} />
           </radialGradient>
         </defs>
-        <DimensionText
-          x={offsetX + scaledWidth / 2}
-          y={offsetY - 10}
-          textAnchor="middle"
-          fallbackFontSize={fontSize}
-        >
-          {formatDimension(dimensions.displayWidth)}&quot;
-        </DimensionText>
+        {showDimensions ? (
+          <>
+            <DimensionText
+              x={offsetX + scaledWidth / 2}
+              y={offsetY - 10}
+              textAnchor="middle"
+              fallbackFontSize={fontSize}
+            >
+              {formatDimension(dimensions.displayWidth)}&quot;
+            </DimensionText>
 
-        {dimensions.displayHeight !== null && (
-          <DimensionText
-            x={-(offsetY + scaledHeight / 2)}
-            y={offsetX - 15}
-            transform="rotate(-90)"
-            textAnchor="middle"
-            fallbackFontSize={fontSize}
-          >
-            {formatDimension(dimensions.displayHeight)}&quot;
-          </DimensionText>
-        )}
+            {dimensions.displayHeight !== null ? (
+              <DimensionText
+                x={-(offsetY + scaledHeight / 2)}
+                y={offsetX - 15}
+                transform="rotate(-90)"
+                textAnchor="middle"
+                fallbackFontSize={fontSize}
+              >
+                {formatDimension(dimensions.displayHeight)}&quot;
+              </DimensionText>
+            ) : null}
+          </>
+        ) : null}
 
         <g transform={`translate(${offsetX}, ${offsetY})`}>
           {resolvedDiagramFamily === "HORIZONTAL_SLIDER" && (
