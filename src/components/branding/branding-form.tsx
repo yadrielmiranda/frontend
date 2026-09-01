@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { Loader2, UploadCloud } from "lucide-react";
+import { AlertTriangle, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -31,6 +31,16 @@ import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -75,6 +85,7 @@ export function BrandingForm({
     branding,
   );
   const [uploading, setUploading] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const defaultValues = useMemo<FormData>(
@@ -203,7 +214,7 @@ export function BrandingForm({
       }
 
       setBrandingState(saved);
-      router.push("/");
+      router.refresh();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong.";
@@ -217,9 +228,16 @@ export function BrandingForm({
 
   function handleClose() {
     if (isDirty) {
-      const ok = window.confirm("You have unsaved changes. Leave anyway?");
-      if (!ok) return;
+      setCloseDialogOpen(true);
+      return;
     }
+
+    router.push("/");
+  }
+
+  function handleDiscardAndClose() {
+    reset(defaultValues, { keepDirty: false, keepTouched: true });
+    setCloseDialogOpen(false);
     router.push("/");
   }
 
@@ -432,6 +450,34 @@ export function BrandingForm({
           Save Changes
         </Button>
       </div>
+
+      <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Discard unsaved changes?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You have changes that have not been saved. If you close now,
+              those changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">
+              Continue Editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              onClick={handleDiscardAndClose}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard and Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }
