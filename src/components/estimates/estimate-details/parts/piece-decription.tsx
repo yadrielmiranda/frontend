@@ -250,25 +250,3 @@ export function buildPieceDescriptionLines(
   ].filter((line) => line.trim());
 }
 
-export function PieceDescriptionCell({ piece }: { piece: PieceWithRelations }) {
-  const details = buildPieceReportDetails(piece);
-
-  return (
-    <div>
-      <p className="font-semibold text-gray-800">{details.productName}</p>
-      {details.systemLine ? (
-        <p className="mt-1 text-xs font-semibold text-red-700">
-          {details.systemLine}
-        </p>
-      ) : null}
-      <p className="mt-2 text-xs font-semibold text-slate-800">
-        {details.summaryLine}
-      </p>
-      {details.detailLines.map((line) => (
-        <p key={line} className="mt-1 text-xs text-gray-600">
-          {line}
-        </p>
-      ))}
-    </div>
-  );
-}

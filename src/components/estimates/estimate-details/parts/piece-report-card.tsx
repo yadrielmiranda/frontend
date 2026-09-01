@@ -79,14 +79,14 @@ function PriceRow({
       ? "whitespace-nowrap text-right text-xl font-bold tabular-nums text-emerald-700"
       : "whitespace-nowrap text-right text-sm font-semibold tabular-nums text-emerald-700"
     : strong
-      ? "whitespace-nowrap text-right text-base font-bold tabular-nums text-slate-950"
-      : "whitespace-nowrap text-right text-sm font-semibold tabular-nums text-slate-900";
+      ? "whitespace-nowrap text-right text-base font-bold tabular-nums text-black"
+      : "whitespace-nowrap text-right text-sm font-semibold tabular-nums text-black";
 
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span
         className={`shrink-0 text-[10px] font-bold uppercase tracking-wide ${
-          success ? "text-emerald-700" : "text-slate-500"
+          success ? "text-emerald-700" : "text-black"
         }`}
       >
         {label}
@@ -118,7 +118,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
         </div>
 
         <div className="min-w-0 px-4 pb-4 pt-1 lg:py-4">
-          <h4 className="text-lg font-bold leading-tight text-slate-950">
+          <h4 className="text-lg font-bold leading-tight text-black">
             {details.productName}
           </h4>
           {details.systemLine ? (
@@ -132,7 +132,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
           </p>
           <div className="mt-1.5 space-y-1">
             {details.detailLines.map((line) => (
-              <p key={line} className="text-xs leading-snug text-slate-600">
+              <p key={line} className="text-xs leading-snug text-black">
                 {line}
               </p>
             ))}
