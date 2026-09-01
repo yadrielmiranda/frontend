@@ -129,7 +129,7 @@ export default async function EditEstimatePage({
         <Card className="w-full shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl">
-              Edit Estimate #{estimate.number}
+              Estimate #{estimate.number}
             </CardTitle>
             <CardDescription>
               {canEdit

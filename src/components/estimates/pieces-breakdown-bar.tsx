@@ -14,7 +14,7 @@ export function PiecesBreakdownBar({
   pieceBreakdown,
 }: PiecesBreakdownBarProps) {
   return (
-    <div className="mt-4">
+    <div>
       <div className="flex justify-between items-center mb-2">
         <Label>Pieces Breakdown</Label>
         <div className="flex items-center gap-2">

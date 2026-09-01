@@ -42,7 +42,6 @@ import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
 import { EstimateDetailsLeft } from "./estimate-details-left";
 import { EstimateFinancialSummary } from "./estimate-financial-summary";
 import { EstimatePaymentCard } from "./estimate-payment-card";
-import { PiecesBreakdownBar } from "./pieces-breakdown-bar";
 import { PiecesDealerTable } from "./pieces-dealer-table";
 import { PiecesClientList } from "./pieces-client-list";
 import { PieceModal } from "./piece-modal";
@@ -728,28 +727,24 @@ export function EstimateForm({
     setPendingCoatingId(null);
   };
 
-  const handleApplyGeneralMarkup = async () => {
+  const handleGeneralDealerMarkupBlur = async (value: string) => {
     if (!canUseCustomerPricing) return;
     if (isApplyingGeneralMarkupRef.current) return;
 
-    if (!estimate?.id) {
-      toast.error("The Estimate must be created before applying markup.");
-      return;
-    }
-
-    const generalMarkup = Number(getValues("generalDealerMarkup"));
-
-    const pieces = getValues("pieces");
+    const generalMarkup = Number(value || 0);
 
     if (!Number.isFinite(generalMarkup) || generalMarkup < 0) {
       toast.error("General Dealer Markup must be zero or greater.");
       return;
     }
 
-    if (!pieces.length) {
-      toast.error("Add at least one piece before applying the markup.");
-      return;
-    }
+    setValue("generalDealerMarkup", generalMarkup, { shouldDirty: true });
+
+    const pieces = getValues("pieces");
+
+    // Sin estimado persistido o sin piezas, el valor queda como default para
+    // las piezas nuevas y no hay nada que actualizar todavía en el backend.
+    if (!estimate?.id || !pieces.length) return;
 
     isApplyingGeneralMarkupRef.current = true;
 
@@ -1279,7 +1274,7 @@ export function EstimateForm({
                 valueAsNumber: true,
                 min: 0,
               })}
-              onApplyGeneralMarkup={handleApplyGeneralMarkup}
+              onGeneralDealerMarkupBlur={handleGeneralDealerMarkupBlur}
               customerTaxRateRegister={register("customerTaxRate", {
                 valueAsNumber: true,
                 min: 0,
@@ -1300,10 +1295,6 @@ export function EstimateForm({
               </div>
             )}
 
-            <PiecesBreakdownBar
-              totalUnits={summary.totalUnits}
-              pieceBreakdown={summary.pieceBreakdown}
-            />
           </div>
 
           <div className="space-y-4">

@@ -21,8 +21,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PiecesBreakdownBar } from "./pieces-breakdown-bar";
 
 export type EstimateFinancialMaterialSummary = {
+  totalUnits: number;
+  pieceBreakdown: Record<string, number>;
   subtotal: number;
   taxAmount: number;
   totalPayable: number;
@@ -411,6 +414,11 @@ export function EstimateFinancialSummary({
       </CardHeader>
 
       <CardContent className="space-y-5">
+        <PiecesBreakdownBar
+          totalUnits={materialSummary.totalUnits}
+          pieceBreakdown={materialSummary.pieceBreakdown}
+        />
+
         {isDealerEstimate ? (
           <div className="overflow-x-auto rounded-lg border">
             <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
