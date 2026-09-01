@@ -286,101 +286,119 @@ export function BrandingForm({
           <Input disabled={disableAll} {...register("postalCode")} />
         </div>
 
-        <div>
-          <Label>Branding Color</Label>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <input
-              type="color"
-              value={previewBrandingColor}
-              aria-label="Choose branding color"
-              className="h-10 w-14 rounded-md border border-input bg-background p-1"
-              disabled={disableAll}
-              onChange={(event) =>
-                setValue("brandingColor", event.target.value.toUpperCase(), {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            <Input
-              disabled={disableAll}
-              maxLength={7}
-              className="w-32 font-mono uppercase"
-              {...register("brandingColor", {
-                required: "Branding color is required.",
-                pattern: {
-                  value: BRANDING_COLOR_PATTERN,
-                  message: "Use the format #RRGGBB.",
-                },
-              })}
-            />
-            <span
-              className="inline-flex h-10 items-center rounded-md px-3 text-xs font-semibold"
-              style={{
-                backgroundColor: previewBrandingColor,
-                color: previewTextColor,
-              }}
-            >
-              Report accent
-            </span>
-          </div>
-          {errors.brandingColor ? (
-            <p className="mt-1 text-sm text-destructive">
-              {errors.brandingColor.message}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Used for accent elements in reports and PDFs.
-            </p>
-          )}
-        </div>
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-start">
+          <div className="space-y-5">
+            <div>
+              <Label>Logo</Label>
 
-        <div>
-          <Label>Logo</Label>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            disabled={disableAll}
-            onChange={handleLogoUpload}
-          />
-
-          <div className="flex items-center gap-3 mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disableAll}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="mr-2 h-4 w-4" />
-                  {logoUrl ? "Change logo" : "Choose logo"}
-                </>
-              )}
-            </Button>
-
-            {logoUrl && (
-              <img
-                src={logoUrl}
-                alt="Logo preview"
-                className="h-16 w-16 rounded border object-contain bg-white"
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={disableAll}
+                onChange={handleLogoUpload}
               />
-            )}
+
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={disableAll}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="mr-2 h-4 w-4" />
+                      {logoUrl ? "Change logo" : "Choose logo"}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <p className="mt-2 text-xs text-muted-foreground">
+                {logoUrl
+                  ? "Logo set. Remember to save if you want to keep it linked to the branding."
+                  : "Upload a logo (PNG/JPG/WEBP). Max 2MB."}
+              </p>
+            </div>
+
+            <div>
+              <Label>Branding Color</Label>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <input
+                  type="color"
+                  value={previewBrandingColor}
+                  aria-label="Choose branding color"
+                  className="h-10 w-14 rounded-md border border-input bg-background p-1"
+                  disabled={disableAll}
+                  onChange={(event) =>
+                    setValue(
+                      "brandingColor",
+                      event.target.value.toUpperCase(),
+                      {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      },
+                    )
+                  }
+                />
+                <Input
+                  disabled={disableAll}
+                  maxLength={7}
+                  className="w-32 font-mono uppercase"
+                  {...register("brandingColor", {
+                    required: "Branding color is required.",
+                    pattern: {
+                      value: BRANDING_COLOR_PATTERN,
+                      message: "Use the format #RRGGBB.",
+                    },
+                  })}
+                />
+                <span
+                  className="inline-flex h-10 items-center rounded-md px-3 text-xs font-semibold"
+                  style={{
+                    backgroundColor: previewBrandingColor,
+                    color: previewTextColor,
+                  }}
+                >
+                  Report accent
+                </span>
+              </div>
+              {errors.brandingColor ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {errors.brandingColor.message}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Use the eyedropper to sample the logo preview. Used for accent
+                  elements in reports and PDFs.
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="mt-2 text-xs text-muted-foreground">
-            {logoUrl
-              ? "Logo set. Remember to save if you want to keep it linked to the branding."
-              : "Upload a logo (PNG/JPG/WEBP). Max 2MB."}
+          <div>
+            <Label>Logo Preview</Label>
+            <div className="mt-2 flex h-44 items-center justify-center rounded-lg border bg-white p-2">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo preview"
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <span className="text-center text-xs text-muted-foreground">
+                  No logo selected
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
