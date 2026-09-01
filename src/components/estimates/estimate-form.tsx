@@ -1250,8 +1250,10 @@ export function EstimateForm({
         )}
 
         <fieldset disabled={readOnly} className="space-y-8">
-          <div className="p-6 border rounded-lg bg-slate-50">
-            <h3 className="text-xl font-semibold mb-6">Estimate Details</h3>
+          <div className="rounded-lg border border-slate-300 bg-white p-6 shadow-sm">
+            <h3 className="mb-6 border-l-4 border-red-600 pl-3 text-xl font-semibold">
+              Details
+            </h3>
 
             <EstimateDetailsLeft
               isEditMode={isEditMode}

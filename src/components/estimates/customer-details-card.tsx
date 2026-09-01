@@ -22,9 +22,13 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-1 text-sm text-red-600">{message}</p>;
 }
 
+const customerFieldClassName =
+  "border-slate-400 shadow-none hover:border-slate-500 focus-visible:border-slate-500 focus-visible:ring-slate-500/10";
+const customerLabelClassName = "mb-1.5 block";
+
 export function CustomerDetailsCard({ register, control, errors }: Props) {
   return (
-    <Card>
+    <Card className="border-blue-200 bg-blue-50/40">
       <CardHeader>
         <CardTitle>Customer</CardTitle>
       </CardHeader>
@@ -33,9 +37,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* First Name */}
           <div>
-            <Label htmlFor="customerFirstName">First Name</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerFirstName"
+            >
+              First Name
+            </Label>
             <Input
               id="customerFirstName"
+              className={customerFieldClassName}
               placeholder=""
               autoComplete="given-name"
               {...register("customerFirstName")}
@@ -47,9 +57,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
 
           {/* Last Name */}
           <div>
-            <Label htmlFor="customerLastName">Last Name</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerLastName"
+            >
+              Last Name
+            </Label>
             <Input
               id="customerLastName"
+              className={customerFieldClassName}
               placeholder=""
               autoComplete="family-name"
               {...register("customerLastName")}
@@ -61,9 +77,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
 
           {/* Email */}
           <div>
-            <Label htmlFor="customerEmail">Email</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerEmail"
+            >
+              Email
+            </Label>
             <Input
               id="customerEmail"
+              className={customerFieldClassName}
               placeholder=""
               type="email"
               autoComplete="email"
@@ -82,9 +104,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
 
           {/* Phone */}
           <div>
-            <Label htmlFor="customerPhone">Phone</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerPhone"
+            >
+              Phone
+            </Label>
             <Input
               id="customerPhone"
+              className={customerFieldClassName}
               autoComplete="tel"
               {...register("customerPhone", {
                 setValueAs: (v) => normalizeUSPhoneToE164(v),
@@ -102,9 +130,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
 
           {/* Street */}
           <div className="md:col-span-2">
-            <Label htmlFor="customerStreet">Street Address</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerStreet"
+            >
+              Street Address
+            </Label>
             <Input
               id="customerStreet"
+              className={customerFieldClassName}
               placeholder=""
               autoComplete="address-line1"
               {...register("customerStreet")}
@@ -116,9 +150,15 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
 
           {/* City */}
           <div>
-            <Label htmlFor="customerCity">City</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerCity"
+            >
+              City
+            </Label>
             <Input
               id="customerCity"
+              className={customerFieldClassName}
               placeholder=""
               autoComplete="address-level2"
               {...register("customerCity")}
@@ -133,14 +173,22 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
             control={control}
             name="customerState"
             placeholder="Select state…"
+            className="space-y-1.5"
+            triggerClassName={customerFieldClassName}
             error={errors?.customerState?.message as string | undefined}
           />
 
           {/* Postal */}
           <div>
-            <Label htmlFor="customerPostalCode">Postal Code</Label>
+            <Label
+              className={customerLabelClassName}
+              htmlFor="customerPostalCode"
+            >
+              Postal Code
+            </Label>
             <Input
               id="customerPostalCode"
+              className={customerFieldClassName}
               autoComplete="postal-code"
               {...register("customerPostalCode", {
                 setValueAs: (v) => normalizeUSZip(v),

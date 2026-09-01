@@ -34,6 +34,8 @@ type Props<TFieldValues extends FieldValues> = {
   disabled?: boolean;
   error?: string;
   appearance?: StateComboboxAppearance;
+  className?: string;
+  triggerClassName?: string;
 };
 
 export function StateCombobox<TFieldValues extends FieldValues>({
@@ -44,6 +46,8 @@ export function StateCombobox<TFieldValues extends FieldValues>({
   disabled,
   error,
   appearance = "light",
+  className,
+  triggerClassName,
 }: Props<TFieldValues>) {
   const [open, setOpen] = React.useState(false);
   const isDark = appearance === "dark";
@@ -67,7 +71,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
   const errorClass = isDark ? "text-xs text-red-400" : "text-sm text-red-600";
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", className)}>
       <Label className={labelClass}>{label}</Label>
 
       <Controller
@@ -88,6 +92,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
                   aria-expanded={open}
                   className={cn(
                     triggerClass,
+                    triggerClassName,
                     !currentLabel && isDark && "text-white/35",
                     error && "border-red-500",
                   )}
