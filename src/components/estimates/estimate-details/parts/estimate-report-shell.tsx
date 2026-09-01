@@ -154,19 +154,17 @@ export function EstimateReportShell({
                 {b.brandingName}
               </h2>
             ) : null}
-            {b.brandingAddressLine ? (
-              <p className="mt-2 text-xs text-black">
-                {b.brandingAddressLine}
-              </p>
+            {b.brandingPhone ? (
+              <p className="mt-1 text-xs text-black">{b.brandingPhone}</p>
             ) : null}
             {b.brandingEmail ? (
               <p className="mt-1 text-xs text-black">{b.brandingEmail}</p>
             ) : null}
+            {b.brandingAddressLine ? (
+              <p className="mt-2 text-xs text-black">{b.brandingAddressLine}</p>
+            ) : null}
             {b.brandingWebsite ? (
               <p className="mt-1 text-xs text-black">{b.brandingWebsite}</p>
-            ) : null}
-            {b.brandingPhone ? (
-              <p className="mt-1 text-xs text-black">{b.brandingPhone}</p>
             ) : null}
           </div>
         </header>
@@ -180,15 +178,13 @@ export function EstimateReportShell({
               {preparedFor}
             </p>
             {projectName ? (
-              <p className="mt-1 text-xs text-black">
-                Project: {projectName}
-              </p>
+              <p className="mt-1 text-xs text-black">Project: {projectName}</p>
             ) : null}
           </div>
 
           <div className="space-y-1 text-xs text-black">
-            {contactEmail ? <p>{contactEmail}</p> : null}
             {contactPhone ? <p>{contactPhone}</p> : null}
+            {contactEmail ? <p>{contactEmail}</p> : null}            
             {contactAddress ? <p>{contactAddress}</p> : null}
           </div>
 

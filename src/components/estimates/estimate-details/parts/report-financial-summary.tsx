@@ -428,23 +428,41 @@ function AdminProfitability({
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
   const belongsToImpact =
     ownerIsDealer && estimate.dealerAffiliationSnapshot === "IMPACT";
-  const expectedCompanyProfit = roundMoney(
-    internalDealer
-      ? numberValue(estimate.customerPriceT) - numberValue(estimate.priceT)
-      : numberValue(estimate.priceT) - numberValue(estimate.rateT),
+  const factoryRate = numberValue(estimate.rateT);
+  const internalMaterialSubtotal = numberValue(estimate.priceT);
+  const materialSaleSubtotal = internalDealer
+    ? numberValue(estimate.customerPriceT)
+    : internalMaterialSubtotal;
+  const impactMarkupRate = belongsToImpact
+    ? internalDealer
+      ? internalMaterialSubtotal > 0
+        ? numberValue(estimate.customerPriceT) / internalMaterialSubtotal - 1
+        : 0
+      : numberValue(estimate.ownerMarkupSnapshot)
+    : 0;
+  const factoryPriceWithImpactMarkup = roundMoney(
+    factoryRate * (1 + impactMarkupRate),
   );
-  const estimatedImpactProfit = belongsToImpact ? expectedCompanyProfit : 0;
-  const estimatedAuthenticProfit = belongsToImpact ? 0 : expectedCompanyProfit;
+  const estimatedImpactProfit = belongsToImpact
+    ? roundMoney(factoryPriceWithImpactMarkup - factoryRate)
+    : 0;
+  const estimatedAuthenticProfit = roundMoney(
+    materialSaleSubtotal - factoryPriceWithImpactMarkup,
+  );
   const saleChannel = ownerIsDealer
     ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} · ${
         estimate.dealerAffiliationSnapshot ?? "AUTHENTIC"
       }`
     : "DIRECT CLIENT · AUTHENTIC";
-  const calculationNote = internalDealer
-    ? "Expected profit uses customer material subtotal minus internal material subtotal. The dealer's intermediate pricing markup is excluded."
-    : ownerIsDealer
-      ? "Expected profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded."
-      : "Expected profit uses material sale subtotal minus estimated factory rate.";
+  const calculationNote = belongsToImpact
+    ? internalDealer
+      ? "Estimated Impact profit keeps the full effective customer material markup. Estimated Authentic profit is only the remaining amount above it."
+      : "Estimated Impact profit keeps the full stored Impact markup. Estimated Authentic profit is only the remaining amount above it."
+    : internalDealer
+      ? "Estimated Authentic profit uses customer material subtotal minus estimated factory rate."
+      : ownerIsDealer
+        ? "Estimated Authentic profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded."
+        : "Estimated Authentic profit uses material sale subtotal minus estimated factory rate.";
 
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
@@ -462,19 +480,16 @@ function AdminProfitability({
           label="Estimated factory rate"
           value={formatMoney(numberValue(estimate.rateT))}
         />
-        <MoneyRow
-          label="Estimated Impact profit"
-          value={formatMoney(estimatedImpactProfit)}
-          strong
-        />
+        {belongsToImpact ? (
+          <MoneyRow
+            label="Estimated Impact profit"
+            value={formatMoney(estimatedImpactProfit)}
+            strong
+          />
+        ) : null}
         <MoneyRow
           label="Estimated Authentic profit"
           value={formatMoney(estimatedAuthenticProfit)}
-          strong
-        />
-        <MoneyRow
-          label="Estimated total company profit"
-          value={formatMoney(expectedCompanyProfit)}
           strong
         />
       </div>
