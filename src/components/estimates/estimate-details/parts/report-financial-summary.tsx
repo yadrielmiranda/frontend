@@ -41,13 +41,13 @@ function MoneyRow({
   const valueClassName = accentValue
     ? "text-right font-bold text-emerald-700"
     : strong
-      ? "text-right font-semibold text-slate-950"
-      : "text-right font-medium text-slate-900";
+      ? "text-right font-semibold text-black"
+      : "text-right font-medium text-black";
 
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
       <span
-        className={strong ? "font-semibold text-slate-950" : "text-slate-600"}
+        className={strong ? "font-semibold text-black" : "text-black"}
       >
         {label}
       </span>
@@ -80,7 +80,7 @@ function installationStatus(summary: EstimateInstallationReportSummary) {
 function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
-      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Materials
       </div>
       <div className="px-4 py-1">
@@ -116,7 +116,7 @@ function ComparativeMaterialSummary({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
             <th className="px-4 py-3 text-left">Material pricing</th>
             <th className="px-4 py-3 text-right">
@@ -127,7 +127,7 @@ function ComparativeMaterialSummary({
         </thead>
         <tbody>
           <tr className="border-t border-slate-200">
-            <td className="px-4 py-3 text-slate-600">Material subtotal</td>
+            <td className="px-4 py-3 text-black">Material subtotal</td>
             <td className="px-4 py-3 text-right font-medium">
               {formatMoney(internal.subtotal)}
             </td>
@@ -136,12 +136,12 @@ function ComparativeMaterialSummary({
             </td>
           </tr>
           <tr className="border-t border-slate-200">
-            <td className="px-4 py-3 text-slate-600">Sales Tax</td>
+            <td className="px-4 py-3 text-black">Sales Tax</td>
             <td className="px-4 py-3 text-right">
               <span className="block font-medium">
                 {formatMoney(internal.taxAmount)}
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-black">
                 {(internal.taxRate * 100).toFixed(2)}%
               </span>
             </td>
@@ -149,7 +149,7 @@ function ComparativeMaterialSummary({
               <span className="block font-medium">
                 {formatMoney(customer.taxAmount)}
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-black">
                 {(customer.taxRate * 100).toFixed(2)}%
               </span>
             </td>
@@ -188,7 +188,7 @@ function ExternalDealerChargesSummary({
   if (!comparison) {
     return (
       <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+        <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
           Installation &amp; services
         </div>
         <div className="px-4 py-1">
@@ -211,7 +211,7 @@ function ExternalDealerChargesSummary({
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
             <th className="px-4 py-3 text-left">Installation &amp; services</th>
             <th className="px-4 py-3 text-right">Dealer Cost</th>
@@ -224,10 +224,10 @@ function ExternalDealerChargesSummary({
               key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
               className="border-t border-slate-200"
             >
-              <td className="px-4 py-3 text-slate-600">
+              <td className="px-4 py-3 text-black">
                 {line.description}
                 {line.origin === "DEALER" && (
-                  <span className="ml-2 text-[11px] text-slate-400">
+                  <span className="ml-2 text-[11px] text-black">
                     Dealer-created
                   </span>
                 )}
@@ -276,7 +276,7 @@ function ExternalDealerProjectScope({
 
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Project scope
       </div>
       <div className="px-4 py-1">
@@ -305,7 +305,7 @@ function InstallationSummary({
 
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Installation &amp; services
       </div>
       <div className="px-4 py-1">
@@ -375,7 +375,7 @@ function ProjectScopeSummary({
 
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Project scope
       </div>
       <div className="px-4 py-1">
@@ -449,10 +449,10 @@ function AdminProfitability({
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
       <div className="bg-slate-50 px-4 py-3">
-        <h4 className="text-sm font-semibold text-slate-900">
+        <h4 className="text-sm font-semibold text-black">
           Estimated material profitability
         </h4>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-black">
           Admin only · materials only · before taxes · installation excluded
         </p>
       </div>
@@ -478,7 +478,7 @@ function AdminProfitability({
           strong
         />
       </div>
-      <p className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
+      <p className="border-t border-slate-200 px-4 py-3 text-xs text-black">
         {calculationNote}
       </p>
     </div>
@@ -580,7 +580,7 @@ export function ReportFinancialSummary({
   return (
     <section className="mt-10 space-y-4">
       <div>
-        <h3 className="text-lg font-bold uppercase tracking-wide text-slate-950">
+        <h3 className="text-lg font-bold uppercase tracking-wide text-black">
           Project Summary
         </h3>
       </div>
@@ -703,7 +703,7 @@ export function ReportFinancialSummary({
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
 
-      <p className="pt-1 text-[11px] text-slate-500">
+      <p className="pt-1 text-[11px] text-black">
         Product illustrations are visual references and are not to scale;
         written specifications govern.
       </p>

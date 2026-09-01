@@ -109,7 +109,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
       <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_220px]">
         <div className="p-3">
           <span
-            className="mb-0.5 inline-flex min-w-12 items-center justify-center rounded-md bg-red-700 px-3 py-1.5 text-center text-xs font-bold text-white"
+            className="mb-0.5 inline-flex min-w-12 items-center justify-center rounded-md bg-[var(--report-brand-color)] px-3 py-1.5 text-center text-xs font-bold text-[var(--report-brand-contrast)]"
             data-piece-mark-badge
           >
             {displayMark}
@@ -122,12 +122,12 @@ export function PieceReportCard(props: PieceReportCardProps) {
             {details.productName}
           </h4>
           {details.systemLine ? (
-            <p className="mt-1 text-sm font-bold text-red-700">
+            <p className="mt-1 text-sm font-bold text-[var(--report-brand-color)]">
               {details.systemLine}
             </p>
           ) : null}
 
-          <p className="mt-4 text-sm font-bold leading-snug text-slate-900">
+          <p className="mt-4 text-sm font-bold leading-snug text-black">
             {details.summaryLine}
           </p>
           <div className="mt-1.5 space-y-1">

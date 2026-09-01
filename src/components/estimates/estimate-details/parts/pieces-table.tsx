@@ -26,10 +26,10 @@ export function PiecesTable(props: PiecesTableProps) {
   return (
     <section className="mt-8">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <h3 className="text-lg font-bold uppercase tracking-wide text-slate-950">
+        <h3 className="text-lg font-bold uppercase tracking-wide text-black">
           Product Details
         </h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-black">
           Illustrations are visual references; written specifications govern.
         </p>
       </div>
@@ -58,7 +58,7 @@ export function PiecesTable(props: PiecesTableProps) {
             );
           })
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-black">
             No products included.
           </div>
         )}

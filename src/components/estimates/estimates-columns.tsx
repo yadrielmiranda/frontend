@@ -26,6 +26,7 @@ import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 import type { EstimateWithRelations } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
+import { getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 import {
   canViewDealerEstimateProfit,
@@ -75,35 +76,13 @@ export const getEstimateStatusName = (
 };
 
 const getStatusBadge = (statusName: string) => {
-  const name = statusName.trim().toLowerCase();
-
-  if (name === "active") {
-    return (
-      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-        Active
-      </span>
-    );
-  }
-
-  if (name === "ordered") {
-    return (
-      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-        Ordered
-      </span>
-    );
-  }
-
-  if (name === "expired") {
-    return (
-      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-        Expired
-      </span>
-    );
-  }
+  const appearance = getEstimateStatusBadgeAppearance(statusName);
 
   return (
-    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-      {statusName || "Unknown"}
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${appearance.className}`}
+    >
+      {appearance.label}
     </span>
   );
 };

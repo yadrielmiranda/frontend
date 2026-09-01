@@ -1486,6 +1486,7 @@ export interface Branding {
   postalCode: string | null;
 
   logoUrl: string | null;
+  brandingColor: string;
 
   isActive: boolean;
   createdAt: string;

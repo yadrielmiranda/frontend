@@ -19,6 +19,12 @@ import {
 } from "@/app/api/brandings.api";
 
 import { lookupZip } from "@/app/api/geo.api";
+import {
+  BRANDING_COLOR_PATTERN,
+  DEFAULT_BRANDING_COLOR,
+  getReadableTextColor,
+  normalizeBrandingColor,
+} from "@/lib/branding-color";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 
 import { StateCombobox } from "@/components/StateCombobox";
@@ -38,6 +44,7 @@ type FormData = {
   state?: string; // "FL"
   postalCode?: string;
   logoUrl?: string;
+  brandingColor: string;
 };
 
 function normalizePayload(data: FormData): CreateBrandingData {
@@ -51,6 +58,7 @@ function normalizePayload(data: FormData): CreateBrandingData {
     state: data.state?.trim().toUpperCase() || undefined,
     postalCode: data.postalCode?.trim() || undefined,
     logoUrl: data.logoUrl?.trim() || undefined,
+    brandingColor: normalizeBrandingColor(data.brandingColor),
   };
 }
 
@@ -80,6 +88,7 @@ export function BrandingForm({
       state: brandingState?.state ?? "",
       postalCode: brandingState?.postalCode ?? "",
       logoUrl: brandingState?.logoUrl ?? "",
+      brandingColor: brandingState?.brandingColor ?? DEFAULT_BRANDING_COLOR,
     }),
     [brandingState],
   );
@@ -100,6 +109,9 @@ export function BrandingForm({
   }, [defaultValues, reset]);
 
   const logoUrl = useWatch({ control, name: "logoUrl" });
+  const brandingColor = useWatch({ control, name: "brandingColor" });
+  const previewBrandingColor = normalizeBrandingColor(brandingColor);
+  const previewTextColor = getReadableTextColor(previewBrandingColor);
   const zip = useWatch({ control, name: "postalCode" });
 
   // ZIP lookup -> auto city/state (no pisa si ya escribieron)
@@ -272,6 +284,56 @@ export function BrandingForm({
         <div>
           <Label>ZIP Code</Label>
           <Input disabled={disableAll} {...register("postalCode")} />
+        </div>
+
+        <div>
+          <Label>Branding Color</Label>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <input
+              type="color"
+              value={previewBrandingColor}
+              aria-label="Choose branding color"
+              className="h-10 w-14 rounded-md border border-input bg-background p-1"
+              disabled={disableAll}
+              onChange={(event) =>
+                setValue("brandingColor", event.target.value.toUpperCase(), {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+            <Input
+              disabled={disableAll}
+              maxLength={7}
+              className="w-32 font-mono uppercase"
+              {...register("brandingColor", {
+                required: "Branding color is required.",
+                pattern: {
+                  value: BRANDING_COLOR_PATTERN,
+                  message: "Use the format #RRGGBB.",
+                },
+              })}
+            />
+            <span
+              className="inline-flex h-10 items-center rounded-md px-3 text-xs font-semibold"
+              style={{
+                backgroundColor: previewBrandingColor,
+                color: previewTextColor,
+              }}
+            >
+              Report accent
+            </span>
+          </div>
+          {errors.brandingColor ? (
+            <p className="mt-1 text-sm text-destructive">
+              {errors.brandingColor.message}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Used for accent elements in reports and PDFs.
+            </p>
+          )}
         </div>
 
         <div>

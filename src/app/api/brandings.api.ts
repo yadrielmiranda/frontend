@@ -19,6 +19,7 @@ export type Branding = {
   postalCode: string | null;
 
   logoUrl: string | null;
+  brandingColor: string;
 
   isActive: boolean;
 
@@ -36,6 +37,7 @@ export type CreateBrandingData = {
   state?: string;
   postalCode?: string;
   logoUrl?: string;
+  brandingColor: string;
   isActive?: boolean;
 };
 
