@@ -290,27 +290,6 @@ export function PieceForm({
   startUnlocked = false,
   ...props
 }: PieceFormProps) {
-  // Para piezas nuevas resolvemos la cadena completa antes del primer render.
-  // Editar o duplicar una pieza siempre conserva sus selecciones existentes.
-  const shouldUseCatalogDefaults = Number(initialData.idProd || 0) === 0;
-  const initialDefaultProduct = shouldUseCatalogDefaults
-    ? props.productsWithBrands.find(
-        (product) => product.isActive === true && product.isDefault === true,
-      )
-    : undefined;
-  const initialDefaultBrandAssociation =
-    initialDefaultProduct?.brandProducts.find(
-      (association) =>
-        association.isDefault === true && association.brand.isActive === true,
-    );
-  const initialDefaultSystem = props.systemsWithConfigs.find(
-    (system) =>
-      system.isActive === true &&
-      system.isDefault === true &&
-      system.idProduct === initialDefaultProduct?.id &&
-      system.idBrand === initialDefaultBrandAssociation?.brand.id,
-  );
-
   const {
     control,
     register,
@@ -322,9 +301,9 @@ export function PieceForm({
   } = useForm<PieceFormValues>({
     defaultValues: {
       ...initialData,
-      idProd: initialDefaultProduct?.id ?? initialData.idProd,
-      idBrand: initialDefaultBrandAssociation?.brand.id ?? initialData.idBrand,
-      idSyst: initialDefaultSystem?.id ?? initialData.idSyst,
+      idProd: initialData.idProd,
+      idBrand: initialData.idBrand,
+      idSyst: initialData.idSyst,
       width: initialData.width ?? "",
       height: initialData.height ?? "",
       heightLeft: initialData.heightLeft ?? "",

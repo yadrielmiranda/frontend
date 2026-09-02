@@ -22,7 +22,6 @@ type FormData = {
   name: string;
   sortOrder: string;
   isActive: boolean;
-  isDefault: boolean;
   kind: ProductKind;
   diagramFamily: DiagramFamily;
 };
@@ -102,7 +101,6 @@ export function ProductForm({ product }: { product?: Product }) {
       name: product?.name ?? "",
       sortOrder: product?.sortOrder == null ? "" : String(product.sortOrder),
       isActive: product?.isActive ?? true,
-      isDefault: product?.isDefault ?? false,
       kind: product?.kind ?? "GLAZED_UNIT",
       diagramFamily: product?.diagramFamily ?? "GENERIC",
     },
@@ -120,7 +118,6 @@ export function ProductForm({ product }: { product?: Product }) {
       const payload = {
         name: data.name.trim(),
         ...(data.sortOrder === "" ? {} : { sortOrder: Number(data.sortOrder) }),
-        isDefault: product?.isDefault === true ? true : data.isDefault,
         kind: data.kind,
         pricingMode: getPricingModeFromKind(data.kind),
         diagramFamily: data.diagramFamily,
@@ -251,24 +248,6 @@ export function ProductForm({ product }: { product?: Product }) {
             uses the basic fallback diagram.
           </p>
         </div>
-
-        <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4"
-            disabled={showLoadingState || product?.isDefault === true}
-            {...register("isDefault")}
-          />
-
-          <span className="space-y-0.5">
-            <span className="block font-medium">Default Product</span>
-            <span className="block text-xs text-muted-foreground">
-              {product?.isDefault
-                ? "This is the current default. Set another Product as default to replace it."
-                : "Selects this Product automatically when a new Piece is opened."}
-            </span>
-          </span>
-        </label>
 
         {isEdit && (
           <label className="flex items-center gap-2 rounded-md border p-3 text-sm">

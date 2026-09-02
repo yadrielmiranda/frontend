@@ -50,7 +50,6 @@ export interface Product {
   name: string;
   sortOrder: number;
   isActive: boolean;
-  isDefault: boolean;
   kind: ProductKind;
   pricingMode: PricingMode;
   diagramFamily: DiagramFamily;
@@ -1305,7 +1304,6 @@ export type OrderWithRelations = Order & {
 export type CreateProductData = {
   name: string;
   sortOrder?: number;
-  isDefault?: boolean;
   kind?: ProductKind;
   pricingMode?: PricingMode;
   diagramFamily?: DiagramFamily;
@@ -1315,7 +1313,6 @@ export type UpdateProductData = {
   name?: string;
   sortOrder?: number;
   isActive?: boolean;
-  isDefault?: boolean;
   kind?: ProductKind;
   pricingMode?: PricingMode;
   diagramFamily?: DiagramFamily;
