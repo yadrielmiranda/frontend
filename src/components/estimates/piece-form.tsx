@@ -486,6 +486,51 @@ export function PieceForm({
       .filter(Boolean);
   }, [selectedSystem]);
 
+  useEffect(() => {
+    if (isLocked || !selectedSystem) return;
+
+    const currentFrameColorId = Number(getValues("idFC") || 0);
+    const currentFrameColorIsAvailable = availableFrameColors.some(
+      (frameColor) => frameColor.id === currentFrameColorId,
+    );
+
+    // No sobrescribimos el default del Estimate ni una selección manual válida.
+    if (currentFrameColorIsAvailable) return;
+
+    const estimateFrameColorId = Number(initialData.idFC || 0);
+    const estimateFrameColorIsAvailable = availableFrameColors.some(
+      (frameColor) => frameColor.id === estimateFrameColorId,
+    );
+    const systemDefaultFrameColorId = Number(
+      selectedSystem.systemFrameColors?.find(
+        (association) => association.isDefault === true,
+      )?.idFrameColor || 0,
+    );
+    const systemDefaultIsAvailable = availableFrameColors.some(
+      (frameColor) => frameColor.id === systemDefaultFrameColorId,
+    );
+
+    const nextFrameColorId = estimateFrameColorIsAvailable
+      ? estimateFrameColorId
+      : systemDefaultIsAvailable
+        ? systemDefaultFrameColorId
+        : 0;
+
+    if (currentFrameColorId === nextFrameColorId) return;
+
+    setValue("idFC", nextFrameColorId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [
+    isLocked,
+    selectedSystem,
+    availableFrameColors,
+    initialData.idFC,
+    getValues,
+    setValue,
+  ]);
+
   const availableTints = useMemo(() => {
     const selectedBrandId = Number(brandId || 0);
     if (!selectedBrandId || isLinearMaterial) return [];
@@ -2387,22 +2432,6 @@ export function PieceForm({
                             setValue("highBottomPercent", null);
                             setValue("sashHeight", "");
                             setValue("windowHeight", "");
-
-                            // mantener color actual si ya existe
-                            const currentColor = getValues("idFC");
-
-                            // solo usar default del estimate si la pieza aún no tiene color
-                            if (!currentColor || currentColor === 0) {
-                              const inheritedDefaultColor =
-                                Number(initialData.idFC) || 0;
-
-                              if (inheritedDefaultColor > 0) {
-                                setValue("idFC", inheritedDefaultColor, {
-                                  shouldDirty: false,
-                                  shouldValidate: true,
-                                });
-                              }
-                            }
 
                             setValue("idCryst", 0, {
                               shouldDirty: true,

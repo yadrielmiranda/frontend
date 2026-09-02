@@ -79,6 +79,7 @@ export type UpdateSystemFrameColorsData = {
   frameColors: Array<{
     frameColorId: number;
     sortOrder: number;
+    isDefault: boolean;
   }>;
 };
 
@@ -109,6 +110,7 @@ export type SystemFrameColorsManage = {
   selectedFrameColors: Array<{
     idFrameColor: number;
     sortOrder: number;
+    isDefault: boolean;
   }>;
   frameColorsCatalog: FrameColor[];
 };

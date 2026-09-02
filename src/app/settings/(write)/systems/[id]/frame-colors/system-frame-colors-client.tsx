@@ -48,21 +48,27 @@ export function SystemFrameColorsClient({
       data.selectedFrameColorIds.map((idFrameColor, sortOrder) => ({
         idFrameColor,
         sortOrder,
+        isDefault: sortOrder === 0,
       }));
     const associationById = new Map(
       associations.map((association) => [
         association.idFrameColor,
-        association.sortOrder,
+        association,
       ]),
     );
 
     return data.frameColorsCatalog
       .filter((frameColor) => associationById.has(frameColor.id))
-      .map((frameColor) => ({
-        id: frameColor.id,
-        color: frameColor.color,
-        sortOrder: associationById.get(frameColor.id) ?? 0,
-      }))
+      .map((frameColor) => {
+        const association = associationById.get(frameColor.id);
+
+        return {
+          id: frameColor.id,
+          color: frameColor.color,
+          sortOrder: association?.sortOrder ?? 0,
+          isDefault: association?.isDefault === true,
+        };
+      })
       .sort(
         (left, right) =>
           left.sortOrder - right.sortOrder ||
@@ -118,6 +124,7 @@ export function SystemFrameColorsClient({
         frameColors: nextFrameColors.map((frameColor) => ({
           frameColorId: frameColor.id,
           sortOrder: frameColor.sortOrder,
+          isDefault: frameColor.isDefault,
         })),
       });
 
@@ -148,6 +155,7 @@ export function SystemFrameColorsClient({
         id: frameColor.id,
         color: frameColor.color,
         sortOrder: highestOrder + 1,
+        isDefault: !associatedFrameColors.some((item) => item.isDefault),
       },
     ];
 
@@ -161,14 +169,37 @@ export function SystemFrameColorsClient({
   };
 
   const handleRemove = async (frameColorId: number) => {
-    const nextFrameColors = associatedFrameColors.filter(
+    let nextFrameColors = associatedFrameColors.filter(
       (frameColor) => frameColor.id !== frameColorId,
     );
+
+    if (
+      nextFrameColors.length > 0 &&
+      !nextFrameColors.some((frameColor) => frameColor.isDefault)
+    ) {
+      nextFrameColors = nextFrameColors.map((frameColor, index) => ({
+        ...frameColor,
+        isDefault: index === 0,
+      }));
+    }
 
     await runAction(
       nextFrameColors,
       "Frame color removed successfully.",
       "Error removing frame color.",
+    );
+  };
+
+  const handleSetDefault = async (frameColorId: number) => {
+    const nextFrameColors = associatedFrameColors.map((frameColor) => ({
+      ...frameColor,
+      isDefault: frameColor.id === frameColorId,
+    }));
+
+    await runAction(
+      nextFrameColors,
+      "Default frame color updated successfully.",
+      "Error updating default frame color.",
     );
   };
 
@@ -193,6 +224,7 @@ export function SystemFrameColorsClient({
   const associatedColumns = getAssociatedFrameColorsColumns(
     handleRemove,
     handleOrderChange,
+    handleSetDefault,
   );
 
   const availableColumns = getAvailableFrameColorsColumns(handleAdd);

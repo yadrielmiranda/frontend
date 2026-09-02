@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { XCircle, PlusCircle } from "lucide-react";
+import { CheckCircle2, Circle, XCircle, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Tooltip,
@@ -18,6 +19,7 @@ export type AssociatedFrameColor = {
   id: number;
   color: string;
   sortOrder: number;
+  isDefault: boolean;
 };
 
 export type AvailableFrameColor = {
@@ -28,10 +30,47 @@ export type AvailableFrameColor = {
 export const getAssociatedFrameColorsColumns = (
   handleRemove: (frameColorId: number) => Promise<void>,
   handleOrderChange: (frameColorId: number, sortOrder: number) => void,
+  handleSetDefault: (frameColorId: number) => Promise<void>,
 ): ColumnDef<AssociatedFrameColor>[] => [
   {
     accessorKey: "color",
     header: "Associated Frame Color",
+  },
+  {
+    id: "default",
+    header: "Default",
+    cell: ({ row }) => {
+      const frameColor = row.original;
+
+      if (frameColor.isDefault) {
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+            Default
+          </Badge>
+        );
+      }
+
+      return (
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSetDefault(frameColor.id)}
+                className="gap-1 text-muted-foreground hover:text-blue-600"
+              >
+                <Circle className="h-3.5 w-3.5" />
+                Set default
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Set as default frame color</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
   },
   {
     accessorKey: "sortOrder",

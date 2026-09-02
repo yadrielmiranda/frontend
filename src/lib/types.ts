@@ -118,6 +118,7 @@ export interface System {
   systemFrameColors?: {
     idFrameColor: number;
     sortOrder?: number;
+    isDefault?: boolean;
     frameColor: FrameColor;
   }[];
 }
