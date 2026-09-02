@@ -94,17 +94,6 @@ export function SystemFrameColorsClient({
     [associatedFrameColors],
   );
 
-  const hasOrderChanges =
-    JSON.stringify(
-      associatedFrameColors.map(({ id, sortOrder }) => ({ id, sortOrder })),
-    ) !==
-    JSON.stringify(
-      initialAssociatedFrameColors.map(({ id, sortOrder }) => ({
-        id,
-        sortOrder,
-      })),
-    );
-
   const availableFrameColors = useMemo<AvailableFrameColor[]>(() => {
     return data.frameColorsCatalog
       .filter((frameColor) => !selectedFrameColorIds.includes(frameColor.id))
@@ -203,19 +192,15 @@ export function SystemFrameColorsClient({
     );
   };
 
-  const handleOrderChange = (frameColorId: number, sortOrder: number) => {
-    setAssociatedFrameColors((current) =>
-      current.map((frameColor) =>
-        frameColor.id === frameColorId
-          ? { ...frameColor, sortOrder }
-          : frameColor,
-      ),
+  const handleUpdateOrder = async (frameColorId: number, sortOrder: number) => {
+    const nextFrameColors = associatedFrameColors.map((frameColor) =>
+      frameColor.id === frameColorId
+        ? { ...frameColor, sortOrder }
+        : frameColor,
     );
-  };
 
-  const handleSaveOrder = async () => {
-    await runAction(
-      associatedFrameColors,
+    return runAction(
+      nextFrameColors,
       "Frame color order updated successfully.",
       "Error updating frame color order.",
     );
@@ -223,7 +208,7 @@ export function SystemFrameColorsClient({
 
   const associatedColumns = getAssociatedFrameColorsColumns(
     handleRemove,
-    handleOrderChange,
+    handleUpdateOrder,
     handleSetDefault,
   );
 
@@ -235,15 +220,6 @@ export function SystemFrameColorsClient({
   return (
     <div className="space-y-6">
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!hasOrderChanges}
-          onClick={handleSaveOrder}
-        >
-          Save Order
-        </Button>
-
         <TooltipProvider>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <Tooltip>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Circle, XCircle, PlusCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,9 +28,77 @@ export type AvailableFrameColor = {
   color: string;
 };
 
+function FrameColorOrderInput({
+  frameColor,
+  onSave,
+}: {
+  frameColor: AssociatedFrameColor;
+  onSave: (frameColorId: number, sortOrder: number) => Promise<boolean>;
+}) {
+  const [orderValue, setOrderValue] = useState(String(frameColor.sortOrder));
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setOrderValue(String(frameColor.sortOrder));
+  }, [frameColor.sortOrder]);
+
+  const handleSave = async () => {
+    if (isSaving) return;
+
+    const normalizedValue = orderValue.trim();
+    const nextOrder = Number(normalizedValue);
+
+    if (
+      normalizedValue === "" ||
+      !Number.isInteger(nextOrder) ||
+      nextOrder < 0
+    ) {
+      toast.error("Order must be a whole number greater than or equal to 0.");
+      setOrderValue(String(frameColor.sortOrder));
+      return;
+    }
+
+    if (nextOrder === frameColor.sortOrder) return;
+
+    setIsSaving(true);
+
+    try {
+      const saved = await onSave(frameColor.id, nextOrder);
+
+      if (!saved) {
+        setOrderValue(String(frameColor.sortOrder));
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      min="0"
+      step="1"
+      value={orderValue}
+      disabled={isSaving}
+      className="w-24"
+      aria-label={`${frameColor.color} order`}
+      onChange={(event) => setOrderValue(event.target.value)}
+      onBlur={() => void handleSave()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 export const getAssociatedFrameColorsColumns = (
   handleRemove: (frameColorId: number) => Promise<void>,
-  handleOrderChange: (frameColorId: number, sortOrder: number) => void,
+  handleUpdateOrder: (
+    frameColorId: number,
+    sortOrder: number,
+  ) => Promise<boolean>,
   handleSetDefault: (frameColorId: number) => Promise<void>,
 ): ColumnDef<AssociatedFrameColor>[] => [
   {
@@ -76,19 +145,9 @@ export const getAssociatedFrameColorsColumns = (
     accessorKey: "sortOrder",
     header: "Order",
     cell: ({ row }) => (
-      <Input
-        type="number"
-        min="0"
-        step="1"
-        value={row.original.sortOrder}
-        className="w-24"
-        aria-label={`${row.original.color} order`}
-        onChange={(event) =>
-          handleOrderChange(
-            row.original.id,
-            Math.max(0, Number(event.target.value) || 0),
-          )
-        }
+      <FrameColorOrderInput
+        frameColor={row.original}
+        onSave={handleUpdateOrder}
       />
     ),
   },
