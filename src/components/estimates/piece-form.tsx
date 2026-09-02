@@ -1312,10 +1312,8 @@ export function PieceForm({
   useEffect(() => {
     const defaultItems = [
       "item-frame",
-      ...(hasOptionsSection ? ["item-options"] : []),
-      "item-size",
-      ...(!isLinearMaterial ? ["item-glass", "item-muntin"] : []),
-      "item-details",
+      "item-details-size",
+      ...(hasOptionsSection || !isLinearMaterial ? ["item-options"] : []),
     ];
 
     setActiveAccordionItems((prev) => {
@@ -2211,7 +2209,7 @@ export function PieceForm({
 
               <AccordionContent>
                 <div
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
+                  className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-3 ${
                     isLocked ? "opacity-70" : ""
                   }`}
                 >
@@ -2488,294 +2486,187 @@ export function PieceForm({
                       </p>
                     )}
                   </div>
+
+                  {!isLinearMaterial && (
+                    <>
+                      <div>
+                        <Label className={fieldLabelClass}>Tint</Label>
+                        <Controller
+                          name="idTint"
+                          control={control}
+                          rules={{ required: true, min: 1 }}
+                          render={({ field }) => (
+                            <Select
+                              disabled={isLocked || !brandId}
+                              onValueChange={(v) => field.onChange(Number(v))}
+                              value={String(field.value || "0")}
+                            >
+                              <SelectTrigger className={selectTriggerClass}>
+                                <SelectValue placeholder="Select tint" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableTints.map((t) => (
+                                  <SelectItem key={t.id} value={String(t.id)}>
+                                    <ColorSelectOption
+                                      label={t.color}
+                                      hexCode={t.hexCode}
+                                    />
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.idTint && (
+                          <p className="mt-1 text-xs text-red-500">
+                            Tint required
+                          </p>
+                        )}
+                        {!errors.idTint &&
+                          Number(brandId) > 0 &&
+                          availableTints.length === 0 && (
+                            <p className="mt-1 text-xs text-red-500">
+                              No active Tint is configured for this Brand.
+                            </p>
+                          )}
+                      </div>
+
+                      <div>
+                        <Label className={fieldLabelClass}>Coating</Label>
+                        <Controller
+                          name="idCoat"
+                          control={control}
+                          rules={{ required: true, min: 1 }}
+                          render={({ field }) => (
+                            <Select
+                              disabled={isLocked || !brandId}
+                              onValueChange={(v) => field.onChange(Number(v))}
+                              value={String(field.value || "0")}
+                            >
+                              <SelectTrigger className={selectTriggerClass}>
+                                <SelectValue placeholder="Select coating" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableCoatings.map((c) => (
+                                  <SelectItem key={c.id} value={String(c.id)}>
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.idCoat && (
+                          <p className="mt-1 text-xs text-red-500">
+                            Coating required
+                          </p>
+                        )}
+                        {!errors.idCoat &&
+                          Number(brandId) > 0 &&
+                          availableCoatings.length === 0 && (
+                            <p className="mt-1 text-xs text-red-500">
+                              No active Coating is configured for this Brand.
+                            </p>
+                          )}
+                      </div>
+
+                      <div>
+                        <Label className={fieldLabelClass}>Privacy</Label>
+                        <Controller
+                          name="idPrivacy"
+                          control={control}
+                          rules={{ required: true, min: 1 }}
+                          render={({ field }) => (
+                            <Select
+                              disabled={isLocked || !brandId}
+                              onValueChange={(value) =>
+                                field.onChange(Number(value))
+                              }
+                              value={String(field.value || "0")}
+                            >
+                              <SelectTrigger className={selectTriggerClass}>
+                                <SelectValue placeholder="Select privacy" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availablePrivacies.map((privacy) => (
+                                  <SelectItem
+                                    key={privacy.id}
+                                    value={String(privacy.id)}
+                                  >
+                                    {privacy.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.idPrivacy && (
+                          <p className="mt-1 text-xs text-red-500">
+                            Privacy required
+                          </p>
+                        )}
+                        {!errors.idPrivacy &&
+                          Number(brandId) > 0 &&
+                          availablePrivacies.length === 0 && (
+                            <p className="mt-1 text-xs text-red-500">
+                              No active Privacy is configured for this Brand.
+                            </p>
+                          )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            {hasOptionsSection && (
-              <AccordionItem value="item-options">
-                <AccordionTrigger className="font-semibold text-base">
-                  Options
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div
-                    className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
-                  >
-                    {highBottomAllowed && (
-                      <div className="flex flex-col gap-2">
-                        <Controller
-                          name="highBottom"
-                          control={control}
-                          render={({ field }) => (
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                id={`highBottom-${index}`}
-                                checked={field.value === true}
-                                onCheckedChange={(v) =>
-                                  field.onChange(v === true)
-                                }
-                                disabled={isLocked}
-                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                              />
-
-                              <Label
-                                htmlFor={`highBottom-${index}`}
-                                className="cursor-pointer select-none text-sm"
-                              >
-                                High Bottom
-                              </Label>
-                            </div>
-                          )}
-                        />
-
-                        <p className="text-xs text-muted-foreground">
-                          Applies High Bottom to this piece.
-                        </p>
-                      </div>
-                    )}
-                    {screenAllowed && (
-                      <div className="flex flex-col gap-2">
-                        <Controller
-                          name="screen"
-                          control={control}
-                          render={({ field }) => (
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                id={`screen-${index}`}
-                                checked={!!field.value}
-                                onCheckedChange={(v) =>
-                                  field.onChange(Boolean(v))
-                                }
-                                disabled={isLocked}
-                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
-                              />
-                              <Label
-                                htmlFor={`screen-${index}`}
-                                className="cursor-pointer select-none text-sm"
-                              >
-                                Screen
-                              </Label>
-                            </div>
-                          )}
-                        />
-
-                        <p className="text-xs text-muted-foreground">
-                          Screen is allowed for this configuration and is
-                          selected by default.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {availableActiveOptions.length > 0 && (
-                        <div>
-                          <Label>Active</Label>
-                          <Controller
-                            name="idActiveOption"
-                            control={control}
-                            rules={{ required: "Active option is required" }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(value) => {
-                                  const nextOption =
-                                    availableActiveOptions.find(
-                                      (option) => String(option.id) === value,
-                                    ) ?? null;
-
-                                  field.onChange(nextOption?.id ?? null);
-                                }}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select active..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableActiveOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idActiveOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idActiveOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {availablePreparationOptions.length > 0 && (
-                        <div>
-                          <Label>Preparation</Label>
-                          <Controller
-                            name="idPreparationOption"
-                            control={control}
-                            rules={{
-                              required: "Preparation option is required",
-                            }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select preparation..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availablePreparationOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idPreparationOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idPreparationOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {availableSillOptions.length > 0 && (
-                        <div>
-                          <Label>Sill</Label>
-                          <Controller
-                            name="idSillOption"
-                            control={control}
-                            rules={{ required: "Sill option is required" }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select sill..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableSillOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idSillOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idSillOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {availableReinforcementOptions.length > 0 && (
-                        <div>
-                          <Label>Reinforcement</Label>
-                          <Controller
-                            name="idReinforcementOption"
-                            control={control}
-                            rules={{
-                              required: "Reinforcement option is required",
-                            }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => {
-                                  field.onChange(Number(v));
-
-                                  setValue("idReinforcementOption", Number(v), {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  });
-
-                                  setValue("idCryst", 0, {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  });
-                                }}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select reinforcement..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableReinforcementOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idReinforcementOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idReinforcementOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            <AccordionItem value="item-size">
+            <AccordionItem value="item-details-size">
               <AccordionTrigger className="font-semibold text-base">
-                Size
+                Details & Size
               </AccordionTrigger>
               <AccordionContent>
                 <div className={`pt-4 ${isLocked ? "opacity-70" : ""}`}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <Label className={fieldLabelClass}>Mark</Label>
+                      <Input
+                        className={inputClass}
+                        disabled={isLocked}
+                        {...register("mark")}
+                      />
+                      {errors.mark && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.mark.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label className={fieldLabelClass}>Quantity</Label>
+                      <Input
+                        className={inputClass}
+                        type="number"
+                        disabled={isLocked}
+                        {...register("qty", {
+                          required: "Qty is required",
+                          valueAsNumber: true,
+                          min: { value: 1, message: "Min qty is 1" },
+                        })}
+                      />
+                      {errors.qty && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.qty.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   {!idConf && (
                     <p className="text-sm text-muted-foreground">
                       Select a configuration to see required dimensions.
                     </p>
                   )}
 
-                  {idConf && (
+                  {Number(idConf) > 0 && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
                       <div className="flex flex-wrap gap-4">
                         {dimensionRequirements.requiresWidth && (
@@ -3454,427 +3345,520 @@ export function PieceForm({
               </AccordionContent>
             </AccordionItem>
 
-            {!isLinearMaterial && (
-              <AccordionItem value="item-glass">
+            {(hasOptionsSection || !isLinearMaterial) && (
+              <AccordionItem value="item-options">
                 <AccordionTrigger className="font-semibold text-base">
-                  Glass
+                  Options
                 </AccordionTrigger>
                 <AccordionContent>
                   <div
-                    className={`grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 ${
-                      isLocked ? "opacity-70" : ""
-                    }`}
+                    className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
                   >
-                    <div>
-                      <Label className={fieldLabelClass}>Type</Label>
-                      <Controller
-                        name="idCryst"
-                        control={control}
-                        rules={{ required: true, min: 1 }}
-                        render={({ field }) => (
-                          <Select
-                            disabled={
-                              isLocked ||
-                              !systemId ||
-                              !idConf ||
-                              isLoadingDimensionPolicies ||
-                              (reinforcementRequired &&
-                                !selectedReinforcementOptionId) ||
-                              availableCrystals.length === 0
-                            }
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={String(field.value || "0")}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select glass type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {crystalSelectOptions.map((crystal) => {
-                                const isUnavailableOption =
-                                  selectedCrystalUnavailable &&
-                                  crystal.id === selectedCrystalId;
-
-                                return (
-                                  <SelectItem
-                                    key={crystal.id}
-                                    value={String(crystal.id)}
-                                    disabled={isUnavailableOption}
-                                  >
-                                    {crystal.glass}
-                                    {isUnavailableOption
-                                      ? " (Unavailable)"
-                                      : ""}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.idCryst && (
-                        <p className="mt-1 text-xs text-red-500">
-                          Type required
-                        </p>
-                      )}
-                      {!errors.idCryst && selectedCrystalUnavailable && (
-                        <p className="mt-1 text-xs text-red-500">
-                          This glass is currently unavailable. Select another
-                          glass before recalculating.
-                        </p>
-                      )}
-                      {!errors.idCryst &&
-                        systemId &&
-                        idConf &&
-                        reinforcementRequired &&
-                        !selectedReinforcementOptionId && (
-                          <p className="mt-1 text-xs text-amber-600">
-                            Select a Reinforcement option first.
-                          </p>
-                        )}
-
-                      {!errors.idCryst &&
-                        !selectedCrystalUnavailable &&
-                        systemId &&
-                        idConf &&
-                        !isLoadingDimensionPolicies &&
-                        (!reinforcementRequired ||
-                          selectedReinforcementOptionId) &&
-                        availableCrystals.length === 0 && (
-                          <p className="mt-1 text-xs text-red-500">
-                            {reinforcementRequired
-                              ? "No rated glass is available for this System + Config + Reinforcement."
-                              : "No rated glass is available for this System + Config."}
-                          </p>
-                        )}
-                    </div>
-
-                    <div>
-                      <Label className={fieldLabelClass}>Tint</Label>
-                      <Controller
-                        name="idTint"
-                        control={control}
-                        rules={{ required: true, min: 1 }}
-                        render={({ field }) => (
-                          <Select
-                            disabled={isLocked || !brandId}
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={String(field.value || "0")}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select tint" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableTints.map((t) => (
-                                <SelectItem key={t.id} value={String(t.id)}>
-                                  <ColorSelectOption
-                                    label={t.color}
-                                    hexCode={t.hexCode}
-                                  />
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.idTint && (
-                        <p className="mt-1 text-xs text-red-500">
-                          Tint required
-                        </p>
-                      )}
-                      {!errors.idTint &&
-                        brandId &&
-                        availableTints.length === 0 && (
-                          <p className="mt-1 text-xs text-red-500">
-                            No active Tint is configured for this Brand.
-                          </p>
-                        )}
-                    </div>
-
-                    <div>
-                      <Label className={fieldLabelClass}>Coating</Label>
-                      <Controller
-                        name="idCoat"
-                        control={control}
-                        rules={{ required: true, min: 1 }}
-                        render={({ field }) => (
-                          <Select
-                            disabled={isLocked || !brandId}
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={String(field.value || "0")}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select coating" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableCoatings.map((c) => (
-                                <SelectItem key={c.id} value={String(c.id)}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.idCoat && (
-                        <p className="mt-1 text-xs text-red-500">
-                          Coating required
-                        </p>
-                      )}
-                      {!errors.idCoat &&
-                        brandId &&
-                        availableCoatings.length === 0 && (
-                          <p className="mt-1 text-xs text-red-500">
-                            No active Coating is configured for this Brand.
-                          </p>
-                        )}
-                    </div>
-
-                    <div>
-                      <Label className={fieldLabelClass}>Privacy</Label>
-                      <Controller
-                        name="idPrivacy"
-                        control={control}
-                        rules={{ required: true, min: 1 }}
-                        render={({ field }) => (
-                          <Select
-                            disabled={isLocked || !brandId}
-                            onValueChange={(value) =>
-                              field.onChange(Number(value))
-                            }
-                            value={String(field.value || "0")}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder="Select privacy" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availablePrivacies.map((privacy) => (
-                                <SelectItem
-                                  key={privacy.id}
-                                  value={String(privacy.id)}
-                                >
-                                  {privacy.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.idPrivacy && (
-                        <p className="mt-1 text-xs text-red-500">
-                          Privacy required
-                        </p>
-                      )}
-                      {!errors.idPrivacy &&
-                        brandId &&
-                        availablePrivacies.length === 0 && (
-                          <p className="mt-1 text-xs text-red-500">
-                            No active Privacy is configured for this Brand.
-                          </p>
-                        )}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            {!isLinearMaterial && (
-              <div className="border-b last:border-b-0">
-                <button
-                  type="button"
-                  onClick={() => setIsMuntinOpen((prev) => !prev)}
-                  className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
-                >
-                  <span className="text-base font-semibold">Muntin</span>
-
-                  <ChevronDownIcon
-                    className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
-                      isMuntinOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {isMuntinOpen && (
-                  <div className="pb-4 text-sm">
-                    {!selectedConfig ? (
-                      <p className="text-sm text-muted-foreground pt-2">
-                        Select a configuration first to configure muntin.
-                      </p>
-                    ) : !currentMuntin ? (
-                      <p className="text-sm text-muted-foreground pt-2">
-                        Muntin will be initialized automatically for this
-                        configuration.
-                      </p>
-                    ) : (
-                      <div
-                        className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div>
-                            <Label className={fieldLabelClass}>Pattern</Label>
-                            <Select
-                              disabled={isLocked}
-                              value={String(currentMuntin.idPattern || "")}
-                              onValueChange={handleMuntinPatternChange}
-                            >
-                              <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select pattern..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {activeMuntinPatterns.map((pattern) => (
-                                  <SelectItem
-                                    key={pattern.id}
-                                    value={String(pattern.id)}
-                                  >
-                                    {pattern.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {patternRequiresLites && hasMuntinLayout && (
-                            <div>
-                              <Label className={fieldLabelClass}>Type</Label>
+                    {!isLinearMaterial && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div>
+                          <Label className={fieldLabelClass}>Type</Label>
+                          <Controller
+                            name="idCryst"
+                            control={control}
+                            rules={{ required: true, min: 1 }}
+                            render={({ field }) => (
                               <Select
-                                disabled={isLocked}
-                                value={
-                                  currentMuntin?.idType
-                                    ? String(currentMuntin.idType)
-                                    : undefined
+                                disabled={
+                                  isLocked ||
+                                  !systemId ||
+                                  !idConf ||
+                                  isLoadingDimensionPolicies ||
+                                  (reinforcementRequired &&
+                                    !selectedReinforcementOptionId) ||
+                                  availableCrystals.length === 0
                                 }
-                                onValueChange={handleMuntinTypeChange}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                value={String(field.value || "0")}
                               >
                                 <SelectTrigger className={selectTriggerClass}>
-                                  <SelectValue placeholder="Select type..." />
+                                  <SelectValue placeholder="Select glass type" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {activeMuntinTypes.map((type) => (
+                                  {crystalSelectOptions.map((crystal) => {
+                                    const isUnavailableOption =
+                                      selectedCrystalUnavailable &&
+                                      crystal.id === selectedCrystalId;
+
+                                    return (
+                                      <SelectItem
+                                        key={crystal.id}
+                                        value={String(crystal.id)}
+                                        disabled={isUnavailableOption}
+                                      >
+                                        {crystal.glass}
+                                        {isUnavailableOption
+                                          ? " (Unavailable)"
+                                          : ""}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idCryst && (
+                            <p className="mt-1 text-xs text-red-500">
+                              Type required
+                            </p>
+                          )}
+                          {!errors.idCryst && selectedCrystalUnavailable && (
+                            <p className="mt-1 text-xs text-red-500">
+                              This glass is currently unavailable. Select another
+                              glass before recalculating.
+                            </p>
+                          )}
+                          {!errors.idCryst &&
+                            Number(systemId) > 0 &&
+                            Number(idConf) > 0 &&
+                            reinforcementRequired &&
+                            !selectedReinforcementOptionId && (
+                              <p className="mt-1 text-xs text-amber-600">
+                                Select a Reinforcement option first.
+                              </p>
+                            )}
+
+                          {!errors.idCryst &&
+                            !selectedCrystalUnavailable &&
+                            Number(systemId) > 0 &&
+                            Number(idConf) > 0 &&
+                            !isLoadingDimensionPolicies &&
+                            (!reinforcementRequired ||
+                              Boolean(selectedReinforcementOptionId)) &&
+                            availableCrystals.length === 0 && (
+                              <p className="mt-1 text-xs text-red-500">
+                                {reinforcementRequired
+                                  ? "No rated glass is available for this System + Config + Reinforcement."
+                                  : "No rated glass is available for this System + Config."}
+                              </p>
+                            )}
+                        </div>
+                      </div>
+                    )}
+
+                    {highBottomAllowed && (
+                      <div className="flex flex-col gap-2">
+                        <Controller
+                          name="highBottom"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={`highBottom-${index}`}
+                                checked={field.value === true}
+                                onCheckedChange={(v) =>
+                                  field.onChange(v === true)
+                                }
+                                disabled={isLocked}
+                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                              />
+
+                              <Label
+                                htmlFor={`highBottom-${index}`}
+                                className="cursor-pointer select-none text-sm"
+                              >
+                                High Bottom
+                              </Label>
+                            </div>
+                          )}
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                          Applies High Bottom to this piece.
+                        </p>
+                      </div>
+                    )}
+                    {screenAllowed && (
+                      <div className="flex flex-col gap-2">
+                        <Controller
+                          name="screen"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={`screen-${index}`}
+                                checked={!!field.value}
+                                onCheckedChange={(v) =>
+                                  field.onChange(Boolean(v))
+                                }
+                                disabled={isLocked}
+                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                              />
+                              <Label
+                                htmlFor={`screen-${index}`}
+                                className="cursor-pointer select-none text-sm"
+                              >
+                                Screen
+                              </Label>
+                            </div>
+                          )}
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                          Screen is allowed for this configuration and is
+                          selected by default.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableActiveOptions.length > 0 && (
+                        <div>
+                          <Label>Active</Label>
+                          <Controller
+                            name="idActiveOption"
+                            control={control}
+                            rules={{ required: "Active option is required" }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(value) => {
+                                  const nextOption =
+                                    availableActiveOptions.find(
+                                      (option) => String(option.id) === value,
+                                    ) ?? null;
+
+                                  field.onChange(nextOption?.id ?? null);
+                                }}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select active..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableActiveOptions.map((opt) => (
                                     <SelectItem
-                                      key={type.id}
-                                      value={String(type.id)}
+                                      key={opt.id}
+                                      value={String(opt.id)}
                                     >
-                                      {type.name}
+                                      {opt.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
+                            )}
+                          />
+                          {errors.idActiveOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idActiveOption.message}
+                            </p>
                           )}
                         </div>
+                      )}
 
-                        {!patternRequiresLites ? (
-                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                            This pattern does not use lites. Full view will be
-                            shown.
-                          </div>
-                        ) : !hasMuntinLayout ? (
-                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                            This configuration supports Full View only.
-                          </div>
-                        ) : currentMuntinPanels.length === 0 ? (
-                          <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                            This configuration does not define a muntin panel
-                            layout.
-                          </div>
-                        ) : (
-                          <div className="rounded-md border border-slate-200 overflow-hidden">
-                            <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                              <div>Panel</div>
-                              <div>Horizontal</div>
-                              <div>Vertical</div>
-                            </div>
+                      {availablePreparationOptions.length > 0 && (
+                        <div>
+                          <Label>Preparation</Label>
+                          <Controller
+                            name="idPreparationOption"
+                            control={control}
+                            rules={{
+                              required: "Preparation option is required",
+                            }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select preparation..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availablePreparationOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idPreparationOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idPreparationOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
-                            <div className="divide-y divide-slate-200 bg-white">
-                              {currentMuntinPanels.map((panel) => (
-                                <div
-                                  key={panel.panelIndex}
-                                  className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
-                                >
-                                  <div className="font-medium text-slate-700">
-                                    {panel.panelLabel}
+                      {availableSillOptions.length > 0 && (
+                        <div>
+                          <Label>Sill</Label>
+                          <Controller
+                            name="idSillOption"
+                            control={control}
+                            rules={{ required: "Sill option is required" }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select sill..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableSillOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idSillOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idSillOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {availableReinforcementOptions.length > 0 && (
+                        <div>
+                          <Label>Reinforcement</Label>
+                          <Controller
+                            name="idReinforcementOption"
+                            control={control}
+                            rules={{
+                              required: "Reinforcement option is required",
+                            }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => {
+                                  field.onChange(Number(v));
+
+                                  setValue("idReinforcementOption", Number(v), {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+
+                                  setValue("idCryst", 0, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+                                }}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select reinforcement..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableReinforcementOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idReinforcementOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idReinforcementOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {!isLinearMaterial && (
+                      <div className="border-t border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setIsMuntinOpen((prev) => !prev)}
+                          className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
+                        >
+                          <span className="text-base font-semibold">Muntin</span>
+
+                          <ChevronDownIcon
+                            className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
+                              isMuntinOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+
+                        {isMuntinOpen && (
+                          <div className="pb-4 text-sm">
+                            {!selectedConfig ? (
+                              <p className="text-sm text-muted-foreground pt-2">
+                                Select a configuration first to configure muntin.
+                              </p>
+                            ) : !currentMuntin ? (
+                              <p className="text-sm text-muted-foreground pt-2">
+                                Muntin will be initialized automatically for this
+                                configuration.
+                              </p>
+                            ) : (
+                              <div
+                                className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                  <div>
+                                    <Label className={fieldLabelClass}>Pattern</Label>
+                                    <Select
+                                      disabled={isLocked}
+                                      value={String(currentMuntin.idPattern || "")}
+                                      onValueChange={handleMuntinPatternChange}
+                                    >
+                                      <SelectTrigger className={selectTriggerClass}>
+                                        <SelectValue placeholder="Select pattern..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {activeMuntinPatterns.map((pattern) => (
+                                          <SelectItem
+                                            key={pattern.id}
+                                            value={String(pattern.id)}
+                                          >
+                                            {pattern.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
 
-                                  <Input
-                                    className={inputClass}
-                                    type="number"
-                                    min={1}
-                                    disabled={isLocked}
-                                    value={panel.horizontalLites}
-                                    onChange={(e) =>
-                                      handleMuntinPanelChange(
-                                        panel.panelIndex,
-                                        "horizontalLites",
-                                        e.target.value,
-                                      )
-                                    }
-                                  />
-
-                                  <Input
-                                    className={inputClass}
-                                    type="number"
-                                    min={1}
-                                    disabled={isLocked}
-                                    value={panel.verticalLites}
-                                    onChange={(e) =>
-                                      handleMuntinPanelChange(
-                                        panel.panelIndex,
-                                        "verticalLites",
-                                        e.target.value,
-                                      )
-                                    }
-                                  />
+                                  {patternRequiresLites && hasMuntinLayout && (
+                                    <div>
+                                      <Label className={fieldLabelClass}>Type</Label>
+                                      <Select
+                                        disabled={isLocked}
+                                        value={
+                                          currentMuntin?.idType
+                                            ? String(currentMuntin.idType)
+                                            : undefined
+                                        }
+                                        onValueChange={handleMuntinTypeChange}
+                                      >
+                                        <SelectTrigger className={selectTriggerClass}>
+                                          <SelectValue placeholder="Select type..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {activeMuntinTypes.map((type) => (
+                                            <SelectItem
+                                              key={type.id}
+                                              value={String(type.id)}
+                                            >
+                                              {type.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
+
+                                {!patternRequiresLites ? (
+                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                    This pattern does not use lites. Full view will be
+                                    shown.
+                                  </div>
+                                ) : !hasMuntinLayout ? (
+                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                    This configuration supports Full View only.
+                                  </div>
+                                ) : currentMuntinPanels.length === 0 ? (
+                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                    This configuration does not define a muntin panel
+                                    layout.
+                                  </div>
+                                ) : (
+                                  <div className="rounded-md border border-slate-200 overflow-hidden">
+                                    <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                                      <div>Panel</div>
+                                      <div>Horizontal</div>
+                                      <div>Vertical</div>
+                                    </div>
+
+                                    <div className="divide-y divide-slate-200 bg-white">
+                                      {currentMuntinPanels.map((panel) => (
+                                        <div
+                                          key={panel.panelIndex}
+                                          className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                                        >
+                                          <div className="font-medium text-slate-700">
+                                            {panel.panelLabel}
+                                          </div>
+
+                                          <Input
+                                            className={inputClass}
+                                            type="number"
+                                            min={1}
+                                            disabled={isLocked}
+                                            value={panel.horizontalLites}
+                                            onChange={(e) =>
+                                              handleMuntinPanelChange(
+                                                panel.panelIndex,
+                                                "horizontalLites",
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+
+                                          <Input
+                                            className={inputClass}
+                                            type="number"
+                                            min={1}
+                                            disabled={isLocked}
+                                            value={panel.verticalLites}
+                                            onChange={(e) =>
+                                              handleMuntinPanelChange(
+                                                panel.panelIndex,
+                                                "verticalLites",
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </AccordionContent>
+              </AccordionItem>
             )}
-
-            <AccordionItem value="item-details">
-              <AccordionTrigger className="font-semibold text-base">
-                Details & Qty
-              </AccordionTrigger>
-              <AccordionContent>
-                <div
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 ${
-                    isLocked ? "opacity-70" : ""
-                  }`}
-                >
-                  <div>
-                    <Label>Mark</Label>
-                    <Input disabled={isLocked} {...register("mark")} />
-                    {errors.mark && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.mark.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      disabled={isLocked}
-                      {...register("qty", {
-                        required: "Qty is required",
-                        valueAsNumber: true,
-                        min: { value: 1, message: "Min qty is 1" },
-                      })}
-                    />
-                    {errors.qty && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.qty.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
 
             {Number(price || 0) > 0 && (
               <AccordionItem value="item-results">
