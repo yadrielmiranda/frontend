@@ -27,6 +27,7 @@ import {
   addProductToBrand,
   BrandWithProducts,
   removeProductFromBrand,
+  setDefaultBrandForProduct,
 } from "@/app/api/brands.api";
 
 import { Product } from "@/lib/types";
@@ -49,7 +50,7 @@ export function BrandProductsClient({
   const runAction = async (
     action: () => Promise<unknown>,
     successMsg: string,
-    errorMsg: string
+    errorMsg: string,
   ) => {
     try {
       await action();
@@ -67,30 +68,42 @@ export function BrandProductsClient({
     await runAction(
       () => removeProductFromBrand(initialBrand.id, productId),
       "Product unlinked successfully.",
-      "Error unlinking product."
+      "Error unlinking product.",
     );
   };
 
   const handleAddProduct = async (productId: number) => {
-    const ok = await runAction(
+    await runAction(
       () => addProductToBrand(initialBrand.id, productId),
       "Product linked successfully.",
-      "Error linking product."
-    );    
+      "Error linking product.",
+    );
+  };
+
+  const handleSetDefault = async (productId: number) => {
+    await runAction(
+      () => setDefaultBrandForProduct(initialBrand.id, productId),
+      "Default Brand updated successfully.",
+      "Error updating the default Brand.",
+    );
   };
 
   const availableProducts = allProducts;
 
- const associatedColumns = useMemo(
-  () => getAssociatedColumns(handleRemoveProduct),
-  [handleRemoveProduct]
-);
+  const associatedColumns = useMemo(
+    () =>
+      getAssociatedColumns(
+        handleRemoveProduct,
+        handleSetDefault,
+        initialBrand.isActive,
+      ),
+    [handleRemoveProduct, handleSetDefault, initialBrand.isActive],
+  );
 
-const availableColumns = useMemo(
-  () => getAvailableColumns(handleAddProduct),
-  [handleAddProduct]
-);
-
+  const availableColumns = useMemo(
+    () => getAvailableColumns(handleAddProduct),
+    [handleAddProduct],
+  );
 
   const hasAssociated = initialBrand.brandProducts.length > 0;
   const hasAvailable = availableProducts.length > 0;
@@ -117,9 +130,7 @@ const availableColumns = useMemo(
               </TooltipTrigger>
 
               {!hasAvailable && (
-                <TooltipContent>
-                  No available products to add.
-                </TooltipContent>
+                <TooltipContent>No available products to add.</TooltipContent>
               )}
             </Tooltip>
 

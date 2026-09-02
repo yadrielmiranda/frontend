@@ -124,6 +124,13 @@ export function addProductToBrand(brandId: number, productId: number) {
   );
 }
 
+export function setDefaultBrandForProduct(brandId: number, productId: number) {
+  return apiFetch<BrandWithProducts>(
+    `/api/brands/${brandId}/products/${productId}/default`,
+    { method: "PATCH" },
+  );
+}
+
 export function removeProductFromBrand(brandId: number, productId: number) {
   return apiFetch<BrandWithProducts>(
     `/api/brands/${brandId}/products/${productId}`,

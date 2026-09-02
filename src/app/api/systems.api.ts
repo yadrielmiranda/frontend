@@ -16,6 +16,7 @@ export type SystemData = {
   idBrand: number;
   idProduct: number;
   isActive?: boolean;
+  isDefault?: boolean;
   allowHighBottom?: boolean;
 };
 

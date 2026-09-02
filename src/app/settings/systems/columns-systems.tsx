@@ -55,6 +55,18 @@ export function getSystemColumns({
       filterFn: "equalsString",
     },
     {
+      accessorKey: "isDefault",
+      header: "Default",
+      cell: ({ row }) =>
+        row.original.isDefault ? (
+          <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+            Default
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
       accessorKey: "allowHighBottom",
       header: "High Bottom",
       filterFn: "equals",

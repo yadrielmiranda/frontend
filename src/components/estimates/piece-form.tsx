@@ -3,11 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import {
-  Loader2,
-  Pencil,
-  Calculator,
-} from "lucide-react";
+import { Loader2, Pencil, Calculator } from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
 import {
@@ -294,6 +290,27 @@ export function PieceForm({
   startUnlocked = false,
   ...props
 }: PieceFormProps) {
+  // Para piezas nuevas resolvemos la cadena completa antes del primer render.
+  // Editar o duplicar una pieza siempre conserva sus selecciones existentes.
+  const shouldUseCatalogDefaults = Number(initialData.idProd || 0) === 0;
+  const initialDefaultProduct = shouldUseCatalogDefaults
+    ? props.productsWithBrands.find(
+        (product) => product.isActive === true && product.isDefault === true,
+      )
+    : undefined;
+  const initialDefaultBrandAssociation =
+    initialDefaultProduct?.brandProducts.find(
+      (association) =>
+        association.isDefault === true && association.brand.isActive === true,
+    );
+  const initialDefaultSystem = props.systemsWithConfigs.find(
+    (system) =>
+      system.isActive === true &&
+      system.isDefault === true &&
+      system.idProduct === initialDefaultProduct?.id &&
+      system.idBrand === initialDefaultBrandAssociation?.brand.id,
+  );
+
   const {
     control,
     register,
@@ -305,6 +322,9 @@ export function PieceForm({
   } = useForm<PieceFormValues>({
     defaultValues: {
       ...initialData,
+      idProd: initialDefaultProduct?.id ?? initialData.idProd,
+      idBrand: initialDefaultBrandAssociation?.brand.id ?? initialData.idBrand,
+      idSyst: initialDefaultSystem?.id ?? initialData.idSyst,
       width: initialData.width ?? "",
       height: initialData.height ?? "",
       heightLeft: initialData.heightLeft ?? "",
@@ -395,6 +415,34 @@ export function PieceForm({
       );
   }, [idProd, props.productsWithBrands, props.systemsWithConfigs]);
 
+  useEffect(() => {
+    if (isLocked || !selectedProduct) return;
+
+    const currentBrandId = Number(brandId || 0);
+    const currentBrandIsAvailable = availableBrands.some(
+      (brand) => brand.id === currentBrandId,
+    );
+
+    if (currentBrandIsAvailable) return;
+
+    const defaultBrandAssociation = selectedProduct.brandProducts.find(
+      (association) =>
+        association.isDefault === true &&
+        association.brand.isActive === true &&
+        availableBrands.some((brand) => brand.id === association.brand.id),
+    );
+    const nextBrandId = defaultBrandAssociation?.brand.id ?? 0;
+
+    if (currentBrandId === nextBrandId) return;
+
+    setValue("idBrand", nextBrandId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("idSyst", 0, { shouldDirty: true, shouldValidate: false });
+    setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
+  }, [isLocked, selectedProduct, brandId, availableBrands, setValue]);
+
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
 
@@ -412,6 +460,32 @@ export function PieceForm({
           left.id - right.id,
       );
   }, [idProd, brandId, props.systemsWithConfigs]);
+
+  useEffect(() => {
+    if (isLocked || !idProd || !brandId) return;
+
+    const currentSystemId = Number(systemId || 0);
+    const currentSystemIsAvailable = availableSystems.some(
+      (system) => system.id === currentSystemId,
+    );
+
+    if (currentSystemIsAvailable) return;
+
+    const defaultSystem = availableSystems.find(
+      (system) => system.isDefault === true,
+    );
+    const nextSystemId = defaultSystem?.id ?? 0;
+
+    if (currentSystemId === nextSystemId) return;
+
+    setValue("idSyst", nextSystemId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
+    setValue("idCryst", 0, { shouldDirty: true, shouldValidate: false });
+    setValue("idReinforcementOption", null, { shouldDirty: true });
+  }, [isLocked, idProd, brandId, systemId, availableSystems, setValue]);
 
   const selectedSystem = useMemo(() => {
     if (!systemId) return null;
@@ -1019,8 +1093,7 @@ export function PieceForm({
 
   const selectedPreparationOptionName =
     availablePreparationOptions.find(
-      (option) =>
-        Number(option.id) === Number(pieceValues.idPreparationOption),
+      (option) => Number(option.id) === Number(pieceValues.idPreparationOption),
     )?.name ?? null;
 
   const availableSillOptions = useMemo(
@@ -3418,8 +3491,8 @@ export function PieceForm({
                           )}
                           {!errors.idCryst && selectedCrystalUnavailable && (
                             <p className="mt-1 text-xs text-red-500">
-                              This glass is currently unavailable. Select another
-                              glass before recalculating.
+                              This glass is currently unavailable. Select
+                              another glass before recalculating.
                             </p>
                           )}
                           {!errors.idCryst &&
@@ -3612,249 +3685,261 @@ export function PieceForm({
                       availableReinforcementOptions.length > 0) && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {availableSillOptions.length > 0 && (
-                        <div>
-                          <Label>Sill</Label>
-                          <Controller
-                            name="idSillOption"
-                            control={control}
-                            rules={{ required: "Sill option is required" }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select sill..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableSillOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                          <div>
+                            <Label>Sill</Label>
+                            <Controller
+                              name="idSillOption"
+                              control={control}
+                              rules={{ required: "Sill option is required" }}
+                              render={({ field }) => (
+                                <Select
+                                  disabled={isLocked}
+                                  onValueChange={(v) =>
+                                    field.onChange(Number(v))
+                                  }
+                                  key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                  value={
+                                    field.value == null
+                                      ? undefined
+                                      : String(field.value)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select sill..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableSillOptions.map((opt) => (
+                                      <SelectItem
+                                        key={opt.id}
+                                        value={String(opt.id)}
+                                      >
+                                        {opt.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            {errors.idSillOption && (
+                              <p className="text-red-500 text-xs mt-1">
+                                {errors.idSillOption.message}
+                              </p>
                             )}
-                          />
-                          {errors.idSillOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idSillOption.message}
-                            </p>
-                          )}
-                        </div>
+                          </div>
                         )}
 
                         {availableReinforcementOptions.length > 0 && (
-                        <div>
-                          <Label>Reinforcement</Label>
-                          <Controller
-                            name="idReinforcementOption"
-                            control={control}
-                            rules={{
-                              required: "Reinforcement option is required",
-                            }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => {
-                                  field.onChange(Number(v));
+                          <div>
+                            <Label>Reinforcement</Label>
+                            <Controller
+                              name="idReinforcementOption"
+                              control={control}
+                              rules={{
+                                required: "Reinforcement option is required",
+                              }}
+                              render={({ field }) => (
+                                <Select
+                                  disabled={isLocked}
+                                  onValueChange={(v) => {
+                                    field.onChange(Number(v));
 
-                                  setValue("idReinforcementOption", Number(v), {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  });
+                                    setValue(
+                                      "idReinforcementOption",
+                                      Number(v),
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    );
 
-                                  setValue("idCryst", 0, {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  });
-                                }}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select reinforcement..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableReinforcementOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                    setValue("idCryst", 0, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    });
+                                  }}
+                                  key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                  value={
+                                    field.value == null
+                                      ? undefined
+                                      : String(field.value)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select reinforcement..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableReinforcementOptions.map(
+                                      (opt) => (
+                                        <SelectItem
+                                          key={opt.id}
+                                          value={String(opt.id)}
+                                        >
+                                          {opt.name}
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            {errors.idReinforcementOption && (
+                              <p className="text-red-500 text-xs mt-1">
+                                {errors.idReinforcementOption.message}
+                              </p>
                             )}
-                          />
-                          {errors.idReinforcementOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idReinforcementOption.message}
-                            </p>
-                          )}
-                        </div>
+                          </div>
                         )}
                       </div>
                     )}
                     {!isLinearMaterial && (
                       <div className="pb-4 text-sm">
-                            {!selectedConfig ? (
+                        {!selectedConfig ? (
+                          <div>
+                            <Label className={fieldLabelClass}>Muntin</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Select a configuration first to configure muntin.
+                            </p>
+                          </div>
+                        ) : !currentMuntin ? (
+                          <div>
+                            <Label className={fieldLabelClass}>Muntin</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Muntin will be initialized automatically for this
+                              configuration.
+                            </p>
+                          </div>
+                        ) : (
+                          <div
+                            className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                               <div>
-                                <Label className={fieldLabelClass}>Muntin</Label>
-                                <p className="text-sm text-muted-foreground">
-                                  Select a configuration first to configure muntin.
-                                </p>
+                                <Label className={fieldLabelClass}>
+                                  Muntin
+                                </Label>
+                                <Select
+                                  disabled={isLocked}
+                                  value={String(currentMuntin.idPattern || "")}
+                                  onValueChange={handleMuntinPatternChange}
+                                >
+                                  <SelectTrigger className={selectTriggerClass}>
+                                    <SelectValue placeholder="Select pattern..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {activeMuntinPatterns.map((pattern) => (
+                                      <SelectItem
+                                        key={pattern.id}
+                                        value={String(pattern.id)}
+                                      >
+                                        {pattern.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
-                            ) : !currentMuntin ? (
-                              <div>
-                                <Label className={fieldLabelClass}>Muntin</Label>
-                                <p className="text-sm text-muted-foreground">
-                                  Muntin will be initialized automatically for this
-                                  configuration.
-                                </p>
+
+                              {patternRequiresLites && hasMuntinLayout && (
+                                <div>
+                                  <Label className={fieldLabelClass}>
+                                    Muntin Type
+                                  </Label>
+                                  <Select
+                                    disabled={isLocked}
+                                    value={
+                                      currentMuntin?.idType
+                                        ? String(currentMuntin.idType)
+                                        : undefined
+                                    }
+                                    onValueChange={handleMuntinTypeChange}
+                                  >
+                                    <SelectTrigger
+                                      className={selectTriggerClass}
+                                    >
+                                      <SelectValue placeholder="Select type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {activeMuntinTypes.map((type) => (
+                                        <SelectItem
+                                          key={type.id}
+                                          value={String(type.id)}
+                                        >
+                                          {type.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                            </div>
+
+                            {!patternRequiresLites ? (
+                              <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                This pattern does not use lites. Full view will
+                                be shown.
+                              </div>
+                            ) : !hasMuntinLayout ? (
+                              <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                This configuration supports Full View only.
+                              </div>
+                            ) : currentMuntinPanels.length === 0 ? (
+                              <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
+                                This configuration does not define a muntin
+                                panel layout.
                               </div>
                             ) : (
-                              <div
-                                className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
-                              >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                  <div>
-                                    <Label className={fieldLabelClass}>Muntin</Label>
-                                    <Select
-                                      disabled={isLocked}
-                                      value={String(currentMuntin.idPattern || "")}
-                                      onValueChange={handleMuntinPatternChange}
-                                    >
-                                      <SelectTrigger className={selectTriggerClass}>
-                                        <SelectValue placeholder="Select pattern..." />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {activeMuntinPatterns.map((pattern) => (
-                                          <SelectItem
-                                            key={pattern.id}
-                                            value={String(pattern.id)}
-                                          >
-                                            {pattern.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  {patternRequiresLites && hasMuntinLayout && (
-                                    <div>
-                                      <Label className={fieldLabelClass}>
-                                        Muntin Type
-                                      </Label>
-                                      <Select
-                                        disabled={isLocked}
-                                        value={
-                                          currentMuntin?.idType
-                                            ? String(currentMuntin.idType)
-                                            : undefined
-                                        }
-                                        onValueChange={handleMuntinTypeChange}
-                                      >
-                                        <SelectTrigger className={selectTriggerClass}>
-                                          <SelectValue placeholder="Select type..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {activeMuntinTypes.map((type) => (
-                                            <SelectItem
-                                              key={type.id}
-                                              value={String(type.id)}
-                                            >
-                                              {type.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  )}
+                              <div className="rounded-md border border-slate-200 overflow-hidden">
+                                <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                                  <div>Panel</div>
+                                  <div>Horizontal</div>
+                                  <div>Vertical</div>
                                 </div>
 
-                                {!patternRequiresLites ? (
-                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                    This pattern does not use lites. Full view will be
-                                    shown.
-                                  </div>
-                                ) : !hasMuntinLayout ? (
-                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                    This configuration supports Full View only.
-                                  </div>
-                                ) : currentMuntinPanels.length === 0 ? (
-                                  <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                    This configuration does not define a muntin panel
-                                    layout.
-                                  </div>
-                                ) : (
-                                  <div className="rounded-md border border-slate-200 overflow-hidden">
-                                    <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                                      <div>Panel</div>
-                                      <div>Horizontal</div>
-                                      <div>Vertical</div>
+                                <div className="divide-y divide-slate-200 bg-white">
+                                  {currentMuntinPanels.map((panel) => (
+                                    <div
+                                      key={panel.panelIndex}
+                                      className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
+                                    >
+                                      <div className="font-medium text-slate-700">
+                                        {panel.panelLabel}
+                                      </div>
+
+                                      <Input
+                                        className={inputClass}
+                                        type="number"
+                                        min={1}
+                                        disabled={isLocked}
+                                        value={panel.horizontalLites}
+                                        onChange={(e) =>
+                                          handleMuntinPanelChange(
+                                            panel.panelIndex,
+                                            "horizontalLites",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+
+                                      <Input
+                                        className={inputClass}
+                                        type="number"
+                                        min={1}
+                                        disabled={isLocked}
+                                        value={panel.verticalLites}
+                                        onChange={(e) =>
+                                          handleMuntinPanelChange(
+                                            panel.panelIndex,
+                                            "verticalLites",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
                                     </div>
-
-                                    <div className="divide-y divide-slate-200 bg-white">
-                                      {currentMuntinPanels.map((panel) => (
-                                        <div
-                                          key={panel.panelIndex}
-                                          className="grid grid-cols-3 gap-4 px-4 py-3 items-center"
-                                        >
-                                          <div className="font-medium text-slate-700">
-                                            {panel.panelLabel}
-                                          </div>
-
-                                          <Input
-                                            className={inputClass}
-                                            type="number"
-                                            min={1}
-                                            disabled={isLocked}
-                                            value={panel.horizontalLites}
-                                            onChange={(e) =>
-                                              handleMuntinPanelChange(
-                                                panel.panelIndex,
-                                                "horizontalLites",
-                                                e.target.value,
-                                              )
-                                            }
-                                          />
-
-                                          <Input
-                                            className={inputClass}
-                                            type="number"
-                                            min={1}
-                                            disabled={isLocked}
-                                            value={panel.verticalLites}
-                                            onChange={(e) =>
-                                              handleMuntinPanelChange(
-                                                panel.panelIndex,
-                                                "verticalLites",
-                                                e.target.value,
-                                              )
-                                            }
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                  ))}
+                                </div>
                               </div>
                             )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

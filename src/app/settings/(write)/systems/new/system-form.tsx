@@ -28,6 +28,7 @@ type FormValues = {
   idBrand: string;
   idProduct: string;
   isActive: boolean;
+  isDefault: boolean;
   allowHighBottom: boolean;
 };
 
@@ -60,6 +61,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       idBrand: system?.idBrand ? String(system.idBrand) : "",
       idProduct: system?.idProduct ? String(system.idProduct) : "",
       isActive: system?.isActive ?? true,
+      isDefault: system?.isDefault ?? false,
       allowHighBottom: system?.allowHighBottom ?? false,
     },
   });
@@ -141,8 +143,14 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       ...(data.sortOrder === "" ? {} : { sortOrder: Number(data.sortOrder) }),
       idBrand: Number(data.idBrand),
       idProduct: Number(data.idProduct),
+      isDefault: system?.isDefault === true ? true : data.isDefault,
       allowHighBottom: isLinearMaterial ? false : Boolean(data.allowHighBottom),
-      ...(isEdit ? { isActive: Boolean(data.isActive) } : {}),
+      ...(isEdit
+        ? {
+            isActive:
+              system?.isDefault === true ? true : Boolean(data.isActive),
+          }
+        : {}),
     };
 
     try {
@@ -220,7 +228,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
             <Select
               value={field.value}
               onValueChange={field.onChange}
-              disabled={showLoadingState}
+              disabled={showLoadingState || system?.isDefault === true}
             >
               <SelectTrigger id="brand">
                 <SelectValue placeholder="Select a brand" />
@@ -250,7 +258,12 @@ export function SystemForm({ brands, system }: SystemFormProps) {
             <Select
               value={field.value}
               onValueChange={field.onChange}
-              disabled={showLoadingState || !watchedBrandId || isProductLoading}
+              disabled={
+                showLoadingState ||
+                system?.isDefault === true ||
+                !watchedBrandId ||
+                isProductLoading
+              }
             >
               <SelectTrigger id="product">
                 <SelectValue
@@ -284,6 +297,29 @@ export function SystemForm({ brands, system }: SystemFormProps) {
         )}
       </div>
 
+      <Controller
+        name="isDefault"
+        control={control}
+        render={({ field }) => (
+          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Checkbox
+              checked={field.value}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+              disabled={showLoadingState || system?.isDefault === true}
+            />
+
+            <span className="space-y-0.5">
+              <span className="block font-medium">Default System</span>
+              <span className="block text-xs text-muted-foreground">
+                {system?.isDefault
+                  ? "This is the current default for its Product and Brand. Set another System as default to replace it."
+                  : "Selects this System automatically for the chosen Product and Brand."}
+              </span>
+            </span>
+          </label>
+        )}
+      />
+
       {!isLinearMaterial && (
         <Controller
           name="allowHighBottom"
@@ -313,7 +349,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           <input
             type="checkbox"
             className="h-4 w-4"
-            disabled={showLoadingState}
+            disabled={showLoadingState || system?.isDefault === true}
             {...register("isActive")}
           />
           <span>Active</span>
