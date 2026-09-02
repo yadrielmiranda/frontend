@@ -76,32 +76,34 @@ export function PieceModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[95vw] max-w-[95vw] xl:max-w-[1400px] max-h-[92vh] overflow-y-auto"
+        className="top-[4vh] h-[calc(96vh-12px)] w-[calc(100%-24px)] max-w-none translate-y-0 gap-0 overflow-hidden rounded-lg p-0 shadow-none sm:max-w-none"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+        <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
 
-        <PieceForm
-          key={pieceKey}
-          initialData={initialData}
-          onSubmit={onSave}
-          onCancel={onCancel}
-          index={index}
-          productsWithBrands={productsWithBrands}
-          systemsWithConfigs={systemsWithConfigs}
-          frameColors={frameColors}
-          crystals={crystals}
-          tints={tints}
-          coatings={coatings}
-          privacies={privacies}
-          muntinPatterns={muntinPatterns}
-          muntinTypes={muntinTypes}
-          canUseCustomerPricing={canUseCustomerPricing}
-          estimateId={estimateId}
-          startUnlocked={startUnlocked}
-        />
+          <PieceForm
+            key={pieceKey}
+            initialData={initialData}
+            onSubmit={onSave}
+            onCancel={onCancel}
+            index={index}
+            productsWithBrands={productsWithBrands}
+            systemsWithConfigs={systemsWithConfigs}
+            frameColors={frameColors}
+            crystals={crystals}
+            tints={tints}
+            coatings={coatings}
+            privacies={privacies}
+            muntinPatterns={muntinPatterns}
+            muntinTypes={muntinTypes}
+            canUseCustomerPricing={canUseCustomerPricing}
+            estimateId={estimateId}
+            startUnlocked={startUnlocked}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

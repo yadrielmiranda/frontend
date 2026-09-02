@@ -2190,11 +2190,12 @@ export function PieceForm({
 
   return (
     <form
+      className="relative flex min-h-0 flex-1 flex-col"
       onSubmit={handleSubmit((values) =>
         onSubmit(withoutInactiveDimensions(values, dimensionRequirements)),
       )}
     >
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 p-1">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto p-1 pb-40 sm:pb-24 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="min-w-0">
           <Accordion
             type="multiple"
@@ -4027,17 +4028,32 @@ export function PieceForm({
         </div>
       </div>
 
-      <DialogFooter className="mt-8">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <DialogFooter className="absolute -right-3 -bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur-sm max-sm:-left-3">
+        <Button
+          type="button"
+          variant="outline"
+          className="border-red-200 bg-red-50 text-red-700 shadow-none hover:bg-red-100 hover:text-red-800"
+          onClick={onCancel}
+        >
           Cancel
         </Button>
 
         {isLocked ? (
-          <Button type="button" variant="secondary" onClick={handleUnlock}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="border border-amber-200 bg-amber-100 text-amber-800 shadow-none hover:bg-amber-200"
+            onClick={handleUnlock}
+          >
             <Pencil className="mr-2 h-4 w-4" /> Edit
           </Button>
         ) : (
-          <Button type="button" variant="secondary" onClick={handleCalculate}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="border border-blue-200 bg-blue-100 text-blue-800 shadow-none hover:bg-blue-200"
+            onClick={handleCalculate}
+          >
             <Calculator className="mr-2 h-4 w-4" /> Calculate
           </Button>
         )}
@@ -4048,7 +4064,7 @@ export function PieceForm({
           disabled={!isLocked || isSubmitting}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Piece
+          Submit
         </Button>
       </DialogFooter>
     </form>
