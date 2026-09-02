@@ -2550,7 +2550,7 @@ export function PieceForm({
                       rules={{ required: true, min: 1 }}
                       render={({ field }) => (
                         <Select
-                          disabled={isLocked}
+                          disabled={isLocked || !selectedSystem}
                           onValueChange={(v) => field.onChange(Number(v))}
                           value={
                             field.value && field.value > 0
