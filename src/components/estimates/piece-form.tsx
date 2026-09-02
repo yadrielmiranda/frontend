@@ -3354,8 +3354,8 @@ export function PieceForm({
                   <div
                     className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
                   >
-                    {!isLinearMaterial && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {!isLinearMaterial && (
                         <div>
                           <Label className={fieldLabelClass}>Type</Label>
                           <Controller
@@ -3438,8 +3438,101 @@ export function PieceForm({
                               </p>
                             )}
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {availableActiveOptions.length > 0 && (
+                        <div>
+                          <Label className={fieldLabelClass}>Active</Label>
+                          <Controller
+                            name="idActiveOption"
+                            control={control}
+                            rules={{ required: "Active option is required" }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(value) => {
+                                  const nextOption =
+                                    availableActiveOptions.find(
+                                      (option) => String(option.id) === value,
+                                    ) ?? null;
+
+                                  field.onChange(nextOption?.id ?? null);
+                                }}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger className={selectTriggerClass}>
+                                  <SelectValue placeholder="Select active..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableActiveOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idActiveOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idActiveOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {availablePreparationOptions.length > 0 && (
+                        <div className="xl:col-span-2">
+                          <Label className={fieldLabelClass}>Preparation</Label>
+                          <Controller
+                            name="idPreparationOption"
+                            control={control}
+                            rules={{
+                              required: "Preparation option is required",
+                            }}
+                            render={({ field }) => (
+                              <Select
+                                disabled={isLocked}
+                                onValueChange={(v) => field.onChange(Number(v))}
+                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
+                                value={
+                                  field.value == null
+                                    ? undefined
+                                    : String(field.value)
+                                }
+                              >
+                                <SelectTrigger className={selectTriggerClass}>
+                                  <SelectValue placeholder="Select preparation..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availablePreparationOptions.map((opt) => (
+                                    <SelectItem
+                                      key={opt.id}
+                                      value={String(opt.id)}
+                                    >
+                                      {opt.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.idPreparationOption && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.idPreparationOption.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {highBottomAllowed && (
                       <div className="flex flex-col gap-2">
@@ -3506,101 +3599,10 @@ export function PieceForm({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {availableActiveOptions.length > 0 && (
-                        <div>
-                          <Label>Active</Label>
-                          <Controller
-                            name="idActiveOption"
-                            control={control}
-                            rules={{ required: "Active option is required" }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(value) => {
-                                  const nextOption =
-                                    availableActiveOptions.find(
-                                      (option) => String(option.id) === value,
-                                    ) ?? null;
-
-                                  field.onChange(nextOption?.id ?? null);
-                                }}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select active..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableActiveOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idActiveOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idActiveOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {availablePreparationOptions.length > 0 && (
-                        <div>
-                          <Label>Preparation</Label>
-                          <Controller
-                            name="idPreparationOption"
-                            control={control}
-                            rules={{
-                              required: "Preparation option is required",
-                            }}
-                            render={({ field }) => (
-                              <Select
-                                disabled={isLocked}
-                                onValueChange={(v) => field.onChange(Number(v))}
-                                key={`${idConf}-${field.name}-${field.value ?? "empty"}`}
-                                value={
-                                  field.value == null
-                                    ? undefined
-                                    : String(field.value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select preparation..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availablePreparationOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.id}
-                                      value={String(opt.id)}
-                                    >
-                                      {opt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.idPreparationOption && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.idPreparationOption.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {availableSillOptions.length > 0 && (
+                    {(availableSillOptions.length > 0 ||
+                      availableReinforcementOptions.length > 0) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {availableSillOptions.length > 0 && (
                         <div>
                           <Label>Sill</Label>
                           <Controller
@@ -3640,9 +3642,9 @@ export function PieceForm({
                             </p>
                           )}
                         </div>
-                      )}
+                        )}
 
-                      {availableReinforcementOptions.length > 0 && (
+                        {availableReinforcementOptions.length > 0 && (
                         <div>
                           <Label>Reinforcement</Label>
                           <Controller
@@ -3696,8 +3698,9 @@ export function PieceForm({
                             </p>
                           )}
                         </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                     {!isLinearMaterial && (
                       <div className="border-t border-slate-200">
                         <button
