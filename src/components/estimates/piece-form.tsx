@@ -7,7 +7,6 @@ import {
   Loader2,
   Pencil,
   Calculator,
-  AlertTriangle,
 } from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
@@ -3939,26 +3938,19 @@ export function PieceForm({
                                 dealerMarkupField.onChange(e);
                                 setHasPendingDealerMarkup(true);
                               }}
+                              onBlur={(e) => {
+                                dealerMarkupField.onBlur(e);
+
+                                if (hasPendingDealerMarkup) {
+                                  void handleCalculate();
+                                }
+                              }}
                             />
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleCalculate()}
-                            >
-                              <Calculator className="h-4 w-4 mr-1" />
-                              Apply Markup
-                            </Button>
-                            {hasPendingDealerMarkup && (
-                              <span className="flex items-center gap-1 text-xs text-amber-600">
-                                <AlertTriangle className="h-3 w-3" />
-                                Changes not applied
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-xs text-slate-500">
+                            Updates automatically when you leave the field.
+                          </span>
                         </div>
 
                         <div className="flex justify-between items-center text-sm">
@@ -4027,7 +4019,7 @@ export function PieceForm({
         </div>
       </div>
 
-      <DialogFooter className="absolute -right-3 -bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur-sm max-sm:-left-3">
+      <DialogFooter className="absolute -bottom-3 right-6 z-20 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur-sm max-sm:left-3 max-sm:right-3">
         <Button
           type="button"
           variant="outline"
@@ -4060,7 +4052,7 @@ export function PieceForm({
         <Button
           type="submit"
           variant="green"
-          disabled={!isLocked || isSubmitting}
+          disabled={!isLocked || isSubmitting || hasPendingDealerMarkup}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Submit
