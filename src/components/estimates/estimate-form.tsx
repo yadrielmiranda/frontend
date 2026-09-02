@@ -1195,7 +1195,7 @@ export function EstimateForm({
   const modalTitle =
     editingPieceIndex !== null
       ? `Edit Piece - ${editingPieceData.mark || `#${editingPieceIndex + 1}`}`
-      : "Add New Piece";
+      : "New Piece";
 
   const pieceKey = editingPieceIndex ?? "new";
   const pieceIndex = editingPieceIndex ?? fields.length;

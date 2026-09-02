@@ -8,7 +8,6 @@ import {
   Pencil,
   Calculator,
   AlertTriangle,
-  ChevronDownIcon,
 } from "lucide-react";
 
 import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
@@ -179,6 +178,20 @@ function withoutInactiveDimensions(
 
 const MIN_HORIZONTAL_HEIGHT_IN = 18;
 
+function PieceSectionHeader({ title }: { title: string }) {
+  return (
+    <div className="my-2 flex items-center justify-between rounded-lg border border-slate-200 border-l-4 border-l-blue-400 bg-slate-50 px-3 py-2">
+      <span className="text-base font-semibold text-slate-900">{title}</span>
+
+      <AccordionTrigger
+        aria-label={`Show or hide ${title}`}
+        title={`Show or hide ${title}`}
+        className="h-8 w-8 flex-none items-center justify-center gap-0 rounded-md p-0 text-slate-600 hover:bg-blue-100 hover:no-underline focus-visible:border-blue-400 focus-visible:ring-blue-200 [&>svg]:size-5 [&>svg]:translate-y-0"
+      />
+    </div>
+  );
+}
+
 function buildDefaultPanelsFromLayout(
   layout: ConfigMuntinLayoutItem[] | null | undefined,
   existingPanels?: PieceMuntin["panels"] | null,
@@ -333,7 +346,6 @@ export function PieceForm({
   );
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
-  const [isMuntinOpen, setIsMuntinOpen] = useState(true);
   const [dimensionPolicies, setDimensionPolicies] = useState<PolicyListItem[]>(
     [],
   );
@@ -2188,6 +2200,9 @@ export function PieceForm({
   const inputClass =
     "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-none";
 
+  const checkboxClass =
+    "h-5 w-5 border-2 border-slate-400 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-white data-[state=checked]:text-emerald-600 disabled:data-[state=checked]:border-emerald-500 disabled:data-[state=checked]:bg-white disabled:data-[state=checked]:text-emerald-500";
+
   return (
     <form
       className="relative flex min-h-0 flex-1 flex-col"
@@ -2204,9 +2219,7 @@ export function PieceForm({
             className="w-full"
           >
             <AccordionItem value="item-frame">
-              <AccordionTrigger className="font-semibold text-base">
-                Frame
-              </AccordionTrigger>
+              <PieceSectionHeader title="Product Specifications" />
 
               <AccordionContent>
                 <div
@@ -2621,9 +2634,7 @@ export function PieceForm({
             </AccordionItem>
 
             <AccordionItem value="item-details-size">
-              <AccordionTrigger className="font-semibold text-base">
-                Details & Size
-              </AccordionTrigger>
+              <PieceSectionHeader title="Details & Size" />
               <AccordionContent>
                 <div className={`pt-4 ${isLocked ? "opacity-70" : ""}`}>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
@@ -3348,9 +3359,7 @@ export function PieceForm({
 
             {(hasOptionsSection || !isLinearMaterial) && (
               <AccordionItem value="item-options">
-                <AccordionTrigger className="font-semibold text-base">
-                  Options
-                </AccordionTrigger>
+                <PieceSectionHeader title="Options" />
                 <AccordionContent>
                   <div
                     className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
@@ -3358,7 +3367,7 @@ export function PieceForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                       {!isLinearMaterial && (
                         <div>
-                          <Label className={fieldLabelClass}>Type</Label>
+                          <Label className={fieldLabelClass}>Glass Type</Label>
                           <Controller
                             name="idCryst"
                             control={control}
@@ -3405,7 +3414,7 @@ export function PieceForm({
                           />
                           {errors.idCryst && (
                             <p className="mt-1 text-xs text-red-500">
-                              Type required
+                              Glass type required
                             </p>
                           )}
                           {!errors.idCryst && selectedCrystalUnavailable && (
@@ -3544,12 +3553,12 @@ export function PieceForm({
                             <div className="flex items-center gap-3">
                               <Checkbox
                                 id={`highBottom-${index}`}
+                                className={checkboxClass}
                                 checked={field.value === true}
                                 onCheckedChange={(v) =>
                                   field.onChange(v === true)
                                 }
                                 disabled={isLocked}
-                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                               />
 
                               <Label
@@ -3576,12 +3585,12 @@ export function PieceForm({
                             <div className="flex items-center gap-3">
                               <Checkbox
                                 id={`screen-${index}`}
+                                className={checkboxClass}
                                 checked={!!field.value}
                                 onCheckedChange={(v) =>
                                   field.onChange(Boolean(v))
                                 }
                                 disabled={isLocked}
-                                className="h-5 w-5 border-2 border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
                               />
                               <Label
                                 htmlFor={`screen-${index}`}
@@ -3703,39 +3712,29 @@ export function PieceForm({
                       </div>
                     )}
                     {!isLinearMaterial && (
-                      <div className="border-t border-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => setIsMuntinOpen((prev) => !prev)}
-                          className="focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-semibold outline-none hover:underline focus-visible:ring-[3px]"
-                        >
-                          <span className="text-base font-semibold">Muntin</span>
-
-                          <ChevronDownIcon
-                            className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${
-                              isMuntinOpen ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
-
-                        {isMuntinOpen && (
-                          <div className="pb-4 text-sm">
+                      <div className="pb-4 text-sm">
                             {!selectedConfig ? (
-                              <p className="text-sm text-muted-foreground pt-2">
-                                Select a configuration first to configure muntin.
-                              </p>
+                              <div>
+                                <Label className={fieldLabelClass}>Muntin</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Select a configuration first to configure muntin.
+                                </p>
+                              </div>
                             ) : !currentMuntin ? (
-                              <p className="text-sm text-muted-foreground pt-2">
-                                Muntin will be initialized automatically for this
-                                configuration.
-                              </p>
+                              <div>
+                                <Label className={fieldLabelClass}>Muntin</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Muntin will be initialized automatically for this
+                                  configuration.
+                                </p>
+                              </div>
                             ) : (
                               <div
                                 className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
                               >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                   <div>
-                                    <Label className={fieldLabelClass}>Pattern</Label>
+                                    <Label className={fieldLabelClass}>Muntin</Label>
                                     <Select
                                       disabled={isLocked}
                                       value={String(currentMuntin.idPattern || "")}
@@ -3759,7 +3758,9 @@ export function PieceForm({
 
                                   {patternRequiresLites && hasMuntinLayout && (
                                     <div>
-                                      <Label className={fieldLabelClass}>Type</Label>
+                                      <Label className={fieldLabelClass}>
+                                        Muntin Type
+                                      </Label>
                                       <Select
                                         disabled={isLocked}
                                         value={
@@ -3855,8 +3856,6 @@ export function PieceForm({
                                 )}
                               </div>
                             )}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
