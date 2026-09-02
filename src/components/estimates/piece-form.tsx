@@ -180,7 +180,7 @@ const MIN_HORIZONTAL_HEIGHT_IN = 18;
 
 function PieceSectionHeader({ title }: { title: string }) {
   return (
-    <div className="my-2 flex items-center justify-between rounded-lg border border-slate-200 border-l-4 border-l-blue-400 bg-slate-50 px-3 py-2">
+    <div className="my-1 flex items-center justify-between rounded-md border border-slate-200 border-l-4 border-l-blue-400 bg-slate-50 px-3 py-0.5">
       <span className="text-base font-semibold text-slate-900">{title}</span>
 
       <AccordionTrigger
@@ -2636,8 +2636,8 @@ export function PieceForm({
             <AccordionItem value="item-details-size">
               <PieceSectionHeader title="Details & Size" />
               <AccordionContent>
-                <div className={`pt-4 ${isLocked ? "opacity-70" : ""}`}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+                <div className={`pt-3 ${isLocked ? "opacity-70" : ""}`}>
+                  <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div>
                       <Label className={fieldLabelClass}>Mark</Label>
                       <Input
@@ -2679,10 +2679,10 @@ export function PieceForm({
                   )}
 
                   {Number(idConf) > 0 && (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex flex-wrap gap-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
                         {dimensionRequirements.requiresWidth && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               {widthLabel} (inches)
                             </Label>
@@ -2722,7 +2722,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresHeight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               {heightLabel} (inches)
                             </Label>
@@ -2762,7 +2762,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresSashHeight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Sash Height (inches)
                             </Label>
@@ -2805,7 +2805,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresWindowHeight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Window Height (inches)
                             </Label>
@@ -2854,7 +2854,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresHeightLeft && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Height Left (inches)
                             </Label>
@@ -2894,7 +2894,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresHeightRight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Height Right (inches)
                             </Label>
@@ -2934,7 +2934,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresLegHeight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Leg Height (inches)
                             </Label>
@@ -2974,7 +2974,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresDoorWidth && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Door Width (inches)
                             </Label>
@@ -3014,7 +3014,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresDoorHeight && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Door Height (inches)
                             </Label>
@@ -3056,7 +3056,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresLeftSideliteWidth && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Left Sidelite Width (inches)
                             </Label>
@@ -3096,7 +3096,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresRightSideliteWidth && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0">
                             <Label className={fieldLabelClass}>
                               Right Sidelite Width (inches)
                             </Label>
@@ -3136,7 +3136,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresLeftPanels && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
                               Left Panels
                             </Label>
@@ -3160,7 +3160,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresRightPanels && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
                               Right Panels
                             </Label>
@@ -3184,7 +3184,7 @@ export function PieceForm({
                         )}
 
                         {fixedPanelCount !== null && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
                               Panel Count
                             </Label>
@@ -3202,7 +3202,7 @@ export function PieceForm({
                         )}
 
                         {requiresManualPanelCount && (
-                          <div className="w-[320px]">
+                          <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
                               Panel Count
                             </Label>
@@ -3226,7 +3226,7 @@ export function PieceForm({
                         )}
 
                         {dimensionRequirements.requiresHorizontalHeights && (
-                          <div className="w-full max-w-[640px] rounded-md border border-slate-200 bg-white">
+                          <div className="w-full max-w-[640px] rounded-md border border-slate-200 bg-white md:col-span-2">
                             <div className="flex items-center justify-between border-b bg-slate-50 px-3 py-2">
                               <div>
                                 <Label className="text-sm font-semibold text-slate-800">
@@ -3345,7 +3345,7 @@ export function PieceForm({
                         {!Object.values(dimensionRequirements).some(
                           Boolean,
                         ) && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-4">
                             This configuration does not require specific
                             dimensions for calculation.
                           </p>
