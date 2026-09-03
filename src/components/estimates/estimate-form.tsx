@@ -50,7 +50,11 @@ import { PieceModal } from "./piece-modal";
 import { CustomerDetailsCard } from "./customer-details-card";
 import { lookupZip } from "@/app/api/geo.api";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
-import { canSetCustomerOnEstimate, isAdminRole } from "@/lib/rbac";
+import {
+  canSetCustomerOnEstimate,
+  isAdminRole,
+  isDealerRole,
+} from "@/lib/rbac";
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
@@ -1534,6 +1538,7 @@ export function EstimateForm({
             initialJob={initialInstallation ?? null}
             currentUserId={currentUserId}
             isPrivileged={isPrivileged}
+            allowAdditionalServiceNotes={isDealerRole(ownerRole)}
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
             onJobChange={setFinancialInstallation}

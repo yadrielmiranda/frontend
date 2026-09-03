@@ -38,6 +38,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
@@ -85,6 +87,7 @@ export function InstallationEstimatePanel({
   initialJob,
   currentUserId,
   isPrivileged,
+  allowAdditionalServiceNotes,
   refreshKey,
   beforeRequest,
   onJobChange,
@@ -99,6 +102,7 @@ export function InstallationEstimatePanel({
   initialJob: InstallationJob | null;
   currentUserId: number;
   isPrivileged: boolean;
+  allowAdditionalServiceNotes: boolean;
   refreshKey: string;
   beforeRequest?: () => Promise<boolean>;
   onJobChange?: (job: InstallationJob | null) => void;
@@ -190,19 +194,15 @@ export function InstallationEstimatePanel({
     const requestedServiceId = String(serviceId);
     setRows((current) => {
       if (!selected) {
-        return current.filter(
-          (row) => row.serviceId !== requestedServiceId,
-        );
+        return current.filter((row) => row.serviceId !== requestedServiceId);
       }
 
       if (current.some((row) => row.serviceId === requestedServiceId)) {
         return current;
       }
 
-      const nextId = current.reduce(
-        (highestId, row) => Math.max(highestId, row.id),
-        0,
-      ) + 1;
+      const nextId =
+        current.reduce((highestId, row) => Math.max(highestId, row.id), 0) + 1;
       return [
         ...current,
         {
@@ -263,9 +263,12 @@ export function InstallationEstimatePanel({
           const service = services.find(
             (candidate) => candidate.id === Number(row.serviceId),
           )!;
+          const draft = allowAdditionalServiceNotes
+            ? row.draft
+            : { ...row.draft, description: "" };
           return {
             serviceId: service.id,
-            ...additionalServiceValues(service, row.draft),
+            ...additionalServiceValues(service, draft),
           };
         }),
       };
@@ -457,7 +460,7 @@ export function InstallationEstimatePanel({
                 </p>
 
                 {services.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {services.map((service) => {
                       const serviceRows = rows.filter(
                         (row) => row.serviceId === String(service.id),
@@ -468,86 +471,103 @@ export function InstallationEstimatePanel({
                       return (
                         <div
                           key={service.id}
-                          className={`overflow-hidden rounded-xl border transition-colors ${
+                          className={`rounded-xl border p-3 transition-colors ${
                             isSelected
                               ? "border-blue-400 bg-blue-50/50 ring-1 ring-blue-100"
                               : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/20"
                           }`}
                         >
-                          <label
-                            htmlFor={checkboxId}
-                            className="flex cursor-pointer items-start gap-3 p-4 sm:p-5"
-                          >
-                            <Checkbox
-                              id={checkboxId}
-                              checked={isSelected}
-                              onCheckedChange={(checked) =>
-                                setAdditionalServiceSelected(
-                                  service.id,
-                                  checked === true,
-                                )
-                              }
-                              className="mt-0.5"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <strong className="block text-sm text-slate-950 sm:text-base">
-                                {service.name}
-                              </strong>
-                              {service.description && (
-                                <span className="mt-1 block text-sm leading-5 text-muted-foreground">
-                                  {service.description}
-                                </span>
-                              )}
-                            </span>
-                          </label>
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                            <label
+                              htmlFor={checkboxId}
+                              className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 lg:min-h-9"
+                            >
+                              <Checkbox
+                                id={checkboxId}
+                                checked={isSelected}
+                                onCheckedChange={(checked) =>
+                                  setAdditionalServiceSelected(
+                                    service.id,
+                                    checked === true,
+                                  )
+                                }
+                              />
+                              <span className="min-w-0 flex-1">
+                                <strong className="block text-sm text-slate-950 sm:text-base">
+                                  {service.name}
+                                </strong>
+                                {service.description && (
+                                  <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
+                                    {service.description}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
 
-                          {isSelected && (
-                            <div className="space-y-4 border-t border-blue-200 bg-white/80 p-4 sm:p-5">
-                              {serviceRows.map((row, index) => (
-                                <div key={row.id} className="space-y-3">
-                                  {serviceRows.length > 1 && (
-                                    <p className="text-sm font-medium text-slate-700">
-                                      Service details {index + 1}
-                                    </p>
-                                  )}
-                                  <AdditionalServiceFields
-                                    service={service}
-                                    value={row.draft}
-                                    onChange={(draft) =>
-                                      setRows((current) =>
-                                        current.map((item) =>
-                                          item.id === row.id
-                                            ? { ...item, draft }
-                                            : item,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                  <Textarea
-                                    value={row.draft.description}
-                                    onChange={(event) =>
-                                      setRows((current) =>
-                                        current.map((item) =>
-                                          item.id === row.id
-                                            ? {
-                                                ...item,
-                                                draft: {
-                                                  ...item.draft,
-                                                  description:
-                                                    event.target.value,
-                                                },
-                                              }
-                                            : item,
-                                        ),
-                                      )
-                                    }
-                                    placeholder="Description or note (optional)"
-                                    aria-label={`${service.name} description or note`}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                            {isSelected && (
+                              <div className="flex min-w-0 flex-wrap items-end gap-3 lg:justify-end">
+                                {serviceRows.map((row, index) => (
+                                  <div
+                                    key={row.id}
+                                    className="flex min-w-0 flex-wrap items-end gap-3"
+                                  >
+                                    {serviceRows.length > 1 && (
+                                      <span className="self-center text-xs font-medium text-slate-600">
+                                        #{index + 1}
+                                      </span>
+                                    )}
+                                    <AdditionalServiceFields
+                                      service={service}
+                                      value={row.draft}
+                                      compact
+                                      onChange={(draft) =>
+                                        setRows((current) =>
+                                          current.map((item) =>
+                                            item.id === row.id
+                                              ? { ...item, draft }
+                                              : item,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                    {allowAdditionalServiceNotes && (
+                                      <div className="min-w-52 flex-1 space-y-1 lg:w-64 lg:flex-none">
+                                        <Label
+                                          htmlFor={`additional-service-note-${row.id}`}
+                                          className="text-xs"
+                                        >
+                                          Note (optional)
+                                        </Label>
+                                        <Input
+                                          id={`additional-service-note-${row.id}`}
+                                          value={row.draft.description}
+                                          maxLength={500}
+                                          className="h-9"
+                                          onChange={(event) =>
+                                            setRows((current) =>
+                                              current.map((item) =>
+                                                item.id === row.id
+                                                  ? {
+                                                      ...item,
+                                                      draft: {
+                                                        ...item.draft,
+                                                        description:
+                                                          event.target.value,
+                                                      },
+                                                    }
+                                                  : item,
+                                              ),
+                                            )
+                                          }
+                                          placeholder="Add a note"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

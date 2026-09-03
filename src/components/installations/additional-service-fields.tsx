@@ -13,25 +13,36 @@ export function AdditionalServiceFields({
   service,
   value,
   onChange,
+  compact = false,
 }: {
   service: InstallationService | null;
   value: AdditionalServiceDraft;
   onChange: (value: AdditionalServiceDraft) => void;
+  compact?: boolean;
 }) {
   const fields = service ? additionalServiceFields(service) : [];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      className={
+        compact
+          ? "flex flex-wrap items-end gap-2"
+          : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      }
+    >
       {fields.map((field) => {
         const meta = additionalServiceFieldMeta[field];
         return (
-          <div key={field} className="space-y-1">
-            <Label>{meta.label}</Label>
+          <div key={field} className={compact ? "w-28 space-y-1" : "space-y-1"}>
+            <Label className={compact ? "text-xs" : undefined}>
+              {meta.label}
+            </Label>
             <Input
               type="number"
               min={meta.step}
               step={meta.step}
               value={value[field]}
+              className={compact ? "h-9" : undefined}
               onChange={(event) =>
                 onChange({ ...value, [field]: event.target.value })
               }
@@ -39,13 +50,14 @@ export function AdditionalServiceFields({
           </div>
         );
       })}
-      <div className="space-y-1">
-        <Label>Quantity</Label>
+      <div className={compact ? "w-24 space-y-1" : "space-y-1"}>
+        <Label className={compact ? "text-xs" : undefined}>Quantity</Label>
         <Input
           type="number"
           min="1"
           step="1"
           value={value.occurrences}
+          className={compact ? "h-9" : undefined}
           onChange={(event) =>
             onChange({ ...value, occurrences: event.target.value })
           }
