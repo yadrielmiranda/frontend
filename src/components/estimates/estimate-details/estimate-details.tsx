@@ -45,11 +45,13 @@ export function EstimateDetails({
   userRole,
   initialPublicView = false,
   initialCustomerPricingMode = "detailed",
+  returnToEdit = false,
 }: {
   estimate: EstimateWithRelations;
   userRole: string;
   initialPublicView?: boolean;
   initialCustomerPricingMode?: CustomerPricingMode;
+  returnToEdit?: boolean;
 }) {
   const ownerRole = estimate.user?.role?.name ?? null;
   const ownerIsDealer = isDealerRole(ownerRole);
@@ -282,7 +284,14 @@ export function EstimateDetails({
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
-            <BackLink href="/estimates" label="Back to Estimates" />
+            <BackLink
+              href={
+                returnToEdit ? `/estimates/${estimate.id}/edit` : "/estimates"
+              }
+              label={
+                returnToEdit ? "Back to Edit Estimate" : "Back to Estimates"
+              }
+            />
 
             <Button asChild>
               <a href={pdfHref} target="_blank" rel="noopener noreferrer">

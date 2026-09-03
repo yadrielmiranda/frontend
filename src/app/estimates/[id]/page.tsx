@@ -11,7 +11,7 @@ export default async function EstimateDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ view?: string; pricing?: string }>;
+  searchParams: Promise<{ view?: string; pricing?: string; from?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) notFound();
@@ -37,7 +37,7 @@ export default async function EstimateDetailPage({
   if (!estimate) {
     notFound();
   }
- 
+
   const role = user.role.name;
 
   const isPrivileged = isAdminRole(role) || isOperatorRole(role);
@@ -61,6 +61,7 @@ export default async function EstimateDetailPage({
       initialCustomerPricingMode={
         resolvedSearchParams.pricing === "total" ? "total" : "detailed"
       }
+      returnToEdit={resolvedSearchParams.from === "edit"}
     />
   );
 }

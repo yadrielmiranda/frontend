@@ -76,8 +76,8 @@ export default async function EditEstimatePage({
       Boolean(depositPayment?.stripeSessionId));
   const installationLocksOwner = Boolean(
     installation &&
-      installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
-      installation.status !== "CANCELED",
+    installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
+    installation.status !== "CANCELED",
   );
 
   const canAccess = (isOwner || isPrivileged) && isActive && !estimate.order;
@@ -126,8 +126,8 @@ export default async function EditEstimatePage({
           <BackLink href="/estimates" label="Back to Estimate" />
         </div>
 
-        <Card className="min-w-0 max-w-full shadow-lg">
-          <CardHeader className="min-w-0 px-4 sm:px-6">
+        <Card className="relative min-w-0 max-w-full shadow-lg">
+          <CardHeader className="min-w-0 px-4 sm:px-6 sm:pr-72">
             <CardTitle className="break-words text-xl sm:text-2xl">
               Estimate #{estimate.number}
             </CardTitle>

@@ -10,13 +10,14 @@ import React, {
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Eye, Loader2, RefreshCw } from "lucide-react";
 
 import {
   addEstimatePiece,
   applyBulkPieceAttribute,
   applyGeneralDealerMarkup,
   deleteEstimatePiece,
+  recalculateEstimate,
   updateEstimateHeader,
   updateEstimatePiece,
   updateEstimatePieceMark,
@@ -251,6 +252,8 @@ export function EstimateForm({
   const headerSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const [isExiting, setIsExiting] = useState(false);
+  const [isOpeningDetails, setIsOpeningDetails] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
@@ -509,6 +512,71 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
+
+  const handleViewDetails = async () => {
+    if (!estimate?.id || isOpeningDetails) {
+      return;
+    }
+
+    setIsOpeningDetails(true);
+
+    try {
+      // La vista de detalles debe abrirse después de guardar cualquier cambio
+      // pendiente para no mostrar información anterior.
+      if (!readOnly) {
+        if (headerAutosaveTimeoutRef.current) {
+          clearTimeout(headerAutosaveTimeoutRef.current);
+          headerAutosaveTimeoutRef.current = null;
+        }
+
+        const headerWasSaved = await saveEstimateHeader();
+        if (!headerWasSaved) return;
+      }
+
+      // Conserva el origen para que "Back" regrese a este mismo estimado en
+      // edición, sin alterar el comportamiento de la vista abierta desde la lista.
+      router.push(`/estimates/${estimate.id}?from=edit`);
+    } finally {
+      setIsOpeningDetails(false);
+    }
+  };
+
+  const handleRecalculateEstimate = async () => {
+    if (!estimate?.id || readOnly || isRecalculating || isOpeningDetails) {
+      return;
+    }
+
+    setIsRecalculating(true);
+
+    try {
+      // Evita perder cambios del encabezado que todavía estén pendientes del
+      // autosave antes de recalcular todas las piezas.
+      if (headerAutosaveTimeoutRef.current) {
+        clearTimeout(headerAutosaveTimeoutRef.current);
+        headerAutosaveTimeoutRef.current = null;
+      }
+
+      const headerWasSaved = await saveEstimateHeader();
+      if (!headerWasSaved) return;
+
+      const updatedEstimate = await recalculateEstimate(estimate.id);
+
+      // La respuesta recalculada vuelve a ser la fuente de verdad para los
+      // precios, presiones y totales visibles sin abandonar la pantalla.
+      replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+
+      toast.success("Estimate recalculated successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to recalculate the Estimate.",
+      );
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", {
@@ -1300,6 +1368,49 @@ export function EstimateForm({
   return (
     <>
       <div className="min-w-0 space-y-6 sm:space-y-8">
+        {isEditMode && estimate && (
+          <div className="grid grid-cols-2 gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10 sm:flex">
+            <Button
+              type="button"
+              variant="outline"
+              className="group w-full gap-2 border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900 sm:w-auto"
+              onClick={() => void handleViewDetails()}
+              disabled={isOpeningDetails || isRecalculating || isExiting}
+            >
+              {isOpeningDetails ? (
+                <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
+              ) : (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 transition-all duration-200 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white">
+                  <Eye className="h-3.5 w-3.5" />
+                </span>
+              )}
+              {isOpeningDetails ? "Opening..." : "View Details"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="blue"
+              className="w-full sm:w-auto"
+              onClick={() => void handleRecalculateEstimate()}
+              disabled={
+                readOnly || isRecalculating || isOpeningDetails || isExiting
+              }
+              title={
+                readOnly
+                  ? "Recalculation is unavailable while this Estimate is locked."
+                  : "Recalculate every Piece using the current pricing rules."
+              }
+            >
+              {isRecalculating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {isRecalculating ? "Recalculating..." : "Recalculate"}
+            </Button>
+          </div>
+        )}
+
         {readOnly && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Material is read-only after the installation deposit starts.
