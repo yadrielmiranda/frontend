@@ -1240,7 +1240,7 @@ export function EstimateForm({
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="min-w-0 space-y-6 sm:space-y-8">
         {readOnly && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Material is read-only after the installation deposit starts.
@@ -1249,9 +1249,12 @@ export function EstimateForm({
           </div>
         )}
 
-        <fieldset disabled={readOnly} className="space-y-8">
-          <div className="rounded-lg border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="mb-6 border-l-4 border-red-600 pl-3 text-xl font-semibold">
+        <fieldset
+          disabled={readOnly}
+          className="min-w-0 space-y-6 sm:space-y-8"
+        >
+          <div className="min-w-0 rounded-lg border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
+            <h3 className="mb-4 border-l-4 border-red-600 pl-3 text-xl font-semibold sm:mb-6">
               Details
             </h3>
 
@@ -1288,7 +1291,7 @@ export function EstimateForm({
             />
 
             {canUseCustomerPricing && (
-              <div className="mt-6">
+              <div className="mt-6 min-w-0">
                 <CustomerDetailsCard
                   register={register}
                   control={control}
@@ -1299,8 +1302,8 @@ export function EstimateForm({
 
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
+          <div className="min-w-0 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-semibold">Pieces</h3>
               <Button type="button" variant="green" onClick={handleAddNewPiece}>
                 + Add Piece

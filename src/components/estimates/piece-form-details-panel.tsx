@@ -177,9 +177,9 @@ export function PieceFormDetailsPanel({
   const dpMinus = piece.dpNegPsf == null ? null : formatPsf(piece.dpNegPsf, 1);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 border-t px-4 py-4 text-sm">
+    <div className="grid min-w-0 grid-cols-1 gap-3 border-t bg-slate-50 p-3 text-sm md:grid-cols-2 md:gap-4 md:p-4">
       {/* LEFT: PRODUCT DETAILS */}
-      <div className="rounded-md border bg-white p-4">
+      <div className="min-w-0 rounded-md border bg-white p-4 [overflow-wrap:anywhere]">
         <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
           Product Details
         </h4>
@@ -379,13 +379,13 @@ export function PieceFormDetailsPanel({
       </div>
 
       {/* RIGHT: PRODUCT IMAGE */}
-      <div className="rounded-md border bg-white p-4">
+      <div className="min-w-0 overflow-hidden rounded-md border bg-white p-4">
         <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">
           Product Image
         </h4>
 
-        <div className="flex h-[clamp(280px,24vw,380px)] items-center justify-center">
-          <div className="h-full w-full max-w-[640px]">
+        <div className="flex h-[clamp(240px,70vw,380px)] min-w-0 items-center justify-center md:h-[clamp(280px,24vw,380px)]">
+          <div className="h-full min-w-0 w-full max-w-[640px]">
             <PieceDiagram
               diagramFamily={selectedProduct?.diagramFamily}
               systemName={systemName}

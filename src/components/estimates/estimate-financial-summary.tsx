@@ -403,8 +403,8 @@ export function EstimateFinancialSummary({
     : "Customer Project Total";
 
   return (
-    <Card className="border-slate-300">
-      <CardHeader>
+    <Card className="min-w-0 border-slate-300">
+      <CardHeader className="min-w-0 px-4 sm:px-6">
         <CardTitle className="flex items-center gap-2">
           <ReceiptText className="h-5 w-5" /> Estimate Summary
         </CardTitle>
@@ -413,7 +413,7 @@ export function EstimateFinancialSummary({
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-5">
+      <CardContent className="min-w-0 space-y-5 px-4 sm:px-6">
         <PiecesBreakdownBar
           totalUnits={materialSummary.totalUnits}
           pieceBreakdown={materialSummary.pieceBreakdown}

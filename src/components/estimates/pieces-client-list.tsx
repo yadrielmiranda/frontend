@@ -94,8 +94,8 @@ export function PiecesClientList({
 
   if (fields.length === 0) {
     return (
-      <div className="border rounded-lg overflow-x-auto">
-        <p className="text-center text-gray-500 py-6">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-lg border">
+        <p className="py-6 text-center text-gray-500">
           No pieces have been added yet.
         </p>
       </div>
@@ -103,10 +103,10 @@ export function PiecesClientList({
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 border-b">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border">
+      <div className="w-full max-w-full overflow-x-auto">
+        <table className="w-full text-sm xl:min-w-[760px]">
+          <thead className="hidden border-b bg-slate-100 xl:table-header-group">
             <tr>
               <th className="px-4 py-2 w-10">
                 <Button
@@ -286,7 +286,120 @@ export function PiecesClientList({
               return (
                 <React.Fragment key={field.id}>
                   <tr className="border-b last:border-b-0 hover:bg-slate-50">
-                    <td className="px-4 py-2 align-middle">
+                    <td colSpan={7} className="p-0 xl:hidden">
+                      <div className="space-y-3 p-3">
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 shrink-0"
+                              onClick={() => togglePiece(field.id)}
+                              title={
+                                openPieceIds.has(field.id)
+                                  ? "Hide Details"
+                                  : "View Details"
+                              }
+                              aria-label={
+                                openPieceIds.has(field.id)
+                                  ? "Hide piece details"
+                                  : "View piece details"
+                              }
+                              aria-expanded={openPieceIds.has(field.id)}
+                            >
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                  openPieceIds.has(field.id)
+                                    ? "rotate-0"
+                                    : "-rotate-90"
+                                }`}
+                              />
+                            </Button>
+
+                            <span className="truncate rounded-md bg-slate-100 px-2.5 py-1 font-semibold text-slate-950">
+                              {currentPieceData.mark || `#${index + 1}`}
+                            </span>
+                          </div>
+
+                          <div className="flex shrink-0 gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => onDuplicate(index)}
+                              title="Duplicate Piece"
+                              aria-label="Duplicate piece"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => onEdit(index)}
+                              title="Edit Piece"
+                              aria-label="Edit piece"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => onRemove(index)}
+                              title="Delete Piece"
+                              aria-label="Delete piece"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 text-sm leading-5 text-slate-700 [overflow-wrap:anywhere]">
+                          {description}
+                          {currentPieceData.highBottom && (
+                            <span className="ml-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                              High Bottom
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 divide-x rounded-lg border border-slate-200 bg-slate-50">
+                          <div className="min-w-0 px-2 py-2 text-center">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              Qty
+                            </p>
+                            <p className="mt-0.5 font-semibold text-slate-950">
+                              {qty}
+                            </p>
+                          </div>
+                          <div className="min-w-0 px-2 py-2 text-center">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              Unit price
+                            </p>
+                            <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
+                              {formatCurrency(unitPrice)}
+                            </p>
+                          </div>
+                          <div className="min-w-0 px-2 py-2 text-center">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              Subtotal
+                            </p>
+                            <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
+                              {formatCurrency(subtotal)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="hidden px-4 py-2 align-middle xl:table-cell">
                       <Button
                         type="button"
                         variant="ghost"
@@ -309,11 +422,11 @@ export function PiecesClientList({
                       </Button>
                     </td>
 
-                    <td className="px-4 py-2 align-middle font-medium">
+                    <td className="hidden px-4 py-2 align-middle font-medium xl:table-cell">
                       {currentPieceData.mark || `#${index + 1}`}
                     </td>
 
-                    <td className="px-4 py-2 align-middle text-gray-700">
+                    <td className="hidden px-4 py-2 align-middle text-gray-700 xl:table-cell">
                       <div className="flex flex-wrap items-center gap-2">
                         <span>{description}</span>
 
@@ -325,17 +438,19 @@ export function PiecesClientList({
                       </div>
                     </td>
 
-                    <td className="px-4 py-2 align-middle text-right">{qty}</td>
+                    <td className="hidden px-4 py-2 align-middle text-right xl:table-cell">
+                      {qty}
+                    </td>
 
-                    <td className="px-4 py-2 align-middle text-right font-mono">
+                    <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
                       {formatCurrency(unitPrice)}
                     </td>
 
-                    <td className="px-4 py-2 align-middle text-right font-mono">
+                    <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
                       {formatCurrency(subtotal)}
                     </td>
 
-                    <td className="px-4 py-2 align-middle text-right">
+                    <td className="hidden px-4 py-2 align-middle text-right xl:table-cell">
                       <div className="flex justify-end gap-2">
                         <Button
                           type="button"

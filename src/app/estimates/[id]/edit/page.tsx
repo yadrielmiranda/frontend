@@ -120,15 +120,15 @@ export default async function EditEstimatePage({
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 md:px-8 py-6">
-      <div className="w-full">
+    <div className="min-h-screen min-w-0 overflow-x-hidden bg-gray-50 py-4 md:px-4 md:py-6">
+      <div className="min-w-0 w-full">
         <div className="mb-4 flex items-center justify-between">
           <BackLink href="/estimates" label="Back to Estimate" />
         </div>
 
-        <Card className="w-full shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl">
+        <Card className="min-w-0 max-w-full shadow-lg">
+          <CardHeader className="min-w-0 px-4 sm:px-6">
+            <CardTitle className="break-words text-xl sm:text-2xl">
               Estimate #{estimate.number}
             </CardTitle>
             <CardDescription>
@@ -138,7 +138,7 @@ export default async function EditEstimatePage({
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="min-w-0 px-4 sm:px-6">
             <EstimateForm
               estimate={estimate}
               initialInstallation={installation}
