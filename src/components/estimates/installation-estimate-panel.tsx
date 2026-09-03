@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
+  EstimatePayment,
   InstallationJob,
   InstallationQuoteLine,
   InstallationService,
@@ -86,6 +87,7 @@ export function InstallationEstimatePanel({
   estimateOwnerId,
   estimateStatus,
   order,
+  estimatePayments,
   pieces,
   initialJob,
   currentUserId,
@@ -99,6 +101,7 @@ export function InstallationEstimatePanel({
   estimateOwnerId: number;
   estimateStatus: string;
   order: Order | null;
+  estimatePayments: EstimatePayment[];
   pieces: EstimatePieceTarget[];
   initialJob: InstallationJob | null;
   currentUserId: number;
@@ -136,8 +139,15 @@ export function InstallationEstimatePanel({
     [onRequestEditingChange],
   );
 
+  const checkoutStarted = estimatePayments.some(
+    (payment) => payment.status === "PAID" || Boolean(payment.stripeSessionId),
+  );
   const canRequest =
-    !job && estimateStatus === "Active" && !order && pieces.length > 0;
+    !job &&
+    estimateStatus === "Active" &&
+    !order &&
+    pieces.length > 0 &&
+    !checkoutStarted;
   const isOwner = currentUserId === estimateOwnerId;
   const depositPaid = job ? paidBaseFor(job, "INSTALLATION_DEPOSIT") : 0;
   const canEditBeforeDeposit =

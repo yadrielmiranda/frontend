@@ -1529,6 +1529,7 @@ export function EstimateForm({
             estimateOwnerId={estimate.idUser}
             estimateStatus={estimate.status?.name ?? ""}
             order={estimate.order ?? null}
+            estimatePayments={estimate.payments ?? []}
             pieces={installationPieces}
             initialJob={initialInstallation ?? null}
             currentUserId={currentUserId}
