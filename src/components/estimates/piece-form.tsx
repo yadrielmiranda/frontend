@@ -2582,7 +2582,7 @@ export function PieceForm({
                   {!isLinearMaterial && (
                     <>
                       <div>
-                        <Label className={fieldLabelClass}>Tint</Label>
+                        <Label className={fieldLabelClass}>Glass Color</Label>
                         <Controller
                           name="idTint"
                           control={control}
@@ -2594,7 +2594,7 @@ export function PieceForm({
                               value={String(field.value || "0")}
                             >
                               <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select tint" />
+                                <SelectValue placeholder="Select glass color" />
                               </SelectTrigger>
                               <SelectContent>
                                 {availableTints.map((t) => (
@@ -2611,14 +2611,15 @@ export function PieceForm({
                         />
                         {errors.idTint && (
                           <p className="mt-1 text-xs text-red-500">
-                            Tint required
+                            Glass Color required
                           </p>
                         )}
                         {!errors.idTint &&
                           Number(brandId) > 0 &&
                           availableTints.length === 0 && (
                             <p className="mt-1 text-xs text-red-500">
-                              No active Tint is configured for this Brand.
+                              No active Glass Color is configured for this
+                              Brand.
                             </p>
                           )}
                       </div>
@@ -3884,12 +3885,7 @@ export function PieceForm({
                               )}
                             </div>
 
-                            {!patternRequiresLites ? (
-                              <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                This pattern does not use lites. Full view will
-                                be shown.
-                              </div>
-                            ) : !hasMuntinLayout ? (
+                            {!patternRequiresLites ? null : !hasMuntinLayout ? (
                               <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
                                 This configuration supports Full View only.
                               </div>
