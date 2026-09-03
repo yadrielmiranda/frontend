@@ -335,25 +335,27 @@ function InstallationSummary({
             )}
 
             {summary.permitIncluded ? (
-              <>
-                <MoneyRow
-                  label="Permit Fee"
-                  value={formatMoney(numberValue(summary.permitFee))}
-                />
-                <MoneyRow
-                  label="City Fee"
-                  value={
-                    summary.cityFee == null
-                      ? "Pending"
-                      : formatMoney(numberValue(summary.cityFee))
-                  }
-                />
-              </>
+              <div className="mt-1 border-t border-slate-200 pt-1">
+                <p className="py-2 text-sm font-semibold text-black">
+                  Permit management
+                </p>
+                <div className="border-l-2 border-slate-200 pl-3">
+                  <MoneyRow
+                    label="Permit Fee"
+                    value={formatMoney(numberValue(summary.permitFee))}
+                  />
+                  <MoneyRow
+                    label="City Fee"
+                    value={
+                      summary.cityFee == null
+                        ? "Pending"
+                        : formatMoney(numberValue(summary.cityFee))
+                    }
+                  />
+                </div>
+              </div>
             ) : (
-              <>
-                <MoneyRow label="Permit service" value="Not included" />
-                <MoneyRow label="City Fee" value="Not applicable" />
-              </>
+              <MoneyRow label="Permit management" value="Not included" />
             )}
           </>
         )}
@@ -399,17 +401,22 @@ function ProjectScopeSummary({
               <MoneyRow label="Additional services" value="None included" />
             )}
 
-            <MoneyRow
-              label="Permit service"
-              value={summary.permitIncluded ? "Included" : "Not included"}
-            />
-
             {summary.permitIncluded ? (
-              <MoneyRow
-                label="City Fee"
-                value={summary.cityFee == null ? "Pending" : "Included"}
-              />
-            ) : null}
+              <div className="mt-1 border-t border-slate-200 pt-1">
+                <p className="py-2 text-sm font-semibold text-black">
+                  Permit management
+                </p>
+                <div className="border-l-2 border-slate-200 pl-3">
+                  <MoneyRow label="Permit Fee" value="Included" />
+                  <MoneyRow
+                    label="City Fee"
+                    value={summary.cityFee == null ? "Pending" : "Included"}
+                  />
+                </div>
+              </div>
+            ) : (
+              <MoneyRow label="Permit management" value="Not included" />
+            )}
           </>
         ) : null}
       </div>

@@ -510,21 +510,28 @@ export function EstimateFinancialSummary({
                 )}
 
                 {activeJob.permit ? (
-                  <>
-                    <SummaryRow
-                      label="Permit Fee"
-                      value={formatMoney(permitFee)}
-                    />
-                    <SummaryRow
-                      label="City Fee"
-                      value={cityFee == null ? "Pending" : formatMoney(cityFee)}
-                    />
-                  </>
+                  <div className="mt-1 border-t pt-1">
+                    <p className="py-1.5 text-sm font-semibold">
+                      Permit management
+                    </p>
+                    <div className="border-l-2 border-slate-200 pl-3">
+                      <SummaryRow
+                        label="Permit Fee"
+                        value={formatMoney(permitFee)}
+                      />
+                      <SummaryRow
+                        label="City Fee"
+                        value={
+                          cityFee == null ? "Pending" : formatMoney(cityFee)
+                        }
+                      />
+                    </div>
+                  </div>
                 ) : (
-                  <>
-                    <SummaryRow label="Permit service" value="Not included" />
-                    <SummaryRow label="City Fee" value="Not applicable" />
-                  </>
+                  <SummaryRow
+                    label="Permit management"
+                    value="Not included"
+                  />
                 )}
 
                 {isDealerEstimate && (

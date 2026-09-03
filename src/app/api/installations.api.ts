@@ -255,20 +255,30 @@ export async function getEstimateInstallation(
     { cache: "no-store" },
   );
 
-  return installation && typeof installation === "object"
-    ? installation
-    : null;
+  return installation && typeof installation === "object" ? installation : null;
 }
 
 export const requestInstallation = (
   estimateId: number,
   data: {
-    permitRequested?: boolean;
+    permitRequested: boolean;
     selectedServices?: InstallationLineInput[];
   },
 ) =>
   apiFetch<InstallationJob>(`/api/estimates/${estimateId}/installation`, {
     method: "POST",
+    body: data,
+  });
+
+export const updateInstallationRequest = (
+  jobId: number,
+  data: {
+    permitRequested: boolean;
+    selectedServices?: InstallationLineInput[];
+  },
+) =>
+  apiFetch<InstallationJob>(`/api/installations/${jobId}/request`, {
+    method: "PATCH",
     body: data,
   });
 

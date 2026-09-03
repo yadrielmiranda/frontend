@@ -211,6 +211,8 @@ export function EstimateForm({
   const [financialInstallation, setFinancialInstallation] = useState(
     initialInstallation ?? null,
   );
+  const [isInstallationRequestEditing, setIsInstallationRequestEditing] =
+    useState(false);
   const [customerChargesSummary, setCustomerChargesSummary] =
     useState<EstimateCustomerChargeSummary | null>(
       estimate?.customerChargesSummary ?? null,
@@ -1534,6 +1536,7 @@ export function EstimateForm({
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
             onJobChange={setFinancialInstallation}
+            onRequestEditingChange={setIsInstallationRequestEditing}
           />
         )}
 
@@ -1547,6 +1550,7 @@ export function EstimateForm({
               refreshKey={[
                 financialInstallation?.id ?? "none",
                 financialInstallation?.status ?? "none",
+                financialInstallation?.updatedAt ?? "none",
                 financialInstallation?.quotes?.[0]?.id ?? "none",
                 financialInstallation?.quotes?.[0]?.status ?? "none",
                 financialInstallation?.quotes?.[0]?.total ?? "none",
@@ -1589,6 +1593,11 @@ export function EstimateForm({
             }
             dealerMode={dealerMode}
             cardSurchargeFraction={cardSurchargeFraction}
+            paymentBlockedReason={
+              isInstallationRequestEditing
+                ? "Finish or cancel the installation calculation to continue to payment."
+                : undefined
+            }
             canRecordManualPayment={
               isAdminRole(role) ||
               (role === "dealer" &&

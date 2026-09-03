@@ -151,6 +151,7 @@ export function EstimatePaymentCard({
   dealerMode,
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
+  paymentBlockedReason,
   className = "",
 }: {
   estimateId: number;
@@ -164,6 +165,7 @@ export function EstimatePaymentCard({
   dealerMode?: DealerMode | null;
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
+  paymentBlockedReason?: string;
   className?: string;
 }) {
   const router = useRouter();
@@ -217,6 +219,11 @@ export function EstimatePaymentCard({
   });
 
   const handlePayment = async () => {
+    if (paymentBlockedReason) {
+      toast.error(paymentBlockedReason);
+      return;
+    }
+
     if (requiresDepositTerms && !depositTermsSatisfied) {
       toast.error("Accept the non-refundable deposit terms first.");
       return;
@@ -324,6 +331,15 @@ export function EstimatePaymentCard({
         </label>
       )}
 
+      {paymentBlockedReason && (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+        >
+          {paymentBlockedReason}
+        </p>
+      )}
+
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         {isOwner && !isInternalDealer ? (
           <>
@@ -334,7 +350,9 @@ export function EstimatePaymentCard({
               type="button"
               className="w-full sm:w-auto"
               disabled={
-                busy || (requiresDepositTerms && !depositTermsSatisfied)
+                busy ||
+                Boolean(paymentBlockedReason) ||
+                (requiresDepositTerms && !depositTermsSatisfied)
               }
               onClick={() => void handlePayment()}
             >

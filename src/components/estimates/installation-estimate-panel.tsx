@@ -2,10 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Hammer, Plus, Trash2 } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Hammer,
+  Pencil,
+  Plus,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import type {
   InstallationJob,
+  InstallationQuoteLine,
   InstallationService,
   Order,
 } from "@/lib/types";
@@ -16,6 +26,7 @@ import {
   getInstallationServices,
   requestInstallation,
   respondInstallationAppointment,
+  updateInstallationRequest,
 } from "@/app/api/installations.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +37,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -53,6 +64,23 @@ type RequestedRow = {
 };
 type EstimatePieceTarget = { id: number; mark: string; qty: number };
 
+const draftText = (value: string | number | null | undefined) =>
+  value === null || value === undefined ? "" : String(value);
+
+function additionalServiceDraftFromLine(
+  line: InstallationQuoteLine,
+): AdditionalServiceDraft {
+  return {
+    widthIn: draftText(line.widthIn),
+    heightIn: draftText(line.heightIn),
+    areaSqFt: draftText(line.areaSqFt),
+    panelCount: draftText(line.panelCount),
+    lengthIn: draftText(line.lengthIn),
+    occurrences: String(line.occurrences || 1),
+    description: line.description ?? "",
+  };
+}
+
 export function InstallationEstimatePanel({
   estimateId,
   estimateOwnerId,
@@ -65,6 +93,7 @@ export function InstallationEstimatePanel({
   refreshKey,
   beforeRequest,
   onJobChange,
+  onRequestEditingChange,
 }: {
   estimateId: number;
   estimateOwnerId: number;
@@ -77,13 +106,14 @@ export function InstallationEstimatePanel({
   refreshKey: string;
   beforeRequest?: () => Promise<boolean>;
   onJobChange?: (job: InstallationJob | null) => void;
+  onRequestEditingChange?: (isEditing: boolean) => void;
 }) {
   const [job, setJob] = useState<InstallationJob | null>(initialJob);
   const [services, setServices] = useState<InstallationService[]>([]);
   const [loading, setLoading] = useState(!initialJob);
   const [busy, setBusy] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
-  const [permitRequested, setPermitRequested] = useState(false);
+  const [permitRequested, setPermitRequested] = useState<boolean | null>(null);
   const [rows, setRows] = useState<RequestedRow[]>([]);
   const [nextRowId, setNextRowId] = useState(1);
   const [decisionComment, setDecisionComment] = useState("");
@@ -96,6 +126,39 @@ export function InstallationEstimatePanel({
       onJobChange?.(nextJob);
     },
     [onJobChange],
+  );
+
+  const setRequestEditing = useCallback(
+    (isEditing: boolean) => {
+      setShowRequest(isEditing);
+      onRequestEditingChange?.(isEditing);
+    },
+    [onRequestEditingChange],
+  );
+
+  const canRequest =
+    !job && estimateStatus === "Active" && !order && pieces.length > 0;
+  const isOwner = currentUserId === estimateOwnerId;
+  const depositPaid = job ? paidBaseFor(job, "INSTALLATION_DEPOSIT") : 0;
+  const canEditBeforeDeposit =
+    Boolean(job) &&
+    isOwner &&
+    !order &&
+    job?.status === "DEPOSIT_PAYMENT_PENDING" &&
+    depositPaid === 0;
+  const canConfigureRequest = canRequest || canEditBeforeDeposit;
+
+  useEffect(() => {
+    if (showRequest && !canConfigureRequest) {
+      setRequestEditing(false);
+    }
+  }, [canConfigureRequest, setRequestEditing, showRequest]);
+
+  useEffect(
+    () => () => {
+      onRequestEditingChange?.(false);
+    },
+    [onRequestEditingChange],
   );
 
   useEffect(() => {
@@ -130,7 +193,36 @@ export function InstallationEstimatePanel({
     setNextRowId((value) => value + 1);
   };
 
+  const beginNewRequest = () => {
+    setPermitRequested(null);
+    setRows([]);
+    setNextRowId(1);
+    setRequestEditing(true);
+  };
+
+  const beginEditRequest = () => {
+    if (!job || !canEditBeforeDeposit) return;
+    const selectedLines = (job.quotes[0]?.lines ?? []).filter(
+      (line) => line.origin === "USER_SELECTED",
+    );
+    setPermitRequested(Boolean(job.permit));
+    setRows(
+      selectedLines.map((line, index) => ({
+        id: index + 1,
+        serviceId: String(line.serviceId),
+        draft: additionalServiceDraftFromLine(line),
+      })),
+    );
+    setNextRowId(selectedLines.length + 1);
+    setRequestEditing(true);
+  };
+
   const submitRequest = async () => {
+    if (permitRequested === null) {
+      toast.error("Select a permit management option.");
+      return;
+    }
+
     for (const row of rows) {
       const service =
         services.find((candidate) => candidate.id === Number(row.serviceId)) ??
@@ -146,7 +238,7 @@ export function InstallationEstimatePanel({
 
     setBusy(true);
     try {
-      const created = await requestInstallation(estimateId, {
+      const payload = {
         permitRequested,
         selectedServices: rows.map((row) => {
           const service = services.find(
@@ -157,10 +249,17 @@ export function InstallationEstimatePanel({
             ...additionalServiceValues(service, row.draft),
           };
         }),
-      });
-      commitJob(created);
-      setShowRequest(false);
-      toast.success("Preliminary installation price calculated.");
+      };
+      const updatedJob = job
+        ? await updateInstallationRequest(job.id, payload)
+        : await requestInstallation(estimateId, payload);
+      commitJob(updatedJob);
+      setRequestEditing(false);
+      toast.success(
+        job
+          ? "Installation updated and recalculated."
+          : "Preliminary installation price calculated.",
+      );
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -174,7 +273,9 @@ export function InstallationEstimatePanel({
     try {
       const result = await cancelInstallation(job.id);
       commitJob(result);
-      toast.success("Installation removed. The estimate remains material only.");
+      toast.success(
+        "Installation removed. The estimate remains material only.",
+      );
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -192,10 +293,8 @@ export function InstallationEstimatePanel({
     );
   }
 
-  if (!job) {
-    const canRequest =
-      estimateStatus === "Active" && !order && pieces.length > 0;
-    if (!canRequest) return null;
+  if (!job || (showRequest && canEditBeforeDeposit)) {
+    if (!job && !canRequest) return null;
 
     return (
       <Card className="border-red-200">
@@ -204,32 +303,125 @@ export function InstallationEstimatePanel({
             <Hammer className="h-5 w-5" /> Installation
           </CardTitle>
           <CardDescription>
-            Calculate the installation price before deciding whether to add it
-            to this estimate.
+            {job
+              ? "Update the installation details and recalculate the preliminary price."
+              : "Calculate the installation price before deciding whether to add it to this estimate."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!showRequest ? (
-            <Button type="button" onClick={() => setShowRequest(true)}>
+            <Button type="button" onClick={beginNewRequest}>
               Request installation price
             </Button>
           ) : (
             <>
-              <label className="flex items-start gap-3 rounded-lg border p-4 text-sm">
-                <Checkbox
-                  checked={permitRequested}
-                  onCheckedChange={(checked) =>
-                    setPermitRequested(Boolean(checked))
+              <fieldset className="space-y-3">
+                <legend className="font-semibold">Permit coordination</legend>
+                <p className="text-sm text-muted-foreground">
+                  Select the permit management option for this installation. One
+                  option is required.
+                </p>
+
+                <RadioGroup
+                  value={
+                    permitRequested === null
+                      ? undefined
+                      : permitRequested
+                        ? "COMPANY"
+                        : "INDEPENDENT"
                   }
-                />
-                <span>
-                  <strong className="block">Include our permit service</strong>
-                  <span className="text-muted-foreground">
-                    Permit Fee is paid after remeasurement approval. City Fee
-                    is added later by company staff.
-                  </span>
-                </span>
-              </label>
+                  onValueChange={(value) =>
+                    setPermitRequested(value === "COMPANY")
+                  }
+                  aria-label="Permit coordination responsibility"
+                  className="gap-3"
+                >
+                  <label
+                    htmlFor="permit-independent-provider"
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-sm transition-colors sm:p-5 ${
+                      permitRequested === false
+                        ? "border-blue-500 bg-blue-50/70 ring-1 ring-blue-200"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/30"
+                    }`}
+                  >
+                    <RadioGroupItem
+                      id="permit-independent-provider"
+                      value="INDEPENDENT"
+                      className="mt-1 border-slate-400 text-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                    <span className="flex min-w-0 flex-1 items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                        <UserRound className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <strong className="block text-base text-slate-950">
+                          Use my own permit management service
+                        </strong>
+                        <span className="mt-1 block leading-6 text-muted-foreground">
+                          I will use an independent coordinator to manage the
+                          permit application, plan-review responses, required
+                          approvals, fees, and inspection scheduling.
+                        </span>
+                      </span>
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor="permit-installation-provider"
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-sm transition-colors sm:p-5 ${
+                      permitRequested === true
+                        ? "border-blue-500 bg-blue-50/70 ring-1 ring-blue-200"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/30"
+                    }`}
+                  >
+                    <RadioGroupItem
+                      id="permit-installation-provider"
+                      value="COMPANY"
+                      className="mt-1 border-slate-400 text-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col gap-3">
+                      <span className="flex items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                          <Building2 className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <strong className="block text-base text-slate-950">
+                            Use Authentic Evolution&apos;s permit management
+                            service
+                          </strong>
+                          <span className="mt-1 block leading-6 text-muted-foreground">
+                            The Authentic Evolution team will manage the permit
+                            application, plan-review responses, required
+                            approvals, and inspection scheduling.
+                          </span>
+                        </span>
+                      </span>
+
+                      <span className="grid gap-2 text-xs font-medium text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                          "Permit application",
+                          "Plan-review coordination",
+                          "Agency submissions",
+                          "Inspection scheduling",
+                        ].map((item) => (
+                          <span
+                            key={item}
+                            className="flex items-center gap-1.5"
+                          >
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            {item}
+                          </span>
+                        ))}
+                      </span>
+
+                      <span className="rounded-lg bg-white/80 px-3 py-2 leading-5 text-slate-600">
+                        Permit Fee is paid after remeasurement approval. City
+                        Fee is added later by company staff.
+                      </span>
+                    </span>
+                  </label>
+                </RadioGroup>
+              </fieldset>
 
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-muted-foreground">
                 Installation for estimate pieces is calculated automatically.
@@ -324,7 +516,12 @@ export function InstallationEstimatePanel({
               ))}
 
               {services.length > 0 && (
-                <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addRow}
+                >
                   <Plus className="mr-2 h-4 w-4" /> Add additional service
                 </Button>
               )}
@@ -332,12 +529,19 @@ export function InstallationEstimatePanel({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowRequest(false)}
+                  disabled={busy}
+                  onClick={() => setRequestEditing(false)}
                 >
                   Cancel
                 </Button>
                 <Button type="button" disabled={busy} onClick={submitRequest}>
-                  {busy ? "Calculating…" : "Calculate installation"}
+                  {busy
+                    ? job
+                      ? "Saving…"
+                      : "Calculating…"
+                    : job
+                      ? "Save installation changes"
+                      : "Calculate installation"}
                 </Button>
               </div>
             </>
@@ -351,23 +555,16 @@ export function InstallationEstimatePanel({
   const latestRevision = latest
     ? job.revisions?.find((revision) => revision.quoteId === latest.id)
     : job.revisions?.[0];
-  const isOwner = currentUserId === estimateOwnerId;
-  const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
   const proposedRemeasurement = job.appointments.find(
     (appointment) =>
-      appointment.type === "REMEASUREMENT" &&
-      appointment.status === "PROPOSED",
+      appointment.type === "REMEASUREMENT" && appointment.status === "PROPOSED",
   );
   const acceptedRemeasurement = job.appointments.find(
     (appointment) =>
       appointment.type === "REMEASUREMENT" &&
-      (appointment.status === "ACCEPTED" ||
-        appointment.status === "COMPLETED"),
+      (appointment.status === "ACCEPTED" || appointment.status === "COMPLETED"),
   );
-  const canRemoveBeforeDeposit =
-    isOwner &&
-    job.status === "DEPOSIT_PAYMENT_PENDING" &&
-    depositPaid === 0;
+  const canRemoveBeforeDeposit = canEditBeforeDeposit;
 
   const decide = async (decision: "APPROVED" | "REJECTED") => {
     setBusy(true);
@@ -456,18 +653,31 @@ export function InstallationEstimatePanel({
         {canRemoveBeforeDeposit && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm text-slate-600">
-              Installation has not been confirmed. You can still continue
-              with material only before paying the deposit.
+              Before paying the installation deposit, you can update the request
+              or continue with material only.
             </p>
-            <Button
-              type="button"
-              className="w-full"
-              variant="outline"
-              disabled={busy}
-              onClick={() => setRemoveDialogOpen(true)}
-            >
-              Remove installation and continue with material only
-            </Button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800"
+                disabled={busy}
+                onClick={beginEditRequest}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit installation
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800"
+                disabled={busy}
+                onClick={() => setRemoveDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove installation and continue with material only
+              </Button>
+            </div>
           </div>
         )}
 
@@ -499,9 +709,7 @@ export function InstallationEstimatePanel({
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() =>
-                  respondToRemeasurement("REQUEST_RESCHEDULE")
-                }
+                onClick={() => respondToRemeasurement("REQUEST_RESCHEDULE")}
               >
                 Request reschedule
               </Button>
