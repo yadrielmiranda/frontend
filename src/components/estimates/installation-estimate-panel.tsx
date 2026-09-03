@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Hammer,
   Pencil,
-  Plus,
   Trash2,
   UserRound,
 } from "lucide-react";
@@ -31,6 +30,7 @@ import {
 } from "@/app/api/installations.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -39,13 +39,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
 import { EstimateRevisionSummary } from "./estimate-revision-summary";
@@ -118,7 +111,6 @@ export function InstallationEstimatePanel({
   const [showRequest, setShowRequest] = useState(false);
   const [permitRequested, setPermitRequested] = useState<boolean | null>(null);
   const [rows, setRows] = useState<RequestedRow[]>([]);
-  const [nextRowId, setNextRowId] = useState(1);
   const [decisionComment, setDecisionComment] = useState("");
   const [appointmentResponseNote, setAppointmentResponseNote] = useState("");
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -191,22 +183,40 @@ export function InstallationEstimatePanel({
     };
   }, [commitJob, estimateId, refreshKey]);
 
-  const addRow = () => {
-    setRows((current) => [
-      ...current,
-      {
-        id: nextRowId,
-        serviceId: "",
-        draft: emptyAdditionalServiceDraft(),
-      },
-    ]);
-    setNextRowId((value) => value + 1);
+  const setAdditionalServiceSelected = (
+    serviceId: number,
+    selected: boolean,
+  ) => {
+    const requestedServiceId = String(serviceId);
+    setRows((current) => {
+      if (!selected) {
+        return current.filter(
+          (row) => row.serviceId !== requestedServiceId,
+        );
+      }
+
+      if (current.some((row) => row.serviceId === requestedServiceId)) {
+        return current;
+      }
+
+      const nextId = current.reduce(
+        (highestId, row) => Math.max(highestId, row.id),
+        0,
+      ) + 1;
+      return [
+        ...current,
+        {
+          id: nextId,
+          serviceId: requestedServiceId,
+          draft: emptyAdditionalServiceDraft(),
+        },
+      ];
+    });
   };
 
   const beginNewRequest = () => {
     setPermitRequested(null);
     setRows([]);
-    setNextRowId(1);
     setRequestEditing(true);
   };
 
@@ -223,7 +233,6 @@ export function InstallationEstimatePanel({
         draft: additionalServiceDraftFromLine(line),
       })),
     );
-    setNextRowId(selectedLines.length + 1);
     setRequestEditing(true);
   };
 
@@ -435,106 +444,121 @@ export function InstallationEstimatePanel({
 
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-muted-foreground">
                 Installation for estimate pieces is calculated automatically.
-                Add a service below only for separate work outside this
-                estimate; its pricing inputs are entered manually.
+                Select any additional work needed outside this estimate; its
+                pricing inputs are entered manually.
               </p>
 
-              {rows.map((row) => (
-                <div
-                  key={row.id}
-                  className="space-y-3 rounded-lg bg-slate-50 p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={row.serviceId}
-                      onValueChange={(serviceId) =>
-                        setRows((current) =>
-                          current.map((item) =>
-                            item.id === row.id
-                              ? {
-                                  ...item,
-                                  serviceId,
-                                  draft: emptyAdditionalServiceDraft(),
-                                }
-                              : item,
-                          ),
-                        )
-                      }
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Additional service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem
-                            key={service.id}
-                            value={String(service.id)}
-                          >
-                            {service.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() =>
-                        setRows((current) =>
-                          current.filter((item) => item.id !== row.id),
-                        )
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <AdditionalServiceFields
-                    service={
-                      services.find(
-                        (service) => service.id === Number(row.serviceId),
-                      ) ?? null
-                    }
-                    value={row.draft}
-                    onChange={(draft) =>
-                      setRows((current) =>
-                        current.map((item) =>
-                          item.id === row.id ? { ...item, draft } : item,
-                        ),
-                      )
-                    }
-                  />
-                  <Textarea
-                    value={row.draft.description}
-                    onChange={(event) =>
-                      setRows((current) =>
-                        current.map((item) =>
-                          item.id === row.id
-                            ? {
-                                ...item,
-                                draft: {
-                                  ...item.draft,
-                                  description: event.target.value,
-                                },
-                              }
-                            : item,
-                        ),
-                      )
-                    }
-                    placeholder="Description or note (optional)"
-                  />
-                </div>
-              ))}
+              <fieldset className="space-y-3">
+                <legend className="font-semibold">
+                  Additional services (optional)
+                </legend>
+                <p className="text-sm text-muted-foreground">
+                  Select all additional services needed for this installation.
+                </p>
 
-              {services.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addRow}
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Add additional service
-                </Button>
-              )}
+                {services.length > 0 ? (
+                  <div className="space-y-3">
+                    {services.map((service) => {
+                      const serviceRows = rows.filter(
+                        (row) => row.serviceId === String(service.id),
+                      );
+                      const isSelected = serviceRows.length > 0;
+                      const checkboxId = `additional-service-${service.id}`;
+
+                      return (
+                        <div
+                          key={service.id}
+                          className={`overflow-hidden rounded-xl border transition-colors ${
+                            isSelected
+                              ? "border-blue-400 bg-blue-50/50 ring-1 ring-blue-100"
+                              : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/20"
+                          }`}
+                        >
+                          <label
+                            htmlFor={checkboxId}
+                            className="flex cursor-pointer items-start gap-3 p-4 sm:p-5"
+                          >
+                            <Checkbox
+                              id={checkboxId}
+                              checked={isSelected}
+                              onCheckedChange={(checked) =>
+                                setAdditionalServiceSelected(
+                                  service.id,
+                                  checked === true,
+                                )
+                              }
+                              className="mt-0.5"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <strong className="block text-sm text-slate-950 sm:text-base">
+                                {service.name}
+                              </strong>
+                              {service.description && (
+                                <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+                                  {service.description}
+                                </span>
+                              )}
+                            </span>
+                          </label>
+
+                          {isSelected && (
+                            <div className="space-y-4 border-t border-blue-200 bg-white/80 p-4 sm:p-5">
+                              {serviceRows.map((row, index) => (
+                                <div key={row.id} className="space-y-3">
+                                  {serviceRows.length > 1 && (
+                                    <p className="text-sm font-medium text-slate-700">
+                                      Service details {index + 1}
+                                    </p>
+                                  )}
+                                  <AdditionalServiceFields
+                                    service={service}
+                                    value={row.draft}
+                                    onChange={(draft) =>
+                                      setRows((current) =>
+                                        current.map((item) =>
+                                          item.id === row.id
+                                            ? { ...item, draft }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                  <Textarea
+                                    value={row.draft.description}
+                                    onChange={(event) =>
+                                      setRows((current) =>
+                                        current.map((item) =>
+                                          item.id === row.id
+                                            ? {
+                                                ...item,
+                                                draft: {
+                                                  ...item.draft,
+                                                  description:
+                                                    event.target.value,
+                                                },
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                    placeholder="Description or note (optional)"
+                                    aria-label={`${service.name} description or note`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-muted-foreground">
+                    No additional services are currently available.
+                  </p>
+                )}
+              </fieldset>
+
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
