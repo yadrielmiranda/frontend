@@ -13,6 +13,7 @@ import type { PieceFormValues } from "./types";
 import { Button } from "@/components/ui/button";
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
+import { InlinePieceMarkInput } from "./inline-piece-mark-input";
 import type {
   ProductWithBrands,
   FrameColor,
@@ -42,6 +43,7 @@ interface PiecesDealerTableProps {
   onDuplicate: (index: number) => void;
   onEdit: (index: number) => void;
   onRemove: (index: number) => void;
+  onMarkSave: (index: number, mark: string) => Promise<boolean>;
 }
 
 export function PiecesDealerTable({
@@ -60,6 +62,7 @@ export function PiecesDealerTable({
   onDuplicate,
   onEdit,
   onRemove,
+  onMarkSave,
 }: PiecesDealerTableProps) {
   const [openPieceIds, setOpenPieceIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -292,7 +295,7 @@ export function PiecesDealerTable({
                     <td colSpan={9} className="p-0 xl:hidden">
                       <div className="space-y-3 p-3">
                         <div className="flex min-w-0 items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-1.5">
+                          <div className="flex min-w-0 flex-1 items-center gap-1.5">
                             <Button
                               type="button"
                               variant="ghost"
@@ -320,9 +323,12 @@ export function PiecesDealerTable({
                               />
                             </Button>
 
-                            <span className="truncate rounded-md bg-slate-100 px-2.5 py-1 font-semibold text-slate-950">
-                              {currentPieceData.mark || `#${index + 1}`}
-                            </span>
+                            <InlinePieceMarkInput
+                              value={currentPieceData.mark}
+                              fallback={`#${index + 1}`}
+                              className="min-w-0 max-w-40 flex-1"
+                              onSave={(mark) => onMarkSave(index, mark)}
+                            />
                           </div>
 
                           <div className="flex shrink-0 gap-1">
@@ -440,8 +446,13 @@ export function PiecesDealerTable({
                         />
                       </Button>
                     </td>
-                    <td className="hidden px-4 py-2 align-middle font-medium xl:table-cell">
-                      {currentPieceData.mark || `#${index + 1}`}
+                    <td className="hidden w-40 px-4 py-2 align-middle xl:table-cell">
+                      <InlinePieceMarkInput
+                        value={currentPieceData.mark}
+                        fallback={`#${index + 1}`}
+                        className="w-32"
+                        onSave={(mark) => onMarkSave(index, mark)}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-gray-700 xl:table-cell">

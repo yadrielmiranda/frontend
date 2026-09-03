@@ -19,6 +19,7 @@ import {
   deleteEstimatePiece,
   updateEstimateHeader,
   updateEstimatePiece,
+  updateEstimatePieceMark,
   type ApplyBulkPieceAttributeData,
 } from "@/app/api/estimates.api";
 import type {
@@ -51,6 +52,7 @@ import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 import { canSetCustomerOnEstimate, isAdminRole } from "@/lib/rbac";
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
+import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -869,7 +871,7 @@ export function EstimateForm({
     const isLinearMaterial = product?.kind === "LINEAR_MATERIAL";
 
     return {
-      mark: piece.mark ?? "",
+      mark: normalizePieceMark(piece.mark),
 
       idProd: Number(piece.idProd),
       idBrand: Number(piece.idBrand),
@@ -1049,6 +1051,63 @@ export function EstimateForm({
       );
 
       // no cerramos el modal cuando falla el backend.
+    }
+  };
+
+  const handleSavePieceMark = async (
+    index: number,
+    mark: string,
+  ): Promise<boolean> => {
+    const normalizedMark = normalizePieceMark(mark);
+
+    if (normalizedMark.length > PIECE_MARK_MAX_LENGTH) {
+      toast.error(`Mark must be ${PIECE_MARK_MAX_LENGTH} characters or fewer.`);
+      return false;
+    }
+
+    const currentPiece = getValues(`pieces.${index}`);
+
+    if (!currentPiece) {
+      toast.error("The Piece could not be found.");
+      return false;
+    }
+
+    if (normalizePieceMark(currentPiece.mark) === normalizedMark) {
+      return true;
+    }
+
+    const previousMark = String(currentPiece.mark ?? "");
+
+    // Conservamos el fallback local para un Estimate aún no persistido.
+    if (!estimate?.id || !currentPiece.id) {
+      setValue(`pieces.${index}.mark`, normalizedMark, {
+        shouldDirty: true,
+      });
+      return true;
+    }
+
+    // Reflejamos el cambio inmediatamente; si el servidor falla, lo revertimos.
+    setValue(`pieces.${index}.mark`, normalizedMark, {
+      shouldDirty: false,
+    });
+
+    try {
+      await updateEstimatePieceMark(
+        estimate.id,
+        Number(currentPiece.id),
+        normalizedMark,
+      );
+
+      toast.success("Mark updated successfully.");
+      return true;
+    } catch (error) {
+      setValue(`pieces.${index}.mark`, previousMark, {
+        shouldDirty: false,
+      });
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update the Mark.",
+      );
+      return false;
     }
   };
 
@@ -1299,7 +1358,6 @@ export function EstimateForm({
                 />
               </div>
             )}
-
           </div>
 
           <div className="min-w-0 space-y-4">
@@ -1327,6 +1385,7 @@ export function EstimateForm({
                 onDuplicate={handleDuplicatePiece}
                 onEdit={handleEditPiece}
                 onRemove={handleRemovePiece}
+                onMarkSave={handleSavePieceMark}
               />
             ) : (
               <PiecesClientList
@@ -1345,6 +1404,7 @@ export function EstimateForm({
                 onDuplicate={handleDuplicatePiece}
                 onEdit={handleEditPiece}
                 onRemove={handleRemovePiece}
+                onMarkSave={handleSavePieceMark}
               />
             )}
           </div>

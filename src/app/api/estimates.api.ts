@@ -134,6 +134,21 @@ export function updateEstimatePiece(
   );
 }
 
+// actualiza solamente el Mark de una pieza persistida.
+export function updateEstimatePieceMark(
+  estimateId: number,
+  pieceId: number,
+  mark: string,
+) {
+  return apiFetch<EstimateWithRelations>(
+    `/api/estimates/${estimateId}/pieces/${pieceId}/mark`,
+    {
+      method: "PATCH",
+      body: { mark },
+    },
+  );
+}
+
 // elimina una pieza persistida
 // y devuelve el Estimate con sus totales actualizados.
 export function deleteEstimatePiece(estimateId: number, pieceId: number) {

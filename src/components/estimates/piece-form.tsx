@@ -57,6 +57,7 @@ import {
 import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
+import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 
 type NamedOption = {
   id: number;
@@ -72,10 +73,7 @@ type SystemConfigLink = {
   config: Config;
 
   dimensionMode?:
-    | "STANDARD"
-    | "ECO_WINDOWS_DOOR"
-    | "ECO_NOVO_DOOR"
-    | "WINDOW_WALL";
+    "STANDARD" | "ECO_WINDOWS_DOOR" | "ECO_NOVO_DOOR" | "WINDOW_WALL";
 
   requiresWidth?: boolean;
   requiresHeight?: boolean;
@@ -2723,7 +2721,13 @@ export function PieceForm({
                       <Input
                         className={inputClass}
                         disabled={isLocked}
-                        {...register("mark")}
+                        maxLength={PIECE_MARK_MAX_LENGTH}
+                        {...register("mark", {
+                          maxLength: {
+                            value: PIECE_MARK_MAX_LENGTH,
+                            message: `Mark must be ${PIECE_MARK_MAX_LENGTH} characters or fewer.`,
+                          },
+                        })}
                       />
                       {errors.mark && (
                         <p className="mt-1 text-xs text-red-500">
