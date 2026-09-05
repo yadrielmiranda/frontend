@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { TransparentAuthLogo } from "./transparent-auth-logo";
+import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 type AuthPageShellProps = {
   title: string;
@@ -14,6 +17,8 @@ export function AuthPageShell({
   children,
   contentMaxWidth = "max-w-md",
 }: AuthPageShellProps) {
+  const { companyName } = useCompanyBranding();
+
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-[#050505] px-4 py-6 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(220,38,38,0.22),transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,1))]" />
@@ -25,7 +30,7 @@ export function AuthPageShell({
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-8">
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_680px] lg:gap-14">
           <section className="flex flex-col items-center text-center lg:items-center lg:text-center">
-            <TransparentAuthLogo />            
+            <TransparentAuthLogo companyName={companyName} />
 
             <div className="mt-2 lg:mt-4">
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -44,8 +49,7 @@ export function AuthPageShell({
             {children}
 
             <p className="mt-5 text-center text-xs text-white/35">
-              © {new Date().getFullYear()} Authentic Evolution Co. All rights
-              reserved.
+              © {new Date().getFullYear()} {companyName}. All rights reserved.
             </p>
           </section>
         </div>

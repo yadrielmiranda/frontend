@@ -29,6 +29,7 @@ import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
+import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -80,6 +81,7 @@ export function BrandingForm({
   mode: "company" | "dealer";
 }) {
   const router = useRouter();
+  const { refreshCompanyBranding } = useCompanyBranding();
 
   const [brandingState, setBrandingState] = useState<Branding | undefined>(
     branding,
@@ -214,6 +216,9 @@ export function BrandingForm({
       }
 
       setBrandingState(saved);
+      if (mode === "company") {
+        await refreshCompanyBranding();
+      }
       router.refresh();
     } catch (err) {
       const message =
@@ -459,8 +464,8 @@ export function BrandingForm({
               Discard unsaved changes?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You have changes that have not been saved. If you close now,
-              those changes will be lost.
+              You have changes that have not been saved. If you close now, those
+              changes will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

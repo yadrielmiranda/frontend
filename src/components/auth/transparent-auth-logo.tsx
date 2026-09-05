@@ -122,7 +122,7 @@ async function shouldUseSafariVideo(): Promise<boolean> {
   }
 }
 
-export function TransparentAuthLogo() {
+export function TransparentAuthLogo({ companyName }: { companyName: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -168,7 +168,7 @@ export function TransparentAuthLogo() {
       <video
         ref={videoRef}
         autoPlay
-        muted        
+        muted
         playsInline
         preload="auto"
         poster={POSTER}
@@ -178,7 +178,7 @@ export function TransparentAuthLogo() {
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
         tabIndex={-1}
-        aria-label="Authentic Evolution"
+        aria-label={companyName}
         draggable={false}
         className="pointer-events-none h-full w-full select-none bg-transparent object-contain drop-shadow-[0_22px_55px_rgba(220,38,38,0.35)]"
       />

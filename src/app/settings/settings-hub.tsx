@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -24,6 +26,7 @@ import {
   Link2,
   BadgeDollarSign,
 } from "lucide-react";
+import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 type SettingsHubProps = {
   isAdmin: boolean;
@@ -97,6 +100,7 @@ function SettingsSection({
 }
 
 export function SettingsHub({ isAdmin }: SettingsHubProps) {
+  const { companyName } = useCompanyBranding();
   const catalogItems: SettingsItem[] = [
     {
       title: "Brands",
@@ -294,7 +298,7 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
           </div>
 
           <p className="text-sm font-semibold uppercase tracking-[0.35em] text-red-300">
-            Authentic Evolution Co
+            {companyName}
           </p>
 
           <h1 className="text-4xl font-bold tracking-tight md:text-5xl">

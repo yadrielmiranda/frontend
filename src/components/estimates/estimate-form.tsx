@@ -1539,6 +1539,7 @@ export function EstimateForm({
             currentUserId={currentUserId}
             isPrivileged={isPrivileged}
             allowAdditionalServiceNotes={isDealerRole(ownerRole)}
+            companyName={estimate.companyBranding?.name?.trim() || "Company"}
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
             onJobChange={setFinancialInstallation}

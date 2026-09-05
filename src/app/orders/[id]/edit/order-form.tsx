@@ -174,9 +174,9 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
             )}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Once entered, the real material profit for Impact and Authentic is
-            calculated automatically from this Order&apos;s snapshots.
-            Installation profit is not included.
+            Once entered, the real material profit is calculated automatically
+            from this order&apos;s material sale subtotal. Installation profit
+            is not included.
           </p>
         </div>
 

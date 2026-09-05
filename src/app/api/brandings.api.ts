@@ -51,6 +51,12 @@ export function getCompanyBranding() {
   return apiFetch<Branding | null>("/api/brandings/company");
 }
 
+export function getPublicCompanyBranding() {
+  return apiFetch<Branding | null>("/api/brandings/company/public", {
+    suppressAuthEvent: true,
+  });
+}
+
 export function createCompanyBranding(data: CreateBrandingData) {
   return apiFetch<Branding>("/api/brandings/company", {
     method: "POST",

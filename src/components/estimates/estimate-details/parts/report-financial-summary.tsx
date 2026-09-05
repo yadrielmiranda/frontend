@@ -11,7 +11,11 @@ import type {
 } from "@/lib/types";
 
 export type EstimateReportKind =
-  "client" | "dealer-customer" | "dealer-customer-total" | "dealer" | "admin";
+  | "client"
+  | "dealer-customer"
+  | "dealer-customer-total"
+  | "dealer"
+  | "admin";
 
 type MaterialTotals = {
   subtotal: number;
@@ -46,9 +50,7 @@ function MoneyRow({
 
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
-      <span
-        className={strong ? "font-semibold text-black" : "text-black"}
-      >
+      <span className={strong ? "font-semibold text-black" : "text-black"}>
         {label}
       </span>
       <span className={valueClassName}>{children ?? value}</span>
@@ -433,43 +435,21 @@ function AdminProfitability({
 }) {
   const internalDealer =
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
-  const belongsToImpact =
-    ownerIsDealer && estimate.dealerAffiliationSnapshot === "IMPACT";
+  const companyName = estimate.companyBranding?.name?.trim() || "Company";
   const factoryRate = numberValue(estimate.rateT);
   const internalMaterialSubtotal = numberValue(estimate.priceT);
   const materialSaleSubtotal = internalDealer
     ? numberValue(estimate.customerPriceT)
     : internalMaterialSubtotal;
-  const impactMarkupRate = belongsToImpact
-    ? internalDealer
-      ? internalMaterialSubtotal > 0
-        ? numberValue(estimate.customerPriceT) / internalMaterialSubtotal - 1
-        : 0
-      : numberValue(estimate.ownerMarkupSnapshot)
-    : 0;
-  const factoryPriceWithImpactMarkup = roundMoney(
-    factoryRate * (1 + impactMarkupRate),
-  );
-  const estimatedImpactProfit = belongsToImpact
-    ? roundMoney(factoryPriceWithImpactMarkup - factoryRate)
-    : 0;
-  const estimatedAuthenticProfit = roundMoney(
-    materialSaleSubtotal - factoryPriceWithImpactMarkup,
-  );
+  const estimatedCompanyProfit = roundMoney(materialSaleSubtotal - factoryRate);
   const saleChannel = ownerIsDealer
-    ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} · ${
-        estimate.dealerAffiliationSnapshot ?? "AUTHENTIC"
-      }`
-    : "DIRECT CLIENT · AUTHENTIC";
-  const calculationNote = belongsToImpact
-    ? internalDealer
-      ? "Estimated Impact profit keeps the full effective customer material markup. Estimated Authentic profit is only the remaining amount above it."
-      : "Estimated Impact profit keeps the full stored Impact markup. Estimated Authentic profit is only the remaining amount above it."
-    : internalDealer
-      ? "Estimated Authentic profit uses customer material subtotal minus estimated factory rate."
-      : ownerIsDealer
-        ? "Estimated Authentic profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded."
-        : "Estimated Authentic profit uses material sale subtotal minus estimated factory rate.";
+    ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} DEALER`
+    : "DIRECT CLIENT";
+  const calculationNote = internalDealer
+    ? `Estimated ${companyName} profit uses customer material subtotal minus estimated factory rate.`
+    : ownerIsDealer
+      ? `Estimated ${companyName} profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded.`
+      : `Estimated ${companyName} profit uses material sale subtotal minus estimated factory rate.`;
 
   return (
     <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
@@ -487,16 +467,9 @@ function AdminProfitability({
           label="Estimated factory rate"
           value={formatMoney(numberValue(estimate.rateT))}
         />
-        {belongsToImpact ? (
-          <MoneyRow
-            label="Estimated Impact profit"
-            value={formatMoney(estimatedImpactProfit)}
-            strong
-          />
-        ) : null}
         <MoneyRow
-          label="Estimated Authentic profit"
-          value={formatMoney(estimatedAuthenticProfit)}
+          label={`Estimated ${companyName} profit`}
+          value={formatMoney(estimatedCompanyProfit)}
           strong
         />
       </div>
@@ -578,8 +551,8 @@ export function ReportFinancialSummary({
   );
   const preliminaryInstallation = Boolean(
     installationSummary &&
-    (installationSummary.quoteStatus !== "APPROVED" ||
-      installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
+      (installationSummary.quoteStatus !== "APPROVED" ||
+        installationSummary.status === "DEPOSIT_PAYMENT_PENDING"),
   );
   const externalChargesIncomplete = externalDealerCharges
     ? customerFacing

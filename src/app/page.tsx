@@ -32,6 +32,7 @@ import { getEstimates } from "@/app/api/estimates.api";
 import { getOrders } from "@/app/api/orders.api";
 import type { EstimateWithRelations, OrderWithRelations } from "@/lib/types";
 import { formatMoney } from "@/lib/formatters";
+import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 function getEstimateStatusName(estimate: EstimateWithRelations) {
   if (estimate.status?.name) return estimate.status.name;
@@ -67,6 +68,7 @@ function toMoneyNumber(value: unknown) {
 
 export default function HomePage() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { branding, companyName } = useCompanyBranding();
   const [estimates, setEstimates] = useState<EstimateWithRelations[]>([]);
   const [orders, setOrders] = useState<OrderWithRelations[]>([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
@@ -297,7 +299,7 @@ export default function HomePage() {
 
               <div className="space-y-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.35em] text-red-300">
-                  Authentic Evolution Co
+                  {companyName}
                 </p>
 
                 <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
@@ -337,12 +339,13 @@ export default function HomePage() {
 
             <div className="hidden justify-end md:flex">
               <div className="relative h-36 w-36 lg:h-44 lg:w-44">
-                <Image
-                  src="/branding/authentic-login-logo.png"
-                  alt="Authentic Evolution"
-                  fill
-                  priority
-                  className="object-contain drop-shadow-2xl"
+                {/* Company logo URLs are managed in the branding settings. */}
+                <img
+                  src={
+                    branding?.logoUrl || "/branding/authentic-login-logo.png"
+                  }
+                  alt={companyName}
+                  className="h-full w-full object-contain drop-shadow-2xl"
                 />
               </div>
             </div>

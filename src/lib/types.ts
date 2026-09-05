@@ -9,7 +9,6 @@ export interface Role {
 }
 
 export type DealerMode = "EXTERNAL" | "INTERNAL";
-export type DealerAffiliation = "IMPACT" | "AUTHENTIC";
 
 export interface User {
   id: number;
@@ -27,7 +26,6 @@ export interface User {
   markupOverride?: number | null;
   isTaxExempt: boolean;
   dealerMode?: DealerMode | null;
-  dealerAffiliation?: DealerAffiliation | null;
 
   isActive: boolean;
   deletedAt?: string | null;
@@ -403,7 +401,6 @@ export interface Estimate {
   customerPostalCode?: string | null;
   units: number;
   dealerModeSnapshot?: DealerMode | null;
-  dealerAffiliationSnapshot?: DealerAffiliation | null;
   ownerMarkupSnapshot?: string | number;
   rateT: number;
   priceT: number;
@@ -907,18 +904,10 @@ export interface Order {
   netProfit: number;
 
   dealerModeSnapshot?: DealerMode | null;
-  dealerAffiliationSnapshot?: DealerAffiliation | null;
-  impactMarkupRate: number;
-  factoryPriceWithMarkup: number;
-  impactProfit: number;
-  authenticProfit: number;
 
   poNumber?: string | null;
   rateReal?: number | null;
   netProfitReal?: number | null;
-  factoryPriceWithMarkupReal?: number | null;
-  impactProfitReal?: number | null;
-  authenticProfitReal?: number | null;
 
   updateStatus: string;
 
@@ -1286,6 +1275,7 @@ export type EstimateWithRelations = Estimate & {
   pieces: PieceWithRelations[];
   user: User;
   branding?: Branding | null;
+  companyBranding?: Branding | null;
   installationSummary?: EstimateInstallationReportSummary | null;
   customerChargesSummary?: EstimateCustomerChargeSummary | null;
   publicPricingMode?: "detailed" | "total";
@@ -1470,7 +1460,6 @@ export interface CreateUserDto {
   isTaxExempt?: boolean;
   installationPriceProfileId?: number | null;
   dealerMode?: DealerMode;
-  dealerAffiliation?: DealerAffiliation;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {

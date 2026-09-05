@@ -157,7 +157,6 @@ export function UserForm({
       markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
       dealerMode: user?.dealerMode ?? "EXTERNAL",
-      dealerAffiliation: user?.dealerAffiliation ?? "AUTHENTIC",
     },
   });
 
@@ -257,7 +256,6 @@ export function UserForm({
             ...(isDealerAccount
               ? {
                   dealerMode: data.dealerMode,
-                  dealerAffiliation: data.dealerAffiliation,
                 }
               : {}),
             installationPriceProfileId:
@@ -292,7 +290,6 @@ export function UserForm({
           ...(isDealerAccount
             ? {
                 dealerMode: data.dealerMode,
-                dealerAffiliation: data.dealerAffiliation,
               }
             : {}),
         };
@@ -507,55 +504,31 @@ export function UserForm({
         )}
 
         {!isProfilePage && isDealerAccount && (
-          <>
-            <div>
-              <Label htmlFor="dealerMode">Dealer Mode</Label>
-              <Controller
-                name="dealerMode"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? "EXTERNAL"}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger id="dealerMode">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EXTERNAL">
-                        External — dealer pays
-                      </SelectItem>
-                      <SelectItem value="INTERNAL">
-                        Internal — final customer pays
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="dealerAffiliation">Dealer Affiliation</Label>
-              <Controller
-                name="dealerAffiliation"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? "AUTHENTIC"}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger id="dealerAffiliation">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AUTHENTIC">Authentic</SelectItem>
-                      <SelectItem value="IMPACT">Impact</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </>
+          <div>
+            <Label htmlFor="dealerMode">Dealer Mode</Label>
+            <Controller
+              name="dealerMode"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? "EXTERNAL"}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger id="dealerMode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EXTERNAL">
+                      External — dealer pays
+                    </SelectItem>
+                    <SelectItem value="INTERNAL">
+                      Internal — final customer pays
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
         )}
 
         {!isProfilePage && (

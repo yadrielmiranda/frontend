@@ -88,6 +88,7 @@ export function InstallationEstimatePanel({
   currentUserId,
   isPrivileged,
   allowAdditionalServiceNotes,
+  companyName,
   refreshKey,
   beforeRequest,
   onJobChange,
@@ -103,6 +104,7 @@ export function InstallationEstimatePanel({
   currentUserId: number;
   isPrivileged: boolean;
   allowAdditionalServiceNotes: boolean;
+  companyName: string;
   refreshKey: string;
   beforeRequest?: () => Promise<boolean>;
   onJobChange?: (job: InstallationJob | null) => void;
@@ -408,11 +410,11 @@ export function InstallationEstimatePanel({
                         </span>
                         <span>
                           <strong className="block text-base text-slate-950">
-                            Use Authentic Evolution&apos;s permit management
-                            service
+                            Use the permit management service provided by{" "}
+                            {companyName}
                           </strong>
                           <span className="mt-1 block leading-6 text-muted-foreground">
-                            The Authentic Evolution team will manage the permit
+                            The {companyName} team will manage the permit
                             application, plan-review responses, required
                             approvals, and inspection scheduling.
                           </span>

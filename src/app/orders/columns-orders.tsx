@@ -53,26 +53,14 @@ export function getOrderColumns({
   ];
 
   if (canViewFinancials) {
-    columns.splice(
-      -1,
-      0,
-      {
-        id: "authenticProfitReal",
-        header: "Authentic Material Profit",
-        cell: ({ row }) =>
-          row.original.authenticProfitReal == null
-            ? "Pending"
-            : formatMoney(Number(row.original.authenticProfitReal)),
-      },
-      {
-        id: "impactProfitReal",
-        header: "Impact Material Profit",
-        cell: ({ row }) =>
-          row.original.impactProfitReal == null
-            ? "Pending"
-            : formatMoney(Number(row.original.impactProfitReal)),
-      },
-    );
+    columns.splice(-1, 0, {
+      id: "netProfitReal",
+      header: "Real Material Profit",
+      cell: ({ row }) =>
+        row.original.netProfitReal == null
+          ? "Pending"
+          : formatMoney(Number(row.original.netProfitReal)),
+    });
   }
 
   columns.push({

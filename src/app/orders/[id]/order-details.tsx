@@ -171,10 +171,8 @@ export function OrderDetails({
               <div className="text-muted-foreground">Sale channel</div>
               <div className="font-medium">
                 {order.dealerModeSnapshot
-                  ? `${order.dealerModeSnapshot} · ${
-                      order.dealerAffiliationSnapshot ?? "AUTHENTIC"
-                    }`
-                  : "DIRECT CLIENT · AUTHENTIC"}
+                  ? `${order.dealerModeSnapshot} DEALER`
+                  : "DIRECT CLIENT"}
               </div>
             </div>
 
@@ -196,34 +194,7 @@ export function OrderDetails({
 
             <div>
               <div className="text-muted-foreground">
-                Impact markup snapshot
-              </div>
-              <div className="font-medium">
-                {(Number(order.impactMarkupRate) * 100).toFixed(2)}%
-              </div>
-            </div>
-
-            <div>
-              <div className="text-muted-foreground">
-                Estimated Impact profit
-              </div>
-              <div className="font-medium">
-                {formatMoney(order.impactProfit)}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-muted-foreground">
-                Estimated Authentic profit
-              </div>
-              <div className="font-medium">
-                {formatMoney(order.authenticProfit)}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-muted-foreground">
-                Estimated total material profit
+                Estimated material profit
               </div>
               <div className="font-medium">{formatMoney(order.netProfit)}</div>
             </div>
@@ -243,29 +214,7 @@ export function OrderDetails({
             </div>
 
             <div>
-              <div className="text-muted-foreground">Real Impact profit</div>
-              <div className="font-medium">
-                {order.impactProfitReal === null ||
-                order.impactProfitReal === undefined
-                  ? "—"
-                  : formatMoney(order.impactProfitReal)}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-muted-foreground">Real Authentic profit</div>
-              <div className="font-medium">
-                {order.authenticProfitReal === null ||
-                order.authenticProfitReal === undefined
-                  ? "—"
-                  : formatMoney(order.authenticProfitReal)}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-muted-foreground">
-                Real total material profit
-              </div>
+              <div className="text-muted-foreground">Real material profit</div>
               <div className="font-medium">
                 {order.netProfitReal === null ||
                 order.netProfitReal === undefined

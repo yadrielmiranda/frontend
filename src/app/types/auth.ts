@@ -6,7 +6,6 @@ export interface AuthUser {
   email: string;
   isTaxExempt: boolean;
   dealerMode?: "EXTERNAL" | "INTERNAL" | null;
-  dealerAffiliation?: "IMPACT" | "AUTHENTIC" | null;
   role: {
     id: number;
     name: string;
