@@ -19,6 +19,7 @@ import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
 import { Menu, FileText, ShoppingBag, Settings, Hammer } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { NotificationBell } from "./notifications-bell";
 import { canAccessSettings } from "@/lib/rbac";
 import { usePathname } from "next/navigation";
@@ -26,7 +27,7 @@ import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 function TopBar() {
   const { isAuthenticated, user } = useAuth();
-  const { branding, companyName } = useCompanyBranding();
+  const { companyName } = useCompanyBranding();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -60,13 +61,13 @@ function TopBar() {
       href="/"
       className="group flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-white/10"
     >
-      {/* Dynamic URLs are configured by administrators, so a native image is intentional here. */}
-      <img
-        src={branding?.logoUrl || "/logo.png"}
+      <Image
+        src="/logo.png"
         alt={companyName}
         width={52}
         height={52}
         className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
+        priority
       />
 
       <div className="leading-tight">

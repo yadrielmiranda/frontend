@@ -68,7 +68,7 @@ function toMoneyNumber(value: unknown) {
 
 export default function HomePage() {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const { branding, companyName } = useCompanyBranding();
+  const { companyName } = useCompanyBranding();
   const [estimates, setEstimates] = useState<EstimateWithRelations[]>([]);
   const [orders, setOrders] = useState<OrderWithRelations[]>([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
@@ -339,13 +339,12 @@ export default function HomePage() {
 
             <div className="hidden justify-end md:flex">
               <div className="relative h-36 w-36 lg:h-44 lg:w-44">
-                {/* Company logo URLs are managed in the branding settings. */}
-                <img
-                  src={
-                    branding?.logoUrl || "/branding/authentic-login-logo.png"
-                  }
+                <Image
+                  src="/branding/authentic-login-logo.png"
                   alt={companyName}
-                  className="h-full w-full object-contain drop-shadow-2xl"
+                  fill
+                  priority
+                  className="object-contain drop-shadow-2xl"
                 />
               </div>
             </div>

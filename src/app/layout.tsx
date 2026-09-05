@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Company Portal",
+  title: "Authentic Evolution",
   description: "Project Management",
   icons: {
     icon: [
