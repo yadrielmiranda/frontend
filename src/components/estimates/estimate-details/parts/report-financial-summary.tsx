@@ -435,7 +435,6 @@ function AdminProfitability({
 }) {
   const internalDealer =
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
-  const companyName = estimate.companyBranding?.name?.trim() || "Company";
   const factoryRate = numberValue(estimate.rateT);
   const internalMaterialSubtotal = numberValue(estimate.priceT);
   const materialSaleSubtotal = internalDealer
@@ -445,37 +444,41 @@ function AdminProfitability({
   const saleChannel = ownerIsDealer
     ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} DEALER`
     : "DIRECT CLIENT";
-  const calculationNote = internalDealer
-    ? `Estimated ${companyName} profit uses customer material subtotal minus estimated factory rate.`
-    : ownerIsDealer
-      ? `Estimated ${companyName} profit uses dealer material subtotal minus estimated factory rate. The dealer's customer resale markup is excluded.`
-      : `Estimated ${companyName} profit uses material sale subtotal minus estimated factory rate.`;
 
   return (
-    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-      <div className="bg-slate-50 px-4 py-3">
-        <h4 className="text-sm font-semibold text-black">
-          Estimated material profitability
+    <div className="break-inside-avoid rounded-xl border bg-white p-5 shadow-sm">
+      <div>
+        <h4 className="text-lg font-semibold text-black">
+          Material financial summary
         </h4>
-        <p className="mt-0.5 text-xs text-black">
-          Admin only · materials only · before taxes · installation excluded
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Installation profit is not included in these figures.
         </p>
       </div>
-      <div className="grid gap-x-8 px-4 py-1 sm:grid-cols-2">
-        <MoneyRow label="Sale channel" value={saleChannel} />
-        <MoneyRow
-          label="Estimated factory rate"
-          value={formatMoney(numberValue(estimate.rateT))}
-        />
-        <MoneyRow
-          label={`Estimated ${companyName} profit`}
-          value={formatMoney(estimatedCompanyProfit)}
-          strong
-        />
+      <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+        <div>
+          <div className="text-muted-foreground">Sale channel</div>
+          <div className="font-medium">{saleChannel}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Material sale subtotal</div>
+          <div className="font-medium">
+            {formatMoney(materialSaleSubtotal)}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Estimated factory cost</div>
+          <div className="font-medium">{formatMoney(factoryRate)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">
+            Estimated material profit
+          </div>
+          <div className="font-medium">
+            {formatMoney(estimatedCompanyProfit)}
+          </div>
+        </div>
       </div>
-      <p className="border-t border-slate-200 px-4 py-3 text-xs text-black">
-        {calculationNote}
-      </p>
     </div>
   );
 }
