@@ -196,6 +196,15 @@ export function SettingsMenuItems({
         Pricing & Rules
       </DropdownMenuLabel>
 
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/promotions">
+            <CircleDollarSign className={iconClass} />
+            Promotions
+          </Link>
+        </DropdownMenuItem>
+      )}
+
       <DropdownMenuItem asChild className={itemClass}>
         <Link href="/settings/roles">
           <CircleDollarSign className={iconClass} />

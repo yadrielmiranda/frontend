@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { PromotionPrice } from "@/components/promotions/promotion-price";
 import {
   Trash2,
   Pencil,
@@ -177,6 +178,16 @@ export function PiecesDealerTable({
 
               const qty = Number(currentPieceData.qty) || 0;
               const unitRate = Number(currentPieceData.price) || 0;
+              const originalUnitRate =
+                currentPieceData.promotionSnapshot &&
+                currentPieceData.regularPrice != null
+                  ? Number(currentPieceData.regularPrice)
+                  : undefined;
+              const originalCustomerUnitPrice =
+                currentPieceData.promotionSnapshot &&
+                currentPieceData.regularCustomerPrice != null
+                  ? Number(currentPieceData.regularCustomerPrice)
+                  : undefined;
 
               const customerLineTotal = Number(currentPieceData.total) || 0;
               const customerUnitPrice = qty > 0 ? customerLineTotal / qty : 0;
@@ -401,7 +412,11 @@ export function PiecesDealerTable({
                               Rate
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
-                              {formatCurrency(unitRate)}
+                              <PromotionPrice
+                                amount={unitRate}
+                                originalAmount={originalUnitRate}
+                                formatValue={formatCurrency}
+                              />
                             </p>
                           </div>
                           <div className="min-w-0 border-b px-3 py-2 text-right">
@@ -409,7 +424,11 @@ export function PiecesDealerTable({
                               Customer unit
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
-                              {formatCurrency(customerUnitPrice)}
+                              <PromotionPrice
+                                amount={customerUnitPrice}
+                                originalAmount={originalCustomerUnitPrice}
+                                formatValue={formatCurrency}
+                              />
                             </p>
                           </div>
                           <div className="col-span-2 min-w-0 px-3 py-2 text-right">
@@ -417,7 +436,15 @@ export function PiecesDealerTable({
                               Customer subtotal
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
-                              {formatCurrency(customerLineTotal)}
+                              <PromotionPrice
+                                amount={customerLineTotal}
+                                originalAmount={
+                                  originalCustomerUnitPrice == null
+                                    ? undefined
+                                    : originalCustomerUnitPrice * qty
+                                }
+                                formatValue={formatCurrency}
+                              />
                             </p>
                           </div>
                         </div>
@@ -478,7 +505,11 @@ export function PiecesDealerTable({
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
-                      {formatCurrency(unitRate)}
+                      <PromotionPrice
+                        amount={unitRate}
+                        originalAmount={originalUnitRate}
+                        formatValue={formatCurrency}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right xl:table-cell">
@@ -486,11 +517,23 @@ export function PiecesDealerTable({
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
-                      {formatCurrency(customerUnitPrice)}
+                      <PromotionPrice
+                        amount={customerUnitPrice}
+                        originalAmount={originalCustomerUnitPrice}
+                        formatValue={formatCurrency}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
-                      {formatCurrency(customerLineTotal)}
+                      <PromotionPrice
+                        amount={customerLineTotal}
+                        originalAmount={
+                          originalCustomerUnitPrice == null
+                            ? undefined
+                            : originalCustomerUnitPrice * qty
+                        }
+                        formatValue={formatCurrency}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right xl:table-cell">

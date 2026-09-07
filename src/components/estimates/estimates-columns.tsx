@@ -260,7 +260,7 @@ export const getEstimateColumns = (
         const isPaid = materialPayment?.status === "PAID";
         const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
         const isPaymentLocked = isPaid || hasCheckoutStarted;
-        const hasPayableMaterial = Number(estimate.totalPayable) > 0;
+        const hasPayableMaterial = Number(estimate.totalPayable) > 0 || (Number(estimate.totalPayable) === 0 && estimate.units > 0 && Number(estimate.discountAmount) > 0);
 
         const isPrivileged =
           isAdminRole(currentUser?.role?.name) ||

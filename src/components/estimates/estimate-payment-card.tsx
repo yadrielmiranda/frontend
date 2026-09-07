@@ -43,12 +43,14 @@ export function resolveEstimatePaymentAction({
   materialPayments,
   installationJob,
   materialAmount,
+  allowNoCharge = false,
 }: {
   estimateStatus: string;
   order: Order | null;
   materialPayments: EstimatePayment[];
   installationJob: InstallationJob | null;
   materialAmount: number;
+  allowNoCharge?: boolean;
 }): PaymentAction | null {
   const activeJob =
     installationJob && installationJob.status !== "CANCELED"
@@ -64,7 +66,7 @@ export function resolveEstimatePaymentAction({
       estimateStatus !== "Active" ||
       order ||
       materialPaid ||
-      materialAmount <= 0
+      (materialAmount <= 0 && !(materialAmount === 0 && allowNoCharge))
     ) {
       return null;
     }
@@ -148,6 +150,7 @@ export function EstimatePaymentCard({
   installationJob,
   currentUserId,
   materialAmount,
+  allowNoCharge = false,
   dealerMode,
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
@@ -162,6 +165,7 @@ export function EstimatePaymentCard({
   installationJob: InstallationJob | null;
   currentUserId: number;
   materialAmount: number;
+  allowNoCharge?: boolean;
   dealerMode?: DealerMode | null;
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
@@ -183,9 +187,10 @@ export function EstimatePaymentCard({
     materialPayments,
     installationJob,
     materialAmount,
+    allowNoCharge,
   });
 
-  if (!action || !Number.isFinite(action.amount) || action.amount <= 0) {
+  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.type === "MATERIAL" && action.amount === 0 && allowNoCharge))) {
     return null;
   }
 
@@ -367,7 +372,7 @@ export function EstimatePaymentCard({
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
-                    : "Continue to payment"}
+                    : action.amount === 0 ? "Confirm order" : "Continue to payment"}
             </Button>
           </>
         ) : isOwner && isInternalDealer ? (
@@ -379,7 +384,7 @@ export function EstimatePaymentCard({
           </div>
         ) : null}
 
-        {canRecordManualPayment && (
+        {canRecordManualPayment && action.amount > 0 && !paymentBlockedReason && (
           <ManualPaymentDialog
             estimateId={estimateId}
             type={action.type}

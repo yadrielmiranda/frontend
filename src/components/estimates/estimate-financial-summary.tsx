@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ReceiptText } from "lucide-react";
+import { OriginalPrice } from "@/components/promotions/promotion-price";
 
 import type {
   DealerMode,
@@ -24,6 +25,8 @@ import {
 import { PiecesBreakdownBar } from "./pieces-breakdown-bar";
 
 export type EstimateFinancialMaterialSummary = {
+  discountAmount?: number;
+  customerDiscountAmount?: number;
   totalUnits: number;
   pieceBreakdown: Record<string, number>;
   subtotal: number;
@@ -329,6 +332,17 @@ export function EstimateFinancialSummary({
           total: materialSummary.dealerGrandTotal,
         };
 
+  const materialDiscount = numberValue(
+    revisionTotals?.discountAmount ??
+      installationJob?.estimate.discountAmount ??
+      materialSummary.discountAmount,
+  );
+  const customerMaterialDiscount = numberValue(
+    revisionTotals?.customerDiscountAmount ??
+      installationJob?.estimate.customerDiscountAmount ??
+      materialSummary.customerDiscountAmount,
+  );
+
   const extras = additionalServiceTotals(quote);
   const additionalServicesTotal = roundMoney(
     extras.reduce((total, service) => total + service.amount, 0),
@@ -426,13 +440,67 @@ export function EstimateFinancialSummary({
               <span className="text-right">Your Cost</span>
               <span className="text-right">Customer Price</span>
             </div>
+            {(materialDiscount > 0 || customerMaterialDiscount > 0) && (
+              <>
+                <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                  <span className="text-muted-foreground">
+                    Before promotion
+                  </span>
+                  <span className="text-right">
+                    {materialDiscount > 0 ? (
+                      <OriginalPrice
+                        amount={internalMaterial.subtotal + materialDiscount}
+                      />
+                    ) : (
+                      formatMoney(internalMaterial.subtotal)
+                    )}
+                  </span>
+                  <span className="text-right">
+                    {customerMaterialDiscount > 0 ? (
+                      <OriginalPrice
+                        amount={
+                          customerMaterial.subtotal + customerMaterialDiscount
+                        }
+                      />
+                    ) : (
+                      formatMoney(customerMaterial.subtotal)
+                    )}
+                  </span>
+                </div>
+                <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                  <span className="text-muted-foreground">
+                    Promotion discount
+                  </span>
+                  <span className="text-right font-medium text-red-600">
+                    −{formatMoney(materialDiscount)}
+                  </span>
+                  <span className="text-right font-medium text-red-600">
+                    −{formatMoney(customerMaterialDiscount)}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
               <span className="text-muted-foreground">Material subtotal</span>
               <span className="text-right font-medium">
-                {formatMoney(internalMaterial.subtotal)}
+                <span
+                  className={
+                    materialDiscount > 0 ? "text-emerald-700" : undefined
+                  }
+                >
+                  {formatMoney(internalMaterial.subtotal)}
+                </span>
               </span>
               <span className="text-right font-medium">
-                {formatMoney(customerMaterial.subtotal)}
+                <span
+                  className={
+                    customerMaterialDiscount > 0
+                      ? "text-emerald-700"
+                      : undefined
+                  }
+                >
+                  {formatMoney(customerMaterial.subtotal)}
+                </span>
               </span>
             </div>
             <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
@@ -453,10 +521,29 @@ export function EstimateFinancialSummary({
         ) : (
           <div className="rounded-lg border bg-slate-50/60 px-4 py-3">
             <h4 className="mb-1 text-sm font-semibold">Materials</h4>
-            <SummaryRow
-              label="Material subtotal"
-              value={formatMoney(internalMaterial.subtotal)}
-            />
+            {materialDiscount > 0 && (
+              <>
+                <SummaryRow label="Before promotion">
+                  <OriginalPrice
+                    amount={internalMaterial.subtotal + materialDiscount}
+                  />
+                </SummaryRow>
+                <SummaryRow label="Promotion discount">
+                  <span className="text-red-600">
+                    −{formatMoney(materialDiscount)}
+                  </span>
+                </SummaryRow>
+              </>
+            )}
+            <SummaryRow label="Material subtotal">
+              <span
+                className={
+                  materialDiscount > 0 ? "text-emerald-700" : undefined
+                }
+              >
+                {formatMoney(internalMaterial.subtotal)}
+              </span>
+            </SummaryRow>
             <SummaryRow
               label={`Sales Tax (${(internalMaterial.taxRate * 100).toFixed(2)}%)${ownerIsTaxExempt ? " · Exempt" : ""}`}
               value={formatMoney(internalMaterial.taxAmount)}
@@ -528,10 +615,7 @@ export function EstimateFinancialSummary({
                     </div>
                   </div>
                 ) : (
-                  <SummaryRow
-                    label="Permit management"
-                    value="Not included"
-                  />
+                  <SummaryRow label="Permit management" value="Not included" />
                 )}
 
                 {isDealerEstimate && (

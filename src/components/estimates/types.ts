@@ -23,6 +23,9 @@ export interface PieceFormValues extends CreatePieceData {
   total: number;
   netProfitD: number;
   customerPrice: number;
+  regularPrice?: number | string;
+  regularCustomerPrice?: number | string;
+  promotionSnapshot?: unknown;
   customerSubtotal: number;
   dpPosPsf: number | null;
   dpNegPsf: number | null;

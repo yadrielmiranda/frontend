@@ -9,6 +9,7 @@ const numberValue = (value: unknown) => {
 
 export function OrderMaterialPanel({ order }: { order: OrderWithRelations }) {
   const finalCustomerPays = order.dealerModeSnapshot === "INTERNAL";
+  const discount = numberValue(finalCustomerPays ? order.estimate.customerDiscountAmount : order.estimate.discountAmount);
   const materialSubtotal = numberValue(order.saleSubtotal);
   const taxRate = finalCustomerPays
     ? numberValue(order.estimate.customerTaxRate)
@@ -33,6 +34,7 @@ export function OrderMaterialPanel({ order }: { order: OrderWithRelations }) {
       </div>
 
       <div className="ml-auto mt-4 grid max-w-md grid-cols-2 gap-2 text-sm">
+        {discount > 0 && <><span>Before promotion</span><span className="text-right">{formatMoney(materialSubtotal+discount)}</span><span>Promotion discount</span><span className="text-right text-red-700">−{formatMoney(discount)}</span></>}
         <span className="text-muted-foreground">
           {finalCustomerPays
             ? "Customer material subtotal"

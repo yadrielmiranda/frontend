@@ -1,4 +1,5 @@
 "use client";
+import { usePromotionExpired } from "@/components/promotions/promotion-banner";
 
 import { useState } from "react";
 import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from "lucide-react";
@@ -21,6 +22,9 @@ export function PublicEstimatePaymentCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const expired = usePromotionExpired(context);
+  if (context.status === "expired" || expired) return <section className="mt-6 border rounded-xl p-5">This promotion has expired. Contact your dealer to recalculate the estimate before payment.</section>;
 
   if (!context.enabled) return null;
 

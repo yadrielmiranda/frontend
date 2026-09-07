@@ -11,11 +11,13 @@ type PiecesTableProps = {
   | {
       showPrices: false;
       getUnitPrice?: never;
+      getOriginalUnitPrice?: never;
       getSubtotal?: never;
     }
   | {
       showPrices?: true;
       getUnitPrice: (p: PieceWithRelations) => number;
+      getOriginalUnitPrice?: (p: PieceWithRelations) => number | undefined;
       getSubtotal: (p: PieceWithRelations) => number;
     }
 );
@@ -53,6 +55,7 @@ export function PiecesTable(props: PiecesTableProps) {
                 piece={piece}
                 displayMark={displayMark}
                 unitPrice={props.getUnitPrice(piece)}
+                originalUnitPrice={props.getOriginalUnitPrice?.(piece)}
                 subtotal={props.getSubtotal(piece)}
               />
             );

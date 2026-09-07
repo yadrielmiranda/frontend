@@ -280,6 +280,9 @@ export interface CreatePieceMuntinData {
 export type PieceMuntin = CreatePieceMuntinData;
 
 export interface Piece {
+  regularPrice?: string | number;
+  regularCustomerPrice?: string | number;
+  promotionSnapshot?: unknown;
   id: number;
   idEst: number;
   mark: string;
@@ -386,6 +389,14 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  standardExpiresAt?: string | null;
+  promotionExpiresAt?: string | null;
+  promotionLockedAt?: string | null;
+  originalPriceT?: string | number;
+  originalCustomerPriceT?: string | number;
+  discountAmount?: string | number;
+  customerDiscountAmount?: string | number;
+
   id: number;
   number: string;
   name: string;
@@ -585,6 +596,10 @@ export type EstimateRevisionChangeReason =
   | "OTHER";
 
 export interface EstimateRevisionTotals {
+  originalPriceT?: string;
+  originalCustomerPriceT?: string;
+  discountAmount?: string;
+  customerDiscountAmount?: string;
   units: number;
   rateT: string | number;
   priceT: string | number;

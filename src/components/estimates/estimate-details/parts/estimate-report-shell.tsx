@@ -197,13 +197,13 @@ export function EstimateReportShell({
                 {formatDateEn(estimate.date)}
               </p>
             </div>
-            {estimate.expiresAt ? (
+            {estimate.expiresAt && !estimate.promotionLockedAt ? (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-black">
                   Valid Through
                 </p>
                 <p className="text-xs font-semibold text-[var(--report-brand-color)]">
-                  {formatDateEn(estimate.expiresAt)}
+                  {(estimate.promotionExpiresAt ? new Date(estimate.expiresAt).toLocaleString("en-US") : formatDateEn(estimate.expiresAt))}
                 </p>
               </div>
             ) : null}
@@ -214,8 +214,8 @@ export function EstimateReportShell({
 
         <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-[11px] text-black">
           <p>
-            {estimate.expiresAt
-              ? `This estimate is valid through ${formatDateEn(estimate.expiresAt)}.`
+            {estimate.promotionLockedAt ? "The agreed promotion is preserved after payment." : estimate.expiresAt
+              ? `This estimate is valid through ${(estimate.promotionExpiresAt ? new Date(estimate.expiresAt).toLocaleString("en-US") : formatDateEn(estimate.expiresAt))}.`
               : "This estimate is valid for 30 days."}{" "}
             Thank you for your business.
           </p>

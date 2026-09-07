@@ -16,8 +16,11 @@ export type CancelCheckoutSessionResponse = {
 };
 
 export type PublicPaymentContext = {
+  promotionExpiresAt?: string | null;
+  expiresAt?: string | null;
+  promotionLockedAt?: string | null;
   enabled: boolean;
-  status: "not_applicable" | "complete" | "due";
+  status: "not_applicable" | "complete" | "due" | "expired";
   payment: null | {
     type: PaymentType;
     sequence: number;

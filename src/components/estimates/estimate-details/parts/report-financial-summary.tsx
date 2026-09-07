@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
 import type {
@@ -18,6 +19,7 @@ export type EstimateReportKind =
   | "admin";
 
 type MaterialTotals = {
+  discount?: number;
   subtotal: number;
   taxRate: number;
   taxAmount: number;
@@ -86,9 +88,22 @@ function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
         Materials
       </div>
       <div className="px-4 py-1">
+        {Number(totals.discount) > 0 && (
+          <>
+            <MoneyRow label="Before promotion">
+              <OriginalPrice amount={totals.subtotal + totals.discount!} />
+            </MoneyRow>
+            <MoneyRow label="Promotion discount">
+              <span className="text-red-600">
+                −{formatMoney(totals.discount!)}
+              </span>
+            </MoneyRow>
+          </>
+        )}
         <MoneyRow
           label="Material subtotal"
           value={formatMoney(totals.subtotal)}
+          accentValue={Number(totals.discount) > 0}
         />
         <MoneyRow
           label={`Sales Tax (${(totals.taxRate * 100).toFixed(2)}%)`}
@@ -128,13 +143,60 @@ function ComparativeMaterialSummary({
           </tr>
         </thead>
         <tbody>
+          {(Number(internal.discount) > 0 || Number(customer.discount) > 0) && (
+            <>
+              <tr className="border-t">
+                <td className="px-4 py-3">Before promotion</td>
+                <td className="px-4 py-3 text-right">
+                  {Number(internal.discount) > 0 ? (
+                    <OriginalPrice
+                      amount={internal.subtotal + internal.discount!}
+                    />
+                  ) : (
+                    formatMoney(internal.subtotal)
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {Number(customer.discount) > 0 ? (
+                    <OriginalPrice
+                      amount={customer.subtotal + customer.discount!}
+                    />
+                  ) : (
+                    formatMoney(customer.subtotal)
+                  )}
+                </td>
+              </tr>
+              <tr className="text-red-700">
+                <td className="px-4 py-3">Promotion discount</td>
+                <td className="px-4 py-3 text-right">
+                  −{formatMoney(internal.discount ?? 0)}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  −{formatMoney(customer.discount ?? 0)}
+                </td>
+              </tr>
+            </>
+          )}
+
           <tr className="border-t border-slate-200">
             <td className="px-4 py-3 text-black">Material subtotal</td>
             <td className="px-4 py-3 text-right font-medium">
-              {formatMoney(internal.subtotal)}
+              <span
+                className={
+                  Number(internal.discount) > 0 ? "text-emerald-700" : undefined
+                }
+              >
+                {formatMoney(internal.subtotal)}
+              </span>
             </td>
             <td className="px-4 py-3 text-right font-medium">
-              {formatMoney(customer.subtotal)}
+              <span
+                className={
+                  Number(customer.discount) > 0 ? "text-emerald-700" : undefined
+                }
+              >
+                {formatMoney(customer.subtotal)}
+              </span>
             </td>
           </tr>
           <tr className="border-t border-slate-200">
@@ -462,18 +524,14 @@ function AdminProfitability({
         </div>
         <div>
           <div className="text-muted-foreground">Material sale subtotal</div>
-          <div className="font-medium">
-            {formatMoney(materialSaleSubtotal)}
-          </div>
+          <div className="font-medium">{formatMoney(materialSaleSubtotal)}</div>
         </div>
         <div>
           <div className="text-muted-foreground">Estimated factory cost</div>
           <div className="font-medium">{formatMoney(factoryRate)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">
-            Estimated material profit
-          </div>
+          <div className="text-muted-foreground">Estimated material profit</div>
           <div className="font-medium">
             {formatMoney(estimatedCompanyProfit)}
           </div>
@@ -493,12 +551,14 @@ export function ReportFinancialSummary({
   installationSummary?: EstimateInstallationReportSummary | null;
 }) {
   const internalMaterial: MaterialTotals = {
+    discount: numberValue(estimate.discountAmount),
     subtotal: numberValue(estimate.priceT),
     taxRate: numberValue(estimate.taxRate),
     taxAmount: numberValue(estimate.taxAmount),
     total: numberValue(estimate.totalPayable),
   };
   const customerMaterial: MaterialTotals = {
+    discount: numberValue(estimate.customerDiscountAmount),
     subtotal: numberValue(estimate.customerPriceT),
     taxRate: numberValue(estimate.customerTaxRate),
     taxAmount: numberValue(estimate.customerTaxAmount),

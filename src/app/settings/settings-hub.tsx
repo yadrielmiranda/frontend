@@ -216,6 +216,7 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
   ];
 
   const pricingItems: SettingsItem[] = [
+    {title:"Promotions", description:"Manage material promotions.", href:"/settings/promotions", icon:CircleDollarSign, color:"bg-blue-50 text-blue-600", show:isAdmin},
     {
       title: "Roles & Markups",
       description: "Manage role markups.",

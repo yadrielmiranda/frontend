@@ -20,6 +20,9 @@ export interface CalculatedPiece extends CreatePieceData {
   netProfit: number;
   dealerMarkup: number;
   customerPrice: number;
+  regularPrice?: number | string;
+  regularCustomerPrice?: number | string;
+  promotionSnapshot?: unknown;
   customerSubtotal: number;
   netProfitD: number;
   dpPosPsf?: number | null;
@@ -67,11 +70,15 @@ export interface ValidatePieceRequest {
   horizontalHeights?: number[];
 }
 
-export function calculatePiece(data: CreatePieceData, estimateId?: number) {
+export function calculatePiece(
+  data: CreatePieceData,
+  estimateId?: number,
+  pieceId?: number,
+) {
   return apiFetch<CalculatedPiece>("/api/estimates/calculate-piece", {
     method: "POST",
     body: data,
-    query: { estimateId },
+    query: { estimateId, pieceId },
   });
 }
 

@@ -80,12 +80,12 @@ export default async function EditEstimatePage({
     installation.status !== "CANCELED",
   );
 
-  const canAccess = (isOwner || isPrivileged) && isActive && !estimate.order;
+  const canAccess = (isOwner || isPrivileged) && (isActive || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
 
   if (!canAccess) notFound();
 
   const canEdit =
-    !isPaymentLocked && !installationLocksOwner && !depositCheckoutStarted;
+    !isPaymentLocked && !installationLocksOwner && !depositCheckoutStarted && !estimate.promotionLockedAt;
 
   const [
     productsWithBrands,

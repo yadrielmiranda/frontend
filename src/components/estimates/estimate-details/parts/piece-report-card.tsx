@@ -1,7 +1,8 @@
 "use client";
 
 import { PieceDiagram } from "@/components/piece-diagram";
-import { formatMoney } from "@/lib/formatters";
+import { PromotionPrice } from "@/components/promotions/promotion-price";
+import type { ReactNode } from "react";
 import type { EstimateWithRelations } from "@/lib/types";
 
 import { buildPieceReportDetails } from "./piece-decription";
@@ -15,11 +16,13 @@ type PieceReportCardProps = {
   | {
       showPrices: false;
       unitPrice?: never;
+      originalUnitPrice?: never;
       subtotal?: never;
     }
   | {
       showPrices?: true;
       unitPrice: number;
+      originalUnitPrice?: number;
       subtotal: number;
     }
 );
@@ -70,7 +73,7 @@ function PriceRow({
   success = false,
 }: {
   label: string;
-  value: string | number;
+  value: ReactNode;
   strong?: boolean;
   success?: boolean;
 }) {
@@ -145,11 +148,25 @@ export function PieceReportCard(props: PieceReportCardProps) {
             <>
               <PriceRow
                 label="Unit Price"
-                value={formatMoney(props.unitPrice)}
+                value={
+                  <PromotionPrice
+                    amount={props.unitPrice}
+                    originalAmount={props.originalUnitPrice}
+                  />
+                }
               />
               <PriceRow
                 label="Subtotal"
-                value={formatMoney(props.subtotal)}
+                value={
+                  <PromotionPrice
+                    amount={props.subtotal}
+                    originalAmount={
+                      props.originalUnitPrice == null
+                        ? undefined
+                        : props.originalUnitPrice * piece.qty
+                    }
+                  />
+                }
                 strong
                 success
               />

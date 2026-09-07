@@ -49,6 +49,7 @@ import type {
 } from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
+import { PromotionPrice } from "@/components/promotions/promotion-price";
 import {
   normalizeInchesToEighthStep,
   DimensionParseError,
@@ -288,6 +289,11 @@ export function PieceForm({
   startUnlocked = false,
   ...props
 }: PieceFormProps) {
+  // Una promoción de 100% también tiene resultados calculados.
+  const hasInitialResults =
+    Number(initialData.price) > 0 ||
+    (!!initialData.promotionSnapshot && Number(initialData.regularPrice) > 0);
+
   const {
     control,
     register,
@@ -334,7 +340,7 @@ export function PieceForm({
   });
 
   const [isLocked, setIsLocked] = useState(
-    startUnlocked ? false : !!initialData.price && initialData.price > 0,
+    startUnlocked ? false : hasInitialResults,
   );
 
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(
@@ -350,6 +356,25 @@ export function PieceForm({
 
   const pieceValues = useWatch({ control });
   const { idProd, idConf, width, height, price } = pieceValues;
+  const originalUnitPrice =
+    pieceValues.promotionSnapshot && pieceValues.regularPrice != null
+      ? Number(pieceValues.regularPrice)
+      : undefined;
+  const originalCustomerUnitPrice =
+    pieceValues.promotionSnapshot && pieceValues.regularCustomerPrice != null
+      ? Number(pieceValues.regularCustomerPrice)
+      : undefined;
+  const originalLinePrice =
+    originalUnitPrice == null
+      ? undefined
+      : originalUnitPrice * Number(pieceValues.qty || 1);
+  const originalCustomerLinePrice =
+    originalCustomerUnitPrice == null
+      ? undefined
+      : originalCustomerUnitPrice * Number(pieceValues.qty || 1);
+  const hasResults =
+    Number(price || 0) > 0 ||
+    (originalUnitPrice != null && originalUnitPrice > 0);
   const currentMuntin = pieceValues.muntin ?? null;
 
   const selectedProduct = useMemo(() => {
@@ -1424,12 +1449,12 @@ export function PieceForm({
 
     setActiveAccordionItems((prev) => {
       const hadResultsOpen = prev.includes("item-results");
-      if (hadResultsOpen || Number(initialData.price) > 0) {
+      if (hadResultsOpen || hasInitialResults) {
         return [...defaultItems, "item-results"];
       }
       return defaultItems;
     });
-  }, [hasOptionsSection, initialData.price, isLinearMaterial]);
+  }, [hasOptionsSection, hasInitialResults, isLinearMaterial]);
 
   useEffect(() => {
     const currentSystemId = Number(systemId || 0);
@@ -2153,7 +2178,11 @@ export function PieceForm({
         }
       }
 
-      const calculated = await calculatePiece(pieceDtoToSend, props.estimateId);
+      const calculated = await calculatePiece(
+        pieceDtoToSend,
+        props.estimateId,
+        initialData.id,
+      );
 
       const unitPrice = roundMoney(Number(calculated.price) || 0);
       const lineSubtotal = roundMoney(Number(calculated.subtotal) || 0);
@@ -2177,6 +2206,13 @@ export function PieceForm({
       });
       setValue("customerSubtotal", customerSubtotalLine);
       setValue("customerPrice", customerUnitPrice);
+      // Mantiene la comparación alineada con el último cálculo del servidor.
+      setValue("regularPrice", calculated.regularPrice ?? unitPrice);
+      setValue(
+        "regularCustomerPrice",
+        calculated.regularCustomerPrice ?? customerUnitPrice,
+      );
+      setValue("promotionSnapshot", calculated.promotionSnapshot ?? null);
       setValue("total", customerSubtotalLine);
       setValue("muntin", calculated.muntin ?? null, { shouldDirty: true });
       setValue("panelCount", calculated.panelCount ?? null, {
@@ -3955,7 +3991,7 @@ export function PieceForm({
               </AccordionItem>
             )}
 
-            {Number(price || 0) > 0 && (
+            {hasResults && (
               <AccordionItem value="item-results">
                 <AccordionTrigger className="font-semibold text-base text-green-700">
                   Results
@@ -3968,10 +4004,10 @@ export function PieceForm({
                           Your Price (Unit):
                         </span>
                         <strong className="font-mono text-base">
-                          {new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          }).format(pieceValues.price || 0)}
+                          <PromotionPrice
+                            amount={pieceValues.price || 0}
+                            originalAmount={originalUnitPrice}
+                          />
                         </strong>
                       </div>
                       <div>
@@ -3979,10 +4015,10 @@ export function PieceForm({
                           Your Price (Line):
                         </span>
                         <strong className="font-mono text-base">
-                          {new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          }).format(pieceValues.subtotal || 0)}
+                          <PromotionPrice
+                            amount={pieceValues.subtotal || 0}
+                            originalAmount={originalLinePrice}
+                          />
                         </strong>
                       </div>
                     </div>
@@ -4049,20 +4085,20 @@ export function PieceForm({
                         <div className="flex justify-between items-center text-sm">
                           <span>Customer Price (Unit):</span>
                           <strong className="font-mono text-base">
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                            }).format(pieceValues.customerPrice || 0)}
+                            <PromotionPrice
+                              amount={pieceValues.customerPrice || 0}
+                              originalAmount={originalCustomerUnitPrice}
+                            />
                           </strong>
                         </div>
 
                         <div className="flex justify-between items-center text-sm">
                           <span>Customer Subtotal (Line):</span>
                           <strong className="font-mono text-base">
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                            }).format(pieceValues.customerSubtotal || 0)}
+                            <PromotionPrice
+                              amount={pieceValues.customerSubtotal || 0}
+                              originalAmount={originalCustomerLinePrice}
+                            />
                           </strong>
                         </div>
 

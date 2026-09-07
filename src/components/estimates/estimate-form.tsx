@@ -1,4 +1,5 @@
 "use client";
+import { PromotionBanner, usePromotionExpired } from "@/components/promotions/promotion-banner";
 
 import React, {
   useCallback,
@@ -124,6 +125,9 @@ function mapEstimatePieceToForm(
     rate: Number(piece.rate) || 0,
     price: Number(piece.price) || 0,
     subtotal: Number(piece.subtotal) || 0,
+    promotionSnapshot: piece.promotionSnapshot,
+    regularPrice: Number(piece.regularPrice ?? piece.price),
+    regularCustomerPrice: Number(piece.regularCustomerPrice ?? piece.customerPrice),
 
     // comentario en español:
     // el backend guarda dealerMarkup como fracción decimal.
@@ -194,6 +198,8 @@ export function EstimateForm({
   muntinTypes,
 }: EstimateFormProps) {
   const router = useRouter();
+  const [promotionEstimate, setPromotionEstimate] = useState(estimate);
+  useEffect(() => setPromotionEstimate(estimate), [estimate]);
   const { user } = useAuth();
   const role = user?.role?.name ?? null;
 
@@ -258,6 +264,8 @@ export function EstimateForm({
   const headerSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const [isExiting, setIsExiting] = useState(false);
+  const expiredPromotion = usePromotionExpired(promotionEstimate);
+  const needsRecalculation = expiredPromotion || promotionEstimate?.status?.name === "Expired";
   const [isOpeningDetails, setIsOpeningDetails] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
 
@@ -411,6 +419,7 @@ export function EstimateForm({
     }, [canUseCustomerPricing, getValues]);
 
   const saveEstimateHeader = useCallback(async (): Promise<boolean> => {
+    if (needsRecalculation) return true;
     if (!estimate?.id) {
       return true;
     }
@@ -454,7 +463,7 @@ export function EstimateForm({
     );
 
     return saveTask;
-  }, [estimate?.id, trigger, buildEstimateHeaderPayload]);
+  }, [estimate?.id, trigger, buildEstimateHeaderPayload, needsRecalculation]);
 
   useEffect(() => {
     if (!estimate?.id) {
@@ -570,6 +579,7 @@ export function EstimateForm({
       // La respuesta recalculada vuelve a ser la fuente de verdad para los
       // precios, presiones y totales visibles sin abandonar la pantalla.
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+      setPromotionEstimate(updatedEstimate);
 
       toast.success("Estimate recalculated successfully.");
       router.refresh();
@@ -688,6 +698,7 @@ export function EstimateForm({
 
       // La respuesta del backend vuelve a ser la fuente de verdad.
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+      setPromotionEstimate(updatedEstimate);
 
       toast.success(successMessage);
 
@@ -845,6 +856,7 @@ export function EstimateForm({
 
       // La respuesta del backend es la nueva fuente de verdad.
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+      setPromotionEstimate(updatedEstimate);
 
       toast.success("General Dealer Markup applied and saved successfully.");
     } catch (error) {
@@ -862,6 +874,7 @@ export function EstimateForm({
     if (!watchedPieces || watchedPieces.length === 0) {
       return {
         totalUnits: 0,
+        discountAmount: 0, customerDiscountAmount: 0,
         subtotal: 0,
         taxAmount: 0,
         totalPayable: 0,
@@ -888,6 +901,10 @@ export function EstimateForm({
           Number(piece.total) || lineFactorySubtotal,
         );
 
+        if (piece.promotionSnapshot) {
+          acc.discount += (Number(piece.regularPrice ?? piece.price) - unitPrice) * qty;
+          acc.customerDiscount += Number(piece.regularCustomerPrice ?? piece.customerPrice) * qty - lineDealerTotal;
+        }
         acc.totalUnits += qty;
         acc.subtotal = roundMoney(acc.subtotal + lineFactorySubtotal);
         acc.dealerTotal = roundMoney(acc.dealerTotal + lineDealerTotal);
@@ -902,7 +919,7 @@ export function EstimateForm({
 
         return acc;
       },
-      { totalUnits: 0, subtotal: 0, dealerTotal: 0 },
+      { totalUnits: 0, subtotal: 0, dealerTotal: 0, discount:0, customerDiscount:0 },
     );
 
     const effectiveTaxRate = isTaxExempt ? 0 : taxRate;
@@ -919,6 +936,8 @@ export function EstimateForm({
     const dealerProfit = roundMoney(totals.dealerTotal - totals.subtotal);
 
     return {
+      discountAmount: roundMoney(totals.discount),
+      customerDiscountAmount: roundMoney(totals.customerDiscount),
       totalUnits: totals.totalUnits,
       subtotal: roundMoney(totals.subtotal),
       taxAmount: factoryTaxAmount,
@@ -1047,6 +1066,9 @@ export function EstimateForm({
     const newPiece: PieceFormValues = {
       ...pieceToDuplicate,
       id: undefined,
+      promotionSnapshot: null,
+      regularPrice: undefined,
+      regularCustomerPrice: undefined,
       mark: "",
       rate: 0,
       price: 0,
@@ -1115,6 +1137,7 @@ export function EstimateForm({
       // reemplazamos las piezas locales con la fuente de verdad
       // devuelta por el backend.
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+      setPromotionEstimate(updatedEstimate);
 
       setIsPieceModalOpen(false);
       setEditingPieceIndex(null);
@@ -1209,6 +1232,7 @@ export function EstimateForm({
       );
 
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
+      setPromotionEstimate(updatedEstimate);
 
       toast.success("Piece deleted successfully.");
     } catch (error) {
@@ -1417,6 +1441,7 @@ export function EstimateForm({
           </div>
         )}
 
+        <PromotionBanner estimate={promotionEstimate} />
         {readOnly && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Material is read-only after the installation deposit starts.
@@ -1426,7 +1451,7 @@ export function EstimateForm({
         )}
 
         <fieldset
-          disabled={readOnly}
+          disabled={readOnly || needsRecalculation}
           className="min-w-0 space-y-6 sm:space-y-8"
         >
           <div className="min-w-0 rounded-lg border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
@@ -1531,7 +1556,8 @@ export function EstimateForm({
           <InstallationEstimatePanel
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
-            estimateStatus={estimate.status?.name ?? ""}
+            estimateStatus={needsRecalculation ? "Expired" : estimate.status?.name ?? ""}
+
             order={estimate.order ?? null}
             estimatePayments={estimate.payments ?? []}
             pieces={installationPieces}
@@ -1588,7 +1614,8 @@ export function EstimateForm({
           <EstimatePaymentCard
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
-            estimateStatus={estimate.status?.name ?? ""}
+            estimateStatus={promotionEstimate?.status?.name ?? ""}
+            allowNoCharge={Number(promotionEstimate?.discountAmount) > 0 && Number(promotionEstimate?.units) > 0}
             order={estimate.order ?? null}
             materialPayments={estimate.payments ?? []}
             installationJob={financialInstallation}
@@ -1601,7 +1628,7 @@ export function EstimateForm({
             dealerMode={dealerMode}
             cardSurchargeFraction={cardSurchargeFraction}
             paymentBlockedReason={
-              isInstallationRequestEditing
+              needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
                 ? "Finish or cancel the installation calculation to continue to payment."
                 : undefined
             }

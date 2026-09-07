@@ -21,6 +21,11 @@ export function EstimateViewDealerPublic({
         <PiecesTable
           pieces={estimate.pieces}
           getUnitPrice={(p: Piece) => Number(p.customerPrice) || 0}
+          getOriginalUnitPrice={(p: Piece) =>
+            p.regularCustomerPrice == null
+              ? undefined
+              : Number(p.regularCustomerPrice)
+          }
           getSubtotal={(p: Piece) => {
             const customerSubtotal = Number(p.customerSubtotal);
             if (Number.isFinite(customerSubtotal)) return customerSubtotal;

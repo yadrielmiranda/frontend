@@ -16,6 +16,11 @@ export function EstimateViewAdmin({
       <PiecesTable
         pieces={estimate.pieces}
         getUnitPrice={(piece: Piece) => Number(piece.price) || 0}
+        getOriginalUnitPrice={(piece: Piece) =>
+          piece.promotionSnapshot && piece.regularPrice != null
+            ? Number(piece.regularPrice)
+            : undefined
+        }
         getSubtotal={(piece: Piece) => Number(piece.subtotal) || 0}
       />
 

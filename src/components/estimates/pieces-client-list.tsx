@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { PromotionPrice } from "@/components/promotions/promotion-price";
 import {
   Trash2,
   Pencil,
@@ -177,6 +178,11 @@ export function PiecesClientList({
 
               const qty = Number(currentPieceData.qty) || 0;
               const unitPrice = Number(currentPieceData.price) || 0;
+              const originalUnitPrice =
+                currentPieceData.promotionSnapshot &&
+                currentPieceData.regularPrice != null
+                  ? Number(currentPieceData.regularPrice)
+                  : undefined;
               const subtotal =
                 Number(currentPieceData.subtotal) || unitPrice * qty || 0;
 
@@ -390,7 +396,12 @@ export function PiecesClientList({
                               Unit price
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
-                              {formatCurrency(unitPrice)}
+                              <PromotionPrice
+                                amount={unitPrice}
+                                originalAmount={originalUnitPrice}
+                                formatValue={formatCurrency}
+                                align="center"
+                              />
                             </p>
                           </div>
                           <div className="min-w-0 px-2 py-2 text-center">
@@ -398,7 +409,16 @@ export function PiecesClientList({
                               Subtotal
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
-                              {formatCurrency(subtotal)}
+                              <PromotionPrice
+                                amount={subtotal}
+                                originalAmount={
+                                  originalUnitPrice == null
+                                    ? undefined
+                                    : originalUnitPrice * qty
+                                }
+                                formatValue={formatCurrency}
+                                align="center"
+                              />
                             </p>
                           </div>
                         </div>
@@ -454,11 +474,23 @@ export function PiecesClientList({
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
-                      {formatCurrency(unitPrice)}
+                      <PromotionPrice
+                        amount={unitPrice}
+                        originalAmount={originalUnitPrice}
+                        formatValue={formatCurrency}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
-                      {formatCurrency(subtotal)}
+                      <PromotionPrice
+                        amount={subtotal}
+                        originalAmount={
+                          originalUnitPrice == null
+                            ? undefined
+                            : originalUnitPrice * qty
+                        }
+                        formatValue={formatCurrency}
+                      />
                     </td>
 
                     <td className="hidden px-4 py-2 align-middle text-right xl:table-cell">

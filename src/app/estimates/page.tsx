@@ -1,3 +1,4 @@
+import { PromotionBanner } from "@/components/promotions/promotion-banner";
 // src/app/estimates/page.tsx
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default async function EstimatesPage() {
         </Button>
       </div>
 
+      <PromotionBanner />
       <EstimatesClient initialEstimates={estimates} currentUser={user} />
     </div>
   );
