@@ -1,6 +1,7 @@
 "use client";
 
 import { EstimateWithRelations } from "@/lib/types";
+import { customerCanSeePromotions } from "@/lib/estimate-customer-promotions";
 import { PiecesTable } from "../parts/pieces-table";
 import { ReportFinancialSummary } from "../parts/report-financial-summary";
 
@@ -14,6 +15,7 @@ export function EstimateViewDealerPublic({
   pricingMode?: "detailed" | "total";
 }) {
   const detailedPrices = pricingMode === "detailed";
+  const showPromotions = customerCanSeePromotions(estimate);
 
   return (
     <>
@@ -22,7 +24,7 @@ export function EstimateViewDealerPublic({
           pieces={estimate.pieces}
           getUnitPrice={(p: Piece) => Number(p.customerPrice) || 0}
           getOriginalUnitPrice={(p: Piece) =>
-            p.regularCustomerPrice == null
+            !showPromotions || p.regularCustomerPrice == null
               ? undefined
               : Number(p.regularCustomerPrice)
           }

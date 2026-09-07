@@ -159,7 +159,8 @@ export const getEstimateColumns = (
       header: () => <div className="text-right">Price</div>,
       cell: ({ row }) => (
         <div className="text-right font-medium">
-          {formatMoney(row.original.priceT)}
+          {formatMoney(row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER"
+            ? row.original.manualDiscountSummary.material.subtotal : row.original.priceT)}
         </div>
       ),
     },
@@ -170,7 +171,8 @@ export const getEstimateColumns = (
             header: () => <div className="text-right">Net Profit ($)</div>,
             cell: ({ row }) => (
               <div className="text-right">
-                {formatMoney(row.original.netProfit)}
+                {formatMoney(Number(row.original.netProfit) -
+                  (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
               </div>
             ),
           } satisfies ColumnDef<EstimateWithRelations>,
@@ -184,7 +186,9 @@ export const getEstimateColumns = (
             header: () => <div className="text-right">Net Profit D ($)</div>,
             cell: ({ row }) => (
               <div className="text-right">
-                {formatMoney(row.original.netProfitD)}
+                {formatMoney(Number(row.original.netProfitD) +
+                  Number(row.original.manualDiscountSummary?.material.netDiscount ?? 0) *
+                  (row.original.manualDiscountSummary?.payer === "CUSTOMER" ? -1 : 1))}
               </div>
             ),
           } satisfies ColumnDef<EstimateWithRelations>,

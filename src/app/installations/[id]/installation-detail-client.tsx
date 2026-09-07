@@ -1655,7 +1655,7 @@ export function InstallationDetailClient({
               <CardHeader>
                 <CardTitle>Permit</CardTitle>
                 <CardDescription>
-                  Permit Fee {money(job.permit.permitFeeSnapshot)} ·{" "}
+                  Permit Fee {money(job.manualDiscountSummary?.permit.total ?? job.permit.permitFeeSnapshot)} ·{" "}
                   {title(job.permit.status)}
                 </CardDescription>
               </CardHeader>
@@ -1663,7 +1663,7 @@ export function InstallationDetailClient({
                 {job.permit.cityFee != null && (
                   <div className="flex justify-between text-sm">
                     <span>City Fee</span>
-                    <strong>{money(job.permit.cityFee)}</strong>
+                    <strong>{money(job.manualDiscountSummary?.city.total ?? job.permit.cityFee)}</strong>
                   </div>
                 )}
                 {privileged &&

@@ -3,6 +3,8 @@ export type Promotion = {
   brandName?: string | null;
   productName?: string | null;
   systemName?: string | null;
+  excludedProductNames?: string[];
+  excludedSystemNames?: string[];
   id: number;
   version: number;
   name: string;
@@ -10,6 +12,8 @@ export type Promotion = {
   audience: string;
   roleIds: number[];
   userIds: number[];
+  excludedProductIds: number[];
+  excludedSystemIds: number[];
   brandId: number | null;
   productId: number | null;
   systemId: number | null;
@@ -17,6 +21,21 @@ export type Promotion = {
   endsAt: string;
   enabled: boolean;
 };
+export type AvailablePromotion = Pick<
+  Promotion,
+  | "id"
+  | "version"
+  | "name"
+  | "startsAt"
+  | "endsAt"
+  | "brandName"
+  | "productName"
+  | "systemName"
+  | "excludedProductIds"
+  | "excludedSystemIds"
+  | "excludedProductNames"
+  | "excludedSystemNames"
+> & { percent: string | null; automaticDealerAdjustment?: boolean };
 export type PromotionOptions = {
   roles: { id: number; name: string }[];
   users: { id: number; username: string; idRole: number }[];
@@ -33,7 +52,7 @@ export const savePromotion = (body: unknown, id?: number) =>
     body,
   });
 export const getAvailablePromotions = (estimateId?: number) =>
-  apiFetch<{ serverNow: string; promotions: Promotion[] }>(
+  apiFetch<{ serverNow: string; promotions: AvailablePromotion[] }>(
     estimateId
       ? `/api/promotions/available/estimate/${estimateId}`
       : "/api/promotions/available",

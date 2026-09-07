@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Eye, Loader2, RefreshCw } from "lucide-react";
 
 import {
+  getEstimateDiscount,
   addEstimatePiece,
   applyBulkPieceAttribute,
   applyGeneralDealerMarkup,
@@ -43,6 +44,8 @@ import type {
 
 import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
 import { EstimateDetailsLeft } from "./estimate-details-left";
+import { ManualDiscountEditor } from "./manual-discount-editor";
+import type { EstimateDiscountConfig, EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { EstimateFinancialSummary } from "./estimate-financial-summary";
 import { EstimatePaymentCard } from "./estimate-payment-card";
 import { PiecesDealerTable } from "./pieces-dealer-table";
@@ -197,6 +200,10 @@ export function EstimateForm({
   muntinPatterns,
   muntinTypes,
 }: EstimateFormProps) {
+  const [discountData, setDiscountData] = useState<{ config: EstimateDiscountConfig | null; summary: EstimateDiscountSummary | null }>({ config: estimate?.manualDiscount ?? null, summary: estimate?.manualDiscountSummary ?? null });
+  const [discountDirty, setDiscountDirty] = useState(false);
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState(false);
   const router = useRouter();
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
@@ -868,6 +875,23 @@ export function EstimateForm({
     } finally {
       isApplyingGeneralMarkupRef.current = false;
     }
+  };
+
+  const discountRefreshKey = JSON.stringify([watchedPieces, financialInstallation?.id, financialInstallation?.status, financialInstallation?.updatedAt, financialInstallation?.quotes?.[0]?.status, financialInstallation?.quotes?.[0]?.total, financialInstallation?.permit?.cityFee, taxRate, customerTaxRatePercent, promotionEstimate]);
+  useEffect(() => {
+    if (!estimate?.id) return;
+    let active = true;
+    setDiscountLoading(true);
+    getEstimateDiscount(estimate.id).then(data => {
+      if (active) { setDiscountData(data); setDiscountError(false); }
+    }).catch(() => { if (active) setDiscountError(true); }).finally(() => { if (active) setDiscountLoading(false); });
+    return () => { active = false; };
+  }, [estimate?.id, discountRefreshKey]);
+  const onDiscountSaved = (updated: EstimateWithRelations) => {
+    setDiscountData({ config: updated.manualDiscount ?? null, summary: updated.manualDiscountSummary ?? null });
+    setPromotionEstimate(updated);
+    setDiscountDirty(false);
+    router.refresh();
   };
 
   const summary = useMemo(() => {
@@ -1600,6 +1624,14 @@ export function EstimateForm({
           )}
 
         <EstimateFinancialSummary
+          manualDiscount={discountData.summary}
+          discountEditor={role === "admin" && estimate ? <ManualDiscountEditor
+            estimateId={estimate.id} config={discountData.config} summary={discountData.summary}
+            hasInstallation={Boolean(financialInstallation && financialInstallation.status !== "CANCELED" && Number(financialInstallation.quotes.find(q => q.status !== "REJECTED")?.total ?? 0) > 0)}
+            busy={discountLoading || discountError || isInstallationRequestEditing}
+            disabled={readOnly || needsRecalculation || Boolean(estimate.order) || Boolean(discountData.config?.lockedAt) || (estimate.payments ?? []).some(p => ["PENDING", "PAID", "REFUNDED"].includes(p.status))}
+            onSaved={onDiscountSaved} onDirtyChange={setDiscountDirty}
+          /> : undefined}
           ownerRole={ownerRole}
           dealerMode={dealerMode}
           ownerIsTaxExempt={isTaxExempt}
@@ -1615,7 +1647,8 @@ export function EstimateForm({
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
             estimateStatus={promotionEstimate?.status?.name ?? ""}
-            allowNoCharge={Number(promotionEstimate?.discountAmount) > 0 && Number(promotionEstimate?.units) > 0}
+            manualDiscount={discountData.summary}
+            allowNoCharge={(Number(promotionEstimate?.discountAmount) > 0 || Number(discountData.summary?.discount) > 0) && Number(promotionEstimate?.units) > 0}
             order={estimate.order ?? null}
             materialPayments={estimate.payments ?? []}
             installationJob={financialInstallation}
@@ -1628,7 +1661,7 @@ export function EstimateForm({
             dealerMode={dealerMode}
             cardSurchargeFraction={cardSurchargeFraction}
             paymentBlockedReason={
-              needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
+              discountDirty ? "Save or discard the additional discount changes before payment." : discountLoading ? "Updating estimate totals…" : discountError ? "Could not refresh estimate totals. Reload to continue." : needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
                 ? "Finish or cancel the installation calculation to continue to payment."
                 : undefined
             }

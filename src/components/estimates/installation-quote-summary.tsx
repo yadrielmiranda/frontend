@@ -10,7 +10,8 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
   const quote = job.quotes[0];
   if (!quote) return null;
 
-  const installationTotal = Number(quote.total);
+  const discount = job.manualDiscountSummary;
+  const installationTotal = Number(discount?.installation.total ?? quote.total);
   const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
   const installationPaymentsPaid = paidBaseFor(job, "INSTALLATION");
   const canceled = job.status === "CANCELED";
@@ -31,7 +32,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
             Profile: {quote.profileNameSnapshot}
           </p>
         </div>
-        <strong>{formatMoney(Number(quote.total))}</strong>
+        <strong>{formatMoney(installationTotal)}</strong>
       </div>
 
       <div className="overflow-hidden rounded-md border border-slate-200">
@@ -98,11 +99,12 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
             </span>
           </>
         )}
+        {Number(discount?.installation.discount) > 0 && <><span className="text-emerald-700">Additional discount</span><span className="text-right text-emerald-700">−{formatMoney(Number(discount?.installation.discount))}</span></>}
         <strong className="border-t border-slate-300 pt-2">
           Installation total
         </strong>
         <strong className="border-t border-slate-300 pt-2 text-right">
-          {formatMoney(Number(quote.total))}
+          {formatMoney(installationTotal)}
         </strong>
         {depositPaid > 0 && canceled ? (
           <>
@@ -126,7 +128,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
           <>
             <span className="text-slate-500">Non-refundable deposit due</span>
             <span className="text-right">
-              {formatMoney(Number(job.depositAmountSnapshot ?? 0))}
+              {formatMoney(discount ? Math.min(Number(job.depositAmountSnapshot ?? 0), installationTotal) : Number(job.depositAmountSnapshot ?? 0))}
             </span>
           </>
         ) : null}
@@ -153,13 +155,13 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
             </strong>
             <span className="text-slate-500">Permit Fee</span>
             <span className="text-right">
-              {formatMoney(Number(job.permit.permitFeeSnapshot))}
+              {formatMoney(Number(discount?.permit.total ?? job.permit.permitFeeSnapshot))}
             </span>
             <span className="text-slate-500">City Fee</span>
             <span className="text-right">
               {job.permit.cityFee == null
                 ? "Pending"
-                : formatMoney(Number(job.permit.cityFee))}
+                : formatMoney(Number(discount?.city.total ?? job.permit.cityFee))}
             </span>
           </>
         )}

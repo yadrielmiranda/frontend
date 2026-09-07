@@ -55,7 +55,7 @@ export function OrderInstallationPanel({
   const latestQuote = job.quotes[0];
   const installationBalance = Math.max(
     0,
-    Number(latestQuote?.total ?? 0) - paidInstallationCredit(job),
+    Number(job.manualDiscountSummary?.installation.total ?? latestQuote?.total ?? 0) - paidInstallationCredit(job),
   );
   const proposedAppointment = job.appointments.find(
     (appointment) =>

@@ -389,6 +389,10 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  manualDiscount?: import("./estimate-discount").EstimateDiscountConfig | null;
+  manualDiscountSummary?: import("./estimate-discount").EstimateDiscountSummary | null;
+  customerPromotionsVisible?: boolean;
+  termsPreservedAfterPayment?: boolean;
   standardExpiresAt?: string | null;
   promotionExpiresAt?: string | null;
   promotionLockedAt?: string | null;
@@ -766,6 +770,7 @@ export interface InstallationAppointment {
 }
 
 export interface InstallationJob {
+  manualDiscountSummary?: import("./estimate-discount").EstimateDiscountSummary | null;
   id: number;
   estimateId: number;
   status: InstallationJobStatus;

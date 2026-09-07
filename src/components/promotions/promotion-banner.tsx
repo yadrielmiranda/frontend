@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import {
   getAvailablePromotions,
-  type Promotion,
+  type AvailablePromotion,
 } from "@/app/api/promotions.api";
 import type { Estimate } from "@/lib/types";
 import styles from "./promotion-banner.module.css";
@@ -47,7 +47,7 @@ export function usePromotionExpired(
   );
 }
 export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
-  const [offers, setOffers] = useState<Promotion[]>([]);
+  const [offers, setOffers] = useState<AvailablePromotion[]>([]);
   const expired = usePromotionExpired(estimate);
   useEffect(() => {
     let alive = true;
@@ -65,7 +65,7 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
       clearInterval(timer);
       window.removeEventListener("focus", load);
     };
-  }, [estimate?.id]);
+  }, [estimate]);
   const applied = !!estimate?.promotionExpiresAt;
   if (!offers.length && !applied) return null;
 
@@ -118,7 +118,9 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
           aria-label="Available material promotions"
         >
           {offers.map((offer, index) => {
-            const percent = String(Number(offer.percent));
+            const automatic = !!offer.automaticDealerAdjustment;
+            const percent =
+              offer.percent === null ? "" : String(Number(offer.percent));
             const scope = [
               { label: "Brand", name: offer.brandName },
               { label: "Product", name: offer.productName },
@@ -134,26 +136,39 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                 <div
                   className={styles.discount}
                   role="img"
-                  aria-label={`${percent}% off`}
+                  aria-label={
+                    automatic ? "Automatic dealer offer" : `${percent}% off`
+                  }
                 >
-                  <span
-                    className={`${styles.discountValue} ${percent.length > 4 ? styles.preciseDiscount : ""}`}
-                    aria-hidden="true"
-                  >
-                    {percent}
-                    <span className={styles.percentSign}>%</span>
-                  </span>
+                  {automatic ? (
+                    <Tag className="size-7" aria-hidden="true" />
+                  ) : (
+                    <span
+                      className={`${styles.discountValue} ${percent.length > 4 ? styles.preciseDiscount : ""}`}
+                      aria-hidden="true"
+                    >
+                      {percent}
+                      <span className={styles.percentSign}>%</span>
+                    </span>
+                  )}
                   <span className={styles.discountLabel} aria-hidden="true">
-                    off
+                    {automatic ? "dealer" : "off"}
                   </span>
                 </div>
 
                 <div className={styles.details}>
                   <p className={styles.eyebrow}>
                     <Tag aria-hidden="true" />
-                    Material promotion
+                    {automatic
+                      ? "Automatic dealer offer"
+                      : "Material promotion"}
                   </p>
                   <p className={styles.offerTitle}>{offer.name}</p>
+                  {automatic && (
+                    <p className="mt-1 text-sm text-slate-600">
+                      Your discount is calculated for each eligible piece.
+                    </p>
+                  )}
                   <div className={styles.scope}>
                     {scope.length ? (
                       scope.map((item) => (
@@ -170,6 +185,16 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                       <span className={styles.allMaterials}>All materials</span>
                     )}
                   </div>
+                  {!!offer.excludedProductNames?.length && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      Excluded products: {offer.excludedProductNames.join(", ")}
+                    </p>
+                  )}
+                  {!!offer.excludedSystemNames?.length && (
+                    <p className="mt-1 text-xs text-slate-600">
+                      Excluded systems: {offer.excludedSystemNames.join(", ")}
+                    </p>
+                  )}
                 </div>
 
                 <div className={styles.expiry}>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/branding-color";
 import { getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
 import { isDealerRole } from "@/lib/rbac";
+import { customerCanSeePromotions } from "@/lib/estimate-customer-promotions";
 
 function buildBrandingModel(estimate: EstimateWithRelations) {
   const branding = estimate.branding ?? null;
@@ -62,6 +63,15 @@ export function EstimateReportShell({
   internal?: boolean;
 }) {
   const b = buildBrandingModel(estimate);
+  const hideDealerPromotions = !internal && !customerCanSeePromotions(estimate);
+  const termsPreservedAfterPayment = Boolean(
+    estimate.promotionLockedAt || estimate.termsPreservedAfterPayment || estimate.manualDiscount?.lockedAt || estimate.manualDiscountSummary?.lockedAt,
+  );
+  const validThrough = estimate.expiresAt
+    ? estimate.promotionExpiresAt || hideDealerPromotions
+      ? new Date(estimate.expiresAt).toLocaleString("en-US")
+      : formatDateEn(estimate.expiresAt)
+    : null;
   const customerName = [estimate.customerFirstName, estimate.customerLastName]
     .filter(Boolean)
     .join(" ")
@@ -197,13 +207,13 @@ export function EstimateReportShell({
                 {formatDateEn(estimate.date)}
               </p>
             </div>
-            {estimate.expiresAt && !estimate.promotionLockedAt ? (
+            {validThrough && !termsPreservedAfterPayment ? (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-black">
                   Valid Through
                 </p>
                 <p className="text-xs font-semibold text-[var(--report-brand-color)]">
-                  {(estimate.promotionExpiresAt ? new Date(estimate.expiresAt).toLocaleString("en-US") : formatDateEn(estimate.expiresAt))}
+                  {validThrough}
                 </p>
               </div>
             ) : null}
@@ -214,9 +224,13 @@ export function EstimateReportShell({
 
         <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-[11px] text-black">
           <p>
-            {estimate.promotionLockedAt ? "The agreed promotion is preserved after payment." : estimate.expiresAt
-              ? `This estimate is valid through ${(estimate.promotionExpiresAt ? new Date(estimate.expiresAt).toLocaleString("en-US") : formatDateEn(estimate.expiresAt))}.`
-              : "This estimate is valid for 30 days."}{" "}
+            {termsPreservedAfterPayment
+              ? hideDealerPromotions || !estimate.promotionLockedAt
+                ? "The agreed terms are preserved after payment."
+                : "The agreed promotion is preserved after payment."
+              : validThrough
+                ? `This estimate is valid through ${validThrough}.`
+                : "This estimate is valid for 30 days."}{" "}
             Thank you for your business.
           </p>
         </footer>

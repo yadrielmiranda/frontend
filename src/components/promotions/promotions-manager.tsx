@@ -26,6 +26,8 @@ const empty = () => ({
   audience: "ALL",
   roleIds: [] as number[],
   userIds: [] as number[],
+  excludedProductIds: [] as number[],
+  excludedSystemIds: [] as number[],
   brandId: "",
   productId: "",
   systemId: "",
@@ -46,10 +48,65 @@ const formKey = (form: ReturnType<typeof empty>) =>
     brandId: form.brandId,
     productId: form.productId,
     systemId: form.systemId,
+    excludedProductIds: [...form.excludedProductIds].sort((a, b) => a - b),
+    excludedSystemIds: [...form.excludedSystemIds].sort((a, b) => a - b),
     startsAt: form.startsAt,
     endsAt: form.endsAt,
     enabled: form.enabled,
   });
+function ExclusionSelect({
+  title,
+  items,
+  selected,
+  onChange,
+}: {
+  title: string;
+  items: { id: number; name: string }[];
+  selected: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = items.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase()),
+  );
+  return (
+    <fieldset className="min-w-0 space-y-2">
+      <legend className="text-sm font-medium">
+        {title} ({selected.length})
+      </legend>
+      <Input
+        aria-label={`Search ${title.toLowerCase()}`}
+        placeholder="Search…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div className="max-h-40 overflow-y-auto rounded-md border p-2">
+        {filtered.map((item) => (
+          <label
+            key={item.id}
+            className="flex cursor-pointer items-start gap-2 rounded px-1 py-2 text-sm hover:bg-muted/50"
+          >
+            <Checkbox
+              className="mt-0.5 shrink-0"
+              checked={selected.includes(item.id)}
+              onCheckedChange={(checked) =>
+                onChange(
+                  checked === true
+                    ? [...new Set([...selected, item.id])]
+                    : selected.filter((id) => id !== item.id),
+                )
+              }
+            />
+            <span>{item.name}</span>
+          </label>
+        ))}
+        {!filtered.length && (
+          <p className="p-2 text-sm text-muted-foreground">No matches.</p>
+        )}
+      </div>
+    </fieldset>
+  );
+}
 export function PromotionsManager({
   initial,
   options,
@@ -77,6 +134,8 @@ export function PromotionsManager({
           ...p,
           percent: String(p.percent),
           roleIds: [...p.roleIds],
+          excludedProductIds: [...p.excludedProductIds],
+          excludedSystemIds: [...p.excludedSystemIds],
           brandId: String(p.brandId ?? ""),
           productId: String(p.productId ?? ""),
           systemId: String(p.systemId ?? ""),
@@ -202,7 +261,33 @@ export function PromotionsManager({
                           .join(", ") || "No roles selected"
                       : `${p.userIds.length} selected users`}
                 </td>
-                <td className="p-4">{label(p)}</td>
+                <td className="p-4">
+                  {label(p)}
+                  {!!p.excludedProductIds.length && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Excluded products:{" "}
+                      {p.excludedProductIds
+                        .map(
+                          (id) =>
+                            options.products.find((v) => v.id === id)?.name ??
+                            `Product #${id}`,
+                        )
+                        .join(", ")}
+                    </div>
+                  )}
+                  {!!p.excludedSystemIds.length && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Excluded systems:{" "}
+                      {p.excludedSystemIds
+                        .map(
+                          (id) =>
+                            options.systems.find((v) => v.id === id)?.name ??
+                            `System #${id}`,
+                        )
+                        .join(", ")}
+                    </div>
+                  )}
+                </td>
                 <td className="p-4">
                   {new Date(p.startsAt).toLocaleString()}
                   <br />
@@ -351,6 +436,38 @@ export function PromotionsManager({
                 ),
               )}
             </div>
+            <fieldset className="space-y-3 rounded-lg border p-4">
+              <legend className="px-1 text-sm font-semibold">
+                Exclusions (optional)
+              </legend>
+              <p className="text-sm text-muted-foreground">
+                Excluded products and systems will not receive this promotion.
+                Excluding a product also excludes all its systems.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ExclusionSelect
+                  title="Excluded products"
+                  items={options.products}
+                  selected={form.excludedProductIds}
+                  onChange={(ids) => set("excludedProductIds", ids)}
+                />
+                <ExclusionSelect
+                  title="Excluded systems"
+                  items={options.systems.map((s) => ({
+                    id: s.id,
+                    name: [
+                      options.brands.find((b) => b.id === s.idBrand)?.name,
+                      options.products.find((p) => p.id === s.idProduct)?.name,
+                      s.name,
+                    ]
+                      .filter(Boolean)
+                      .join(" / "),
+                  }))}
+                  selected={form.excludedSystemIds}
+                  onChange={(ids) => set("excludedSystemIds", ids)}
+                />
+              </div>
+            </fieldset>
             <div className="grid sm:grid-cols-2 gap-4">
               {(["startsAt", "endsAt"] as const).map((k, i) => (
                 <label className="grid gap-1 text-sm" key={k}>

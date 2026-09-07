@@ -6,16 +6,18 @@ export function OriginalPrice({
   amount,
   formatValue = formatMoney,
   className = "",
+  label = "Before promotion",
 }: {
   amount: number;
   formatValue?: MoneyFormatter;
   className?: string;
+  label?: string;
 }) {
   return (
     <s
       className={`whitespace-nowrap font-normal text-red-600 decoration-red-600 ${className}`}
     >
-      <span className="sr-only">Before promotion: </span>
+      <span className="sr-only">{label}: </span>
       {formatValue(amount)}
     </s>
   );

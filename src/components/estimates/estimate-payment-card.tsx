@@ -1,5 +1,6 @@
 "use client";
 
+import type { EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
@@ -44,6 +45,7 @@ export function resolveEstimatePaymentAction({
   installationJob,
   materialAmount,
   allowNoCharge = false,
+  manualDiscount,
 }: {
   estimateStatus: string;
   order: Order | null;
@@ -51,7 +53,10 @@ export function resolveEstimatePaymentAction({
   installationJob: InstallationJob | null;
   materialAmount: number;
   allowNoCharge?: boolean;
+  manualDiscount?: EstimateDiscountSummary | null;
 }): PaymentAction | null {
+  manualDiscount = manualDiscount ?? installationJob?.manualDiscountSummary;
+  materialAmount = Number(manualDiscount?.material.total ?? materialAmount);
   const activeJob =
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
@@ -86,7 +91,7 @@ export function resolveEstimatePaymentAction({
       title: "Installation deposit",
       description:
         "This is the next required payment before remeasurement can be scheduled.",
-      amount: Number(activeJob.depositAmountSnapshot),
+      amount: manualDiscount ? Math.min(Number(activeJob.depositAmountSnapshot), Number(manualDiscount.installation.total)) : Number(activeJob.depositAmountSnapshot),
     };
   }
 
@@ -100,12 +105,12 @@ export function resolveEstimatePaymentAction({
       title: "Permit Fee",
       description:
         "The installation quote is approved. The Permit Fee is the next required payment.",
-      amount: Number(activeJob.permit.permitFeeSnapshot),
+      amount: Number(manualDiscount?.permit.total ?? activeJob.permit.permitFeeSnapshot),
     };
   }
 
   if (!order && activeJob.status === "MATERIAL_PAYMENT_PENDING") {
-    const cityFee = Number(activeJob.permit?.cityFee ?? 0);
+    const cityFee = Number(manualDiscount?.city.total ?? activeJob.permit?.cityFee ?? 0);
 
     return {
       type: "MATERIAL",
@@ -123,7 +128,7 @@ export function resolveEstimatePaymentAction({
     const balance = roundMoney(
       Math.max(
         0,
-        Number(quote?.total ?? 0) - paidInstallationCredit(activeJob),
+        Number(manualDiscount?.installation.total ?? quote?.total ?? 0) - paidInstallationCredit(activeJob),
       ),
     );
 
@@ -151,6 +156,7 @@ export function EstimatePaymentCard({
   currentUserId,
   materialAmount,
   allowNoCharge = false,
+  manualDiscount,
   dealerMode,
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
@@ -166,6 +172,7 @@ export function EstimatePaymentCard({
   currentUserId: number;
   materialAmount: number;
   allowNoCharge?: boolean;
+  manualDiscount?: EstimateDiscountSummary | null;
   dealerMode?: DealerMode | null;
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
@@ -188,9 +195,10 @@ export function EstimatePaymentCard({
     installationJob,
     materialAmount,
     allowNoCharge,
+    manualDiscount,
   });
 
-  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.type === "MATERIAL" && action.amount === 0 && allowNoCharge))) {
+  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.amount === 0 && (allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
     return null;
   }
 
@@ -372,7 +380,7 @@ export function EstimatePaymentCard({
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
-                    : action.amount === 0 ? "Confirm order" : "Continue to payment"}
+                    : action.amount === 0 ? (action.type === "MATERIAL" ? "Confirm order" : "Confirm step") : "Continue to payment"}
             </Button>
           </>
         ) : isOwner && isInternalDealer ? (

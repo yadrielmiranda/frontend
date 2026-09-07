@@ -1,10 +1,12 @@
 "use client";
 
+import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
+import { customerCanSeePromotions } from "@/lib/estimate-customer-promotions";
 import type {
   EstimateCustomerChargeSummary,
   EstimateInstallationReportSummary,
@@ -19,6 +21,7 @@ export type EstimateReportKind =
   | "admin";
 
 type MaterialTotals = {
+  manualNetDiscount?: number;
   discount?: number;
   subtotal: number;
   taxRate: number;
@@ -104,7 +107,15 @@ function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
           label="Material subtotal"
           value={formatMoney(totals.subtotal)}
           accentValue={Number(totals.discount) > 0}
-        />
+        >
+          {Number(totals.manualNetDiscount) > 0 ? (
+            <OriginalPrice amount={totals.subtotal} label="Before discount" />
+          ) : null}
+        </MoneyRow>
+        {Number(totals.manualNetDiscount) > 0 && <>
+          <MoneyRow label="Additional discount" value={`−${formatMoney(totals.manualNetDiscount!)}`} />
+          <MoneyRow label="Subtotal after discount" value={formatMoney(totals.subtotal - totals.manualNetDiscount!)} accentValue />
+        </>}
         <MoneyRow
           label={`Sales Tax (${(totals.taxRate * 100).toFixed(2)}%)`}
           value={formatMoney(totals.taxAmount)}
@@ -181,24 +192,50 @@ function ComparativeMaterialSummary({
           <tr className="border-t border-slate-200">
             <td className="px-4 py-3 text-black">Material subtotal</td>
             <td className="px-4 py-3 text-right font-medium">
-              <span
-                className={
-                  Number(internal.discount) > 0 ? "text-emerald-700" : undefined
-                }
-              >
-                {formatMoney(internal.subtotal)}
-              </span>
+              {Number(internal.manualNetDiscount) > 0 ? (
+                <OriginalPrice
+                  amount={internal.subtotal}
+                  label="Before discount"
+                />
+              ) : (
+                <span
+                  className={
+                    Number(internal.discount) > 0 ? "text-emerald-700" : undefined
+                  }
+                >
+                  {formatMoney(internal.subtotal)}
+                </span>
+              )}
             </td>
             <td className="px-4 py-3 text-right font-medium">
-              <span
-                className={
-                  Number(customer.discount) > 0 ? "text-emerald-700" : undefined
-                }
-              >
-                {formatMoney(customer.subtotal)}
-              </span>
+              {Number(customer.manualNetDiscount) > 0 ? (
+                <OriginalPrice
+                  amount={customer.subtotal}
+                  label="Before discount"
+                />
+              ) : (
+                <span
+                  className={
+                    Number(customer.discount) > 0 ? "text-emerald-700" : undefined
+                  }
+                >
+                  {formatMoney(customer.subtotal)}
+                </span>
+              )}
             </td>
           </tr>
+          {(Number(internal.manualNetDiscount) > 0 || Number(customer.manualNetDiscount) > 0) && <>
+          <tr className="border-t text-emerald-700">
+            <td className="px-4 py-3">Additional discount</td>
+            <td className="px-4 py-3 text-right">−{formatMoney(internal.manualNetDiscount ?? 0)}</td>
+            <td className="px-4 py-3 text-right">−{formatMoney(customer.manualNetDiscount ?? 0)}</td>
+          </tr>
+          <tr className="border-t font-semibold text-emerald-700">
+            <td className="px-4 py-3">Subtotal after discount</td>
+            <td className="px-4 py-3 text-right">{formatMoney(internal.subtotal - (internal.manualNetDiscount ?? 0))}</td>
+            <td className="px-4 py-3 text-right">{formatMoney(customer.subtotal - (customer.manualNetDiscount ?? 0))}</td>
+          </tr>
+          </>}
           <tr className="border-t border-slate-200">
             <td className="px-4 py-3 text-black">Sales Tax</td>
             <td className="px-4 py-3 text-right">
@@ -236,9 +273,11 @@ function ComparativeMaterialSummary({
 function ExternalDealerChargesSummary({
   summary,
   comparison,
+  installationDiscount = 0,
 }: {
   summary: EstimateCustomerChargeSummary;
   comparison: boolean;
+  installationDiscount?: number;
 }) {
   const customerLines = summary.lines.filter(
     (line) => line.usedInCustomerQuote,
@@ -301,7 +340,9 @@ function ExternalDealerChargesSummary({
                   ? "—"
                   : line.systemAmount == null
                     ? "Pending"
-                    : formatMoney(numberValue(line.systemAmount))}
+                    : line.sourceKey === "INSTALLATION" && installationDiscount > 0
+                      ? <OriginalPrice amount={numberValue(line.systemAmount)} label="Before discount" />
+                      : formatMoney(numberValue(line.systemAmount))}
               </td>
               <td className="px-4 py-3 text-right font-medium">
                 {!line.usedInCustomerQuote
@@ -358,8 +399,10 @@ function ExternalDealerProjectScope({
 
 function InstallationSummary({
   summary,
+  discount = 0,
 }: {
   summary: EstimateInstallationReportSummary | null;
+  discount?: number;
 }) {
   if (!summary) {
     return null;
@@ -380,7 +423,9 @@ function InstallationSummary({
             </Badge>
             {summary.installationAmount == null
               ? "Pending"
-              : formatMoney(numberValue(summary.installationAmount))}
+              : discount > 0
+                ? <OriginalPrice amount={numberValue(summary.installationAmount)} label="Before discount" />
+                : formatMoney(numberValue(summary.installationAmount))}
           </span>
         </MoneyRow>
 
@@ -498,9 +543,10 @@ function AdminProfitability({
   const internalDealer =
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
   const factoryRate = numberValue(estimate.rateT);
-  const internalMaterialSubtotal = numberValue(estimate.priceT);
+  const manual = estimate.manualDiscountSummary;
+  const internalMaterialSubtotal = manual?.payer === "ACCOUNT_OWNER" ? Number(manual.material.subtotal) : numberValue(estimate.priceT);
   const materialSaleSubtotal = internalDealer
-    ? numberValue(estimate.customerPriceT)
+    ? manual?.payer === "CUSTOMER" ? Number(manual.material.subtotal) : numberValue(estimate.customerPriceT)
     : internalMaterialSubtotal;
   const estimatedCompanyProfit = roundMoney(materialSaleSubtotal - factoryRate);
   const saleChannel = ownerIsDealer
@@ -550,6 +596,10 @@ export function ReportFinancialSummary({
   reportKind: EstimateReportKind;
   installationSummary?: EstimateInstallationReportSummary | null;
 }) {
+  const hideDealerPromotions =
+    (reportKind === "dealer-customer" ||
+      reportKind === "dealer-customer-total") &&
+    !customerCanSeePromotions(estimate);
   const internalMaterial: MaterialTotals = {
     discount: numberValue(estimate.discountAmount),
     subtotal: numberValue(estimate.priceT),
@@ -558,12 +608,22 @@ export function ReportFinancialSummary({
     total: numberValue(estimate.totalPayable),
   };
   const customerMaterial: MaterialTotals = {
-    discount: numberValue(estimate.customerDiscountAmount),
+    discount: hideDealerPromotions
+      ? 0
+      : numberValue(estimate.customerDiscountAmount),
     subtotal: numberValue(estimate.customerPriceT),
     taxRate: numberValue(estimate.customerTaxRate),
     taxAmount: numberValue(estimate.customerTaxAmount),
     total: numberValue(estimate.customerTotalPayable),
   };
+  const manualDiscount = hideDealerPromotions ? null : estimate.manualDiscountSummary;
+  const manualMaterial = manualDiscount?.payer === 'CUSTOMER' ? customerMaterial : internalMaterial;
+  if (manualDiscount) {
+    manualMaterial.taxAmount = Number(manualDiscount.material.tax);
+    manualMaterial.total = Number(manualDiscount.material.total);
+    manualMaterial.manualNetDiscount = Number(manualDiscount.material.netDiscount);
+  }
+  const serviceDiscount = Number(manualDiscount?.installation.discount ?? 0) + Number(manualDiscount?.permit.discount ?? 0) + Number(manualDiscount?.city.discount ?? 0);
   const ownerIsDealer =
     reportKind === "dealer" ||
     reportKind === "dealer-customer" ||
@@ -591,16 +651,17 @@ export function ReportFinancialSummary({
   const sharedCharges = roundMoney(installationTotal + permitFee + cityFee);
   const customerServiceCharges = externalDealerCharges
     ? numberValue(externalDealerCharges.customerTotal)
-    : sharedCharges;
+    : sharedCharges - (manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0);
+  const internalCharges = sharedCharges - (manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0);
   const internalProjectTotal = roundMoney(
-    internalMaterial.total + sharedCharges,
+    internalMaterial.total + internalCharges,
   );
   const customerProjectTotal = roundMoney(
     customerMaterial.total + customerServiceCharges,
   );
   const calculatedSelectedProjectTotal = roundMoney(
     selectedMaterial.total +
-      (customerFacing ? customerServiceCharges : sharedCharges),
+      (customerFacing ? customerServiceCharges : internalCharges),
   );
   const selectedProjectTotal =
     projectTotalOnly && estimate.publicProjectTotal != null
@@ -675,13 +736,16 @@ export function ReportFinancialSummary({
             <ExternalDealerChargesSummary
               summary={externalDealerCharges}
               comparison={comparisonView}
+              installationDiscount={numberValue(manualDiscount?.installation.discount)}
             />
           ) : (
-            <InstallationSummary summary={installationSummary} />
+            <InstallationSummary summary={installationSummary} discount={numberValue(manualDiscount?.installation.discount)} />
           )}
         </div>
       )}
 
+      {!projectTotalOnly && serviceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(serviceDiscount)}`} />}
+      {!projectTotalOnly && <ManualDiscountSummary summary={manualDiscount} />}
       <div
         className={`break-inside-avoid rounded-xl border px-5 py-3 ${
           comparisonView
@@ -718,7 +782,7 @@ export function ReportFinancialSummary({
                 label="Dealer Profit · materials only, pre-tax"
                 value={formatMoney(
                   roundMoney(
-                    customerMaterial.subtotal - internalMaterial.subtotal,
+                    (customerMaterial.subtotal - (customerMaterial.manualNetDiscount ?? 0)) - (internalMaterial.subtotal - (internalMaterial.manualNetDiscount ?? 0)),
                   ),
                 )}
               />
