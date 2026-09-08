@@ -8,7 +8,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
 
-  const isPublicAuthPage = pathname === "/" || pathname.startsWith("/login");
+  const isPublicAuthPage = pathname === "/" || pathname.startsWith("/login") || pathname === "/sms" || pathname.startsWith("/sms/");
 
   const showTopBar = isLoading || isAuthenticated || !isPublicAuthPage;
 

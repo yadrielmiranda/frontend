@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserForm } from "@/app/settings/(write)/users/new/user-form";
 import { getProfile } from "@/app/api/auth/me/auth.api";
 import { deleteMyAccount } from "@/app/api/users.api";
+import { SmsConsentCard } from "@/components/sms/sms-consent-card";
 
 import type { User } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
@@ -244,6 +245,8 @@ export function ProfileClient({
               />
             </CardContent>
           </Card>
+
+          <SmsConsentCard key={`${profileUser.id}:${profileUser.phone}`} />
 
           <Card className="rounded-3xl border-slate-200 shadow-sm">
             <CardHeader>
