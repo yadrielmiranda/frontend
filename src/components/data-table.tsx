@@ -7,11 +7,22 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type PaginationState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ListFilter, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronUp,
+  ListFilter,
+  X,
+} from "lucide-react";
 
 import {
   Table,
@@ -71,10 +82,13 @@ interface DataTableProps<TData, TValue> {
   // Conserva filtros durante navegación y recargas de la pestaña.
   filterStorageKey?: string;
 
+  pagination?: boolean;
   maxHeightClassName?: string;
 }
 
 const ALL_FILTER_VALUE = "__all__";
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_PAGE_SIZE = 10;
 
 export function DataTable<TData, TValue>({
   columns,
@@ -85,6 +99,7 @@ export function DataTable<TData, TValue>({
   filterPlacement = "toolbar",
   collapsibleFilters = false,
   filterStorageKey,
+  pagination = false,
   maxHeightClassName = "max-h-[520px]",
 }: DataTableProps<TData, TValue>) {
   const storageKey = filterStorageKey
@@ -94,6 +109,11 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
+  const [paginationState, setPaginationState] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   const [filtersVisible, setFiltersVisible] = React.useState(
     () => !collapsibleFilters,
@@ -116,6 +136,7 @@ export function DataTable<TData, TValue>({
         const parsed = JSON.parse(savedState) as {
           columnFilters?: unknown;
           filtersVisible?: unknown;
+          pagination?: unknown;
         };
 
         if (Array.isArray(parsed.columnFilters)) {
@@ -129,13 +150,33 @@ export function DataTable<TData, TValue>({
             setFiltersVisible(true);
           }
         }
+
+        if (
+          pagination &&
+          parsed.pagination &&
+          typeof parsed.pagination === "object"
+        ) {
+          const savedPagination = parsed.pagination as Partial<PaginationState>;
+          if (
+            typeof savedPagination.pageIndex === "number" &&
+            Number.isSafeInteger(savedPagination.pageIndex) &&
+            savedPagination.pageIndex >= 0 &&
+            typeof savedPagination.pageSize === "number" &&
+            PAGE_SIZE_OPTIONS.includes(savedPagination.pageSize)
+          ) {
+            setPaginationState({
+              pageIndex: savedPagination.pageIndex,
+              pageSize: savedPagination.pageSize,
+            });
+          }
+        }
       }
     } catch {
       // La tabla continúa funcionando si sessionStorage no está disponible.
     } finally {
       setStorageRestored(true);
     }
-  }, [storageKey]);
+  }, [pagination, storageKey]);
 
   React.useEffect(() => {
     if (!storageKey || !storageRestored) {
@@ -143,7 +184,12 @@ export function DataTable<TData, TValue>({
     }
 
     try {
-      if (columnFilters.length === 0) {
+      if (
+        columnFilters.length === 0 &&
+        (!pagination ||
+          (paginationState.pageIndex === 0 &&
+            paginationState.pageSize === DEFAULT_PAGE_SIZE))
+      ) {
         window.sessionStorage.removeItem(storageKey);
         return;
       }
@@ -153,12 +199,20 @@ export function DataTable<TData, TValue>({
         JSON.stringify({
           columnFilters,
           filtersVisible,
+          ...(pagination ? { pagination: paginationState } : {}),
         }),
       );
     } catch {
       // La tabla continúa funcionando si sessionStorage no está disponible.
     }
-  }, [columnFilters, filtersVisible, storageKey, storageRestored]);
+  }, [
+    columnFilters,
+    filtersVisible,
+    pagination,
+    paginationState,
+    storageKey,
+    storageRestored,
+  ]);
 
   const configuredFilters = React.useMemo<DataTableFilter[]>(() => {
     if (filters?.length) {
@@ -182,12 +236,23 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: (updater) => {
+      setColumnFilters(updater);
+      if (pagination) {
+        setPaginationState((current) =>
+          current.pageIndex === 0 ? current : { ...current, pageIndex: 0 },
+        );
+      }
+    },
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
+    autoResetPageIndex: false,
+    onPaginationChange: setPaginationState,
     state: {
       columnFilters,
+      pagination: paginationState,
     },
   });
 
@@ -211,6 +276,39 @@ export function DataTable<TData, TValue>({
   );
 
   const filteredCount = table.getFilteredRowModel().rows.length;
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredCount / paginationState.pageSize),
+  );
+  const currentPage = Math.min(paginationState.pageIndex + 1, pageCount);
+  const firstItem =
+    filteredCount === 0 ? 0 : (currentPage - 1) * paginationState.pageSize + 1;
+  const lastItem = Math.min(currentPage * paginationState.pageSize, filteredCount);
+
+  React.useEffect(() => {
+    if (!pagination || !storageRestored) return;
+
+    // Conserva una página válida si se elimina el último registro de la lista.
+    setPaginationState((current) => {
+      const lastPageIndex = Math.max(
+        0,
+        Math.ceil(filteredCount / current.pageSize) - 1,
+      );
+      return current.pageIndex > lastPageIndex
+        ? { ...current, pageIndex: lastPageIndex }
+        : current;
+    });
+  }, [filteredCount, pagination, storageRestored]);
+
+  React.useEffect(() => {
+    if (pagination) scrollContainerRef.current?.scrollTo({ top: 0 });
+  }, [
+    columnFilters,
+    pagination,
+    paginationState.pageIndex,
+    paginationState.pageSize,
+  ]);
+
   const activeFilterCount = columnFilters.length;
   const hasActiveFilters = activeFilterCount > 0;
 
@@ -446,7 +544,10 @@ export function DataTable<TData, TValue>({
       )}
 
       <div className="rounded-md border">
-        <div className={`${maxHeightClassName} overflow-auto`}>
+        <div
+          ref={scrollContainerRef}
+          className={`${maxHeightClassName} overflow-auto`}
+        >
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-muted/40">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -515,6 +616,96 @@ export function DataTable<TData, TValue>({
           </Table>
         </div>
       </div>
+
+      {pagination && (
+        <div className="flex flex-col gap-3 py-3 text-sm lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <span className="text-muted-foreground" aria-live="polite">
+              Showing {firstItem}–{lastItem} of {filteredCount}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Rows per page</span>
+              <Select
+                value={String(paginationState.pageSize)}
+                onValueChange={(value) => {
+                  const pageSize = Number(value);
+                  if (PAGE_SIZE_OPTIONS.includes(pageSize)) {
+                    setPaginationState({ pageIndex: 0, pageSize });
+                  }
+                }}
+              >
+                <SelectTrigger aria-label="Rows per page" className="h-9 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((pageSize) => (
+                    <SelectItem key={pageSize} value={String(pageSize)}>
+                      {pageSize}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <nav
+            aria-label="Table pagination"
+            className="flex flex-wrap items-center gap-2"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              aria-label="First page"
+              title="First page"
+              disabled={!table.getCanPreviousPage()}
+              onClick={() => table.setPageIndex(0)}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1 px-2 sm:px-3"
+              aria-label="Previous page"
+              disabled={!table.getCanPreviousPage()}
+              onClick={() => table.previousPage()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Previous</span>
+            </Button>
+            <span className="min-w-24 whitespace-nowrap text-center">
+              Page {currentPage} of {pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1 px-2 sm:px-3"
+              aria-label="Next page"
+              disabled={!table.getCanNextPage()}
+              onClick={() => table.nextPage()}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              aria-label="Last page"
+              title="Last page"
+              disabled={!table.getCanNextPage()}
+              onClick={() => table.setPageIndex(pageCount - 1)}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </nav>
+        </div>
+      )}
     </div>
   );
 }

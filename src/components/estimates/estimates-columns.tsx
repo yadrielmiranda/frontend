@@ -9,6 +9,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -102,6 +107,44 @@ const getEstimateDateKey = (value: string): string => {
   return `${year}-${month}-${day}`;
 };
 
+function canEditEstimateFromList(
+  estimate: EstimateWithRelations,
+  currentUser: AuthUser | null,
+): boolean {
+  if (
+    !currentUser ||
+    estimate.status?.name !== "Active" ||
+    estimate.order ||
+    estimate.promotionLockedAt
+  ) {
+    return false;
+  }
+
+  const canManage =
+    currentUser.id === estimate.idUser ||
+    isAdminRole(currentUser.role?.name) ||
+    isOperatorRole(currentUser.role?.name);
+  const materialLocked = estimate.payments?.some(
+    (payment) =>
+      payment.type === "MATERIAL" &&
+      (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
+  );
+  if (!canManage || materialLocked) return false;
+
+  const installation = estimate.installationJob;
+  if (installation && installation.status !== "CANCELED") {
+    if (installation.status !== "DEPOSIT_PAYMENT_PENDING") return false;
+    const depositLocked = estimate.payments?.some(
+      (payment) =>
+        payment.type === "INSTALLATION_DEPOSIT" &&
+        (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
+    );
+    if (depositLocked) return false;
+  }
+
+  return true;
+}
+
 // =============================
 // Columns
 // =============================
@@ -114,16 +157,47 @@ export const getEstimateColumns = (
   const showInternalProfit = canViewInternalEstimateProfit(role);
   const showDealerProfit = canViewDealerEstimateProfit(role);
 
+  const renderEstimateLink = (
+    estimate: EstimateWithRelations,
+    value: string | null | undefined,
+  ) => {
+    if (!value || !canEditEstimateFromList(estimate, currentUser)) return value;
+
+    return (
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Link
+            href={`/estimates/${estimate.id}/edit`}
+            prefetch={false}
+            aria-label={`Edit estimate ${value}`}
+            className="inline-block cursor-pointer rounded-sm underline-offset-4 transition-colors duration-150 hover:text-blue-600 hover:underline focus-visible:text-blue-600 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-blue-400 dark:focus-visible:text-blue-400 motion-reduce:transition-none"
+          >
+            {value}
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          sideOffset={8}
+          className="rounded-lg px-3 py-2 font-medium shadow-lg"
+        >
+          Edit estimate
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   const columns: ColumnDef<EstimateWithRelations>[] = [
     {
       accessorKey: "number",
       header: "Number",
       filterFn: "includesString",
+      cell: ({ row }) => renderEstimateLink(row.original, row.original.number),
     },
     {
       accessorKey: "name",
       header: "Name",
       filterFn: "includesString",
+      cell: ({ row }) => renderEstimateLink(row.original, row.original.name),
     },
     {
       accessorKey: "date",
