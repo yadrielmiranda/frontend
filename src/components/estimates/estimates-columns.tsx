@@ -145,6 +145,51 @@ function canEditEstimateFromList(
   return true;
 }
 
+const estimateListActions = {
+  edit: {
+    label: "Edit Estimate",
+    colorClassName:
+      "hover:text-blue-600 focus-visible:text-blue-600 dark:hover:text-blue-400 dark:focus-visible:text-blue-400",
+  },
+  open: {
+    label: "Open Estimate",
+    colorClassName:
+      "hover:text-violet-600 focus-visible:text-violet-600 dark:hover:text-violet-400 dark:focus-visible:text-violet-400",
+  },
+  details: {
+    label: "View Details",
+    colorClassName:
+      "hover:text-teal-700 focus-visible:text-teal-700 dark:hover:text-teal-400 dark:focus-visible:text-teal-400",
+  },
+};
+
+function getEstimateListAction(
+  estimate: EstimateWithRelations,
+  currentUser: AuthUser | null,
+): keyof typeof estimateListActions {
+  if (canEditEstimateFromList(estimate, currentUser)) return "edit";
+
+  const materialPayment = estimate.payments?.find(
+    (payment) => payment.type === "MATERIAL",
+  );
+  const isPaymentLocked =
+    materialPayment?.status === "PAID" ||
+    Boolean(materialPayment?.stripeSessionId);
+  const canManage =
+    currentUser?.id === estimate.idUser ||
+    isAdminRole(currentUser?.role?.name) ||
+    isOperatorRole(currentUser?.role?.name);
+
+  // Comparte la acción entre nombre, número y menú.
+  const canOpen =
+    (estimate.status?.name ?? "").trim().toLowerCase() === "active" &&
+    !isPaymentLocked &&
+    !estimate.order &&
+    canManage;
+
+  return canOpen ? "open" : "details";
+}
+
 // =============================
 // Columns
 // =============================
@@ -161,16 +206,20 @@ export const getEstimateColumns = (
     estimate: EstimateWithRelations,
     value: string | null | undefined,
   ) => {
-    if (!value || !canEditEstimateFromList(estimate, currentUser)) return value;
+    if (!value) return value;
+
+    const action = getEstimateListAction(estimate, currentUser);
+    const { label, colorClassName } = estimateListActions[action];
+    const href = `/estimates/${estimate.id}${action === "details" ? "" : "/edit"}`;
 
     return (
       <Tooltip delayDuration={300}>
         <TooltipTrigger asChild>
           <Link
-            href={`/estimates/${estimate.id}/edit`}
+            href={href}
             prefetch={false}
-            aria-label={`Edit estimate ${value}`}
-            className="inline-block cursor-pointer rounded-sm underline-offset-4 transition-colors duration-150 hover:text-blue-600 hover:underline focus-visible:text-blue-600 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-blue-400 dark:focus-visible:text-blue-400 motion-reduce:transition-none"
+            aria-label={`${label}: ${value}`}
+            className={`inline-block cursor-pointer rounded-sm underline-offset-4 transition-colors duration-150 hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none ${colorClassName}`}
           >
             {value}
           </Link>
@@ -180,7 +229,7 @@ export const getEstimateColumns = (
           sideOffset={8}
           className="rounded-lg px-3 py-2 font-medium shadow-lg"
         >
-          Edit estimate
+          {label}
         </TooltipContent>
       </Tooltip>
     );
@@ -340,20 +389,12 @@ export const getEstimateColumns = (
         const isPaymentLocked = isPaid || hasCheckoutStarted;
         const hasPayableMaterial = Number(estimate.totalPayable) > 0 || (Number(estimate.totalPayable) === 0 && estimate.units > 0 && Number(estimate.discountAmount) > 0);
 
-        const isPrivileged =
-          isAdminRole(currentUser?.role?.name) ||
-          isOperatorRole(currentUser?.role?.name);
-
         const hasActiveInstallation = Boolean(
           estimate.installationJob &&
             estimate.installationJob.status !== "CANCELED",
         );
 
-        const canEdit =
-          isActive &&
-          !isPaymentLocked &&
-          !estimate.order &&
-          (isPrivileged || isOwner);
+        const primaryAction = getEstimateListAction(estimate, currentUser);
 
         const canPay =
           isActive &&
@@ -485,10 +526,10 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {canEdit && (
+                {primaryAction !== "details" && (
                   <DropdownMenuItem asChild>
                     <Link href={`/estimates/${estimate.id}/edit`}>
-                      Edit Estimate
+                      {estimateListActions[primaryAction].label}
                     </Link>
                   </DropdownMenuItem>
                 )}
