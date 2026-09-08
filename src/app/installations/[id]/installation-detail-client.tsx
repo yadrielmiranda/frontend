@@ -852,6 +852,18 @@ export function InstallationDetailClient({
   const selectedService =
     serviceChoices.find((service) => service.id === Number(serviceId)) ?? null;
   const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
+  const canManageAdditionalServices =
+    !["COMPLETED", "CANCELED"].includes(job.status) &&
+    (privileged ||
+      (userRole === "dealer" && job.status === "DEPOSIT_PAYMENT_PENDING"));
+  const showServiceChangeNotice =
+    userRole === "client" &&
+    depositPaid > 0 &&
+    [
+      "MEASUREMENT_SCHEDULING",
+      "MEASUREMENT_SCHEDULED",
+      "MEASUREMENT_PENDING",
+    ].includes(job.status);
   const installationPaid = paidBaseFor(job, "INSTALLATION");
   const permitLocked = (job.payments ?? []).some(
     (payment) =>
@@ -960,6 +972,7 @@ export function InstallationDetailClient({
   };
 
   const addAdditionalService = async () => {
+    if (!canManageAdditionalServices) return;
     const error = additionalServiceValidationError(
       selectedService,
       serviceDraft,
@@ -1239,9 +1252,9 @@ export function InstallationDetailClient({
                 <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
-                    Measurements, Pieces, or services changed. The totals below
-                    are from the previous calculation. Recalculate the quote
-                    before submitting it.
+                    {privileged
+                      ? "Measurements, pieces, or services changed. Recalculate the quote before submitting it."
+                      : "The quote is being updated. The revised quote will be available for your approval."}
                   </span>
                 </div>
               )}
@@ -1295,7 +1308,8 @@ export function InstallationDetailClient({
                             {money(line.adjustedAmount)}
                           </td>
                           <td className="p-3 text-right">
-                            {line.origin !== "AUTO" &&
+                            {canManageAdditionalServices &&
+                              line.origin !== "AUTO" &&
                               latest.status === "DRAFT" &&
                               (privileged ||
                                 line.origin === "USER_SELECTED") && (
@@ -1375,8 +1389,15 @@ export function InstallationDetailClient({
             </CardContent>
           </Card>
 
+          {showServiceChangeNotice && (
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+              You can request additional services or changes to existing services
+              during the technician&apos;s remeasurement visit.
+            </div>
+          )}
+
           {serviceChoices.length > 0 &&
-            !["COMPLETED", "CANCELED"].includes(job.status) && (
+            canManageAdditionalServices && (
               <Card>
                 <CardHeader>
                   <CardTitle>Add additional service</CardTitle>
