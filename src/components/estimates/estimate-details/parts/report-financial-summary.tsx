@@ -2,7 +2,7 @@
 
 import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
+import { DealerProfitSummary } from "../../dealer-profit-summary";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
@@ -63,30 +63,9 @@ function MoneyRow({
   );
 }
 
-function installationStatus(summary: EstimateInstallationReportSummary) {
-  if (summary.status === "DEPOSIT_PAYMENT_PENDING") {
-    return {
-      label: "Proposed",
-      className: "border-blue-300 bg-blue-50 text-blue-800",
-    };
-  }
-
-  if (summary.quoteStatus === "APPROVED") {
-    return {
-      label: "Included",
-      className: "border-emerald-300 bg-emerald-50 text-emerald-800",
-    };
-  }
-
-  return {
-    label: "Preliminary",
-    className: "border-slate-300 bg-slate-50 text-slate-700",
-  };
-}
-
 function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200">
+    <div className="min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Materials
       </div>
@@ -142,11 +121,11 @@ function ComparativeMaterialSummary({
   adminView: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200">
-      <table className="w-full text-sm">
+    <div className="min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
+      <table className="w-full table-fixed text-sm print:text-[10px] print:[&_td]:px-2 print:[&_th]:px-2">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
-            <th className="px-4 py-3 text-left">Material pricing</th>
+            <th className="w-[44%] px-4 py-3 text-left">Material pricing</th>
             <th className="px-4 py-3 text-right">
               {adminView ? "Dealer Price" : "Your Cost"}
             </th>
@@ -273,10 +252,12 @@ function ComparativeMaterialSummary({
 function ExternalDealerChargesSummary({
   summary,
   comparison,
+  discount = 0,
   installationDiscount = 0,
 }: {
   summary: EstimateCustomerChargeSummary;
   comparison: boolean;
+  discount?: number;
   installationDiscount?: number;
 }) {
   const customerLines = summary.lines.filter(
@@ -284,17 +265,18 @@ function ExternalDealerChargesSummary({
   );
   const displayedLines = comparison ? summary.lines : customerLines;
 
-  if (displayedLines.length === 0) {
-    return null;
-  }
+  const hasCharges = displayedLines.length > 0;
 
   if (!comparison) {
     return (
-      <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+      <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
         <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
           Installation &amp; services
         </div>
         <div className="px-4 py-1">
+          {!hasCharges && (
+            <MoneyRow label="Installation" value="Not included" />
+          )}
           {displayedLines.map((line) => (
             <MoneyRow
               key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
@@ -312,16 +294,23 @@ function ExternalDealerChargesSummary({
   }
 
   return (
-    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
-      <table className="w-full text-sm">
+    <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
+      <table className="w-full table-fixed text-sm print:text-[10px] print:[&_td]:px-2 print:[&_th]:px-2">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
-            <th className="px-4 py-3 text-left">Installation &amp; services</th>
-            <th className="px-4 py-3 text-right">Dealer Cost</th>
+            <th className="w-[44%] px-4 py-3 text-left">Installation &amp; services</th>
+            <th className="px-4 py-3 text-right">Your Cost</th>
             <th className="px-4 py-3 text-right">Customer Price</th>
           </tr>
         </thead>
         <tbody>
+          {!hasCharges && (
+            <tr className="border-t border-slate-200">
+              <td className="px-4 py-3 text-black">Installation</td>
+              <td className="px-4 py-3 text-right font-medium">Not included</td>
+              <td className="px-4 py-3 text-right font-medium">Not included</td>
+            </tr>
+          )}
           {displayedLines.map((line) => (
             <tr
               key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
@@ -353,15 +342,24 @@ function ExternalDealerChargesSummary({
               </td>
             </tr>
           ))}
-          <tr className="border-t border-slate-200 bg-slate-50/60 font-semibold">
-            <td className="px-4 py-3">Services total</td>
-            <td className="px-4 py-3 text-right">
-              {formatMoney(numberValue(summary.systemTotal))}
-            </td>
-            <td className="px-4 py-3 text-right">
-              {formatMoney(numberValue(summary.customerTotal))}
-            </td>
-          </tr>
+          {discount > 0 && (
+            <tr className="border-t text-emerald-700">
+              <td className="px-4 py-3">Additional discount</td>
+              <td className="px-4 py-3 text-right">−{formatMoney(discount)}</td>
+              <td className="px-4 py-3 text-right">—</td>
+            </tr>
+          )}
+          {hasCharges && (
+            <tr className="border-t border-slate-200 bg-slate-50/60 font-semibold">
+              <td className="px-4 py-3">Services total</td>
+              <td className="px-4 py-3 text-right">
+                {formatMoney(numberValue(summary.systemTotal) - discount)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                {formatMoney(numberValue(summary.customerTotal))}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -377,14 +375,15 @@ function ExternalDealerProjectScope({
     (line) => line.usedInCustomerQuote,
   );
 
-  if (customerLines.length === 0) return null;
-
   return (
-    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+    <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Project scope
       </div>
       <div className="px-4 py-1">
+        {customerLines.length === 0 && (
+          <MoneyRow label="Installation" value="Not included" />
+        )}
         {customerLines.map((line) => (
           <MoneyRow
             key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
@@ -405,22 +404,17 @@ function InstallationSummary({
   discount?: number;
 }) {
   if (!summary) {
-    return null;
+    return <NotIncludedInstallation />;
   }
 
-  const status = installationStatus(summary);
-
   return (
-    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+    <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Installation &amp; services
       </div>
       <div className="px-4 py-1">
         <MoneyRow label="Installation">
           <span className="flex flex-wrap items-center justify-end gap-2">
-            <Badge variant="outline" className={status.className}>
-              {status.label}
-            </Badge>
             {summary.installationAmount == null
               ? "Pending"
               : discount > 0
@@ -441,6 +435,17 @@ function InstallationSummary({
               ))
             ) : (
               <MoneyRow label="Additional services" value="None included" />
+            )}
+
+            {discount > 0 && (
+              <>
+                <MoneyRow label="Additional discount · Installation" value={`−${formatMoney(discount)}`} />
+                <MoneyRow
+                  label="Installation total"
+                  value={formatMoney(numberValue(summary.installationTotal) - discount)}
+                  strong
+                />
+              </>
             )}
 
             {summary.permitIncluded ? (
@@ -473,28 +478,39 @@ function InstallationSummary({
   );
 }
 
+function NotIncludedInstallation({
+  title = "Installation & services",
+}: {
+  title?: string;
+}) {
+  return (
+    <div className="break-inside-avoid min-w-0 rounded-lg border border-slate-200">
+      <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
+        {title}
+      </div>
+      <div className="px-4 py-1">
+        <MoneyRow label="Installation" value="Not included" />
+      </div>
+    </div>
+  );
+}
+
 function ProjectScopeSummary({
   summary,
 }: {
   summary: EstimateInstallationReportSummary | null;
 }) {
   if (!summary) {
-    return null;
+    return <NotIncludedInstallation title="Project scope" />;
   }
 
-  const status = installationStatus(summary);
-
   return (
-    <div className="break-inside-avoid overflow-hidden rounded-lg border border-slate-200">
+    <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
         Project scope
       </div>
       <div className="px-4 py-1">
-        <MoneyRow label="Installation">
-          <Badge variant="outline" className={status.className}>
-            {status.label}
-          </Badge>
-        </MoneyRow>
+        <MoneyRow label="Installation" />
 
         {summary.quoteStatus !== null ? (
           <>
@@ -624,6 +640,7 @@ export function ReportFinancialSummary({
     manualMaterial.manualNetDiscount = Number(manualDiscount.material.netDiscount);
   }
   const serviceDiscount = Number(manualDiscount?.installation.discount ?? 0) + Number(manualDiscount?.permit.discount ?? 0) + Number(manualDiscount?.city.discount ?? 0);
+  const otherServiceDiscount = roundMoney(serviceDiscount - numberValue(manualDiscount?.installation.discount));
   const ownerIsDealer =
     reportKind === "dealer" ||
     reportKind === "dealer-customer" ||
@@ -637,12 +654,6 @@ export function ReportFinancialSummary({
   const externalDealerCharges = ownerIsDealer
     ? (estimate.customerChargesSummary ?? null)
     : null;
-  const hasServiceSummary = externalDealerCharges
-    ? comparisonView
-      ? externalDealerCharges.lines.length > 0
-      : externalDealerCharges.lines.some((line) => line.usedInCustomerQuote)
-    : Boolean(installationSummary);
-
   const installationTotal = numberValue(installationSummary?.installationTotal);
   const permitFee = installationSummary?.permitIncluded
     ? numberValue(installationSummary.permitFee)
@@ -653,6 +664,11 @@ export function ReportFinancialSummary({
     ? numberValue(externalDealerCharges.customerTotal)
     : sharedCharges - (manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0);
   const internalCharges = sharedCharges - (manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0);
+  const dealerMaterialProfit = roundMoney(
+    customerMaterial.subtotal - (customerMaterial.manualNetDiscount ?? 0) -
+      (internalMaterial.subtotal - (internalMaterial.manualNetDiscount ?? 0)),
+  );
+  const dealerServiceProfit = roundMoney(customerServiceCharges - internalCharges);
   const internalProjectTotal = roundMoney(
     internalMaterial.total + internalCharges,
   );
@@ -711,16 +727,8 @@ export function ReportFinancialSummary({
           <ProjectScopeSummary summary={installationSummary} />
         )
       ) : (
-        <div
-          className={
-            comparisonView
-              ? "space-y-4"
-              : hasServiceSummary
-                ? "grid items-start gap-4 lg:grid-cols-2"
-                : "grid items-start gap-4"
-          }
-        >
-          <div className="break-inside-avoid">
+        <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2 print:grid-cols-2">
+          <div className="min-w-0 break-inside-avoid">
             {comparisonView ? (
               <ComparativeMaterialSummary
                 internal={internalMaterial}
@@ -736,6 +744,7 @@ export function ReportFinancialSummary({
             <ExternalDealerChargesSummary
               summary={externalDealerCharges}
               comparison={comparisonView}
+              discount={manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0}
               installationDiscount={numberValue(manualDiscount?.installation.discount)}
             />
           ) : (
@@ -744,49 +753,27 @@ export function ReportFinancialSummary({
         </div>
       )}
 
-      {!projectTotalOnly && serviceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(serviceDiscount)}`} />}
+      {!projectTotalOnly && !(comparisonView && externalDealerCharges) && otherServiceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(otherServiceDiscount)}`} />}
       {!projectTotalOnly && <ManualDiscountSummary summary={manualDiscount} />}
       <div
         className={`break-inside-avoid rounded-xl border px-5 py-3 ${
           comparisonView
-            ? "border-slate-300 bg-slate-100/80"
+            ? "border-blue-200 bg-blue-50"
             : "border-emerald-300 bg-emerald-50 px-6 py-5 [&>div>span:first-child]:text-lg [&>div>span:first-child]:uppercase [&>div>span:first-child]:tracking-wide [&>div>span:last-child]:text-2xl sm:[&>div>span:last-child]:text-3xl"
         }`}
       >
         {comparisonView ? (
           <>
             <MoneyRow
-              label={
-                reportKind === "dealer"
-                  ? incompleteTotal
-                    ? "Your Current Project Cost"
-                    : "Your Project Cost"
-                  : incompleteTotal
-                    ? "Current Dealer Project Total"
-                    : "Dealer Project Total"
-              }
-              value={formatMoney(internalProjectTotal)}
-              strong
-            />
-            <MoneyRow
-              label={
-                incompleteTotal
-                  ? "Current Customer Project Total"
-                  : "Customer Project Total"
-              }
+              label="Customer Project Total"
               value={formatMoney(customerProjectTotal)}
               strong
             />
-            {reportKind === "dealer" && (
-              <MoneyRow
-                label="Dealer Profit · materials only, pre-tax"
-                value={formatMoney(
-                  roundMoney(
-                    (customerMaterial.subtotal - (customerMaterial.manualNetDiscount ?? 0)) - (internalMaterial.subtotal - (internalMaterial.manualNetDiscount ?? 0)),
-                  ),
-                )}
-              />
-            )}
+            <MoneyRow
+              label="Your Project Cost"
+              value={formatMoney(internalProjectTotal)}
+              strong
+            />
           </>
         ) : (
           <MoneyRow
@@ -802,7 +789,7 @@ export function ReportFinancialSummary({
             Installation amount is pending.
           </p>
         )}
-        {!externalDealerCharges && cityFeePending && (
+        {(!externalDealerCharges || comparisonView) && cityFeePending && (
           <p className="pb-1 text-xs font-medium text-amber-800">
             Final total is pending the City Fee.
           </p>
@@ -820,6 +807,13 @@ export function ReportFinancialSummary({
           </p>
         )}
       </div>
+
+      {comparisonView && (
+        <DealerProfitSummary
+          materialProfit={dealerMaterialProfit}
+          serviceProfit={dealerServiceProfit}
+        />
+      )}
 
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />

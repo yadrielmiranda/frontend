@@ -16,7 +16,7 @@ import type {
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { paidBaseFor, paidInstallationCredit } from "@/lib/installation-flow";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
-import { Badge } from "@/components/ui/badge";
+import { DealerProfitSummary } from "./dealer-profit-summary";
 import {
   Card,
   CardContent,
@@ -129,37 +129,6 @@ function additionalServiceTotals(
   return Array.from(grouped.values());
 }
 
-function statusForInstallation(
-  job: InstallationJob | null,
-  quote: InstallationQuote | null,
-) {
-  if (!job || job.status === "CANCELED") {
-    return {
-      label: "Not included",
-      className: "border-amber-300 bg-amber-50 text-amber-800",
-    };
-  }
-
-  if (job.status === "DEPOSIT_PAYMENT_PENDING") {
-    return {
-      label: "Proposed",
-      className: "border-blue-300 bg-blue-50 text-blue-800",
-    };
-  }
-
-  if (quote?.status === "APPROVED") {
-    return {
-      label: "Included",
-      className: "border-emerald-300 bg-emerald-50 text-emerald-800",
-    };
-  }
-
-  return {
-    label: "Preliminary",
-    className: "border-slate-300 bg-slate-50 text-slate-700",
-  };
-}
-
 function SummaryRow({
   label,
   value,
@@ -208,15 +177,21 @@ function ExternalDealerServiceSummary({
   const lines = summary?.lines ?? [];
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="min-w-0 overflow-x-auto rounded-lg border">
       <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
         <span>Installation &amp; services</span>
         <span className="text-right">Your Cost</span>
         <span className="text-right">Customer Price</span>
       </div>
 
-      {lines.length > 0 ? (
-        lines.map((line) => (
+      {lines.length === 0 && (
+        <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+          <span className="text-slate-700">Installation</span>
+          <span className="text-right font-medium">Not included</span>
+          <span className="text-right font-medium">Not included</span>
+        </div>
+      )}
+      {lines.map((line) => (
           <div
             key={line.sourceKey ?? `dealer-${line.id}`}
             className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm"
@@ -246,12 +221,7 @@ function ExternalDealerServiceSummary({
                   : formatMoney(numberValue(line.customerAmount))}
             </span>
           </div>
-        ))
-      ) : (
-        <div className="border-t px-4 py-3 text-sm text-muted-foreground">
-          No installation or service charges included.
-        </div>
-      )}
+        ))}
 
       {discount > 0 && <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 border-t px-4 py-2.5 text-sm text-emerald-700"><span>Additional discount</span><span className="text-right">−{formatMoney(discount)}</span><span className="text-right">—</span></div>}
       {summary && lines.length > 0 && (
@@ -277,8 +247,8 @@ export function EstimateFinancialSummary({
   customerTaxRatePercent,
   materialSummary,
   installationJob,
-  customerChargesSummary,
-  manualDiscount,
+  customerChargesSummary: savedCustomerChargesSummary,
+  manualDiscount: savedManualDiscount,
   discountEditor,
 }: {
   manualDiscount?: EstimateDiscountSummary | null;
@@ -298,6 +268,31 @@ export function EstimateFinancialSummary({
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
       : null;
+  // Al remover la instalación, ignora los importes anteriores mientras se refrescan.
+  const manualDiscount =
+    !activeJob && savedManualDiscount?.scope === "INSTALLATION"
+      ? null
+      : savedManualDiscount;
+  let customerChargesSummary = savedCustomerChargesSummary;
+  if (!installationJob && savedCustomerChargesSummary) {
+    const lines = savedCustomerChargesSummary.lines.filter(
+      (line) => line.origin === "DEALER",
+    );
+    const customerLines = lines.filter((line) => line.usedInCustomerQuote);
+    const customerTotal = roundMoney(
+      customerLines.reduce((total, line) => total + numberValue(line.customerAmount), 0),
+    );
+    customerChargesSummary = {
+      ...savedCustomerChargesSummary,
+      lines,
+      systemTotal: 0,
+      customerTotal,
+      knownSystemMargin: 0,
+      dealerCreatedTotal: customerTotal,
+      systemTotalIncomplete: false,
+      customerTotalIncomplete: customerLines.some((line) => line.customerAmount == null),
+    };
+  }
   const quote =
     activeJob?.quotes.find((candidate) => candidate.status !== "REJECTED") ??
     null;
@@ -365,13 +360,17 @@ export function EstimateFinancialSummary({
   const additionalServicesTotal = roundMoney(
     extras.reduce((total, service) => total + service.amount, 0),
   );
-  const quoteTotal = numberValue(manualDiscount?.installation.total ?? quote?.total);
+  const quoteTotal = activeJob
+    ? numberValue(manualDiscount?.installation.total ?? quote?.total)
+    : 0;
   // The residual is the single Installation amount: every automatic line plus
   // service/profile minimum adjustments that must remain internal.
   const baseInstallationTotal = roundMoney(
     numberValue(quote?.total) - additionalServicesTotal,
   );
-  const permitFee = numberValue(manualDiscount?.permit.total ?? activeJob?.permit?.permitFeeSnapshot);
+  const permitFee = activeJob
+    ? numberValue(manualDiscount?.permit.total ?? activeJob.permit?.permitFeeSnapshot)
+    : 0;
   const cityFee =
     activeJob?.permit?.cityFee == null
       ? null
@@ -386,7 +385,11 @@ export function EstimateFinancialSummary({
   const installationBalance = activeJob
     ? roundMoney(Math.max(0, quoteTotal - paidInstallationCredit(activeJob)))
     : 0;
-  const serviceDiscount = numberValue(manualDiscount?.installation.discount) + numberValue(manualDiscount?.permit.discount) + numberValue(manualDiscount?.city.discount);
+  const serviceDiscount = activeJob
+    ? numberValue(manualDiscount?.installation.discount) +
+      numberValue(manualDiscount?.permit.discount) +
+      numberValue(manualDiscount?.city.discount)
+    : 0;
   const sharedChargesTotal = roundMoney(quoteTotal + permitFee + (cityFee ?? 0) + retainedDeposit);
   const internalServiceTotal = sharedChargesTotal + (manualDiscount?.payer === 'CUSTOMER' ? serviceDiscount : 0);
   const customerChargesTotal =
@@ -402,7 +405,10 @@ export function EstimateFinancialSummary({
   const dealerProfit = roundMoney(
     customerMaterial.subtotal - internalMaterial.subtotal + (manualDiscount?.payer === "ACCOUNT_OWNER" ? numberValue(manualDiscount.material.netDiscount) : -numberValue(manualDiscount?.material.netDiscount)), 
   );
-  const installationStatus = statusForInstallation(installationJob, quote);
+  // La ganancia suma los márgenes de material y servicios; los impuestos no son ingreso.
+  const dealerServiceProfit = roundMoney(
+    customerChargesTotal - internalServiceTotal,
+  );
   const cityFeePending = Boolean(activeJob?.permit && cityFee == null);
   const proposedRevision = Boolean(revisionTotals);
   const awaitingDeposit = activeJob?.status === "DEPOSIT_PAYMENT_PENDING";
@@ -419,20 +425,6 @@ export function EstimateFinancialSummary({
           ? "The remaining installation balance is due now."
           : "No payment is due at this stage.";
 
-  const totalPrefix = proposedRevision
-    ? "Proposed Revised"
-    : cityFeePending
-      ? "Current"
-      : projected
-        ? "Projected"
-        : "";
-  const clientTotalLabel = `${totalPrefix ? `${totalPrefix} ` : ""}Project Total`;
-  const internalTotalLabel = totalPrefix
-    ? `${totalPrefix} Project Cost (Your Cost)`
-    : "Your Project Cost";
-  const customerTotalLabel = totalPrefix
-    ? `${totalPrefix} Customer Project Total`
-    : "Customer Project Total";
 
   return (
     <Card className="min-w-0 border-slate-300">
@@ -452,58 +444,141 @@ export function EstimateFinancialSummary({
           pieceBreakdown={materialSummary.pieceBreakdown}
         />
 
-        {isDealerEstimate ? (
-          <div className="overflow-x-auto rounded-lg border">
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-              <span>Material pricing</span>
-              <span className="text-right">Your Cost</span>
-              <span className="text-right">Customer Price</span>
+        <div
+          className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2"
+        >
+          {isDealerEstimate ? (
+            <div className="min-w-0 overflow-x-auto rounded-lg border">
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <span>Material pricing</span>
+                <span className="text-right">Your Cost</span>
+                <span className="text-right">Customer Price</span>
+              </div>
+              {(materialDiscount > 0 || customerMaterialDiscount > 0) && (
+                <>
+                  <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                    <span className="text-muted-foreground">
+                      Before promotion
+                    </span>
+                    <span className="text-right">
+                      {materialDiscount > 0 ? (
+                        <OriginalPrice
+                          amount={internalMaterial.subtotal + materialDiscount}
+                        />
+                      ) : (
+                        formatMoney(internalMaterial.subtotal)
+                      )}
+                    </span>
+                    <span className="text-right">
+                      {customerMaterialDiscount > 0 ? (
+                        <OriginalPrice
+                          amount={
+                            customerMaterial.subtotal + customerMaterialDiscount
+                          }
+                        />
+                      ) : (
+                        formatMoney(customerMaterial.subtotal)
+                      )}
+                    </span>
+                  </div>
+                  <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                    <span className="text-muted-foreground">
+                      Promotion discount
+                    </span>
+                    <span className="text-right font-medium text-red-600">
+                      −{formatMoney(materialDiscount)}
+                    </span>
+                    <span className="text-right font-medium text-red-600">
+                      −{formatMoney(customerMaterialDiscount)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                <span className="text-muted-foreground">Material subtotal</span>
+                <span className="text-right font-medium">
+                  {manualDiscount?.payer === "ACCOUNT_OWNER" &&
+                  numberValue(manualDiscount.material.netDiscount) > 0 ? (
+                    <OriginalPrice
+                      amount={internalMaterial.subtotal}
+                      label="Before discount"
+                    />
+                  ) : (
+                    <span
+                      className={
+                        materialDiscount > 0 ? "text-emerald-700" : undefined
+                      }
+                    >
+                      {formatMoney(internalMaterial.subtotal)}
+                    </span>
+                  )}
+                </span>
+                <span className="text-right font-medium">
+                  {manualDiscount?.payer === "CUSTOMER" &&
+                  numberValue(manualDiscount.material.netDiscount) > 0 ? (
+                    <OriginalPrice
+                      amount={customerMaterial.subtotal}
+                      label="Before discount"
+                    />
+                  ) : (
+                    <span
+                      className={
+                        customerMaterialDiscount > 0
+                          ? "text-emerald-700"
+                          : undefined
+                      }
+                    >
+                      {formatMoney(customerMaterial.subtotal)}
+                    </span>
+                  )}
+                </span>
+              </div>
+              {Number(manualDiscount?.material.netDiscount) > 0 && <>
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm text-emerald-700">
+                <span>Additional discount</span>
+                <span className="text-right">{manualDiscount?.payer === 'ACCOUNT_OWNER' ? `−${formatMoney(Number(manualDiscount.material.netDiscount))}` : '—'}</span>
+                <span className="text-right">{manualDiscount?.payer === 'CUSTOMER' ? `−${formatMoney(Number(manualDiscount.material.netDiscount))}` : '—'}</span>
+              </div>
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm font-semibold text-emerald-700">
+                <span>Subtotal after discount</span>
+                <span className="text-right">{formatMoney(manualDiscount?.payer === 'ACCOUNT_OWNER' ? Number(manualDiscount.material.subtotal) : internalMaterial.subtotal)}</span>
+                <span className="text-right">{formatMoney(manualDiscount?.payer === 'CUSTOMER' ? Number(manualDiscount.material.subtotal) : customerMaterial.subtotal)}</span>
+              </div>
+              </>}
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
+                <span className="text-muted-foreground">Sales Tax</span>
+                <TaxAmount total={internalMaterial} />
+                <TaxAmount total={customerMaterial} />
+              </div>
+              <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t bg-slate-50/60 px-4 py-3 text-sm font-semibold">
+                <span>Material total</span>
+                <span className="text-right">
+                  {formatMoney(internalMaterial.total)}
+                </span>
+                <span className="text-right">
+                  {formatMoney(customerMaterial.total)}
+                </span>
+              </div>
             </div>
-            {(materialDiscount > 0 || customerMaterialDiscount > 0) && (
-              <>
-                <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">
-                    Before promotion
-                  </span>
-                  <span className="text-right">
-                    {materialDiscount > 0 ? (
-                      <OriginalPrice
-                        amount={internalMaterial.subtotal + materialDiscount}
-                      />
-                    ) : (
-                      formatMoney(internalMaterial.subtotal)
-                    )}
-                  </span>
-                  <span className="text-right">
-                    {customerMaterialDiscount > 0 ? (
-                      <OriginalPrice
-                        amount={
-                          customerMaterial.subtotal + customerMaterialDiscount
-                        }
-                      />
-                    ) : (
-                      formatMoney(customerMaterial.subtotal)
-                    )}
-                  </span>
-                </div>
-                <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
-                  <span className="text-muted-foreground">
-                    Promotion discount
-                  </span>
-                  <span className="text-right font-medium text-red-600">
-                    −{formatMoney(materialDiscount)}
-                  </span>
-                  <span className="text-right font-medium text-red-600">
-                    −{formatMoney(customerMaterialDiscount)}
-                  </span>
-                </div>
-              </>
-            )}
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
-              <span className="text-muted-foreground">Material subtotal</span>
-              <span className="text-right font-medium">
-                {manualDiscount?.payer === "ACCOUNT_OWNER" &&
-                numberValue(manualDiscount.material.netDiscount) > 0 ? (
+          ) : (
+            <div className="rounded-lg border bg-slate-50/60 px-4 py-3">
+              <h4 className="mb-1 text-sm font-semibold">Materials</h4>
+              {materialDiscount > 0 && (
+                <>
+                  <SummaryRow label="Before promotion">
+                    <OriginalPrice
+                      amount={internalMaterial.subtotal + materialDiscount}
+                    />
+                  </SummaryRow>
+                  <SummaryRow label="Promotion discount">
+                    <span className="text-red-600">
+                      −{formatMoney(materialDiscount)}
+                    </span>
+                  </SummaryRow>
+                </>
+              )}
+              <SummaryRow label="Material subtotal">
+                {numberValue(manualDiscount?.material.netDiscount) > 0 ? (
                   <OriginalPrice
                     amount={internalMaterial.subtotal}
                     label="Before discount"
@@ -517,185 +592,100 @@ export function EstimateFinancialSummary({
                     {formatMoney(internalMaterial.subtotal)}
                   </span>
                 )}
-              </span>
-              <span className="text-right font-medium">
-                {manualDiscount?.payer === "CUSTOMER" &&
-                numberValue(manualDiscount.material.netDiscount) > 0 ? (
-                  <OriginalPrice
-                    amount={customerMaterial.subtotal}
-                    label="Before discount"
-                  />
-                ) : (
-                  <span
-                    className={
-                      customerMaterialDiscount > 0
-                        ? "text-emerald-700"
-                        : undefined
-                    }
-                  >
-                    {formatMoney(customerMaterial.subtotal)}
-                  </span>
-                )}
-              </span>
-            </div>
-            {Number(manualDiscount?.material.netDiscount) > 0 && <>
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm text-emerald-700">
-              <span>Additional discount</span>
-              <span className="text-right">{manualDiscount?.payer === 'ACCOUNT_OWNER' ? `−${formatMoney(Number(manualDiscount.material.netDiscount))}` : '—'}</span>
-              <span className="text-right">{manualDiscount?.payer === 'CUSTOMER' ? `−${formatMoney(Number(manualDiscount.material.netDiscount))}` : '—'}</span>
-            </div>
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm font-semibold text-emerald-700">
-              <span>Subtotal after discount</span>
-              <span className="text-right">{formatMoney(manualDiscount?.payer === 'ACCOUNT_OWNER' ? Number(manualDiscount.material.subtotal) : internalMaterial.subtotal)}</span>
-              <span className="text-right">{formatMoney(manualDiscount?.payer === 'CUSTOMER' ? Number(manualDiscount.material.subtotal) : customerMaterial.subtotal)}</span>
-            </div>
-            </>}
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t px-4 py-2.5 text-sm">
-              <span className="text-muted-foreground">Sales Tax</span>
-              <TaxAmount total={internalMaterial} />
-              <TaxAmount total={customerMaterial} />
-            </div>
-            <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t bg-slate-50/60 px-4 py-3 text-sm font-semibold">
-              <span>Material total</span>
-              <span className="text-right">
-                {formatMoney(internalMaterial.total)}
-              </span>
-              <span className="text-right">
-                {formatMoney(customerMaterial.total)}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-lg border bg-slate-50/60 px-4 py-3">
-            <h4 className="mb-1 text-sm font-semibold">Materials</h4>
-            {materialDiscount > 0 && (
-              <>
-                <SummaryRow label="Before promotion">
-                  <OriginalPrice
-                    amount={internalMaterial.subtotal + materialDiscount}
-                  />
-                </SummaryRow>
-                <SummaryRow label="Promotion discount">
-                  <span className="text-red-600">
-                    −{formatMoney(materialDiscount)}
-                  </span>
-                </SummaryRow>
-              </>
-            )}
-            <SummaryRow label="Material subtotal">
-              {numberValue(manualDiscount?.material.netDiscount) > 0 ? (
-                <OriginalPrice
-                  amount={internalMaterial.subtotal}
-                  label="Before discount"
-                />
-              ) : (
-                <span
-                  className={
-                    materialDiscount > 0 ? "text-emerald-700" : undefined
-                  }
-                >
-                  {formatMoney(internalMaterial.subtotal)}
-                </span>
-              )}
-            </SummaryRow>
-            {Number(manualDiscount?.material.netDiscount) > 0 && <>
-              <SummaryRow label="Additional discount" value={`−${formatMoney(Number(manualDiscount?.material.netDiscount))}`} />
-              <SummaryRow label="Subtotal after discount">
-                <span className="font-semibold text-emerald-700">{formatMoney(Number(manualDiscount?.material.subtotal))}</span>
               </SummaryRow>
-            </>}
-            <SummaryRow
-              label={`Sales Tax (${(internalMaterial.taxRate * 100).toFixed(2)}%)${ownerIsTaxExempt ? " · Exempt" : ""}`}
-              value={formatMoney(internalMaterial.taxAmount)}
-            />
-            <div className="mt-1 border-t pt-1">
+              {Number(manualDiscount?.material.netDiscount) > 0 && <>
+                <SummaryRow label="Additional discount" value={`−${formatMoney(Number(manualDiscount?.material.netDiscount))}`} />
+                <SummaryRow label="Subtotal after discount">
+                  <span className="font-semibold text-emerald-700">{formatMoney(Number(manualDiscount?.material.subtotal))}</span>
+                </SummaryRow>
+              </>}
               <SummaryRow
-                label="Material total"
-                value={formatMoney(internalMaterial.total)}
-                strong
+                label={`Sales Tax (${(internalMaterial.taxRate * 100).toFixed(2)}%)${ownerIsTaxExempt ? " · Exempt" : ""}`}
+                value={formatMoney(internalMaterial.taxAmount)}
               />
+              <div className="mt-1 border-t pt-1">
+                <SummaryRow
+                  label="Material total"
+                  value={formatMoney(internalMaterial.total)}
+                  strong
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {isExternalDealer ? (
-          <ExternalDealerServiceSummary summary={customerChargesSummary} discount={serviceDiscount} installationDiscount={numberValue(manualDiscount?.installation.discount)} />
-        ) : (
-          <div className="rounded-lg border px-4 py-3">
-            <h4 className="mb-1 text-sm font-semibold">
-              Installation &amp; services
-            </h4>
+          {isExternalDealer ? (
+            <ExternalDealerServiceSummary summary={customerChargesSummary} discount={serviceDiscount} installationDiscount={numberValue(manualDiscount?.installation.discount)} />
+          ) : (
+            <div className="rounded-lg border px-4 py-3">
+              <h4 className="mb-1 text-sm font-semibold">
+                Installation &amp; services
+              </h4>
 
-            <SummaryRow label="Installation">
-              <span className="flex flex-wrap items-center justify-end gap-2">
-                <Badge
-                  variant="outline"
-                  className={installationStatus.className}
-                >
-                  {installationStatus.label}
-                </Badge>
-                {activeJob && quote ? (
-                  numberValue(manualDiscount?.installation.discount) > 0
-                    ? <OriginalPrice amount={baseInstallationTotal} label="Before discount" />
-                    : formatMoney(baseInstallationTotal)
-                ) : null}
-                {activeJob && !quote ? "Pending" : null}
-              </span>
-            </SummaryRow>
+              <SummaryRow label="Installation">
+                <span className="flex flex-wrap items-center justify-end gap-2">
+                  {activeJob && quote ? (
+                    numberValue(manualDiscount?.installation.discount) > 0
+                      ? <OriginalPrice amount={baseInstallationTotal} label="Before discount" />
+                      : formatMoney(baseInstallationTotal)
+                  ) : null}
+                  {activeJob && !quote ? "Pending" : !activeJob ? "Not included" : null}
+                </span>
+              </SummaryRow>
 
-            {activeJob && (
-              <>
-                {extras.length > 0 ? (
-                  extras.map((service) => (
+              {activeJob && (
+                <>
+                  {extras.length > 0 ? (
+                    extras.map((service) => (
+                      <SummaryRow
+                        key={service.serviceId}
+                        label={service.name}
+                        value={formatMoney(service.amount)}
+                      />
+                    ))
+                  ) : (
                     <SummaryRow
-                      key={service.serviceId}
-                      label={service.name}
-                      value={formatMoney(service.amount)}
+                      label="Additional services"
+                      value="None included"
                     />
-                  ))
-                ) : (
-                  <SummaryRow
-                    label="Additional services"
-                    value="None included"
-                  />
-                )}
+                  )}
 
-                {numberValue(manualDiscount?.installation.discount) > 0 && <>
-                  <SummaryRow label="Additional discount · Installation" value={`−${formatMoney(numberValue(manualDiscount?.installation.discount))}`} />
-                  <SummaryRow label="Installation total" value={formatMoney(quoteTotal)} strong />
-                </>}
-                {activeJob.permit ? (
-                  <div className="mt-1 border-t pt-1">
-                    <p className="py-1.5 text-sm font-semibold">
-                      Permit management
-                    </p>
-                    <div className="border-l-2 border-slate-200 pl-3">
-                      <SummaryRow
-                        label="Permit Fee"
-                        value={formatMoney(permitFee)}
-                      />
-                      <SummaryRow
-                        label="City Fee"
-                        value={
-                          cityFee == null ? "Pending" : formatMoney(cityFee)
-                        }
-                      />
+                  {numberValue(manualDiscount?.installation.discount) > 0 && <>
+                    <SummaryRow label="Additional discount · Installation" value={`−${formatMoney(numberValue(manualDiscount?.installation.discount))}`} />
+                    <SummaryRow label="Installation total" value={formatMoney(quoteTotal)} strong />
+                  </>}
+                  {activeJob.permit ? (
+                    <div className="mt-1 border-t pt-1">
+                      <p className="py-1.5 text-sm font-semibold">
+                        Permit management
+                      </p>
+                      <div className="border-l-2 border-slate-200 pl-3">
+                        <SummaryRow
+                          label="Permit Fee"
+                          value={formatMoney(permitFee)}
+                        />
+                        <SummaryRow
+                          label="City Fee"
+                          value={
+                            cityFee == null ? "Pending" : formatMoney(cityFee)
+                          }
+                        />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <SummaryRow label="Permit management" value="Not included" />
-                )}
+                  ) : (
+                    <SummaryRow label="Permit management" value="Not included" />
+                  )}
 
-                {isDealerEstimate && (
-                  <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-                    The system installation price is the final customer price
-                    for this account.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
+                  {isDealerEstimate && (
+                    <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+                      The system installation price is the final customer price
+                      for this account.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {retainedDeposit > 0 && (
           <div className="rounded-lg border px-4 py-3">
@@ -712,23 +702,19 @@ export function EstimateFinancialSummary({
           {isDealerEstimate ? (
             <>
               <SummaryRow
-                label={internalTotalLabel}
-                value={formatMoney(internalProjectTotal)}
-                strong
-              />
-              <SummaryRow
-                label={customerTotalLabel}
+                label="Customer Project Total"
                 value={formatMoney(customerProjectTotal)}
                 strong
               />
               <SummaryRow
-                label="Dealer Profit (materials only, pre-tax)"
-                value={formatMoney(dealerProfit)}
+                label="Your Project Cost"
+                value={formatMoney(internalProjectTotal)}
+                strong
               />
             </>
           ) : (
             <SummaryRow
-              label={clientTotalLabel}
+              label="Project Total"
               value={formatMoney(internalProjectTotal)}
               strong
             />
@@ -757,6 +743,13 @@ export function EstimateFinancialSummary({
             </p>
           )}
         </div>
+
+        {isDealerEstimate && (
+          <DealerProfitSummary
+            materialProfit={dealerProfit}
+            serviceProfit={dealerServiceProfit}
+          />
+        )}
 
         {activeJob && (
           <div className="rounded-lg border px-4 py-3">
@@ -799,8 +792,7 @@ export function EstimateFinancialSummary({
         )}
 
         <p className="text-xs font-medium text-slate-600">
-          This is the complete list of services and charges for this estimate;
-          the installation status is shown above.
+          This is the complete list of services and charges for this estimate.
         </p>
       </CardContent>
     </Card>

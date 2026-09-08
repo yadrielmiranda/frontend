@@ -282,11 +282,21 @@ export const updateInstallationRequest = (
     body: data,
   });
 
-export const cancelInstallation = (jobId: number, reason?: string) =>
-  apiFetch<InstallationJob | null>(`/api/installations/${jobId}/cancel`, {
-    method: "POST",
-    body: { reason },
-  });
+export async function cancelInstallation(
+  jobId: number,
+  reason?: string,
+): Promise<InstallationJob | null> {
+  const installation = await apiFetch<InstallationJob | null | string>(
+    `/api/installations/${jobId}/cancel`,
+    {
+      method: "POST",
+      body: { reason },
+    },
+  );
+
+  // Sin depósito, el backend elimina la solicitud y puede devolver un cuerpo vacío.
+  return installation && typeof installation === "object" ? installation : null;
+}
 
 export const addInstallationMeasurement = (
   jobId: number,
