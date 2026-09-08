@@ -23,6 +23,7 @@ import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
+import { REGISTRATION_ENABLED, REGISTRATION_UNAVAILABLE_MESSAGE } from "@/lib/registration-availability";
 
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
@@ -169,7 +170,7 @@ export function CardRegister() {
   }, [zip, getValues, setValue]);
 
   const handleRegister = async (data: RegisterFormData) => {
-    if (!consentProgram || data.serviceConsent !== true) return;
+    if (!REGISTRATION_ENABLED || !consentProgram || data.serviceConsent !== true) return;
     try {
       await registerUser({ ...data, consentVersion: consentProgram.version });
 
@@ -212,7 +213,7 @@ export function CardRegister() {
         </CardTitle>
 
         <CardDescription className="text-sm text-white/45">
-          Enter your information to create a client access account.
+          Client account details and notification preferences.
         </CardDescription>
       </CardHeader>
 
@@ -455,10 +456,16 @@ export function CardRegister() {
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
+          {!REGISTRATION_ENABLED && (
+            <p id="registration-availability" role="status" className="w-full rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
+              {REGISTRATION_UNAVAILABLE_MESSAGE}
+            </p>
+          )}
           <Button
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
-            disabled={isSubmitting || !consentProgram || !serviceConsent}
+            disabled={!REGISTRATION_ENABLED || isSubmitting || !consentProgram || !serviceConsent}
+            aria-describedby={!REGISTRATION_ENABLED ? "registration-availability" : undefined}
           >
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
