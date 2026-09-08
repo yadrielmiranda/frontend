@@ -23,7 +23,6 @@ import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
-import { REGISTRATION_ENABLED, REGISTRATION_UNAVAILABLE_MESSAGE } from "@/lib/registration-availability";
 
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
@@ -32,6 +31,9 @@ import { lookupZip } from "@/app/api/geo.api";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
+
+// Bloqueo temporal: cambiar a true para habilitar el registro y retirar el aviso.
+const REGISTRATION_ENABLED = false;
 
 const registerSchema = z.object({
   firstName: z.string().min(1, {
@@ -458,7 +460,7 @@ export function CardRegister() {
         <CardFooter className="flex-col gap-3 pt-5">
           {!REGISTRATION_ENABLED && (
             <p id="registration-availability" role="status" className="w-full rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
-              {REGISTRATION_UNAVAILABLE_MESSAGE}
+              Account registration is not available yet. Please check back later.
             </p>
           )}
           <Button
