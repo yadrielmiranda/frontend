@@ -9,6 +9,12 @@ export type SmsProgram = {
   effectiveDate: string;
   consentText: string;
   disclosure: string;
+  registration: {
+    serviceConsentText: string;
+    serviceRequirement: string;
+    promotionsConsentText: string;
+    promotionsDisclosure: string;
+  };
   terms: SmsPolicySection[];
   privacy: SmsPolicySection[];
   version: string;

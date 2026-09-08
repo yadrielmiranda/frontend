@@ -119,7 +119,11 @@ export function resetPassword(data: ResetPasswordData) {
 /**
  * Signup público (si lo usas)
  */
-type RegisterUserData = Omit<CreateUserDto, "idRole">;
+type RegisterUserData = Omit<CreateUserDto, "idRole" | "installationPriceProfileId"> & {
+  serviceConsent: boolean;
+  promotionsConsent: boolean;
+  consentVersion: string;
+};
 
 export function registerUser(userData: RegisterUserData) {
   return apiFetch<User>("/api/auth/register", {

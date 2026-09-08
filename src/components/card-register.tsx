@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
+import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
 
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
@@ -85,6 +87,10 @@ const registerSchema = z.object({
   password: z.string().min(8, {
     message: "Password must be at least 8 characters long.",
   }),
+  serviceConsent: z.boolean().refine((value) => value === true, {
+    message: "Agree to service notifications by SMS and email to create an account.",
+  }),
+  promotionsConsent: z.boolean(),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -92,6 +98,9 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export function CardRegister() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
+  const [consentError, setConsentError] = useState<string | null>(null);
+  const [consentReload, setConsentReload] = useState(0);
 
   const {
     register,
@@ -113,8 +122,28 @@ export function CardRegister() {
       state: "",
       postalCode: "",
       password: "",
+      serviceConsent: false,
+      promotionsConsent: false,
     },
   });
+
+  const serviceConsent = useWatch({ control, name: "serviceConsent" });
+
+  useEffect(() => {
+    let cancelled = false;
+    setConsentProgram(null);
+    setConsentError(null);
+    // Un cambio de condiciones requiere una nueva selección expresa.
+    setValue("serviceConsent", false);
+    setValue("promotionsConsent", false);
+    getSmsProgram().then((program) => {
+      if (!program.registration || !program.version) throw new Error("Messaging terms are unavailable.");
+      if (!cancelled) setConsentProgram(program);
+    }).catch(() => {
+      if (!cancelled) setConsentError("Could not load the messaging terms. Please try again.");
+    });
+    return () => { cancelled = true; };
+  }, [consentReload, setValue]);
 
   // Busca la ciudad y el estado automáticamente usando el ZIP.
   const zip = useWatch({ control, name: "postalCode" });
@@ -140,8 +169,9 @@ export function CardRegister() {
   }, [zip, getValues, setValue]);
 
   const handleRegister = async (data: RegisterFormData) => {
+    if (!consentProgram || data.serviceConsent !== true) return;
     try {
-      await registerUser(data);
+      await registerUser({ ...data, consentVersion: consentProgram.version });
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
@@ -150,6 +180,12 @@ export function CardRegister() {
       router.push("/");
       router.refresh();
     } catch (err: any) {
+      if (err?.data?.code === "CONSENT_VERSION_CHANGED") {
+        setConsentProgram(null);
+        setValue("serviceConsent", false);
+        setValue("promotionsConsent", false);
+        setConsentReload((value) => value + 1);
+      }
       toast.error("Registration failed", {
         description:
           err?.message || "Please review your information and try again.",
@@ -380,13 +416,49 @@ export function CardRegister() {
               <p className={errorClass}>{errors.password.message}</p>
             )}
           </div>
+          <div className="space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 md:col-span-2">
+            <p className="text-sm font-semibold text-white">Notifications</p>
+            {consentError ? (
+              <div className="space-y-2">
+                <p role="alert" className={errorClass}>{consentError}</p>
+                <button type="button" onClick={() => setConsentReload((value) => value + 1)} className="text-sm text-blue-300 underline underline-offset-4 hover:text-blue-200">Try again</button>
+              </div>
+            ) : !consentProgram ? (
+              <p role="status" className="flex items-center gap-2 text-sm text-white/60"><Loader2 className="h-4 w-4 animate-spin" />Loading messaging terms...</p>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <label htmlFor="service-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
+                    <input id="service-consent" type="checkbox" required disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby="service-requirement registration-disclosure service-consent-error" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
+                    <span>{consentProgram.registration.serviceConsentText}<RequiredMark /></span>
+                  </label>
+                  <p id="service-requirement" className="pl-7 text-xs text-white/60">{consentProgram.registration.serviceRequirement}</p>
+                  <p id="service-consent-error" role={errors.serviceConsent ? "alert" : undefined} className={`pl-7 ${errorClass}`}>{errors.serviceConsent?.message}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="promotions-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
+                    <input id="promotions-consent" type="checkbox" disabled={isSubmitting} aria-describedby="promotions-disclosure registration-disclosure" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("promotionsConsent")} />
+                    <span>{consentProgram.registration.promotionsConsentText}</span>
+                  </label>
+                  <p id="promotions-disclosure" className="pl-7 text-xs text-white/60">{consentProgram.registration.promotionsDisclosure}</p>
+                </div>
+                <div className="space-y-2 border-t border-white/10 pt-3 text-xs leading-relaxed text-white/60">
+                  <p id="registration-disclosure">{consentProgram.disclosure}</p>
+                  <p className="flex flex-wrap gap-x-4 gap-y-2">
+                    <Link href="/sms/terms" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">Messaging Terms</Link>
+                    <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">Messaging Privacy Policy</Link>
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
           <Button
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !consentProgram || !serviceConsent}
           >
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
