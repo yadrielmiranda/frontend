@@ -1,3 +1,4 @@
+import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
 import type { InstallationJob } from "@/lib/types";
 import { formatMoney } from "@/lib/formatters";
 import {
@@ -9,6 +10,7 @@ import {
 export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
   const quote = job.quotes[0];
   if (!quote) return null;
+  const showInternal = quote.pricingDetailsVisible === true;
 
   const discount = job.manualDiscountSummary;
   const installationTotal = Number(discount?.installation.total ?? quote.total);
@@ -28,55 +30,17 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
             Installation Quote · Version {quote.version}
           </h2>
           <p className="text-xs text-slate-500">
-            {titleCase(quote.status)} · {titleCase(quote.approvalReason)} ·
-            Profile: {quote.profileNameSnapshot}
+            {titleCase(quote.status)}
+            {showInternal && <> · {titleCase(quote.approvalReason)} · Profile: {quote.profileNameSnapshot}</>}
           </p>
         </div>
         <strong>{formatMoney(installationTotal)}</strong>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-slate-200">
-        <table className="w-full text-xs">
-          <thead className="bg-slate-50 text-left uppercase text-slate-500">
-            <tr>
-              <th className="p-2">Service</th>
-              <th className="p-2">Origin</th>
-              <th className="p-2 text-right">Rate</th>
-              <th className="p-2 text-right">Qty</th>
-              <th className="p-2 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quote.lines.map((line) => (
-              <tr key={line.id} className="border-t border-slate-200">
-                <td className="p-2">
-                  <span className="font-medium">
-                    {line.serviceNameSnapshot}
-                  </span>
-                  {line.componentLabel && (
-                    <span className="block text-slate-500">
-                      {line.componentLabel}
-                    </span>
-                  )}
-                </td>
-                <td className="p-2">{titleCase(line.origin)}</td>
-                <td className="p-2 text-right">
-                  {formatMoney(Number(line.rate))}
-                </td>
-                <td className="p-2 text-right">
-                  {Number(line.billableQuantity).toFixed(2)} ×{" "}
-                  {line.occurrences}
-                </td>
-                <td className="p-2 text-right font-medium">
-                  {formatMoney(Number(line.adjustedAmount))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <InstallationQuoteTable quote={quote} showInternal={showInternal} />
 
       <div className="ml-auto mt-3 grid max-w-sm grid-cols-2 gap-1 text-xs">
+        {showInternal && (<>
         <span className="text-slate-500">Installation subtotal</span>
         <span className="text-right">
           {formatMoney(Number(quote.adjustedSubtotal))}
@@ -99,6 +63,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
             </span>
           </>
         )}
+        </>)}
         {Number(discount?.installation.discount) > 0 && <><span className="text-emerald-700">Additional discount</span><span className="text-right text-emerald-700">−{formatMoney(Number(discount?.installation.discount))}</span></>}
         <strong className="border-t border-slate-300 pt-2">
           Installation total

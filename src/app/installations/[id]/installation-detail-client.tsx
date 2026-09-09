@@ -24,7 +24,6 @@ import type {
   InstallationAppointmentStatus,
   InstallationMeasurement,
   InstallationPermitStatus,
-  InstallationQuoteLine,
   InstallationService,
   MuntinPattern,
   MuntinType,
@@ -77,6 +76,7 @@ import { paidBaseFor } from "@/lib/installation-flow";
 import { PieceModal } from "@/components/estimates/piece-modal";
 import type { PieceFormValues } from "@/components/estimates/types";
 import { EstimateRevisionSummary } from "@/components/estimates/estimate-revision-summary";
+import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
 import {
   additionalServiceValidationError,
@@ -105,23 +105,6 @@ const money = (value: string | number | null | undefined) =>
 
 const numeric = (value: string | number | null | undefined) =>
   value == null ? "" : String(Number(value));
-
-function additionalServiceLineSummary(line: InstallationQuoteLine) {
-  const values: string[] = [];
-  if (line.widthIn != null) values.push(`Width ${Number(line.widthIn)} in`);
-  if (line.heightIn != null) {
-    values.push(`Height ${Number(line.heightIn)} in`);
-  }
-  if (line.areaSqFt != null) {
-    values.push(`Area ${Number(line.areaSqFt).toFixed(2)} sq ft`);
-  }
-  if (line.panelCount != null) values.push(`${line.panelCount} panels`);
-  if (line.lengthIn != null) {
-    values.push(`Length ${Number(line.lengthIn)} in`);
-  }
-  values.push(`Quantity ${line.occurrences}`);
-  return values.join(" · ");
-}
 
 const CHANGE_REASONS: Array<{
   value: Exclude<EstimateRevisionChangeReason, "REMEASUREMENT">;
@@ -1243,8 +1226,9 @@ export function InstallationDetailClient({
             <CardHeader>
               <CardTitle>Quote {latest ? `v${latest.version}` : ""}</CardTitle>
               <CardDescription>
-                Rates, metrics, profile, measurements, and adjustments are
-                frozen in every version.
+                {admin
+                  ? "Rates, metrics, profile, measurements, and adjustments are frozen in every version."
+                  : "Installation services and prices."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1259,81 +1243,28 @@ export function InstallationDetailClient({
                 </div>
               )}
               {latest?.lines.length ? (
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Service</th>
-                        <th className="p-3">Origin</th>
-                        <th className="p-3 text-right">Rate</th>
-                        <th className="p-3 text-right">Qty</th>
-                        <th className="p-3 text-right">Total</th>
-                        <th className="p-3" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {latest.lines.map((line) => (
-                        <tr key={line.id} className="border-t">
-                          <td className="p-3">
-                            <span className="font-medium">
-                              {line.serviceNameSnapshot}
-                            </span>
-                            {line.componentLabel && (
-                              <span className="block text-xs text-muted-foreground">
-                                {line.componentLabel}
-                              </span>
-                            )}
-                            {line.origin !== "AUTO" && (
-                              <span className="block text-xs text-muted-foreground">
-                                {additionalServiceLineSummary(line)}
-                              </span>
-                            )}
-                            {line.description && (
-                              <span className="block text-xs text-muted-foreground">
-                                {line.description}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <Badge variant="outline">
-                              {title(line.origin)}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right">{money(line.rate)}</td>
-                          <td className="p-3 text-right">
-                            {Number(line.billableQuantity).toFixed(2)} ×{" "}
-                            {line.occurrences}
-                          </td>
-                          <td className="p-3 text-right font-medium">
-                            {money(line.adjustedAmount)}
-                          </td>
-                          <td className="p-3 text-right">
-                            {canManageAdditionalServices &&
-                              line.origin !== "AUTO" &&
-                              latest.status === "DRAFT" &&
-                              (privileged ||
-                                line.origin === "USER_SELECTED") && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    run(
-                                      () =>
-                                        deleteInstallationLine(job.id, line.id),
-                                      "Service removed.",
-                                    )
-                                  }
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <InstallationQuoteTable
+                  quote={latest}
+                  showInternal={admin}
+                  renderAction={canManageAdditionalServices ? (line) => {
+                    const removable = line.canRemove ??
+                      (line.origin !== "AUTO" && latest.status === "DRAFT" &&
+                        (privileged || line.origin === "USER_SELECTED"));
+                    return removable ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => run(
+                          () => deleteInstallationLine(job.id, line.id),
+                          "Service removed.",
+                        )}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null;
+                  } : undefined}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No quote lines yet.
@@ -1342,6 +1273,7 @@ export function InstallationDetailClient({
 
               {latest && (
                 <div className="ml-auto grid max-w-sm grid-cols-2 gap-2 rounded-lg bg-slate-50 p-4 text-sm">
+                  {admin && (<>
                   <span className="text-muted-foreground">Base subtotal</span>
                   <span className="text-right">
                     {money(latest.baseSubtotal)}
@@ -1382,6 +1314,7 @@ export function InstallationDetailClient({
                       </span>
                     </>
                   )}
+                  </>)}
                   <strong>Total</strong>
                   <strong className="text-right">{money(latest.total)}</strong>
                 </div>

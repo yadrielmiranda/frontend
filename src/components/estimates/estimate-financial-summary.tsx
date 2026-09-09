@@ -82,6 +82,9 @@ function additionalServiceTotals(
   quote: InstallationQuote | null,
 ): AdditionalServiceTotal[] {
   if (!quote) return [];
+  if (quote.additionalServices) {
+    return quote.additionalServices.map((service) => ({ ...service, amount: numberValue(service.amount) }));
+  }
 
   const automaticServiceIds = new Set(
     quote.lines

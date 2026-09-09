@@ -83,7 +83,7 @@ const fromService = (service: InstallationService): ServiceDraft => ({
   availableForField: service.availableForField,
   isActive: service.isActive,
   sortOrder: String(service.sortOrder),
-  rules: service.rules
+  rules: (service.rules ?? [])
     .slice()
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((rule) => ({
@@ -545,11 +545,11 @@ export function InstallationServicesClient({
                 <span className="text-muted-foreground">Rule metric</span>
                 <span className="text-right font-medium">{metricLabels[service.ruleMetric]}</span>
                 <span className="text-muted-foreground">Base rate</span>
-                <span className="text-right font-medium">{money(service.baseRate)}</span>
+                <span className="text-right font-medium">{service.baseRate == null ? "—" : money(service.baseRate)}</span>
                 <span className="text-muted-foreground">Minimum charge</span>
-                <span className="text-right font-medium">{money(service.minimumCharge)}</span>
+                <span className="text-right font-medium">{service.minimumCharge == null ? "—" : money(service.minimumCharge)}</span>
                 <span className="text-muted-foreground">Ranges</span>
-                <span className="text-right font-medium">{service.rules.length}</span>
+                <span className="text-right font-medium">{service.rules?.length ?? 0}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {service.availableForRequest && <Badge variant="outline">Initial request</Badge>}

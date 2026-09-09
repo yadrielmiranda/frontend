@@ -225,7 +225,7 @@ export function InstallationEstimatePanel({
   const beginEditRequest = () => {
     if (!job || !canEditBeforeDeposit) return;
     const selectedLines = (job.quotes[0]?.lines ?? []).filter(
-      (line) => line.origin === "USER_SELECTED",
+      (line) => line.isRequestedService ?? line.origin === "USER_SELECTED",
     );
     setPermitRequested(Boolean(job.permit));
     setRows(

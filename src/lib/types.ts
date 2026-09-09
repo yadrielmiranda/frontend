@@ -527,13 +527,13 @@ export interface InstallationService {
   description?: string | null;
   billingUnit: InstallationBillingUnit;
   ruleMetric: InstallationRuleMetric;
-  baseRate: string | number;
-  minimumCharge: string | number;
+  baseRate?: string | number;
+  minimumCharge?: string | number;
   availableForRequest: boolean;
   availableForField: boolean;
   isActive: boolean;
   sortOrder: number;
-  rules: InstallationServiceRule[];
+  rules?: InstallationServiceRule[];
   _count?: { sysConfs: number; lines: number };
 }
 
@@ -677,25 +677,28 @@ export interface EstimateRevision {
 }
 
 export interface InstallationQuoteLine {
+  unitPrice?: string | number;
+  isRequestedService?: boolean;
+  canRemove?: boolean;
   id: number;
   quoteId: number;
   serviceId: number;
   measurementId: number | null;
-  origin: InstallationLineOrigin;
+  origin?: InstallationLineOrigin;
   serviceNameSnapshot: string;
-  billingUnitSnapshot: InstallationBillingUnit;
-  ruleMetricSnapshot: InstallationRuleMetric;
+  billingUnitSnapshot?: InstallationBillingUnit;
+  ruleMetricSnapshot?: InstallationRuleMetric;
   componentLabel?: string | null;
   widthIn?: string | number | null;
   heightIn?: string | number | null;
   areaSqFt?: string | number | null;
   panelCount?: number | null;
   lengthIn?: string | number | null;
-  rate: string | number;
-  billableQuantity: string | number;
+  rate?: string | number;
+  billableQuantity?: string | number;
   occurrences: number;
-  baseAmount: string | number;
-  adjustmentPercent: string | number;
+  baseAmount?: string | number;
+  adjustmentPercent?: string | number;
   adjustedAmount: string | number;
   description?: string | null;
   sortOrder: number;
@@ -724,19 +727,22 @@ export interface InstallationServiceMinimumSnapshot {
 }
 
 export interface InstallationQuote {
+  pricingDetailsVisible?: boolean;
+  additionalInstallationCharge?: string | number;
+  additionalServices?: Array<{ serviceId: number; name: string; amount: string | number }>;
   id: number;
   jobId: number;
   version: number;
   status: InstallationQuoteStatus;
   approvalReason: InstallationQuoteReason;
-  profileNameSnapshot: string;
-  profileAdjustmentPercent: string | number;
-  profileMinimumSnapshot: string | number;
-  baseSubtotal: string | number;
-  adjustedSubtotal: string | number;
-  serviceMinimumAdjustment: string | number;
+  profileNameSnapshot?: string;
+  profileAdjustmentPercent?: string | number;
+  profileMinimumSnapshot?: string | number;
+  baseSubtotal?: string | number;
+  adjustedSubtotal?: string | number;
+  serviceMinimumAdjustment?: string | number;
   serviceMinimumsSnapshot?: InstallationServiceMinimumSnapshot[] | null;
-  minimumAdjustment: string | number;
+  minimumAdjustment?: string | number;
   total: string | number;
   needsRecalculation: boolean;
   notes?: string | null;
