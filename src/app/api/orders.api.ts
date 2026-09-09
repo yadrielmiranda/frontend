@@ -13,14 +13,19 @@ import type {
  * Obtiene todas las órdenes (SSR opcional con token).
  */
 export function getOrders() {
-  return apiFetch<OrderWithRelations[]>("/api/orders");
+  return apiFetch<OrderWithRelations[]>("/api/orders", {
+    cache: "no-store",
+    timeoutMs: 15000,
+  });
 }
 
 /**
  * Obtiene una sola orden por su ID (SSR opcional con token).
  */
 export function getOrder(id: number) {
-  return apiFetch<OrderWithRelations>(`/api/orders/${id}`);
+  return apiFetch<OrderWithRelations>(`/api/orders/${id}`, {
+    cache: "no-store",
+  });
 }
 
 /**

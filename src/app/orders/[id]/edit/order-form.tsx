@@ -95,6 +95,7 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
       await updateOrder(order.id, pendingPayload);
       toast.success("Order updated successfully!");
       router.push("/orders");
+      router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
