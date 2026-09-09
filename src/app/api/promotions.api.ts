@@ -51,6 +51,8 @@ export const savePromotion = (body: unknown, id?: number) =>
     method: id ? "PUT" : "POST",
     body,
   });
+export const deletePromotion = (id: number) =>
+  apiFetch<void>(`/api/promotions/${id}`, { method: "DELETE" });
 export const getAvailablePromotions = (estimateId?: number) =>
   apiFetch<{ serverNow: string; promotions: AvailablePromotion[] }>(
     estimateId

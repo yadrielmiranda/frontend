@@ -1,13 +1,24 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Promotion,
   PromotionOptions,
+  deletePromotion,
   savePromotion,
 } from "@/app/api/promotions.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -122,6 +133,10 @@ export function PromotionsManager({
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false),
     [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Promotion | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteInFlight = useRef(false);
   const hasChanges = formKey(form) !== initialFormKey;
   const set = (key: string, value: unknown) =>
     setForm((v) => ({ ...v, [key]: value }));
@@ -212,6 +227,25 @@ export function PromotionsManager({
       setSaving(false);
     }
   }
+  async function confirmDelete() {
+    if (!deleteTarget || deleteInFlight.current) return;
+    const target = deleteTarget;
+    deleteInFlight.current = true;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deletePromotion(target.id);
+      setRows((current) => current.filter((p) => p.id !== target.id));
+      setDeleteTarget(null);
+    } catch (e) {
+      setDeleteError(
+        e instanceof Error ? e.message : "Could not delete promotion.",
+      );
+    } finally {
+      deleteInFlight.current = false;
+      setDeleting(false);
+    }
+  }
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -221,7 +255,9 @@ export function PromotionsManager({
             Material discounts by audience, brand, product or system.
           </p>
         </div>
-        <Button onClick={() => edit()}>New promotion</Button>
+        <Button disabled={deleting} onClick={() => edit()}>
+          New promotion
+        </Button>
       </div>
       <div className="border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
@@ -303,9 +339,26 @@ export function PromotionsManager({
                         : "Active"}
                 </td>
                 <td className="p-4">
-                  <Button variant="outline" onClick={() => edit(p)}>
-                    Edit
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={deleting}
+                      onClick={() => edit(p)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={deleting}
+                      aria-label={`Delete promotion ${p.name}`}
+                      onClick={() => {
+                        setDeleteError("");
+                        setDeleteTarget(p);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -313,6 +366,44 @@ export function PromotionsManager({
         </table>
         {!rows.length && <p className="p-6">No promotions yet.</p>}
       </div>
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !deleteInFlight.current) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete promotion?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold">{deleteTarget?.name}</span> will
+              be permanently deleted and cannot be reactivated. Saved discounts
+              remain until an estimate is recalculated. Paid terms are preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-red-700">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              {deleting ? "Deleting..." : "Delete promotion"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog
         open={open}
         onOpenChange={(v) => {
