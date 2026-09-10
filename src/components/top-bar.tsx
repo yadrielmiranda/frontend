@@ -20,6 +20,7 @@ import { SettingsMenuItems } from "./settings-menu-items";
 import { Menu, FileText, ShoppingBag, Settings, Hammer } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import brandLogo from "../../public/logo.png";
 import { NotificationBell } from "./notifications-bell";
 import { canAccessSettings } from "@/lib/rbac";
 import { usePathname } from "next/navigation";
@@ -62,7 +63,7 @@ function TopBar() {
       className="group flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-white/10"
     >
       <Image
-        src="/logo.png"
+        src={brandLogo}
         alt={companyName}
         width={52}
         height={52}
