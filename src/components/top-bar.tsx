@@ -66,7 +66,11 @@ function TopBar() {
         alt={companyName}
         width={52}
         height={52}
-        className="h-14 w-auto object-contain transition group-hover:scale-[1.02]"
+        className="h-14 w-auto -translate-y-0.5 object-contain transition group-hover:scale-[1.02]"
+        style={{
+          filter:
+            "drop-shadow(0 0 1px rgba(226, 232, 240, 0.8)) drop-shadow(0 0 3px rgba(226, 232, 240, 0.3)) drop-shadow(0 5px 3px rgba(0, 0, 0, 0.8))",
+        }}
         priority
       />
 
