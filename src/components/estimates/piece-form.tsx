@@ -2384,11 +2384,22 @@ export function PieceForm({
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {props.productsWithBrands.map((p) => (
-                              <SelectItem key={p.id} value={String(p.id)}>
-                                {p.name}
-                              </SelectItem>
-                            ))}
+                            {/* Solo activos; se conserva el valor previo inactivo, pero no se puede seleccionar. */}
+                            {props.productsWithBrands
+                              .filter(
+                                (p) =>
+                                  p.isActive === true ||
+                                  p.id === Number(field.value),
+                              )
+                              .map((p) => (
+                                <SelectItem
+                                  key={p.id}
+                                  value={String(p.id)}
+                                  disabled={p.isActive !== true}
+                                >
+                                  {p.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       )}
