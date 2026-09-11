@@ -23,6 +23,8 @@ import { HorizontalRollingWindowDiagram } from "./piece-diagram/renderers/horizo
 import { SingleHungWindowDiagram } from "./piece-diagram/renderers/single-hung/single-hung-window-diagram";
 import { SlidingGlassDoorDiagram } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-diagram";
 import { resolveSlidingGlassDoorSpec } from "./piece-diagram/renderers/sliding-door/sliding-glass-door-spec";
+import { MullionDiagram } from "./piece-diagram/renderers/mullion/mullion-diagram";
+import { resolveMullionSpec } from "./piece-diagram/renderers/mullion/mullion-spec";
 import { WindowWallDiagram } from "./piece-diagram/renderers/window-wall/window-wall-diagram";
 import { resolveAuthenticWindowSpec } from "./piece-diagram/window-renderer-spec";
 
@@ -277,6 +279,36 @@ export function PieceDiagram({
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
   const rendererClasses = "h-full w-full";
+  // Solo estas cuatro configuraciones de Mullion utilizan las referencias nuevas.
+  const mullionSpec = diagramFamily === "LINEAR_MATERIAL"
+    ? resolveMullionSpec({ configuration, systemName })
+    : null;
+  const mullionLength = positiveDimensionNumber(normalizedPiece?.width);
+
+  if (mullionSpec && mullionLength !== null) {
+    return (
+      <div
+        className={[
+          "flex h-full w-full items-center justify-center overflow-hidden",
+          variant === "editor" ? "rounded-md border p-2" : "",
+          className ?? "",
+        ].join(" ")}
+        data-dimension-mode={dimensionMode}
+        data-diagram-family={diagramFamily}
+        data-diagram-renderer="CLIPPED_TUBE_MULLION"
+        data-preview-scale="REFERENCE_FIT"
+      >
+        <MullionDiagram
+          spec={mullionSpec}
+          length={mullionLength}
+          frameColorHex={safeFrameColor(frameColorHex)}
+          showDimensions={showDimensions}
+          className={rendererClasses}
+        />
+      </div>
+    );
+  }
+
   const resolvedSharedFrenchDoor =
     diagramFamily === "FRENCH_DOOR"
       ? resolveSharedFrenchDoor({
