@@ -417,8 +417,7 @@ export function CardRegister() {
             )}
           </div>
           <div className="space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 md:col-span-2">
-            <p className="text-sm font-semibold text-white">Optional SMS notifications</p>
-            <p className="text-xs leading-relaxed text-white/60">Account and project updates continue in the portal and by email, regardless of your SMS choices.</p>
+            <p className="text-sm font-semibold text-white">SMS notifications</p>
             {consentError ? (
               <div className="space-y-2">
                 <p role="alert" className={errorClass}>{consentError}</p>
@@ -430,18 +429,18 @@ export function CardRegister() {
               <>
                 <div className="space-y-1.5">
                   <label htmlFor="service-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
-                    <input id="service-consent" type="checkbox" disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby="service-requirement registration-disclosure service-consent-error" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
+                    <input id="service-consent" type="checkbox" disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby={errors.serviceConsent ? "registration-disclosure service-consent-error" : "registration-disclosure"} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
                     <span>{consentProgram.registration.serviceConsentText}</span>
                   </label>
-                  <p id="service-requirement" className="pl-7 text-xs text-white/60">{consentProgram.registration.serviceRequirement}</p>
-                  <p id="service-consent-error" role={errors.serviceConsent ? "alert" : undefined} className={`pl-7 ${errorClass}`}>{errors.serviceConsent?.message}</p>
+                  {errors.serviceConsent && (
+                    <p id="service-consent-error" role="alert" className={`pl-7 ${errorClass}`}>{errors.serviceConsent.message}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="promotions-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
-                    <input id="promotions-consent" type="checkbox" disabled={isSubmitting} aria-describedby="promotions-disclosure registration-disclosure" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("promotionsConsent")} />
+                    <input id="promotions-consent" type="checkbox" disabled={isSubmitting} aria-describedby="registration-disclosure" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("promotionsConsent")} />
                     <span>{consentProgram.registration.promotionsConsentText}</span>
                   </label>
-                  <p id="promotions-disclosure" className="pl-7 text-xs text-white/60">{consentProgram.registration.promotionsDisclosure}</p>
                 </div>
                 <div className="space-y-2 border-t border-white/10 pt-3 text-xs leading-relaxed text-white/60">
                   <p id="registration-disclosure">{consentProgram.disclosure}</p>
