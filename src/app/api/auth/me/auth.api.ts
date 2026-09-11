@@ -122,7 +122,7 @@ export function resetPassword(data: ResetPasswordData) {
 type RegisterUserData = Omit<CreateUserDto, "idRole" | "installationPriceProfileId"> & {
   serviceConsent: boolean;
   promotionsConsent: boolean;
-  consentVersion: string;
+  consentVersion?: string;
 };
 
 export function registerUser(userData: RegisterUserData) {

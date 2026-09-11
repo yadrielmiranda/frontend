@@ -90,9 +90,7 @@ const registerSchema = z.object({
   password: z.string().min(8, {
     message: "Password must be at least 8 characters long.",
   }),
-  serviceConsent: z.boolean().refine((value) => value === true, {
-    message: "Agree to service notifications by SMS and email to create an account.",
-  }),
+  serviceConsent: z.boolean(),
   promotionsConsent: z.boolean(),
 });
 
@@ -129,8 +127,6 @@ export function CardRegister() {
       promotionsConsent: false,
     },
   });
-
-  const serviceConsent = useWatch({ control, name: "serviceConsent" });
 
   useEffect(() => {
     let cancelled = false;
@@ -172,9 +168,10 @@ export function CardRegister() {
   }, [zip, getValues, setValue]);
 
   const handleRegister = async (data: RegisterFormData) => {
-    if (!REGISTRATION_ENABLED || !consentProgram || data.serviceConsent !== true) return;
+    const wantsSms = data.serviceConsent || data.promotionsConsent;
+    if (!REGISTRATION_ENABLED || (wantsSms && !consentProgram)) return;
     try {
-      await registerUser({ ...data, consentVersion: consentProgram.version });
+      await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}) });
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
@@ -420,7 +417,8 @@ export function CardRegister() {
             )}
           </div>
           <div className="space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 md:col-span-2">
-            <p className="text-sm font-semibold text-white">Notifications</p>
+            <p className="text-sm font-semibold text-white">Optional SMS notifications</p>
+            <p className="text-xs leading-relaxed text-white/60">Account and project updates continue in the portal and by email, regardless of your SMS choices.</p>
             {consentError ? (
               <div className="space-y-2">
                 <p role="alert" className={errorClass}>{consentError}</p>
@@ -432,8 +430,8 @@ export function CardRegister() {
               <>
                 <div className="space-y-1.5">
                   <label htmlFor="service-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
-                    <input id="service-consent" type="checkbox" required disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby="service-requirement registration-disclosure service-consent-error" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
-                    <span>{consentProgram.registration.serviceConsentText}<RequiredMark /></span>
+                    <input id="service-consent" type="checkbox" disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby="service-requirement registration-disclosure service-consent-error" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
+                    <span>{consentProgram.registration.serviceConsentText}</span>
                   </label>
                   <p id="service-requirement" className="pl-7 text-xs text-white/60">{consentProgram.registration.serviceRequirement}</p>
                   <p id="service-consent-error" role={errors.serviceConsent ? "alert" : undefined} className={`pl-7 ${errorClass}`}>{errors.serviceConsent?.message}</p>
@@ -448,8 +446,8 @@ export function CardRegister() {
                 <div className="space-y-2 border-t border-white/10 pt-3 text-xs leading-relaxed text-white/60">
                   <p id="registration-disclosure">{consentProgram.disclosure}</p>
                   <p className="flex flex-wrap gap-x-4 gap-y-2">
-                    <Link href="/sms/terms" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">Messaging Terms</Link>
-                    <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">Messaging Privacy Policy</Link>
+                    <Link href="/sms/terms" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">SMS Terms</Link>
+                    <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">SMS Privacy Policy</Link>
                   </p>
                 </div>
               </>
@@ -466,7 +464,7 @@ export function CardRegister() {
           <Button
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
-            disabled={!REGISTRATION_ENABLED || isSubmitting || !consentProgram || !serviceConsent}
+            disabled={!REGISTRATION_ENABLED || isSubmitting}
             aria-describedby={!REGISTRATION_ENABLED ? "registration-availability" : undefined}
           >
             {isSubmitting ? (

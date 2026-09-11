@@ -22,9 +22,12 @@ export type SmsProgram = {
 
 export type SmsPreferences = {
   enabled: boolean;
+  promotionsEnabled: boolean;
   phone: string;
   consentedAt: string | null;
   revokedAt: string | null;
+  promotionsConsentedAt: string | null;
+  promotionsRevokedAt: string | null;
   blockedBySms: boolean;
   program: SmsProgram;
 };
@@ -37,6 +40,6 @@ export function getSmsProgram() {
   return apiFetch<SmsProgram>('/api/sms/program', { cache: 'no-store', suppressAuthEvent: true });
 }
 
-export function updateSmsPreferences(data: { enabled: boolean; phone?: string; version?: string }) {
+export function updateSmsPreferences(data: { enabled: boolean; promotionsEnabled?: boolean; phone?: string; version?: string }) {
   return apiFetch<SmsPreferences>('/api/sms/preferences', { method: 'PATCH', body: data });
 }
