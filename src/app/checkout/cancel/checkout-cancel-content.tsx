@@ -12,12 +12,14 @@ import {
 } from "@/app/api/payments.api";
 import { getEstimateInstallation } from "@/app/api/installations.api";
 import type { PaymentType } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 type CurrentAction = "idle" | "continuing" | "canceling";
 
 export default function CheckoutCancelContent() {
   const router = useRouter();
   const params = useSearchParams();
+  const { user, isLoading } = useAuth();
 
   const [currentAction, setCurrentAction] = useState<CurrentAction>("idle");
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
@@ -46,7 +48,11 @@ export default function CheckoutCancelContent() {
   }, [params]);
 
   const handleContinuePayment = async () => {
-    if (!estimateId) return;
+    if (!estimateId || isLoading) return;
+    if (paymentType === "MATERIAL" && user?.role.name === "client") {
+      router.push(`/estimates/${estimateId}/edit`);
+      return;
+    }
     if (
       paymentType === "INSTALLATION_DEPOSIT" &&
       !depositTermsAccepted
@@ -186,6 +192,7 @@ export default function CheckoutCancelContent() {
         <Button
           disabled={
             isProcessing ||
+            isLoading ||
             (paymentType === "INSTALLATION_DEPOSIT" &&
               !depositTermsAccepted)
           }
@@ -193,7 +200,9 @@ export default function CheckoutCancelContent() {
         >
           {currentAction === "continuing"
             ? "Returning to Checkout..."
-            : "Continue Payment"}
+            : paymentType === "MATERIAL" && user?.role.name === "client"
+              ? "Review estimate"
+              : "Continue Payment"}
         </Button>
 
         <Button

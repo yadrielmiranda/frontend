@@ -4,6 +4,12 @@ import { isApiError } from "@/app/api/_base";
 import { EstimateReportShell } from "@/components/estimates/estimate-details/parts/estimate-report-shell";
 import { EstimateViewDealerPublic } from "@/components/estimates/estimate-details/views/estimate-view-dealer-public";
 
+export const dynamic = "force-dynamic";
+export const metadata = {
+  robots: { index: false, follow: false },
+  referrer: "no-referrer",
+};
+
 export default async function PublicEstimatePage({
   params,
 }: {

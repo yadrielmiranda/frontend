@@ -16,6 +16,7 @@ export default function PublicCheckoutCancelContent() {
   const router = useRouter();
   const [busy, setBusy] = useState<"resume" | "cancel" | null>(null);
   const token = params.get("token") ?? "";
+  const agreementId = params.get("agreementId") ?? undefined;
   const paymentType = useMemo<PaymentType>(() => {
     const value = params.get("type");
     return value === "INSTALLATION_DEPOSIT" ||
@@ -31,13 +32,21 @@ export default function PublicCheckoutCancelContent() {
     return Number.isInteger(value) && value > 0 ? value : 1;
   }, [params]);
 
-  const backUrl = token ? `/public/payments/${encodeURIComponent(token)}` : "/";
+  const backUrl = token
+    ? agreementId
+      ? `/public/estimates/${encodeURIComponent(token)}/agreements/${encodeURIComponent(agreementId)}`
+      : `/public/payments/${encodeURIComponent(token)}`
+    : "/";
 
   const resume = async () => {
     if (!token) return;
     setBusy("resume");
     try {
-      const { url } = await createPublicCheckoutSession(token);
+      const { url } = await createPublicCheckoutSession(
+        token,
+        undefined,
+        agreementId,
+      );
       window.location.href = url;
     } catch (error) {
       toast.error((error as Error).message);

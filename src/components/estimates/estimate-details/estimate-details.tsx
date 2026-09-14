@@ -1,8 +1,12 @@
 "use client";
 
+import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
+import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
+
 import { useEffect, useMemo, useState } from "react";
 import { EstimateWithRelations } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Printer, Copy, Share2 } from "lucide-react";
 import { BackLink } from "@/components/navigation/back-link";
 
@@ -53,6 +57,13 @@ export function EstimateDetails({
   initialCustomerPricingMode?: CustomerPricingMode;
   returnToEdit?: boolean;
 }) {
+  const [readyShare, setReadyShare] = useState<ShareData | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [agreementRefresh, setAgreementRefresh] = useState(0);
+  const [includeContract, setIncludeContract] = useState(false);
+  const [agreementStatus, setAgreementStatus] = useState<AgreementStatus | null>(null);
+  useEffect(() => { setIncludeContract(false); setAgreementStatus(null); }, [estimate.id]);
+  useEffect(() => { if (agreementStatus && !agreementStatus.defaultContract) setIncludeContract(false); }, [agreementStatus]);
   const ownerRole = estimate.user?.role?.name ?? null;
   const ownerIsDealer = isDealerRole(ownerRole);
   const currentUserIsDealer = isDealerRole(userRole);
@@ -170,45 +181,37 @@ export function EstimateDetails({
     }
   };
 
-  const buildPublicEstimateUrl = (token: string) => {
-    return `${window.location.origin}/public/estimates/${token}`;
+  const createCustomerLink = async () => {
+    const response = await getOrCreateEstimatePublicToken(estimate.id, customerPricingMode);
+    if (!response.token) throw new Error("Could not generate customer link.");
+    const url = `${window.location.origin}/public/estimates/${response.token}`;
+    // El enlace sin contrato conserva la cotización habitual y no modifica ninguna aceptación.
+    if (!includeContract) return url;
+    const prepared = await prepareEstimateAgreement(estimate.id, customerPricingMode, true);
+    if (!prepared.current) throw new Error("Upload a contract in My Branding before including it.");
+    setAgreementRefresh((value) => value + 1);
+    return `${url}/agreements/${prepared.current.id}`;
   };
 
   const handleCopyPublicLink = async () => {
+    if (sharing) return;
+    setSharing(true);
     try {
-      const response = await getOrCreateEstimatePublicToken(
-        estimate.id,
-        customerPricingMode,
-      );
-
-      if (!response.token) {
-        toast.error("Could not generate customer link.");
-        return;
-      }
-
-      const url = buildPublicEstimateUrl(response.token);
+      const url = await createCustomerLink();
 
       await copyTextToClipboard(url);
 
       toast.success("Customer link copied.");
     } catch (error) {
       toast.error((error as Error).message);
-    }
+    } finally { setSharing(false); }
   };
 
   const handleSharePublicLink = async () => {
+    if (sharing) return;
+    setSharing(true);
     try {
-      const response = await getOrCreateEstimatePublicToken(
-        estimate.id,
-        customerPricingMode,
-      );
-
-      if (!response.token) {
-        toast.error("Could not generate customer link.");
-        return;
-      }
-
-      const url = buildPublicEstimateUrl(response.token);
+      const url = await createCustomerLink();
 
       const shareData = {
         title: `Estimate #${estimate.number}`,
@@ -217,6 +220,10 @@ export function EstimateDetails({
       };
 
       if (navigator.share) {
+        if (navigator.userActivation && !navigator.userActivation.isActive) {
+          setReadyShare(shareData);
+          return;
+        }
         await navigator.share(shareData);
         return;
       }
@@ -243,7 +250,7 @@ export function EstimateDetails({
       if ((error as Error).name === "AbortError") return;
 
       toast.error((error as Error).message);
-    }
+    } finally { setSharing(false); }
   };
 
   // ================
@@ -281,6 +288,11 @@ export function EstimateDetails({
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
+      <Dialog open={Boolean(readyShare)} onOpenChange={(open) => { if (!open) setReadyShare(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>Estimate ready to share</DialogTitle><DialogDescription>Your customer link is ready.</DialogDescription></DialogHeader>
+          <Button onClick={() => { if (readyShare && navigator.share) void navigator.share(readyShare).then(() => setReadyShare(null)).catch((error: Error) => { if (error.name !== "AbortError") toast.error(error.message); }); }}><Share2 className="mr-2 h-4 w-4" />Share estimate</Button>
+        </DialogContent>
+      </Dialog>
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
@@ -329,20 +341,29 @@ export function EstimateDetails({
               </div>
 
               {canShareCustomerReport && (
-                <div className="flex shrink-0 flex-wrap gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <label className="mr-1 flex items-center gap-2 text-sm">
+                    <input type="checkbox" aria-label="Include contract" checked={includeContract}
+                      onChange={(event) => setIncludeContract(event.target.checked)}
+                      disabled={sharing || !agreementStatus?.defaultContract} className="h-4 w-4" />
+                    Include contract
+                  </label>
+                  {agreementStatus && !agreementStatus.defaultContract && <a href="/profile/branding" className="mr-2 text-xs underline">Upload contract</a>}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={sharing}
                     onClick={handleCopyPublicLink}
                   >
                     <Copy className="mr-2 h-4 w-4" />
-                    Copy link
+                    {sharing ? "Preparing…" : "Copy link"}
                   </Button>
 
                   <Button
                     type="button"
                     size="sm"
+                    disabled={sharing}
                     onClick={handleSharePublicLink}
                   >
                     <Share2 className="mr-2 h-4 w-4" />
@@ -360,6 +381,7 @@ export function EstimateDetails({
           internal={reportMode !== "customer"}
         >
           {viewContent}
+          {ownerIsDealer && reportMode === "customer" && <DealerAgreementPanel estimateId={estimate.id} pricingMode={customerPricingMode} refreshKey={agreementRefresh} onStatusChange={setAgreementStatus} />}
         </EstimateReportShell>
       </div>
     </div>

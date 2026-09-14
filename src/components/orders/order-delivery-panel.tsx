@@ -313,7 +313,6 @@ export function OrderDeliveryPanel({
             code, is required for delivery.
           </p>
         </div>
-        <Badge variant="secondary">Pickup truck</Badge>
       </div>
 
       {installationActive && (

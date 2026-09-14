@@ -149,6 +149,7 @@ export function resolveEstimatePaymentAction({
 export function EstimatePaymentCard({
   estimateId,
   estimateOwnerId,
+  ownerRole,
   estimateStatus,
   order,
   materialPayments,
@@ -161,10 +162,12 @@ export function EstimatePaymentCard({
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
   paymentBlockedReason,
+  beforePayment,
   className = "",
 }: {
   estimateId: number;
   estimateOwnerId: number;
+  ownerRole: string;
   estimateStatus: string;
   order: Order | null;
   materialPayments: EstimatePayment[];
@@ -177,11 +180,13 @@ export function EstimatePaymentCard({
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
   paymentBlockedReason?: string;
+  beforePayment?: () => Promise<boolean>;
   className?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
+  const [materialAccepted, setMaterialAccepted] = useState(false);
 
   const isOwner = currentUserId === estimateOwnerId;
   const isInternalDealer = dealerMode === "INTERNAL";
@@ -208,6 +213,7 @@ export function EstimatePaymentCard({
   const depositTermsSatisfied =
     depositTermsPreviouslyAccepted || depositTermsAccepted;
   const requiresDepositTerms = action.type === "INSTALLATION_DEPOSIT";
+  const requiresMaterialAcceptance = ownerRole === "client" && action.type === "MATERIAL";
   const paymentPool =
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob.payments
@@ -241,14 +247,23 @@ export function EstimatePaymentCard({
       toast.error("Accept the non-refundable deposit terms first.");
       return;
     }
+    if (requiresMaterialAcceptance && !materialAccepted) {
+      toast.error("Accept the material details first.");
+      return;
+    }
 
     setBusy(true);
     try {
+      if (requiresDepositTerms && beforePayment && !(await beforePayment())) {
+        setBusy(false);
+        return;
+      }
       const { url } = await createCheckoutSession(
         estimateId,
         action.type,
         undefined,
         requiresDepositTerms ? depositTermsSatisfied : undefined,
+        requiresMaterialAcceptance ? materialAccepted : undefined,
       );
       window.location.href = url;
     } catch (error) {
@@ -344,6 +359,40 @@ export function EstimatePaymentCard({
         </label>
       )}
 
+      {requiresMaterialAcceptance && isOwner && (
+        <label
+          htmlFor="material-acceptance"
+          className={`mt-4 flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 text-sm transition-colors ${
+            materialAccepted
+              ? "border-emerald-400 bg-emerald-50 text-emerald-950"
+              : "border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100/70"
+          }`}
+        >
+          <Checkbox
+            id="material-acceptance"
+            className="mt-0.5"
+            checked={materialAccepted}
+            disabled={busy}
+            aria-required="true"
+            onCheckedChange={(checked) => setMaterialAccepted(checked === true)}
+          />
+          <span className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2">
+            <strong className="max-w-4xl font-semibold">
+              I have reviewed and accept the products, dimensions, configurations and prices in this estimate.
+            </strong>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                materialAccepted
+                  ? "bg-emerald-200 text-emerald-900"
+                  : "bg-amber-200 text-amber-950"
+              }`}
+            >
+              {materialAccepted ? "Accepted" : "Required"}
+            </span>
+          </span>
+        </label>
+      )}
+
       {paymentBlockedReason && (
         <p
           role="status"
@@ -365,7 +414,8 @@ export function EstimatePaymentCard({
               disabled={
                 busy ||
                 Boolean(paymentBlockedReason) ||
-                (requiresDepositTerms && !depositTermsSatisfied)
+                (requiresDepositTerms && !depositTermsSatisfied) ||
+                (requiresMaterialAcceptance && !materialAccepted)
               }
               onClick={() => void handlePayment()}
             >
@@ -376,7 +426,7 @@ export function EstimatePaymentCard({
               )}
               {busy
                 ? "Opening checkout..."
-                : requiresDepositTerms && !depositTermsSatisfied
+                : (requiresDepositTerms && !depositTermsSatisfied) || (requiresMaterialAcceptance && !materialAccepted)
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
@@ -401,6 +451,7 @@ export function EstimatePaymentCard({
               requiresDepositTerms && !depositTermsPreviouslyAccepted
             }
             depositTerms={installationJob?.depositTermsSnapshot}
+            beforeSubmit={requiresDepositTerms ? beforePayment : undefined}
             label="Record verified payment"
             onRecorded={(payment) => {
               if (payment.order?.id) {

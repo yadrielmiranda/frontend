@@ -16,15 +16,25 @@ import { formatMoney } from "@/lib/formatters";
 export function PublicEstimatePaymentCard({
   token,
   context,
+  agreementId,
+  signatureRequired = false,
 }: {
   token: string;
   context: PublicPaymentContext;
+  agreementId?: string;
+  signatureRequired?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const expired = usePromotionExpired(context);
-  if (context.status === "expired" || expired) return <section className="mt-6 border rounded-xl p-5">This promotion has expired. Contact your dealer to recalculate the estimate before payment.</section>;
+  if (context.status === "expired" || expired)
+    return (
+      <section className="mt-6 border rounded-xl p-5">
+        This promotion has expired. Contact your dealer to recalculate the
+        estimate before payment.
+      </section>
+    );
 
   if (!context.enabled) return null;
 
@@ -56,6 +66,7 @@ export function PublicEstimatePaymentCard({
   const termsSatisfied = !payment.requiresTerms || termsAccepted;
 
   const pay = async () => {
+    if (signatureRequired || busy) return;
     if (!termsSatisfied) {
       toast.error("Accept the non-refundable deposit terms first.");
       return;
@@ -66,6 +77,7 @@ export function PublicEstimatePaymentCard({
       const { url } = await createPublicCheckoutSession(
         token,
         payment.requiresTerms ? termsAccepted : undefined,
+        agreementId,
       );
       window.location.href = url;
     } catch (error) {
@@ -139,11 +151,19 @@ export function PublicEstimatePaymentCard({
         </label>
       )}
 
+      {signatureRequired && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Sign the agreement above to continue with this payment.
+        </p>
+      )}
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
         </span>
-        <Button disabled={busy || !termsSatisfied} onClick={() => void pay()}>
+        <Button
+          disabled={busy || !termsSatisfied || signatureRequired}
+          onClick={() => void pay()}
+        >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

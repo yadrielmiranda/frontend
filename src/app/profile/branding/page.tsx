@@ -1,3 +1,5 @@
+import { DealerContractCard } from '@/components/branding/dealer-contract-card';
+import { getDealerContract } from '@/app/api/contracts.api';
 // src/app/profile/branding/page.tsx
 import {
   Card,
@@ -22,7 +24,7 @@ export default async function DealerBrandingPage() {
   if (!isDealerRole(role)) notFound();
 
   // Trae el branding del dealer (puede ser null)
-  const branding = await getDealerBranding();
+  const [branding, contract] = await Promise.all([getDealerBranding(), getDealerContract()]);
 
   return (
     <div className="container mx-auto py-10 max-w-xl">
@@ -39,6 +41,7 @@ export default async function DealerBrandingPage() {
           <BrandingForm mode="dealer" branding={branding ?? undefined} />
         </CardContent>
       </Card>
+      <DealerContractCard initialContract={contract} />
     </div>
   );
 }

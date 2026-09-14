@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function PublicCheckoutSuccessContent() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
+  const agreementId = params.get("agreementId");
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-16">
@@ -21,8 +22,14 @@ export default function PublicCheckoutSuccessContent() {
         </p>
         {token && (
           <Button asChild className="mt-6">
-            <Link href={`/public/payments/${encodeURIComponent(token)}`}>
-              Return to payment
+            <Link
+              href={
+                agreementId
+                  ? `/public/estimates/${encodeURIComponent(token)}/agreements/${encodeURIComponent(agreementId)}`
+                  : `/public/payments/${encodeURIComponent(token)}`
+              }
+            >
+              {agreementId ? "Return to agreement" : "Return to payment"}
             </Link>
           </Button>
         )}

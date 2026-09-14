@@ -48,6 +48,7 @@ export function ManualPaymentDialog({
   label = "Record manual payment",
   requiresDepositTerms = false,
   depositTerms,
+  beforeSubmit,
   onRecorded,
 }: {
   estimateId: number;
@@ -57,6 +58,7 @@ export function ManualPaymentDialog({
   label?: string;
   requiresDepositTerms?: boolean;
   depositTerms?: string | null;
+  beforeSubmit?: () => Promise<boolean>;
   onRecorded?: (payment: ManualPaymentResult) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -88,6 +90,7 @@ export function ManualPaymentDialog({
 
     setBusy(true);
     try {
+      if (beforeSubmit && !(await beforeSubmit())) return;
       const payment = await recordManualPayment({
         estimateId,
         type,

@@ -36,7 +36,9 @@ function buildBrandingModel(estimate: EstimateWithRelations) {
   const brandingContrastColor = getReadableTextColor(brandingColor);
 
   const logoSrc = branding?.logoUrl
-    ? `${branding.logoUrl}?v=${encodeURIComponent(branding.updatedAt ?? "")}`
+    ? branding.logoUrl.startsWith("data:")
+      ? branding.logoUrl
+      : `${branding.logoUrl}?v=${encodeURIComponent(branding.updatedAt ?? "")}`
     : null;
 
   return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -96,6 +96,19 @@ const ACTIVE_APPOINTMENT_STATUSES: InstallationAppointmentStatus[] = [
   "ACCEPTED",
   "RESCHEDULE_REQUESTED",
 ];
+
+// Las opciones siguen las transiciones admitidas por el backend.
+const PERMIT_TRANSITIONS: Record<
+  InstallationPermitStatus,
+  InstallationPermitStatus[]
+> = {
+  PAYMENT_PENDING: [],
+  PAID: ["SUBMITTED"],
+  SUBMITTED: ["CHANGES_REQUIRED", "APPROVED", "REJECTED"],
+  CHANGES_REQUIRED: ["SUBMITTED", "REJECTED"],
+  APPROVED: [],
+  REJECTED: ["SUBMITTED"],
+};
 
 const money = (value: string | number | null | undefined) =>
   new Intl.NumberFormat("en-US", {
@@ -798,6 +811,15 @@ export function InstallationDetailClient({
   );
   const [cityFee, setCityFee] = useState(numeric(job.permit?.cityFee));
   const [permitNotes, setPermitNotes] = useState(job.permit?.notes ?? "");
+  useEffect(() => {
+    setPermitStatus(
+      job.permit?.status === "PAID"
+        ? "SUBMITTED"
+        : (job.permit?.status ?? "SUBMITTED"),
+    );
+    setCityFee(numeric(job.permit?.cityFee));
+    setPermitNotes(job.permit?.notes ?? "");
+  }, [job.permit?.id, job.permit?.status, job.permit?.cityFee, job.permit?.notes]);
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [appointmentNote, setAppointmentNote] = useState("");
@@ -853,6 +875,31 @@ export function InstallationDetailClient({
       payment.type === "MATERIAL" &&
       (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
   );
+  const permitOptions = job.permit ? PERMIT_TRANSITIONS[job.permit.status] : [];
+  const approvingPermit = permitStatus === "APPROVED";
+  const validCityFee =
+    cityFee.trim() !== "" &&
+    Number.isFinite(Number(cityFee)) &&
+    Number(cityFee) >= 0;
+  const permitChanged = Boolean(
+    job.permit &&
+      (permitStatus !== job.permit.status ||
+        permitNotes.trim() !== (job.permit.notes ?? "").trim() ||
+        (approvingPermit &&
+          validCityFee &&
+          (job.permit.cityFee == null ||
+            Number(cityFee) !== Number(job.permit.cityFee)))),
+  );
+  const validPermitStatus =
+    permitOptions.includes(permitStatus) ||
+    (permitStatus === job.permit?.status &&
+      !["PAYMENT_PENDING", "PAID"].includes(permitStatus));
+  const canSavePermit =
+    !busy &&
+    !permitLocked &&
+    validPermitStatus &&
+    (!approvingPermit || validCityFee) &&
+    permitChanged;
   const canRecordMeasurements =
     Number(job.depositAmountSnapshot) === 0 ||
     [
@@ -1624,48 +1671,61 @@ export function InstallationDetailClient({
                   job.permit.status !== "PAYMENT_PENDING" &&
                   !permitLocked && (
                     <>
-                      <Select
-                        value={permitStatus}
-                        onValueChange={(value) =>
-                          setPermitStatus(value as InstallationPermitStatus)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                          <SelectItem value="CHANGES_REQUIRED">
-                            Changes required
-                          </SelectItem>
-                          <SelectItem value="APPROVED">Approved</SelectItem>
-                          <SelectItem value="REJECTED">Rejected</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={cityFee}
-                        onChange={(event) => setCityFee(event.target.value)}
-                        placeholder="City Fee (required for approval)"
-                      />
+                      {permitOptions.length > 0 && (
+                        <Select
+                          value={
+                            permitStatus === job.permit.status ? "" : permitStatus
+                          }
+                          disabled={busy}
+                          onValueChange={(value) =>
+                            setPermitStatus(value as InstallationPermitStatus)
+                          }
+                        >
+                          <SelectTrigger aria-label="Permit status">
+                            <SelectValue placeholder="Select next status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {permitOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {title(status)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {approvingPermit && (
+                        <div className="space-y-2">
+                          <Label htmlFor="permit-city-fee">City Fee</Label>
+                          <Input
+                            id="permit-city-fee"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={cityFee}
+                            disabled={busy}
+                            onChange={(event) => setCityFee(event.target.value)}
+                            placeholder="Required for approval"
+                          />
+                        </div>
+                      )}
                       <Textarea
                         value={permitNotes}
+                        disabled={busy}
                         onChange={(event) => setPermitNotes(event.target.value)}
                         placeholder="Permit notes"
                       />
                       <Button
                         className="w-full"
-                        disabled={busy}
+                        disabled={!canSavePermit}
                         onClick={() =>
                           run(
                             () =>
                               updateInstallationPermit(job.id, {
                                 status: permitStatus,
-                                cityFee:
-                                  cityFee === "" ? undefined : Number(cityFee),
-                                notes: permitNotes || undefined,
+                                cityFee: approvingPermit
+                                  ? Number(cityFee)
+                                  : undefined,
+                                notes: permitNotes.trim(),
                               }),
                             "Permit updated.",
                           )

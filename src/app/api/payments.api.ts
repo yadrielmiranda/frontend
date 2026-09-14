@@ -41,6 +41,7 @@ export function createCheckoutSession(
   type: PaymentType = "MATERIAL",
   sequence?: number,
   installationDepositTermsAccepted?: boolean,
+  materialAccepted?: boolean,
 ) {
   return apiFetch<CheckoutSessionResponse>("/api/payments/checkout-session", {
     method: "POST",
@@ -49,6 +50,7 @@ export function createCheckoutSession(
       type,
       sequence,
       installationDepositTermsAccepted,
+      materialAccepted,
     },
   });
 }
@@ -77,12 +79,13 @@ export function getPublicPaymentContext(token: string) {
 export function createPublicCheckoutSession(
   token: string,
   installationDepositTermsAccepted?: boolean,
+  agreementId?: string,
 ) {
   return apiFetch<CheckoutSessionResponse>(
     `/api/payments/public/${encodeURIComponent(token)}/checkout-session`,
     {
       method: "POST",
-      body: { installationDepositTermsAccepted },
+      body: { installationDepositTermsAccepted, agreementId },
       suppressAuthEvent: true,
     },
   );

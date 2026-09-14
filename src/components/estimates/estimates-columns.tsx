@@ -436,6 +436,10 @@ export const getEstimateColumns = (
         };
 
         const handlePay = async () => {
+          if (currentUser?.role?.name === "client") {
+            router.push(`/estimates/${estimate.id}/edit`);
+            return;
+          }
           setIsPaying(true);
           try {
             const { url } = await createCheckoutSession(estimate.id);

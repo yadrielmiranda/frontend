@@ -1646,6 +1646,7 @@ export function EstimateForm({
           <EstimatePaymentCard
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
+            ownerRole={ownerRole}
             estimateStatus={promotionEstimate?.status?.name ?? ""}
             manualDiscount={discountData.summary}
             allowNoCharge={(Number(promotionEstimate?.discountAmount) > 0 || Number(discountData.summary?.discount) > 0) && Number(promotionEstimate?.units) > 0}
@@ -1660,6 +1661,7 @@ export function EstimateForm({
             }
             dealerMode={dealerMode}
             cardSurchargeFraction={cardSurchargeFraction}
+            beforePayment={saveEstimateHeader}
             paymentBlockedReason={
               discountDirty ? "Save or discard the additional discount changes before payment." : discountLoading ? "Updating estimate totals…" : discountError ? "Could not refresh estimate totals. Reload to continue." : needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
                 ? "Finish or cancel the installation calculation to continue to payment."
