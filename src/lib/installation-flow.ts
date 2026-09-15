@@ -1,4 +1,5 @@
 import type {
+  EstimatePayment,
   InstallationJob,
   InstallationJobStatus,
   PaymentType,
@@ -47,6 +48,8 @@ export function installationStageLabelFromStatus(
     QUOTE_DRAFT:
       approvalReason === "PERMIT_REVISION"
         ? "Permit revision in progress"
+        : approvalReason === "DEALER_MEASUREMENTS"
+          ? "Installation quote under review"
         : "Remeasurement quote in progress",
     ADMIN_APPROVAL_PENDING: "Awaiting internal approval",
     CUSTOMER_APPROVAL_PENDING:
@@ -104,4 +107,24 @@ export function paidBaseFor(job: InstallationJob, type: PaymentType): number {
   return job.payments
     .filter((payment) => payment.type === type && payment.status === "PAID")
     .reduce((sum, payment) => sum + Number(payment.baseAmount), 0);
+}
+
+export function hasStartedInstallationPayment(payments: EstimatePayment[]): boolean {
+  return payments.some((payment) =>
+    payment.status === "PAID" || payment.status === "REFUNDED" ||
+    Boolean(payment.paidAt) || Boolean(payment.stripeSessionId));
+}
+
+export function canEditInstallationBeforePayment(
+  job: InstallationJob | null | undefined,
+  estimatePayments: EstimatePayment[] = [],
+): boolean {
+  if (!job || job.status === "CANCELED") return true;
+  if (hasStartedInstallationPayment([...estimatePayments, ...job.payments])) return false;
+  if (job.status === "DEPOSIT_PAYMENT_PENDING") return true;
+  const quote = job.quotes[0];
+  return Boolean(job.dealerMeasurementsAcceptedAt &&
+    (job.status === "MATERIAL_PAYMENT_PENDING" || job.status === "PERMIT_PAYMENT_PENDING") &&
+    quote?.status === "APPROVED" && quote.approvalReason === "DEALER_MEASUREMENTS" &&
+    !quote.submittedAt);
 }

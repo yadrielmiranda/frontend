@@ -26,6 +26,7 @@ import { getCurrentUser } from "@/lib/session";
 import { BackLink } from "@/components/navigation/back-link";
 import { getEstimateInstallation } from "@/app/api/installations.api";
 import { isAdminRole, isOperatorRole } from "@/lib/rbac";
+import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
 
 export default async function EditEstimatePage({
   params,
@@ -60,32 +61,18 @@ export default async function EditEstimatePage({
     isAdminRole(user.role.name) || isOperatorRole(user.role.name);
   const isActive = estimate.status?.name === "Active";
 
-  const materialPayment = estimate.payments?.find(
-    (payment) => payment.type === "MATERIAL",
-  );
-  const isPaymentLocked =
-    materialPayment?.status === "PAID" ||
-    Boolean(materialPayment?.stripeSessionId);
-
-  const depositPayment = (installation?.payments ?? []).find(
-    (payment) => payment.type === "INSTALLATION_DEPOSIT",
-  );
-  const depositCheckoutStarted =
-    installation?.status !== "CANCELED" &&
-    (depositPayment?.status === "PAID" ||
-      Boolean(depositPayment?.stripeSessionId));
-  const installationLocksOwner = Boolean(
-    installation &&
-    installation.status !== "DEPOSIT_PAYMENT_PENDING" &&
-    installation.status !== "CANCELED",
-  );
+  const isPaymentLocked = (estimate.payments ?? []).some((payment) =>
+    payment.type === "MATERIAL" &&
+    (payment.status === "PAID" || payment.status === "REFUNDED" ||
+      Boolean(payment.paidAt) || Boolean(payment.stripeSessionId)));
 
   const canAccess = (isOwner || isPrivileged) && (isActive || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
 
   if (!canAccess) notFound();
 
-  const canEdit =
-    !isPaymentLocked && !installationLocksOwner && !depositCheckoutStarted && !estimate.promotionLockedAt;
+  const baseReadOnly = isPaymentLocked || Boolean(estimate.promotionLockedAt) ||
+    Boolean(estimate.manualDiscount?.lockedAt);
+  const canEdit = !baseReadOnly && canEditInstallationBeforePayment(installation, estimate.payments);
 
   const [
     productsWithBrands,
@@ -134,6 +121,8 @@ export default async function EditEstimatePage({
             <CardDescription>
               {canEdit
                 ? "Update the details for this estimate."
+                : installation?.dealerMeasurementsAcceptedAt
+                  ? "Installation uses the current measurements and price."
                 : "Material details are locked. Remeasurement changes must be submitted through the pending Estimate revision."}
             </CardDescription>
           </CardHeader>
@@ -144,7 +133,7 @@ export default async function EditEstimatePage({
               initialInstallation={installation}
               currentUserId={user.id}
               isPrivileged={isPrivileged}
-              readOnly={!canEdit}
+              readOnly={baseReadOnly}
               taxRate={taxRate}
               cardSurchargeFraction={cardSurchargeFraction}
               productsWithBrands={productsWithBrands}

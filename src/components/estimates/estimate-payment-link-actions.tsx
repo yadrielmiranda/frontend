@@ -31,11 +31,13 @@ export function EstimatePaymentLinkActions({
   estimateNumber,
   showShare = false,
   size = "default",
+  beforeAction,
 }: {
   estimateId: number;
   estimateNumber?: string;
   showShare?: boolean;
   size?: "default" | "sm";
+  beforeAction?: () => Promise<boolean>;
 }) {
   const [busyAction, setBusyAction] = useState<"copy" | "share" | null>(null);
 
@@ -52,6 +54,7 @@ export function EstimatePaymentLinkActions({
   const copyPaymentLink = async () => {
     setBusyAction("copy");
     try {
+      if (beforeAction && !(await beforeAction())) return;
       await copyText(await getPaymentUrl());
       toast.success("Payment link copied.");
     } catch (error) {
@@ -64,6 +67,7 @@ export function EstimatePaymentLinkActions({
   const sharePaymentLink = async () => {
     setBusyAction("share");
     try {
+      if (beforeAction && !(await beforeAction())) return;
       const url = await getPaymentUrl();
       const label = estimateNumber ? ` #${estimateNumber}` : "";
 

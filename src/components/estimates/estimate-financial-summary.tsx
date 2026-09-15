@@ -788,8 +788,9 @@ export function EstimateFinancialSummary({
             )}
 
             <p className="mt-1 border-t pt-2 text-xs text-muted-foreground">
-              The installation deposit is credited toward installation and is
-              not an additional project charge.
+              {activeJob.dealerMeasurementsAcceptedAt
+                ? "Installation deposit waived. No deposit has been credited toward the installation balance."
+                : "The installation deposit is credited toward installation and is not an additional project charge."}
             </p>
           </div>
         )}

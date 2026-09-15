@@ -35,6 +35,7 @@ import type {
   Tint,
 } from "@/lib/types";
 import {
+  acceptDealerMeasurements,
   addInstallationLine,
   addInstallationMeasurement,
   cancelInstallation,
@@ -1077,6 +1078,53 @@ export function InstallationDetailClient({
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
+          {(admin || (owner && userRole === "dealer" && job.estimate.user.dealerMode === "INTERNAL")) &&
+            job.estimate.user.role?.name === "dealer" &&
+            job.status === "DEPOSIT_PAYMENT_PENDING" &&
+            !job.dealerMeasurementsAcceptedAt &&
+            depositPaid === 0 && (
+              <Card className="border-blue-200">
+                <CardHeader>
+                  <CardTitle>Accept dealer measurements</CardTitle>
+                  <CardDescription>
+                    Use the current estimate measurements without a company
+                    remeasurement visit or an installation deposit. The full
+                    installation balance remains due. Continue with the current
+                    price without submitting the quote or requesting approvals.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-end">
+                  <Button
+                    className="h-auto whitespace-normal"
+                    disabled={busy}
+                    onClick={() => run(
+                      () => acceptDealerMeasurements(job.id),
+                      "Dealer measurements accepted. Deposit and remeasurement waived.",
+                    )}
+                  >
+                    Accept measurements and waive deposit
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+          {job.dealerMeasurementsAcceptedAt && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <strong className="block">Dealer measurements accepted</strong>
+              <p>No installation deposit or remeasurement visit is required.</p>
+              {admin && job.dealerMeasurementsAcceptedById && (
+                <p className="mt-1 text-xs">
+                  Authorized by {job.dealerMeasurementsAcceptedBy?.firstName}{" "}
+                  {job.dealerMeasurementsAcceptedBy?.lastName} ·{" "}
+                  {new Date(job.dealerMeasurementsAcceptedAt).toLocaleString()}
+                </p>
+              )}
+              {admin && !job.dealerMeasurementsAcceptedById && (
+                <p className="mt-1 text-xs">Applied from the dealer&apos;s No installation deposit setting.</p>
+              )}
+            </div>
+          )}
+
           {privileged && showRemeasurementNotReady && (
             <Card className="border-amber-200 bg-amber-50">
               <CardHeader>
@@ -1095,7 +1143,7 @@ export function InstallationDetailClient({
           {privileged && canRecordMeasurements && (
             <Card>
               <CardHeader>
-                <CardTitle>Field Measurements</CardTitle>
+                <CardTitle>{job.dealerMeasurementsAcceptedAt ? "Accepted measurements" : "Field Measurements"}</CardTitle>
                 <CardDescription>
                   Each physical unit is identified from its Estimate Piece. Only
                   the dimensions required by that System configuration are

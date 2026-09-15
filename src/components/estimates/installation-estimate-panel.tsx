@@ -20,6 +20,7 @@ import type {
   Order,
 } from "@/lib/types";
 import {
+  acceptDealerMeasurements,
   cancelInstallation,
   decideInstallationQuoteAsCustomer,
   getEstimateInstallation,
@@ -42,7 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
+import { canEditInstallationBeforePayment, hasStartedInstallationPayment, installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
 import { EstimateRevisionSummary } from "./estimate-revision-summary";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
@@ -137,9 +138,7 @@ export function InstallationEstimatePanel({
     [onRequestEditingChange],
   );
 
-  const checkoutStarted = estimatePayments.some(
-    (payment) => payment.status === "PAID" || Boolean(payment.stripeSessionId),
-  );
+  const checkoutStarted = hasStartedInstallationPayment(estimatePayments);
   const canRequest =
     !job &&
     estimateStatus === "Active" &&
@@ -148,13 +147,14 @@ export function InstallationEstimatePanel({
     !checkoutStarted;
   const isOwner = currentUserId === estimateOwnerId;
   const depositPaid = job ? paidBaseFor(job, "INSTALLATION_DEPOSIT") : 0;
-  const canEditBeforeDeposit =
+  const canEditBeforePayment =
     Boolean(job) &&
     isOwner &&
     !order &&
-    job?.status === "DEPOSIT_PAYMENT_PENDING" &&
-    depositPaid === 0;
-  const canConfigureRequest = canRequest || canEditBeforeDeposit;
+    estimateStatus === "Active" &&
+    job?.status !== "CANCELED" &&
+    canEditInstallationBeforePayment(job, estimatePayments);
+  const canConfigureRequest = canRequest || canEditBeforePayment;
 
   useEffect(() => {
     if (showRequest && !canConfigureRequest) {
@@ -223,7 +223,7 @@ export function InstallationEstimatePanel({
   };
 
   const beginEditRequest = () => {
-    if (!job || !canEditBeforeDeposit) return;
+    if (!job || !canEditBeforePayment) return;
     const selectedLines = (job.quotes[0]?.lines ?? []).filter(
       (line) => line.isRequestedService ?? line.origin === "USER_SELECTED",
     );
@@ -317,7 +317,7 @@ export function InstallationEstimatePanel({
     );
   }
 
-  if (!job || (showRequest && canEditBeforeDeposit)) {
+  if (!job || (showRequest && canEditBeforePayment)) {
     if (!job && !canRequest) return null;
 
     return (
@@ -620,7 +620,7 @@ export function InstallationEstimatePanel({
       appointment.type === "REMEASUREMENT" &&
       (appointment.status === "ACCEPTED" || appointment.status === "COMPLETED"),
   );
-  const canRemoveBeforeDeposit = canEditBeforeDeposit;
+  const canRemoveBeforePayment = canEditBeforePayment;
 
   const decide = async (decision: "APPROVED" | "REJECTED") => {
     setBusy(true);
@@ -685,6 +685,36 @@ export function InstallationEstimatePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {canEditBeforePayment && job.estimate.user.role?.name === "dealer" &&
+          job.estimate.user.dealerMode === "INTERNAL" && !job.dealerMeasurementsAcceptedAt && (
+          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm text-blue-900">
+              If the current measurements are final, continue without a deposit,
+              remeasurement visit or quote approvals. The full installation amount remains due.
+            </p>
+            <Button type="button" disabled={busy} className="h-auto whitespace-normal"
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  if (beforeRequest && !(await beforeRequest())) return;
+                  commitJob(await acceptDealerMeasurements(job.id));
+                  toast.success("Deposit waived. Current measurements and price retained.");
+                } catch (error) {
+                  toast.error((error as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}>
+              Accept measurements and waive deposit
+            </Button>
+          </div>
+        )}
+        {job.dealerMeasurementsAcceptedAt && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <strong className="block">Dealer measurements accepted</strong>
+            No installation deposit or remeasurement visit is required.
+          </div>
+        )}
         {latestRevision &&
           latestRevision.status !== "DRAFT" &&
           latestRevision.status !== "SUPERSEDED" && (
@@ -706,11 +736,11 @@ export function InstallationEstimatePanel({
           </div>
         )}
 
-        {canRemoveBeforeDeposit && (
+        {canRemoveBeforePayment && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm text-slate-600">
-              Before paying the installation deposit, you can update the request
-              or continue with material only.
+              Before starting payment, you can edit the installation request
+              or remove it and continue with material only.
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button

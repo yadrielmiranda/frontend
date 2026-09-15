@@ -62,6 +62,7 @@ import {
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
+import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -186,7 +187,7 @@ export function EstimateForm({
   initialInstallation,
   currentUserId,
   isPrivileged = false,
-  readOnly = false,
+  readOnly: initialReadOnly = false,
   taxRate,
   cardSurchargeFraction = 0,
   productsWithBrands,
@@ -228,6 +229,10 @@ export function EstimateForm({
   const [financialInstallation, setFinancialInstallation] = useState(
     initialInstallation ?? null,
   );
+  const depositWaived = Boolean(financialInstallation?.dealerMeasurementsAcceptedAt &&
+    financialInstallation.status !== "CANCELED");
+  const readOnly = initialReadOnly ||
+    !canEditInstallationBeforePayment(financialInstallation, estimate?.payments);
   const [isInstallationRequestEditing, setIsInstallationRequestEditing] =
     useState(false);
   const [customerChargesSummary, setCustomerChargesSummary] =
@@ -426,6 +431,7 @@ export function EstimateForm({
     }, [canUseCustomerPricing, getValues]);
 
   const saveEstimateHeader = useCallback(async (): Promise<boolean> => {
+    if (readOnly) return true;
     if (needsRecalculation) return true;
     if (!estimate?.id) {
       return true;
@@ -470,7 +476,7 @@ export function EstimateForm({
     );
 
     return saveTask;
-  }, [estimate?.id, trigger, buildEstimateHeaderPayload, needsRecalculation]);
+  }, [estimate?.id, trigger, buildEstimateHeaderPayload, needsRecalculation, readOnly]);
 
   useEffect(() => {
     if (!estimate?.id) {
@@ -1468,14 +1474,13 @@ export function EstimateForm({
         <PromotionBanner estimate={promotionEstimate} />
         {readOnly && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Material is read-only after the installation deposit starts.
-            Remeasurement changes are prepared in Operations and apply only
-            after your approval. Installation actions below remain available.
+            {depositWaived
+              ? "This installation is locked after payment starts or while a revision is in progress."
+              : "Material is read-only after the installation deposit starts. Remeasurement changes are prepared in Operations and apply only after your approval. Installation actions below remain available."}
           </div>
         )}
 
-        <fieldset
-          disabled={readOnly || needsRecalculation}
+        <div
           className="min-w-0 space-y-6 sm:space-y-8"
         >
           <div className="min-w-0 rounded-lg border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
@@ -1483,6 +1488,7 @@ export function EstimateForm({
               Details
             </h3>
 
+            <fieldset disabled={readOnly || needsRecalculation}>
             <EstimateDetailsLeft
               isEditMode={isEditMode}
               estimateNumber={estimate?.number}
@@ -1514,19 +1520,20 @@ export function EstimateForm({
                 setValue("customerTaxRate", v, { shouldDirty: true });
               }}
             />
+            </fieldset>
 
             {canUseCustomerPricing && (
-              <div className="mt-6 min-w-0">
+              <fieldset disabled={readOnly || needsRecalculation} className="mt-6 min-w-0">
                 <CustomerDetailsCard
                   register={register}
                   control={control}
                   errors={errors}
                 />
-              </div>
+              </fieldset>
             )}
           </div>
 
-          <div className="min-w-0 space-y-4">
+          <fieldset disabled={readOnly || needsRecalculation} className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-semibold">Pieces</h3>
               <Button type="button" variant="green" onClick={handleAddNewPiece}>
@@ -1573,8 +1580,8 @@ export function EstimateForm({
                 onMarkSave={handleSavePieceMark}
               />
             )}
-          </div>
-        </fieldset>
+          </fieldset>
+        </div>
 
         {isEditMode && estimate && currentUserId && (
           <InstallationEstimatePanel

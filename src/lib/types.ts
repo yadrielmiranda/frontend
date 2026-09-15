@@ -26,6 +26,7 @@ export interface User {
   markupOverride?: number | null;
   isTaxExempt: boolean;
   dealerMode?: DealerMode | null;
+  noInstallationDeposit?: boolean;
 
   isActive: boolean;
   deletedAt?: string | null;
@@ -481,7 +482,8 @@ export type InstallationJobStatus =
 export type InstallationQuoteReason =
   | "REMEASUREMENT"
   | "PERMIT_REVISION"
-  | "FIELD_CHANGE";
+  | "FIELD_CHANGE"
+  | "DEALER_MEASUREMENTS";
 
 export type InstallationQuoteStatus =
   | "DRAFT"
@@ -783,6 +785,9 @@ export interface InstallationJob {
   depositAmountSnapshot: string | number;
   depositTermsSnapshot?: string | null;
   depositTermsAcceptedAt?: string | null;
+  dealerMeasurementsAcceptedAt?: string | null;
+  dealerMeasurementsAcceptedById?: number | null;
+  dealerMeasurementsAcceptedBy?: { id: number; firstName: string; lastName: string } | null;
   cancellationReason?: string | null;
   requestedAt: string;
   updatedAt: string;
@@ -1486,6 +1491,7 @@ export interface CreateUserDto {
   isTaxExempt?: boolean;
   installationPriceProfileId?: number | null;
   dealerMode?: DealerMode;
+  noInstallationDeposit?: boolean;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto> & {

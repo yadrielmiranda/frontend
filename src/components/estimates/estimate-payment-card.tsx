@@ -254,7 +254,7 @@ export function EstimatePaymentCard({
 
     setBusy(true);
     try {
-      if (requiresDepositTerms && beforePayment && !(await beforePayment())) {
+      if ((requiresDepositTerms || installationJob?.dealerMeasurementsAcceptedAt) && beforePayment && !(await beforePayment())) {
         setBusy(false);
         return;
       }
@@ -438,7 +438,7 @@ export function EstimatePaymentCard({
             <p className="text-sm text-slate-600">
               Send this payment link to the final customer.
             </p>
-            <EstimatePaymentLinkActions estimateId={estimateId} showShare />
+            <EstimatePaymentLinkActions estimateId={estimateId} showShare beforeAction={beforePayment} />
           </div>
         ) : null}
 
@@ -451,7 +451,7 @@ export function EstimatePaymentCard({
               requiresDepositTerms && !depositTermsPreviouslyAccepted
             }
             depositTerms={installationJob?.depositTermsSnapshot}
-            beforeSubmit={requiresDepositTerms ? beforePayment : undefined}
+            beforeSubmit={requiresDepositTerms || installationJob?.dealerMeasurementsAcceptedAt ? beforePayment : undefined}
             label="Record verified payment"
             onRecorded={(payment) => {
               if (payment.order?.id) {

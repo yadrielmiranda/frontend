@@ -247,6 +247,11 @@ export const getInstallations = (query: InstallationListQuery = {}) =>
 export const getInstallation = (id: number) =>
   apiFetch<InstallationJob>(`/api/installations/${id}`);
 
+export const acceptDealerMeasurements = (id: number) =>
+  apiFetch<InstallationJob>(`/api/payments/installations/${id}/accept-dealer-measurements`, {
+    method: "POST",
+  });
+
 export async function getEstimateInstallation(
   estimateId: number,
 ): Promise<InstallationJob | null> {

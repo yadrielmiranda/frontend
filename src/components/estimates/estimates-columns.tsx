@@ -57,7 +57,7 @@ export const getEstimateStatusName = (
       MEASUREMENT_SCHEDULING: "Awaiting remeasurement schedule",
       MEASUREMENT_SCHEDULED: "Remeasurement scheduled",
       MEASUREMENT_PENDING: "Awaiting remeasurement",
-      QUOTE_DRAFT: "Remeasurement or revision in progress",
+      QUOTE_DRAFT: "Installation quote under review",
       ADMIN_APPROVAL_PENDING: "Awaiting internal approval",
       CUSTOMER_APPROVAL_PENDING: "Awaiting customer approval",
       APPROVED: "Installation approved",

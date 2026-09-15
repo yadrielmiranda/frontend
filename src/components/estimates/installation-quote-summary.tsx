@@ -89,6 +89,11 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
               -{formatMoney(depositPaid)}
             </span>
           </>
+        ) : job.dealerMeasurementsAcceptedAt ? (
+          <>
+            <span className="text-slate-500">Installation deposit</span>
+            <span className="text-right">Waived</span>
+          </>
         ) : Number(job.depositAmountSnapshot ?? 0) > 0 ? (
           <>
             <span className="text-slate-500">Non-refundable deposit due</span>

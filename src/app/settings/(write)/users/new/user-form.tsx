@@ -157,6 +157,7 @@ export function UserForm({
       markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
       dealerMode: user?.dealerMode ?? "EXTERNAL",
+      noInstallationDeposit: user?.noInstallationDeposit ?? false,
     },
   });
 
@@ -253,6 +254,7 @@ export function UserForm({
             idRole: Number(data.idRole),
             markupOverride: markupValue,
             isTaxExempt: data.isTaxExempt ?? false,
+            noInstallationDeposit: isDealerAccount && data.noInstallationDeposit === true,
             ...(isDealerAccount
               ? {
                   dealerMode: data.dealerMode,
@@ -286,6 +288,7 @@ export function UserForm({
           password: data.password,
           idRole: Number(data.idRole),
           isTaxExempt: data.isTaxExempt,
+          noInstallationDeposit: isDealerAccount && data.noInstallationDeposit === true,
           installationPriceProfileId: data.installationPriceProfileId,
           ...(isDealerAccount
             ? {
@@ -528,6 +531,33 @@ export function UserForm({
                 </Select>
               )}
             />
+          </div>
+        )}
+
+        {!isProfilePage && isDealerAccount && (
+          <div className="md:col-span-2 flex items-start gap-3 rounded-lg border bg-slate-50 p-4">
+            <Controller
+              name="noInstallationDeposit"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  id="noInstallationDeposit"
+                  checked={!!field.value}
+                  onCheckedChange={(value) => field.onChange(value === true)}
+                  className="mt-1 h-5 w-5 shrink-0"
+                />
+              )}
+            />
+            <div>
+              <Label htmlFor="noInstallationDeposit" className="font-semibold">
+                No installation deposit
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                New installation requests use the estimate measurements and price
+                without a deposit, remeasurement visit or quote approvals.
+                The full installation amount remains due.
+              </p>
+            </div>
           </div>
         )}
 
