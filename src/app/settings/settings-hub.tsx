@@ -216,6 +216,15 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
   ];
 
   const pricingItems: SettingsItem[] = [
+    {
+      title: "Payment Plans",
+      description: "Configure installments and assign plans by role or user.",
+      href: "/settings/payment-plans",
+      icon: BadgeDollarSign,
+      show: isAdmin,
+      color: "bg-blue-50 text-blue-600",
+    },
+
     {title:"Promotions", description:"Manage material promotions.", href:"/settings/promotions", icon:CircleDollarSign, color:"bg-blue-50 text-blue-600", show:isAdmin},
     {
       title: "Roles & Markups",

@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { canEditInstallationBeforePayment, hasStartedInstallationPayment, installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
-import { EstimateRevisionSummary } from "./estimate-revision-summary";
+import { EstimateRevisionDialog } from "./estimate-revision-dialog";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
 import {
@@ -93,6 +93,7 @@ export function InstallationEstimatePanel({
   refreshKey,
   beforeRequest,
   onJobChange,
+  onQuoteApproved,
   onRequestEditingChange,
 }: {
   estimateId: number;
@@ -109,6 +110,7 @@ export function InstallationEstimatePanel({
   refreshKey: string;
   beforeRequest?: () => Promise<boolean>;
   onJobChange?: (job: InstallationJob | null) => void;
+  onQuoteApproved?: () => Promise<void>;
   onRequestEditingChange?: (isEditing: boolean) => void;
 }) {
   const [job, setJob] = useState<InstallationJob | null>(initialJob);
@@ -624,6 +626,7 @@ export function InstallationEstimatePanel({
 
   const decide = async (decision: "APPROVED" | "REJECTED") => {
     setBusy(true);
+    let decisionSaved = false;
     try {
       commitJob(
         await decideInstallationQuoteAsCustomer(
@@ -632,14 +635,20 @@ export function InstallationEstimatePanel({
           decisionComment.trim() || undefined,
         ),
       );
+      decisionSaved = true;
       setDecisionComment("");
+      if (decision === "APPROVED") await onQuoteApproved?.();
       toast.success(
         decision === "APPROVED"
           ? "Estimate revision and installation quote approved."
           : "Estimate revision and installation quote rejected.",
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(
+        decisionSaved
+          ? "The changes were approved, but the estimate could not be refreshed. Reload this page."
+          : (error as Error).message,
+      );
     } finally {
       setBusy(false);
     }
@@ -718,9 +727,9 @@ export function InstallationEstimatePanel({
         {latestRevision &&
           latestRevision.status !== "DRAFT" &&
           latestRevision.status !== "SUPERSEDED" && (
-            <EstimateRevisionSummary
+            <EstimateRevisionDialog
               revision={latestRevision}
-              showFinancials={false}
+              job={job}
             />
           )}
 
@@ -794,6 +803,7 @@ export function InstallationEstimatePanel({
               <Button
                 type="button"
                 variant="outline"
+                className="border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800 focus-visible:border-red-400 focus-visible:ring-red-200"
                 disabled={busy}
                 onClick={() => respondToRemeasurement("REQUEST_RESCHEDULE")}
               >
@@ -801,6 +811,8 @@ export function InstallationEstimatePanel({
               </Button>
               <Button
                 type="button"
+                variant="outline"
+                className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:border-emerald-400 focus-visible:ring-emerald-200"
                 disabled={busy}
                 onClick={() => respondToRemeasurement("ACCEPT")}
               >
@@ -828,8 +840,9 @@ export function InstallationEstimatePanel({
                     : "Approve remeasurement and installation"}
                 </strong>
                 <p className="text-xs text-muted-foreground">
-                  Review the updated material and installation amounts in the
-                  Estimate Summary below.
+                  {latestRevision
+                    ? "Use View changes above to compare the original and revised measurements and prices before approving."
+                    : "Review the updated material and installation amounts in the Estimate Summary below."}
                 </p>
               </div>
               <Textarea

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Eye, Loader2, RefreshCw } from "lucide-react";
 
 import {
+  getEstimate,
   getEstimateDiscount,
   addEstimatePiece,
   applyBulkPieceAttribute,
@@ -45,7 +46,6 @@ import type {
 import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
 import { EstimateDetailsLeft } from "./estimate-details-left";
 import { ManualDiscountEditor } from "./manual-discount-editor";
-import type { EstimateDiscountConfig, EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { EstimateFinancialSummary } from "./estimate-financial-summary";
 import { EstimatePaymentCard } from "./estimate-payment-card";
 import { PiecesDealerTable } from "./pieces-dealer-table";
@@ -201,7 +201,11 @@ export function EstimateForm({
   muntinPatterns,
   muntinTypes,
 }: EstimateFormProps) {
-  const [discountData, setDiscountData] = useState<{ config: EstimateDiscountConfig | null; summary: EstimateDiscountSummary | null }>({ config: estimate?.manualDiscount ?? null, summary: estimate?.manualDiscountSummary ?? null });
+  const [discountData, setDiscountData] = useState<Awaited<ReturnType<typeof getEstimateDiscount>>>({
+    config: estimate?.manualDiscount ?? null,
+    summary: estimate?.manualDiscountSummary ?? null,
+    paymentSchedule: initialInstallation?.paymentSchedule ?? estimate?.paymentSchedule ?? null,
+  });
   const [discountDirty, setDiscountDirty] = useState(false);
   const [discountLoading, setDiscountLoading] = useState(false);
   const [discountError, setDiscountError] = useState(false);
@@ -454,7 +458,8 @@ export function EstimateForm({
         }
 
         try {
-          await updateEstimateHeader(estimate.id, payload);
+          const updatedEstimate = await updateEstimateHeader(estimate.id, payload);
+          setPromotionEstimate(updatedEstimate);
 
           lastSavedHeaderRef.current = serializedPayload;
 
@@ -540,6 +545,21 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
+
+  const refreshAfterQuoteApproval = async () => {
+    if (!estimate?.id) return;
+    const updated = await getEstimate(estimate.id);
+    // Actualiza el formulario controlado; refrescar la ruta no sustituye
+    // los valores iniciales de react-hook-form.
+    replace(updated.pieces.map(mapEstimatePieceToForm));
+    setPromotionEstimate(updated);
+    setCustomerChargesSummary(updated.customerChargesSummary ?? null);
+    setDiscountData({
+      config: updated.manualDiscount ?? null,
+      summary: updated.manualDiscountSummary ?? null,
+      paymentSchedule: updated.paymentSchedule ?? null,
+    });
+  };
 
   const handleViewDetails = async () => {
     if (!estimate?.id || isOpeningDetails) {
@@ -888,13 +908,19 @@ export function EstimateForm({
     if (!estimate?.id) return;
     let active = true;
     setDiscountLoading(true);
+    // El calendario se actualiza con los mismos importes guardados que el
+    // descuento, incluso si el estimado se abrió vacío o no tiene instalación.
     getEstimateDiscount(estimate.id).then(data => {
       if (active) { setDiscountData(data); setDiscountError(false); }
     }).catch(() => { if (active) setDiscountError(true); }).finally(() => { if (active) setDiscountLoading(false); });
     return () => { active = false; };
   }, [estimate?.id, discountRefreshKey]);
   const onDiscountSaved = (updated: EstimateWithRelations) => {
-    setDiscountData({ config: updated.manualDiscount ?? null, summary: updated.manualDiscountSummary ?? null });
+    setDiscountData({
+      config: updated.manualDiscount ?? null,
+      summary: updated.manualDiscountSummary ?? null,
+      paymentSchedule: updated.paymentSchedule ?? null,
+    });
     setPromotionEstimate(updated);
     setDiscountDirty(false);
     router.refresh();
@@ -1600,6 +1626,7 @@ export function EstimateForm({
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
             onJobChange={setFinancialInstallation}
+            onQuoteApproved={refreshAfterQuoteApproval}
             onRequestEditingChange={setIsInstallationRequestEditing}
           />
         )}
@@ -1651,6 +1678,7 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <EstimatePaymentCard
+            paymentSchedule={discountData.paymentSchedule}
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
             ownerRole={ownerRole}

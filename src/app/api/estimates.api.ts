@@ -304,7 +304,11 @@ export function deleteEstimateCustomerCharge(
 }
 
 export function getEstimateDiscount(id: number) {
-  return apiFetch<{ config: import('@/lib/estimate-discount').EstimateDiscountConfig | null; summary: import('@/lib/estimate-discount').EstimateDiscountSummary | null }>(`/api/estimates/${id}/discount`, { cache: 'no-store' });
+  return apiFetch<{
+    config: import('@/lib/estimate-discount').EstimateDiscountConfig | null;
+    summary: import('@/lib/estimate-discount').EstimateDiscountSummary | null;
+    paymentSchedule: import('@/lib/payment-plan').PaymentSchedule | null;
+  }>(`/api/estimates/${id}/discount`, { cache: 'no-store' });
 }
 export function updateEstimateDiscount(id: number, body: { scope?: import('@/lib/estimate-discount').EstimateDiscountScope; type?: 'PERCENTAGE' | 'AMOUNT'; value: number }) {
   return apiFetch<EstimateWithRelations>(`/api/estimates/${id}/discount`, { method: 'PATCH', body });

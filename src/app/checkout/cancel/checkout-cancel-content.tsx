@@ -33,7 +33,7 @@ export default function CheckoutCancelContent() {
 
   const paymentType = useMemo<PaymentType>(() => {
     const value = params.get("type");
-    return value === "INSTALLATION_DEPOSIT" ||
+    return value === "INSTALLMENT" || value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
       value === "DELIVERY" ||
@@ -49,7 +49,7 @@ export default function CheckoutCancelContent() {
 
   const handleContinuePayment = async () => {
     if (!estimateId || isLoading) return;
-    if (paymentType === "MATERIAL" && user?.role.name === "client") {
+    if ((paymentType === "MATERIAL" || (paymentType === "INSTALLMENT" && sequence === 1)) && user?.role.name === "client") {
       router.push(`/estimates/${estimateId}/edit`);
       return;
     }
@@ -100,7 +100,7 @@ export default function CheckoutCancelContent() {
         toast.success("Payment confirmed.");
 
         if (
-          (paymentType === "MATERIAL" || paymentType === "DELIVERY") &&
+          (paymentType === "MATERIAL" || paymentType === "INSTALLMENT" || paymentType === "DELIVERY") &&
           result.orderId
         ) {
           router.replace(`/orders/${result.orderId}`);
@@ -122,7 +122,9 @@ export default function CheckoutCancelContent() {
       }
 
       toast.success("Payment canceled.");
-      if (paymentType === "DELIVERY" && result.orderId) {
+      if (paymentType === "INSTALLMENT") {
+        router.replace(result.orderId ? `/orders/${result.orderId}` : `/estimates/${estimateId}/edit`);
+      } else if (paymentType === "DELIVERY" && result.orderId) {
         router.replace(`/orders/${result.orderId}`);
       } else if (
         paymentType === "MATERIAL" ||
@@ -174,7 +176,7 @@ export default function CheckoutCancelContent() {
         <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <p>
             If completed, this deposit is non-refundable and will be credited
-            in full toward the installation balance.
+            in full toward your project balance.
           </p>
           <label className="flex items-start gap-3">
             <Checkbox
@@ -200,7 +202,7 @@ export default function CheckoutCancelContent() {
         >
           {currentAction === "continuing"
             ? "Returning to Checkout..."
-            : paymentType === "MATERIAL" && user?.role.name === "client"
+            : (paymentType === "MATERIAL" || (paymentType === "INSTALLMENT" && sequence === 1)) && user?.role.name === "client"
               ? "Review estimate"
               : "Continue Payment"}
         </Button>

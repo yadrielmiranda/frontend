@@ -1,12 +1,14 @@
+import { getPaymentPlans } from "@/app/api/payment-plans.api";
 // src/app/settings/(write)/roles/page.tsx
 import { getRoles } from "@/app/api/roles.api";
 import { RolesClient } from "./roles-client";
 import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function RolesPage() {
-  const [roles, profiles] = await Promise.all([
+  const [roles, profiles, paymentPlans] = await Promise.all([
     getRoles(),
     getInstallationProfiles(false),
+    getPaymentPlans(),
   ]);
 
   return (
@@ -17,7 +19,7 @@ export default async function RolesPage() {
       </div>
 
       <div className="container mx-auto py-10">
-        <RolesClient initialRoles={roles} profiles={profiles} />
+        <RolesClient initialRoles={roles} profiles={profiles} paymentPlans={paymentPlans} />
       </div>
     </div>
   );

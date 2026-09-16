@@ -61,10 +61,10 @@ export function installationStageLabelFromStatus(
     APPROVED: "Approved",
     PERMIT_PAYMENT_PENDING: "Awaiting permit payment",
     PERMIT_PROCESSING: "Permit processing",
-    MATERIAL_PAYMENT_PENDING: "Awaiting material + City Fee payment",
-    MATERIAL_PAID: "Material paid",
-    INSTALLATION_PAYMENT_PENDING: "Awaiting installation payment",
-    INSTALLATION_PAID: "Installation paid — awaiting schedule",
+    MATERIAL_PAYMENT_PENDING: "Awaiting order payment",
+    MATERIAL_PAID: "Order placed",
+    INSTALLATION_PAYMENT_PENDING: "Awaiting required payment",
+    INSTALLATION_PAID: "Ready to schedule installation",
     SCHEDULING: "Scheduling",
     SCHEDULED: "Installation scheduled",
     IN_PROGRESS: "Installation in progress",
@@ -75,6 +75,13 @@ export function installationStageLabelFromStatus(
 }
 
 export function installationStageLabel(job: InstallationJob): string {
+  if (job.paymentSchedule) {
+    if (job.status === "MATERIAL_PAYMENT_PENDING") return "Awaiting first order installment";
+    if (job.status === "MATERIAL_PAID") return "Order placed";
+    if (job.status === "INSTALLATION_PAYMENT_PENDING") return "Awaiting required installments";
+    if (job.status === "INSTALLATION_PAID") return "Ready to schedule installation";
+    if (job.status === "COMPLETED" && Number(job.paymentSchedule.balance) > 0) return "Installed · Balance due";
+  }
   return installationStageLabelFromStatus(
     job.status,
     job.quotes[0]?.approvalReason,
@@ -82,6 +89,7 @@ export function installationStageLabel(job: InstallationJob): string {
 }
 
 export function paymentTypeLabel(type: PaymentType): string {
+  if (type === "INSTALLMENT") return "Project installment";
   if (type === "INSTALLATION_DEPOSIT") {
     return "Installation deposit (non-refundable)";
   }

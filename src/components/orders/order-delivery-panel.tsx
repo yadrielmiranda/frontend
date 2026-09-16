@@ -42,6 +42,7 @@ import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
+import { OrderPaymentSection } from "./order-payment-section";
 
 const deliveryName = (type: DeliveryType) => {
   if (type === "INSTALLATION_OVERRIDE") return "Delivery with installation";
@@ -57,6 +58,7 @@ const displayDateTime = (value: string) =>
   }).format(new Date(value));
 
 export function OrderDeliveryPanel({
+  paymentTarget,
   order,
   installation,
   isOwner,
@@ -65,6 +67,7 @@ export function OrderDeliveryPanel({
   cardSurchargeFraction,
   canRecordManualPayment,
 }: {
+  paymentTarget: HTMLDivElement | null;
   order: OrderWithRelations;
   installation: InstallationJob | null;
   isOwner: boolean;
@@ -288,6 +291,7 @@ export function OrderDeliveryPanel({
   };
 
   const ready = order.status.name === "Ready to pick up";
+  const releaseBlocked = order.paymentSchedule?.canRelease === false;
   const activePrimaryDelivery = deliveries.some(
     (delivery) =>
       delivery.type !== "REDELIVERY" && delivery.status !== "CANCELED",
@@ -315,6 +319,11 @@ export function OrderDeliveryPanel({
         </div>
       </div>
 
+      {releaseBlocked && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          Pay the installments required for material release before pickup or delivery.
+        </p>
+      )}
       {installationActive && (
         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <strong className="block">Delivery included with installation</strong>
@@ -349,7 +358,7 @@ export function OrderDeliveryPanel({
                   </Button>
                 )}
                 {isPrivileged && (
-                  <Button disabled={busy} onClick={() => void finishPickup()}>
+                  <Button disabled={busy || releaseBlocked} onClick={() => void finishPickup()}>
                     <PackageCheck className="h-4 w-4" /> Complete pickup
                   </Button>
                 )}
@@ -636,48 +645,78 @@ export function OrderDeliveryPanel({
                 </p>
               )}
 
-              {isOwner &&
-                order.dealerModeSnapshot !== "INTERNAL" &&
-                delivery.status === "PAYMENT_DUE" && (
-                  <div className="mt-4 space-y-2">
-                    <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
-                      <div className="flex items-center justify-between gap-3 font-semibold">
-                        <span>Card charge total</span>
-                        <span>{formatMoney(cardBreakdown.totalAmount)}</span>
+              {delivery.status === "PAYMENT_DUE" && (isOwner || canRecordManualPayment) && (
+                <OrderPaymentSection
+                  target={paymentTarget}
+                  title={`${deliveryName(delivery.type)} #${delivery.sequence}`}
+                  description={`${delivery.destinationStreet}, ${delivery.destinationCity}, ${delivery.destinationState} ${delivery.destinationPostalCode}`}
+                  amount={Number(delivery.total)}
+                >
+                  {isOwner &&
+                    order.dealerModeSnapshot !== "INTERNAL" &&
+                    delivery.status === "PAYMENT_DUE" && (
+                      <div className="mt-4 space-y-2">
+                        <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3 font-semibold">
+                            <span>Card charge total</span>
+                            <span>{formatMoney(cardBreakdown.totalAmount)}</span>
+                          </div>
+                          <CardFeeBreakdown
+                            breakdown={cardBreakdown}
+                            className="mt-2"
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          disabled={busy}
+                          onClick={() => void payDelivery(delivery)}
+                        >
+                          <CreditCard className="h-4 w-4" />{" "}
+                          {activeCheckout
+                            ? "Resume delivery payment"
+                            : "Pay delivery"}
+                          {" · "}
+                          {formatMoney(cardBreakdown.totalAmount)}
+                        </Button>
                       </div>
-                      <CardFeeBreakdown
-                        breakdown={cardBreakdown}
-                        className="mt-2"
+                    )}
+
+                  {isOwner &&
+                    order.dealerModeSnapshot === "INTERNAL" &&
+                    delivery.status === "PAYMENT_DUE" && (
+                      <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                        <p>Send the payment link to the final customer.</p>
+                        <EstimatePaymentLinkActions
+                          estimateId={order.idEst}
+                          estimateNumber={order.estimate.number}
+                          showShare
+                          size="sm"
+                        />
+                      </div>
+                    )}
+
+                  {canRecordManualPayment && delivery.status === "PAYMENT_DUE" && (
+                    <div className="mt-4 flex justify-end">
+                      <ManualPaymentDialog
+                        estimateId={order.idEst}
+                        type="DELIVERY"
+                        sequence={delivery.sequence}
+                        amount={Number(delivery.total)}
+                        label="Record delivery payment"
+                        onRecorded={(payment) => {
+                          replaceDelivery({
+                            ...delivery,
+                            status: "READY_TO_SCHEDULE",
+                            paidAt: payment.paidAt ?? new Date().toISOString(),
+                            payment,
+                          });
+                          router.refresh();
+                        }}
                       />
                     </div>
-                    <Button
-                      className="w-full"
-                      disabled={busy}
-                      onClick={() => void payDelivery(delivery)}
-                    >
-                      <CreditCard className="h-4 w-4" />{" "}
-                      {activeCheckout
-                        ? "Resume delivery payment"
-                        : "Pay delivery"}
-                      {" · "}
-                      {formatMoney(cardBreakdown.totalAmount)}
-                    </Button>
-                  </div>
-                )}
-
-              {isOwner &&
-                order.dealerModeSnapshot === "INTERNAL" &&
-                delivery.status === "PAYMENT_DUE" && (
-                  <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                    <p>Send the payment link to the final customer.</p>
-                    <EstimatePaymentLinkActions
-                      estimateId={order.idEst}
-                      estimateNumber={order.estimate.number}
-                      showShare
-                      size="sm"
-                    />
-                  </div>
-                )}
+                  )}
+                </OrderPaymentSection>
+              )}
 
               {activeCheckout && delivery.status === "PAYMENT_DUE" && (
                 <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
@@ -715,27 +754,6 @@ export function OrderDeliveryPanel({
                 </div>
               )}
 
-              {canRecordManualPayment && delivery.status === "PAYMENT_DUE" && (
-                <div className="mt-4 flex justify-end">
-                  <ManualPaymentDialog
-                    estimateId={order.idEst}
-                    type="DELIVERY"
-                    sequence={delivery.sequence}
-                    amount={Number(delivery.total)}
-                    label="Record delivery payment"
-                    onRecorded={(payment) => {
-                      replaceDelivery({
-                        ...delivery,
-                        status: "READY_TO_SCHEDULE",
-                        paidAt: payment.paidAt ?? new Date().toISOString(),
-                        payment,
-                      });
-                      router.refresh();
-                    }}
-                  />
-                </div>
-              )}
-
               {isPrivileged &&
                 delivery.type !== "INSTALLATION_OVERRIDE" &&
                 ["READY_TO_SCHEDULE", "SCHEDULED"].includes(
@@ -761,13 +779,13 @@ export function OrderDeliveryPanel({
                       </div>
                       <Button
                         variant="outline"
-                        disabled={busy}
+                        disabled={busy || releaseBlocked}
                         onClick={() => void schedule(delivery)}
                       >
                         Schedule
                       </Button>
                       <Button
-                        disabled={busy}
+                        disabled={busy || releaseBlocked}
                         onClick={() => void complete(delivery)}
                       >
                         Complete delivery

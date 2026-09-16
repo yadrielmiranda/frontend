@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import type { OrderWithRelations } from "@/lib/types";
@@ -23,20 +22,10 @@ export function OrderMaterialPanel({ order }: { order: OrderWithRelations }) {
   const materialTotal = roundMoney(materialSubtotal + taxAmount);
 
   return (
-    <section className="rounded-xl border bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Materials</h2>
-          <p className="text-sm text-muted-foreground">
-            {finalCustomerPays
-              ? "Final-customer material sale for this internal dealer order."
-              : "Material sale recorded when the order was created."}
-          </p>
-        </div>
-        <Badge>Material paid</Badge>
-      </div>
+    <section className="min-w-0 overflow-hidden rounded-lg border bg-white">
+      <h2 className="bg-slate-50 px-4 py-3 text-sm font-semibold">Materials</h2>
 
-      <div className="ml-auto mt-4 grid max-w-md grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 p-4 text-sm">
         {discount > 0 && <><span>Before promotion</span><span className="text-right"><OriginalPrice amount={materialSubtotal + manualNetDiscount + discount} /></span><span>Promotion discount</span><span className="text-right text-red-700">−{formatMoney(discount)}</span></>}
         {manualNetDiscount > 0 && discount === 0 && <><span>Before additional discount</span><span className="text-right"><OriginalPrice amount={materialSubtotal + manualNetDiscount} label="Before discount" /></span></>}
         {manualNetDiscount > 0 && <><span>Additional discount</span><span className="text-right text-emerald-700">−{formatMoney(manualNetDiscount)}</span></>}
@@ -59,11 +48,6 @@ export function OrderMaterialPanel({ order }: { order: OrderWithRelations }) {
           {formatMoney(materialTotal)}
         </strong>
       </div>
-
-      <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
-        Installation, permit and City Fee, extra charges, and card-processing
-        fees are excluded from this material total.
-      </p>
     </section>
   );
 }

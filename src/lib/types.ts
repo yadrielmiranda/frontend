@@ -4,6 +4,8 @@ export interface Role {
   id: number;
   name: string;
   markup: number;
+  paymentPlanId?: number | null;
+  paymentPlan?: import("./payment-plan").PaymentPlan | null;
   installationPriceProfileId?: number | null;
   installationPriceProfile?: InstallationPriceProfile | null;
 }
@@ -33,6 +35,8 @@ export interface User {
 
   idRole: number;
   role: Role;
+  paymentPlanId?: number | null;
+  paymentPlan?: import("./payment-plan").PaymentPlan | null;
   installationPriceProfileId?: number | null;
   installationPriceProfile?: InstallationPriceProfile | null;
 }
@@ -342,6 +346,7 @@ export interface EstimateStatus {
 }
 
 export type PaymentType =
+  | "INSTALLMENT"
   | "MATERIAL"
   | "INSTALLATION_DEPOSIT"
   | "PERMIT"
@@ -390,6 +395,8 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  paymentPlanSnapshot?: unknown;
+  paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
   manualDiscount?: import("./estimate-discount").EstimateDiscountConfig | null;
   manualDiscountSummary?: import("./estimate-discount").EstimateDiscountSummary | null;
   customerPromotionsVisible?: boolean;
@@ -778,6 +785,8 @@ export interface InstallationAppointment {
 }
 
 export interface InstallationJob {
+  revisionComparison?: InstallationRevisionComparison | null;
+  paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
   manualDiscountSummary?: import("./estimate-discount").EstimateDiscountSummary | null;
   id: number;
   estimateId: number;
@@ -802,6 +811,30 @@ export interface InstallationJob {
   payments: EstimatePayment[];
   appointments: InstallationAppointment[];
   revisions: EstimateRevision[];
+}
+
+export interface InstallationRevisionAmounts {
+  units: number;
+  materialSubtotal: string;
+  materialTax: string;
+  materialTotal: string;
+  installationTotal: string | null;
+  permitFee: string | null;
+  cityFee: string | null;
+  projectTotal: string | null;
+  discountApplied: boolean;
+}
+
+export interface InstallationRevisionComparison {
+  revisionId: number;
+  originalQuoteId: number | null;
+  revisedQuoteId: number;
+  accountCost: boolean;
+  includesPermit: boolean;
+  cityFeePending: boolean;
+  original: InstallationRevisionAmounts;
+  revised: InstallationRevisionAmounts;
+  difference: string | null;
 }
 
 export interface EstimateInstallationReportSummary {
@@ -1315,6 +1348,7 @@ export type EstimateWithRelations = Estimate & {
 };
 
 export type OrderWithRelations = Order & {
+  paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
   estimate: Estimate;
   status: OrderStatus;
   user: User;
@@ -1489,6 +1523,7 @@ export interface CreateUserDto {
   password: string;
   idRole: number;
   isTaxExempt?: boolean;
+  paymentPlanId?: number | null;
   installationPriceProfileId?: number | null;
   dealerMode?: DealerMode;
   noInstallationDeposit?: boolean;

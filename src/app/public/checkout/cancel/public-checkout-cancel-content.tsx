@@ -19,7 +19,7 @@ export default function PublicCheckoutCancelContent() {
   const agreementId = params.get("agreementId") ?? undefined;
   const paymentType = useMemo<PaymentType>(() => {
     const value = params.get("type");
-    return value === "INSTALLATION_DEPOSIT" ||
+    return value === "INSTALLMENT" || value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
       value === "DELIVERY" ||

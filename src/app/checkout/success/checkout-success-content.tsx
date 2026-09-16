@@ -28,7 +28,7 @@ export default function CheckoutSuccessContent() {
 
   const paymentType = useMemo<PaymentType>(() => {
     const value = params.get("type");
-    return value === "INSTALLATION_DEPOSIT" ||
+    return value === "INSTALLMENT" || value === "INSTALLATION_DEPOSIT" ||
       value === "PERMIT" ||
       value === "INSTALLATION" ||
       value === "DELIVERY" ||
@@ -82,6 +82,15 @@ export default function CheckoutSuccessContent() {
           return;
         }
 
+        if (paymentType === "INSTALLMENT") {
+          const paid = est.payments?.some(payment => payment.type === 'INSTALLMENT' && payment.sequence === sequence && payment.status === 'PAID');
+          if (paid && est.order?.id) {
+            if (!alive || redirectedRef.current) return;
+            redirectedRef.current = true; setStatus('done'); setOrderId(est.order.id);
+            toast.success('Installment payment confirmed.'); router.replace(`/orders/${est.order.id}`); return;
+          }
+          setAttempt(value => value + 1); return;
+        }
         if (paymentType !== "MATERIAL") {
           const installation = await getEstimateInstallation(estimateId);
           const paid = installation?.payments.some(

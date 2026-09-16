@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { paidBaseFor, paidInstallationCredit } from "@/lib/installation-flow";
+import { additionalServiceTotals } from "@/lib/installation-service-totals";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
 import { DealerProfitSummary } from "./dealer-profit-summary";
 import {
@@ -47,12 +48,6 @@ type MaterialTotals = {
   total: number;
 };
 
-type AdditionalServiceTotal = {
-  serviceId: number;
-  name: string;
-  amount: number;
-};
-
 const pendingRevisionStatuses = new Set([
   "PENDING_ADMIN_APPROVAL",
   "PENDING_CUSTOMER_APPROVAL",
@@ -76,60 +71,6 @@ function pendingRevisionTotals(
   return revision && pendingRevisionStatuses.has(revision.status)
     ? revision.revisedTotals
     : null;
-}
-
-function additionalServiceTotals(
-  quote: InstallationQuote | null,
-): AdditionalServiceTotal[] {
-  if (!quote) return [];
-  if (quote.additionalServices) {
-    return quote.additionalServices.map((service) => ({ ...service, amount: numberValue(service.amount) }));
-  }
-
-  const automaticServiceIds = new Set(
-    quote.lines
-      .filter((line) => line.origin === "AUTO")
-      .map((line) => line.serviceId),
-  );
-  const grouped = new Map<number, AdditionalServiceTotal>();
-
-  for (const line of quote.lines) {
-    if (line.origin !== "USER_SELECTED" && line.origin !== "FIELD_ADDED") {
-      continue;
-    }
-
-    const current = grouped.get(line.serviceId);
-    const amount = numberValue(line.adjustedAmount);
-
-    if (current) {
-      current.amount = roundMoney(current.amount + amount);
-    } else {
-      grouped.set(line.serviceId, {
-        serviceId: line.serviceId,
-        name: line.serviceNameSnapshot,
-        amount: roundMoney(amount),
-      });
-    }
-  }
-
-  const minimums = Array.isArray(quote.serviceMinimumsSnapshot)
-    ? quote.serviceMinimumsSnapshot
-    : [];
-
-  for (const minimum of minimums) {
-    const current = grouped.get(Number(minimum.serviceId));
-
-    // A service minimum that belongs exclusively to a manual service is part
-    // of that displayed extra charge. Shared/automatic adjustments stay in
-    // the single Installation amount below.
-    if (current && !automaticServiceIds.has(current.serviceId)) {
-      current.amount = roundMoney(
-        current.amount + numberValue(minimum.adjustment),
-      );
-    }
-  }
-
-  return Array.from(grouped.values());
 }
 
 function SummaryRow({
@@ -638,13 +579,20 @@ export function EstimateFinancialSummary({
               {activeJob && (
                 <>
                   {extras.length > 0 ? (
-                    extras.map((service) => (
-                      <SummaryRow
-                        key={service.serviceId}
-                        label={service.name}
-                        value={formatMoney(service.amount)}
-                      />
-                    ))
+                    <div className="mt-1 border-t pt-1">
+                      <p className="py-1.5 text-sm font-semibold">
+                        Additional services
+                      </p>
+                      <div className="border-l-2 border-slate-200 pl-3">
+                        {extras.map((service) => (
+                          <SummaryRow
+                            key={service.serviceId}
+                            label={service.name}
+                            value={formatMoney(service.amount)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ) : (
                     <SummaryRow
                       label="Additional services"
@@ -754,7 +702,7 @@ export function EstimateFinancialSummary({
           />
         )}
 
-        {activeJob && (
+        {activeJob && !activeJob.paymentSchedule && (
           <div className="rounded-lg border px-4 py-3">
             <h4 className="mb-1 text-sm font-semibold">Payment status</h4>
 

@@ -198,6 +198,15 @@ export function SettingsMenuItems({
 
       {isAdmin && (
         <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/payment-plans">
+            <BadgeDollarSign className={iconClass} />
+            Payment Plans
+          </Link>
+        </DropdownMenuItem>
+      )}
+
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
           <Link href="/settings/promotions">
             <CircleDollarSign className={iconClass} />
             Promotions

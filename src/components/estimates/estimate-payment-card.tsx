@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentScheduleView } from "@/components/payments/payment-schedule";
+import type { PaymentSchedule } from "@/lib/payment-plan";
 import type { EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,11 +27,12 @@ import { getCardPaymentBreakdown } from "@/lib/card-payment";
 
 type CheckoutPaymentType = Extract<
   PaymentType,
-  "INSTALLATION_DEPOSIT" | "PERMIT" | "MATERIAL" | "INSTALLATION"
+  "INSTALLMENT" | "INSTALLATION_DEPOSIT" | "PERMIT" | "MATERIAL" | "INSTALLATION"
 >;
 
 type PaymentAction = {
   type: CheckoutPaymentType;
+  sequence?: number;
   title: string;
   description: string;
   amount: number;
@@ -46,6 +49,7 @@ export function resolveEstimatePaymentAction({
   materialAmount,
   allowNoCharge = false,
   manualDiscount,
+  paymentSchedule,
 }: {
   estimateStatus: string;
   order: Order | null;
@@ -54,6 +58,7 @@ export function resolveEstimatePaymentAction({
   materialAmount: number;
   allowNoCharge?: boolean;
   manualDiscount?: EstimateDiscountSummary | null;
+  paymentSchedule?: PaymentSchedule | null;
 }): PaymentAction | null {
   manualDiscount = manualDiscount ?? installationJob?.manualDiscountSummary;
   materialAmount = Number(manualDiscount?.material.total ?? materialAmount);
@@ -61,6 +66,11 @@ export function resolveEstimatePaymentAction({
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
       : null;
+
+  if (paymentSchedule && !['DEPOSIT_PAYMENT_PENDING','PERMIT_PAYMENT_PENDING'].includes(activeJob?.status ?? '')) {
+    const next = paymentSchedule.next;
+    return next ? { type: 'INSTALLMENT', sequence: next.sequence, title: next.title, description: next.description, amount: Number(next.balance) } : null;
+  }
 
   if (!activeJob) {
     const materialPaid = materialPayments.some(
@@ -158,6 +168,7 @@ export function EstimatePaymentCard({
   materialAmount,
   allowNoCharge = false,
   manualDiscount,
+  paymentSchedule,
   dealerMode,
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
@@ -176,6 +187,7 @@ export function EstimatePaymentCard({
   materialAmount: number;
   allowNoCharge?: boolean;
   manualDiscount?: EstimateDiscountSummary | null;
+  paymentSchedule?: PaymentSchedule | null;
   dealerMode?: DealerMode | null;
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
@@ -191,7 +203,7 @@ export function EstimatePaymentCard({
   const isOwner = currentUserId === estimateOwnerId;
   const isInternalDealer = dealerMode === "INTERNAL";
 
-  if (!isOwner && !canRecordManualPayment) return null;
+  if (!isOwner && !canRecordManualPayment) return <PaymentScheduleView schedule={paymentSchedule} />;
 
   const action = resolveEstimatePaymentAction({
     estimateStatus,
@@ -201,10 +213,11 @@ export function EstimatePaymentCard({
     materialAmount,
     allowNoCharge,
     manualDiscount,
+  paymentSchedule,
   });
 
-  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.amount === 0 && (allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
-    return null;
+  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
+    return <PaymentScheduleView schedule={paymentSchedule} />;
   }
 
   const depositTermsPreviouslyAccepted = Boolean(
@@ -213,7 +226,7 @@ export function EstimatePaymentCard({
   const depositTermsSatisfied =
     depositTermsPreviouslyAccepted || depositTermsAccepted;
   const requiresDepositTerms = action.type === "INSTALLATION_DEPOSIT";
-  const requiresMaterialAcceptance = ownerRole === "client" && action.type === "MATERIAL";
+  const requiresMaterialAcceptance = ownerRole === "client" && (action.type === "MATERIAL" || (action.type === "INSTALLMENT" && action.sequence === paymentSchedule?.initialSequence));
   const paymentPool =
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob.payments
@@ -221,12 +234,14 @@ export function EstimatePaymentCard({
   const checkoutStarted = paymentPool.some(
     (payment) =>
       payment.type === action.type &&
+      (action.sequence == null || payment.sequence === action.sequence) &&
       payment.status === "PENDING" &&
       Boolean(payment.stripeSessionId),
   );
   const activeCheckoutPayment = paymentPool.find(
     (payment) =>
       payment.type === action.type &&
+      (action.sequence == null || payment.sequence === action.sequence) &&
       payment.status === "PENDING" &&
       Boolean(payment.stripeSessionId),
   );
@@ -261,7 +276,7 @@ export function EstimatePaymentCard({
       const { url } = await createCheckoutSession(
         estimateId,
         action.type,
-        undefined,
+        action.sequence,
         requiresDepositTerms ? depositTermsSatisfied : undefined,
         requiresMaterialAcceptance ? materialAccepted : undefined,
       );
@@ -273,6 +288,8 @@ export function EstimatePaymentCard({
   };
 
   return (
+    <div className="space-y-5">
+    <PaymentScheduleView schedule={paymentSchedule} />
     <section
       className={`print:hidden rounded-xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm ${className}`}
     >
@@ -430,7 +447,7 @@ export function EstimatePaymentCard({
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
-                    : action.amount === 0 ? (action.type === "MATERIAL" ? "Confirm order" : "Confirm step") : "Continue to payment"}
+                    : action.amount === 0 ? ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && action.sequence === paymentSchedule?.initialSequence)) ? "Confirm order" : "Confirm step") : "Continue to payment"}
             </Button>
           </>
         ) : isOwner && isInternalDealer ? (
@@ -446,6 +463,7 @@ export function EstimatePaymentCard({
           <ManualPaymentDialog
             estimateId={estimateId}
             type={action.type}
+            sequence={action.sequence}
             amount={action.amount}
             requiresDepositTerms={
               requiresDepositTerms && !depositTermsPreviouslyAccepted
@@ -454,6 +472,7 @@ export function EstimatePaymentCard({
             beforeSubmit={requiresDepositTerms || installationJob?.dealerMeasurementsAcceptedAt ? beforePayment : undefined}
             label="Record verified payment"
             onRecorded={(payment) => {
+              if (order?.id) { router.replace(`/orders/${order.id}`); router.refresh(); return; }
               if (payment.order?.id) {
                 router.replace(`/orders/${payment.order.id}`);
                 return;
@@ -468,5 +487,6 @@ export function EstimatePaymentCard({
         )}
       </div>
     </section>
+    </div>
   );
 }

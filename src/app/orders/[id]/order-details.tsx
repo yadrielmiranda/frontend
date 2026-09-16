@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { EstimatePaymentCard } from "@/components/estimates/estimate-payment-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { InstallationJob, OrderWithRelations } from "@/lib/types";
@@ -9,12 +11,6 @@ import { OrderInstallationPanel } from "@/components/orders/order-installation-p
 import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-panel";
 import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
 import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
-
-const percent = (value: string | number | null | undefined) =>
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 4,
-  }).format(Number(value ?? 0));
 
 export function OrderDetails({
   order,
@@ -37,11 +33,7 @@ export function OrderDetails({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
-  const orderPaymentBase = Number(
-    order.payment?.baseAmount ?? order.amount ?? 0,
-  );
-  const orderPaymentFee = Number(order.payment?.surchargeAmount ?? 0);
-  const orderPaymentTotal = Number(order.payment?.amount ?? order.amount ?? 0);
+  const [paymentTarget, setPaymentTarget] = useState<HTMLDivElement | null>(null);
 
   return (
     <div className="space-y-6">
@@ -86,44 +78,50 @@ export function OrderDetails({
             </div>
           </div>
 
-          <div>
-            <div className="text-muted-foreground">Order creation payment</div>
-            <div className="font-medium">{formatMoney(orderPaymentTotal)}</div>
-            {orderPaymentFee > 0 ? (
-              <div className="mt-1 text-xs text-muted-foreground">
-                {formatMoney(orderPaymentBase)} project charge +{" "}
-                {formatMoney(orderPaymentFee)} card fee (
-                {percent(order.payment?.surchargePercent)}%)
-              </div>
-            ) : (
-              <div className="mt-1 text-xs text-muted-foreground">
-                {order.payment?.paymentMethod ?? "Payment recorded"}
-              </div>
-            )}
-            <div className="mt-1 text-xs text-muted-foreground">
-              Materials and any applicable City Fee. Installation payments are
-              recorded separately.
+          <div className="grid grid-cols-2 content-start gap-4">
+            <div>
+              <div className="text-muted-foreground">Units</div>
+              <div className="font-medium">{order.units}</div>
             </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div>
-                <div className="text-muted-foreground">Units</div>
-                <div className="font-medium">{order.units}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Status</div>
-                <div className="font-medium">
-                  <OrderStatusBadge name={order.status?.name} />
-                </div>
+            <div>
+              <div className="text-muted-foreground">Status</div>
+              <div className="font-medium">
+                <OrderStatusBadge name={order.status?.name} />
+                {order.status?.name === "Installed" && Number(order.paymentSchedule?.balance) > 0 && <span className="ml-2 text-amber-700">Balance due</span>}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <OrderMaterialPanel order={order} />
+      <div className="rounded-xl border bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid min-w-0 grid-cols-1 items-start gap-5 md:grid-cols-2">
+          <OrderMaterialPanel order={order} />
+          {installation ? (
+            <OrderInstallationPanel
+              paymentTarget={paymentTarget}
+              order={order}
+              initialJob={installation}
+              isOwner={isOwner}
+              cardSurchargeFraction={cardSurchargeFraction}
+              canRecordManualPayment={canRecordManualPayment}
+            />
+          ) : (
+            <section className="min-w-0 overflow-hidden rounded-lg border bg-white">
+              <h2 className="bg-slate-50 px-4 py-3 text-sm font-semibold">
+                Installation &amp; services
+              </h2>
+              <div className="flex items-center justify-between gap-4 p-4 text-sm">
+                <span className="text-muted-foreground">Installation</span>
+                <span className="font-medium">Not included</span>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
 
       <OrderDeliveryPanel
+        paymentTarget={paymentTarget}
         order={order}
         installation={installation}
         isOwner={isOwner}
@@ -133,19 +131,9 @@ export function OrderDetails({
         canRecordManualPayment={canRecordManualPayment}
       />
 
-      {installation && (
-        <OrderInstallationPanel
-          order={order}
-          initialJob={installation}
-          isOwner={isOwner}
-          isPrivileged={isPrivileged}
-          cardSurchargeFraction={cardSurchargeFraction}
-          canRecordManualPayment={canRecordManualPayment}
-        />
-      )}
-
       {installation && installation.status !== "CANCELED" && (
         <OrderExtraChargesPanel
+          paymentTarget={paymentTarget}
           order={order}
           isOwner={isOwner}
           isPrivileged={isPrivileged}
@@ -237,6 +225,15 @@ export function OrderDetails({
           </div>
         </div>
       ) : null}
+
+      {order.paymentSchedule && <EstimatePaymentCard
+        estimateId={order.idEst} estimateOwnerId={order.userId} ownerRole={order.user.role.name}
+        estimateStatus="Ordered" order={order} materialPayments={order.estimate.payments ?? []}
+        installationJob={installation} currentUserId={isOwner ? order.userId : 0}
+        materialAmount={0} dealerMode={order.dealerModeSnapshot} paymentSchedule={order.paymentSchedule}
+        cardSurchargeFraction={cardSurchargeFraction} canRecordManualPayment={canRecordManualPayment}
+      />}
+      <div ref={setPaymentTarget} className="space-y-6 empty:hidden" />
     </div>
   );
 }

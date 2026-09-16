@@ -1,148 +1,113 @@
-import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
+import type { ReactNode } from "react";
+import { OriginalPrice } from "@/components/promotions/promotion-price";
 import type { InstallationJob } from "@/lib/types";
-import { formatMoney } from "@/lib/formatters";
-import {
-  paidBaseFor,
-  paidInstallationCredit,
-  titleCase,
-} from "@/lib/installation-flow";
+import { formatMoney, roundMoney } from "@/lib/formatters";
+import { additionalServiceTotals } from "@/lib/installation-service-totals";
+
+function SummaryRow({
+  label,
+  children,
+  strong = false,
+}: {
+  label: string;
+  children: ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 py-1.5 text-sm">
+      <span className={strong ? "font-semibold" : "text-muted-foreground"}>
+        {label}
+      </span>
+      <span className={`text-right ${strong ? "font-semibold" : "font-medium"}`}>
+        {children}
+      </span>
+    </div>
+  );
+}
 
 export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
   const quote = job.quotes[0];
-  if (!quote) return null;
-  const showInternal = quote.pricingDetailsVisible === true;
-
-  const discount = job.manualDiscountSummary;
-  const installationTotal = Number(discount?.installation.total ?? quote.total);
-  const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
-  const installationPaymentsPaid = paidBaseFor(job, "INSTALLATION");
   const canceled = job.status === "CANCELED";
-  const installationBalance = Math.max(
-    0,
-    installationTotal - paidInstallationCredit(job),
+  const discount = job.manualDiscountSummary;
+  const extras = additionalServiceTotals(quote ?? null);
+  const additionalServicesTotal = roundMoney(
+    extras.reduce((total, service) => total + service.amount, 0),
   );
+  const baseInstallationTotal = roundMoney(
+    Number(quote?.total ?? 0) - additionalServicesTotal,
+  );
+  const installationTotal = Number(discount?.installation.total ?? quote?.total ?? 0);
+  const installationDiscount = Number(discount?.installation.discount ?? 0);
+  const permitFee = job.permit
+    ? Number(discount?.permit.total ?? job.permit.permitFeeSnapshot)
+    : 0;
+  const cityFee = job.permit?.cityFee == null
+    ? null
+    : Number(discount?.city.total ?? job.permit.cityFee);
+  const total = roundMoney(installationTotal + permitFee + (cityFee ?? 0));
 
   return (
-    <section className="mt-8 border-t border-slate-300 pt-5">
-      <div className="mb-3 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">
-            Installation Quote · Version {quote.version}
-          </h2>
-          <p className="text-xs text-slate-500">
-            {titleCase(quote.status)}
-            {showInternal && <> · {titleCase(quote.approvalReason)} · Profile: {quote.profileNameSnapshot}</>}
-          </p>
-        </div>
-        <strong>{formatMoney(installationTotal)}</strong>
-      </div>
+    <div className="p-4">
+      <SummaryRow label="Installation">
+        {canceled ? "Canceled" : !quote ? "Pending" : installationDiscount > 0 ? (
+          <OriginalPrice amount={baseInstallationTotal} label="Before discount" />
+        ) : formatMoney(baseInstallationTotal)}
+      </SummaryRow>
 
-      <InstallationQuoteTable quote={quote} showInternal={showInternal} />
+      {!canceled && quote && (
+        <>
+          {extras.length > 0 ? (
+            <div className="mt-1 border-t pt-1">
+              <p className="py-1.5 text-sm font-semibold">Additional services</p>
+              <div className="border-l-2 border-slate-200 pl-3">
+                {extras.map((service) => (
+                  <SummaryRow key={service.serviceId} label={service.name}>
+                    {formatMoney(service.amount)}
+                  </SummaryRow>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <SummaryRow label="Additional services">None included</SummaryRow>
+          )}
+          {installationDiscount > 0 && (
+            <SummaryRow label="Additional discount · Installation">
+              <span className="text-emerald-700">−{formatMoney(installationDiscount)}</span>
+            </SummaryRow>
+          )}
+        </>
+      )}
 
-      <div className="ml-auto mt-3 grid max-w-sm grid-cols-2 gap-1 text-xs">
-        {showInternal && (<>
-        <span className="text-slate-500">Installation subtotal</span>
-        <span className="text-right">
-          {formatMoney(Number(quote.adjustedSubtotal))}
-        </span>
-        {Number(quote.serviceMinimumAdjustment) > 0 && (
-          <>
-            <span className="text-slate-500">Service minimum adjustment</span>
-            <span className="text-right">
-              {formatMoney(Number(quote.serviceMinimumAdjustment))}
-            </span>
-          </>
-        )}
-        {Number(quote.minimumAdjustment) > 0 && (
-          <>
-            <span className="text-slate-500">
-              Minimum installation total adjustment
-            </span>
-            <span className="text-right">
-              {formatMoney(Number(quote.minimumAdjustment))}
-            </span>
-          </>
-        )}
-        </>)}
-        {Number(discount?.installation.discount) > 0 && <><span className="text-emerald-700">Additional discount</span><span className="text-right text-emerald-700">−{formatMoney(Number(discount?.installation.discount))}</span></>}
-        <strong className="border-t border-slate-300 pt-2">
-          Installation total
-        </strong>
-        <strong className="border-t border-slate-300 pt-2 text-right">
-          {formatMoney(installationTotal)}
-        </strong>
-        {depositPaid > 0 && canceled ? (
-          <>
-            <span className="text-amber-700">
-              Non-refundable deposit retained
-            </span>
-            <span className="text-right text-amber-700">
-              {formatMoney(depositPaid)}
-            </span>
-          </>
-        ) : depositPaid > 0 ? (
-          <>
-            <span className="text-emerald-700">
-              Non-refundable deposit paid
-            </span>
-            <span className="text-right text-emerald-700">
-              -{formatMoney(depositPaid)}
-            </span>
-          </>
-        ) : job.dealerMeasurementsAcceptedAt ? (
-          <>
-            <span className="text-slate-500">Installation deposit</span>
-            <span className="text-right">Waived</span>
-          </>
-        ) : Number(job.depositAmountSnapshot ?? 0) > 0 ? (
-          <>
-            <span className="text-slate-500">Non-refundable deposit due</span>
-            <span className="text-right">
-              {formatMoney(discount ? Math.min(Number(job.depositAmountSnapshot ?? 0), installationTotal) : Number(job.depositAmountSnapshot ?? 0))}
-            </span>
-          </>
-        ) : null}
-        {!canceled && installationPaymentsPaid > 0 && (
-          <>
-            <span className="text-emerald-700">Installation payments paid</span>
-            <span className="text-right text-emerald-700">
-              -{formatMoney(installationPaymentsPaid)}
-            </span>
-          </>
-        )}
-        {!canceled && (
-          <>
-            <strong>Installation balance</strong>
-            <strong className="text-right">
-              {formatMoney(installationBalance)}
-            </strong>
-          </>
-        )}
-        {job.permit && !canceled && (
-          <>
-            <strong className="col-span-2 mt-3 border-t border-slate-300 pt-2">
-              Permit and city fees
-            </strong>
-            <span className="text-slate-500">Permit Fee</span>
-            <span className="text-right">
-              {formatMoney(Number(discount?.permit.total ?? job.permit.permitFeeSnapshot))}
-            </span>
-            <span className="text-slate-500">City Fee</span>
-            <span className="text-right">
-              {job.permit.cityFee == null
+      {!canceled && (job.permit ? (
+        <div className="mt-1 border-t pt-1">
+          <p className="py-1.5 text-sm font-semibold">Permit management</p>
+          <div className="border-l-2 border-slate-200 pl-3">
+            <SummaryRow label="Permit Fee">
+              {formatMoney(permitFee)}
+            </SummaryRow>
+            <SummaryRow label="City Fee">
+              {cityFee == null
                 ? "Pending"
-                : formatMoney(Number(discount?.city.total ?? job.permit.cityFee))}
-            </span>
-          </>
-        )}
-        {(depositPaid > 0 || canceled) && (
-          <span className="col-span-2 mt-2 text-right text-[11px] text-slate-500">
-            {canceled
-              ? "Installation was canceled; the deposit remains non-refundable."
-              : "The deposit is credited only toward installation."}
-          </span>
-        )}
-      </div>
-    </section>
+                : formatMoney(cityFee)}
+            </SummaryRow>
+          </div>
+        </div>
+      ) : (
+        <SummaryRow label="Permit management">Not included</SummaryRow>
+      ))}
+
+      {!canceled && quote && (
+        <div className="mt-1 border-t pt-1">
+          <SummaryRow label="Total" strong>
+            {formatMoney(total)}
+          </SummaryRow>
+          {job.permit && cityFee == null && (
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              Final total pending City Fee.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

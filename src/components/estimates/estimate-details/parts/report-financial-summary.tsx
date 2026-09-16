@@ -1,4 +1,6 @@
 "use client";
+import { PaymentScheduleView } from "@/components/payments/payment-schedule";
+
 
 import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
@@ -818,6 +820,8 @@ export function ReportFinancialSummary({
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
+
+      {!(customerFacing && estimate.dealerModeSnapshot === "EXTERNAL") && <PaymentScheduleView schedule={estimate.paymentSchedule} termsOnly />}
 
       <p className="pt-1 text-[11px] text-black">
         Product illustrations are visual references and are not to scale;

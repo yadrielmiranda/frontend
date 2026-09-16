@@ -63,10 +63,10 @@ export const getEstimateStatusName = (
       APPROVED: "Installation approved",
       PERMIT_PAYMENT_PENDING: "Awaiting permit payment",
       PERMIT_PROCESSING: "Permit processing",
-      MATERIAL_PAYMENT_PENDING: "Awaiting material payment",
-      MATERIAL_PAID: "Material paid",
-      INSTALLATION_PAYMENT_PENDING: "Awaiting installation payment",
-      INSTALLATION_PAID: "Installation paid",
+      MATERIAL_PAYMENT_PENDING: "Awaiting order payment",
+      MATERIAL_PAID: "Order placed",
+      INSTALLATION_PAYMENT_PENDING: "Awaiting required payment",
+      INSTALLATION_PAID: "Ready to schedule installation",
       SCHEDULING: "Scheduling",
       SCHEDULED: "Installation scheduled",
       IN_PROGRESS: "Installation in progress",
@@ -126,7 +126,7 @@ function canEditEstimateFromList(
     isOperatorRole(currentUser.role?.name);
   const materialLocked = estimate.payments?.some(
     (payment) =>
-      payment.type === "MATERIAL" &&
+      (payment.type === "MATERIAL" || payment.type === "INSTALLMENT") &&
       (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
   );
   if (!canManage || materialLocked) return false;
@@ -170,7 +170,7 @@ function getEstimateListAction(
   if (canEditEstimateFromList(estimate, currentUser)) return "edit";
 
   const materialPayment = estimate.payments?.find(
-    (payment) => payment.type === "MATERIAL",
+    (payment) => (payment.type === "MATERIAL" || payment.type === "INSTALLMENT"),
   );
   const isPaymentLocked =
     materialPayment?.status === "PAID" ||
@@ -382,7 +382,7 @@ export const getEstimateColumns = (
         const isOrdered = statusLower === "ordered" || !!estimate.order;
 
         const materialPayment = estimate.payments?.find(
-          (payment) => payment.type === "MATERIAL",
+          (payment) => (payment.type === "MATERIAL" || payment.type === "INSTALLMENT"),
         );
         const isPaid = materialPayment?.status === "PAID";
         const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
@@ -436,6 +436,7 @@ export const getEstimateColumns = (
         };
 
         const handlePay = async () => {
+          if (estimate.paymentPlanSnapshot) { router.push(`/estimates/${estimate.id}/edit`); return; }
           if (currentUser?.role?.name === "client") {
             router.push(`/estimates/${estimate.id}/edit`);
             return;

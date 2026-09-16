@@ -16,6 +16,7 @@ export type CancelCheckoutSessionResponse = {
 };
 
 export type PublicPaymentContext = {
+  schedule?: import("@/lib/payment-plan").PaymentSchedule | null;
   promotionExpiresAt?: string | null;
   expiresAt?: string | null;
   promotionLockedAt?: string | null;

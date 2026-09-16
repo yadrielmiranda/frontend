@@ -1,3 +1,4 @@
+import { getPaymentPlans } from "@/app/api/payment-plans.api";
 // src/app/settings/(write)/users/new/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/navigation/back-link";
@@ -6,9 +7,10 @@ import { UserForm } from "./user-form";
 import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function NewUserPage() {
-  const [roles, profiles] = await Promise.all([
+  const [roles, profiles, paymentPlans] = await Promise.all([
     getRoles(),
     getInstallationProfiles(false),
+    getPaymentPlans(),
   ]);
 
   return (
@@ -25,7 +27,7 @@ export default async function NewUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm roles={roles} profiles={profiles} />
+          <UserForm roles={roles} profiles={profiles} paymentPlans={paymentPlans} />
         </CardContent>
       </Card>
     </div>

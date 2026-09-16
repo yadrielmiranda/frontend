@@ -1,4 +1,6 @@
 "use client";
+import type { PaymentPlan } from "@/lib/payment-plan";
+
 
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -35,6 +37,7 @@ interface UserFormProps {
   user?: User;
   roles: Role[];
   profiles?: InstallationPriceProfile[];
+  paymentPlans?: PaymentPlan[];
   onProfileUpdate?: (updatedUser: User) => void;
 }
 
@@ -117,6 +120,7 @@ export function UserForm({
   user,
   roles,
   profiles = [],
+  paymentPlans = [],
   onProfileUpdate,
 }: UserFormProps) {
   const router = useRouter();
@@ -153,6 +157,7 @@ export function UserForm({
       state: user?.state || "",
       postalCode: user?.postalCode || "",
       idRole: user?.idRole || roles.find((r) => r.name === "client")?.id,
+      paymentPlanId: user?.paymentPlanId ?? null,
       installationPriceProfileId: user?.installationPriceProfileId ?? null,
       markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
@@ -260,6 +265,7 @@ export function UserForm({
                   dealerMode: data.dealerMode,
                 }
               : {}),
+            paymentPlanId: data.paymentPlanId ?? null,
             installationPriceProfileId:
               data.installationPriceProfileId == null
                 ? null
@@ -289,6 +295,7 @@ export function UserForm({
           idRole: Number(data.idRole),
           isTaxExempt: data.isTaxExempt,
           noInstallationDeposit: isDealerAccount && data.noInstallationDeposit === true,
+          paymentPlanId: data.paymentPlanId ?? null,
           installationPriceProfileId: data.installationPriceProfileId,
           ...(isDealerAccount
             ? {
@@ -317,6 +324,19 @@ export function UserForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
+      {!isProfilePage && <div className="space-y-2">
+        <Label>Payment plan</Label>
+        <Controller name="paymentPlanId" control={control} render={({ field }) => (
+          <Select value={field.value ? String(field.value) : "ROLE"} onValueChange={value => field.onChange(value === "ROLE" ? null : Number(value))}>
+            <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+              <SelectItem value="ROLE">Use role payment plan</SelectItem>
+              {paymentPlans.filter(plan => plan.isActive || plan.id === field.value).map(plan => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )} />
+        <p className="text-xs text-muted-foreground">Applies to new estimates. Existing estimates keep their agreed payment plan.</p>
+      </div>}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <Label>First Name{showRequiredMark && <RequiredMark />}</Label>

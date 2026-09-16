@@ -62,7 +62,7 @@ export default async function EditEstimatePage({
   const isActive = estimate.status?.name === "Active";
 
   const isPaymentLocked = (estimate.payments ?? []).some((payment) =>
-    payment.type === "MATERIAL" &&
+    (payment.type === "MATERIAL" || payment.type === "INSTALLMENT") &&
     (payment.status === "PAID" || payment.status === "REFUNDED" ||
       Boolean(payment.paidAt) || Boolean(payment.stripeSessionId)));
 

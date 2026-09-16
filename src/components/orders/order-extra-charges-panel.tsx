@@ -21,6 +21,7 @@ import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
+import { OrderPaymentSection } from "./order-payment-section";
 
 type DraftLine = {
   id: number;
@@ -39,12 +40,14 @@ const emptyLine = (id: number): DraftLine => ({
 });
 
 export function OrderExtraChargesPanel({
+  paymentTarget,
   order,
   isOwner,
   isPrivileged,
   cardSurchargeFraction,
   canRecordManualPayment,
 }: {
+  paymentTarget: HTMLDivElement | null;
   order: OrderWithRelations;
   isOwner: boolean;
   isPrivileged: boolean;
@@ -152,6 +155,17 @@ export function OrderExtraChargesPanel({
       order.status.name,
     );
 
+  if (charges.length === 0 && !showForm) {
+    if (!canCreate) return null;
+    return (
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Add extra charge
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -170,10 +184,6 @@ export function OrderExtraChargesPanel({
       </div>
 
       <div className="mt-4 space-y-4">
-        {charges.length === 0 && !showForm && (
-          <p className="text-sm text-muted-foreground">No extra charges.</p>
-        )}
-
         {charges.map((charge) => {
           const cardBreakdown = getCardPaymentBreakdown({
             baseAmount: Number(charge.total),
@@ -247,65 +257,74 @@ export function OrderExtraChargesPanel({
                 </div>
               )}
 
-              {isOwner &&
-                order.dealerModeSnapshot !== "INTERNAL" &&
-                charge.status === "PAYMENT_DUE" && (
-                  <div className="mt-4 space-y-2">
-                    <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
-                      <div className="flex items-center justify-between gap-3 font-semibold">
-                        <span>Card charge total</span>
-                        <span>{formatMoney(cardBreakdown.totalAmount)}</span>
+              {charge.status === "PAYMENT_DUE" && (isOwner || canRecordManualPayment) && (
+                <OrderPaymentSection
+                  target={paymentTarget}
+                  title={`Extra charge #${charge.sequence}`}
+                  description={charge.lines.map((line) => line.description).join(" · ")}
+                  amount={Number(charge.total)}
+                >
+                  {isOwner &&
+                    order.dealerModeSnapshot !== "INTERNAL" &&
+                    charge.status === "PAYMENT_DUE" && (
+                      <div className="mt-4 space-y-2">
+                        <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3 font-semibold">
+                            <span>Card charge total</span>
+                            <span>{formatMoney(cardBreakdown.totalAmount)}</span>
+                          </div>
+                          <CardFeeBreakdown
+                            breakdown={cardBreakdown}
+                            className="mt-2"
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          disabled={busy}
+                          onClick={() => pay(charge)}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
+                          {formatMoney(cardBreakdown.totalAmount)}
+                        </Button>
                       </div>
-                      <CardFeeBreakdown
-                        breakdown={cardBreakdown}
-                        className="mt-2"
+                    )}
+
+                  {isOwner &&
+                    order.dealerModeSnapshot === "INTERNAL" &&
+                    charge.status === "PAYMENT_DUE" && (
+                      <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                        <p>Send the payment link to the final customer.</p>
+                        <EstimatePaymentLinkActions
+                          estimateId={order.idEst}
+                          estimateNumber={order.estimate.number}
+                          showShare
+                          size="sm"
+                        />
+                      </div>
+                    )}
+
+                  {canRecordManualPayment && charge.status === "PAYMENT_DUE" && (
+                    <div className="mt-4 flex justify-end">
+                      <ManualPaymentDialog
+                        estimateId={order.idEst}
+                        type="EXTRA"
+                        sequence={charge.sequence}
+                        amount={Number(charge.total)}
+                        label="Record extra charge payment"
+                        onRecorded={() => {
+                          setCharges((current) =>
+                            current.map((item) =>
+                              item.id === charge.id
+                                ? { ...item, status: "PAID" }
+                                : item,
+                            ),
+                          );
+                          router.refresh();
+                        }}
                       />
                     </div>
-                    <Button
-                      className="w-full"
-                      disabled={busy}
-                      onClick={() => pay(charge)}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" /> Pay extra charge ·{" "}
-                      {formatMoney(cardBreakdown.totalAmount)}
-                    </Button>
-                  </div>
-                )}
-
-              {isOwner &&
-                order.dealerModeSnapshot === "INTERNAL" &&
-                charge.status === "PAYMENT_DUE" && (
-                  <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                    <p>Send the payment link to the final customer.</p>
-                    <EstimatePaymentLinkActions
-                      estimateId={order.idEst}
-                      estimateNumber={order.estimate.number}
-                      showShare
-                      size="sm"
-                    />
-                  </div>
-                )}
-
-              {canRecordManualPayment && charge.status === "PAYMENT_DUE" && (
-                <div className="mt-4 flex justify-end">
-                  <ManualPaymentDialog
-                    estimateId={order.idEst}
-                    type="EXTRA"
-                    sequence={charge.sequence}
-                    amount={Number(charge.total)}
-                    label="Record extra charge payment"
-                    onRecorded={() => {
-                      setCharges((current) =>
-                        current.map((item) =>
-                          item.id === charge.id
-                            ? { ...item, status: "PAID" }
-                            : item,
-                        ),
-                      );
-                      router.refresh();
-                    }}
-                  />
-                </div>
+                  )}
+                </OrderPaymentSection>
               )}
             </div>
           );

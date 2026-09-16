@@ -1,5 +1,7 @@
-// src/app/settings/(write)/roles/columns-roles.tsx
 "use client";
+import type { PaymentPlan } from "@/lib/payment-plan";
+// src/app/settings/(write)/roles/columns-roles.tsx
+
 
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InstallationPriceProfile, Role } from "@/lib/types";
@@ -130,8 +132,24 @@ function InstallationProfileCell({
   );
 }
 
+function PaymentPlanCell({ role, plans }: { role: Role; plans: PaymentPlan[] }) {
+  const router = useRouter(); const [busy, setBusy] = useState(false);
+  const save = async (value: string) => {
+    setBusy(true);
+    try { await updateRole(role.id, { markup: Number(role.markup), paymentPlanId: value === "DEFAULT" ? null : Number(value) }); router.refresh(); toast.success("Payment plan updated for new estimates."); }
+    catch (error) { toast.error((error as Error).message); } finally { setBusy(false); }
+  };
+  return <Select disabled={busy} value={role.paymentPlanId ? String(role.paymentPlanId) : "DEFAULT"} onValueChange={save}>
+    <SelectTrigger className="w-[260px]"><SelectValue /></SelectTrigger><SelectContent>
+      <SelectItem value="DEFAULT">Use default payment plan</SelectItem>
+      {plans.filter(plan => plan.isActive || plan.id === role.paymentPlanId).map(plan => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}
+    </SelectContent>
+  </Select>;
+}
+
 export const getColumns = (
   profiles: InstallationPriceProfile[],
+  paymentPlans: PaymentPlan[],
 ): ColumnDef<Role>[] => [
   {
     accessorKey: "id",
@@ -144,6 +162,7 @@ export const getColumns = (
       <div className="capitalize font-medium">{row.original.name}</div>
     ),
   },
+  { id: "paymentPlan", header: "Payment Plan", cell: ({row}) => <PaymentPlanCell role={row.original} plans={paymentPlans} /> },
   {
     accessorKey: "markup",
     header: "Default Markup",

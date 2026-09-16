@@ -73,6 +73,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PaymentScheduleView } from "@/components/payments/payment-schedule";
+import { installationStageLabel } from "@/lib/installation-flow";
 import { paidBaseFor } from "@/lib/installation-flow";
 import { PieceModal } from "@/components/estimates/piece-modal";
 import type { PieceFormValues } from "@/components/estimates/types";
@@ -350,8 +352,9 @@ type MeasurementDraft = {
 
 const measurementDraft = (
   measurement?: InstallationMeasurement,
+  defaultLabel = "",
 ): MeasurementDraft => ({
-  label: measurement?.label ?? "",
+  label: measurement?.label?.trim() || defaultLabel,
   widthIn: numeric(measurement?.widthIn),
   heightIn: numeric(measurement?.heightIn),
   heightLeftIn: numeric(measurement?.heightLeftIn),
@@ -405,6 +408,7 @@ function MeasurementEditor({
   piece,
   sysConf,
   revisionItem,
+  defaultLabel,
   onSave,
   onReplace,
   onRemove,
@@ -414,6 +418,7 @@ function MeasurementEditor({
   piece: PieceWithRelations;
   sysConf?: SysConf;
   revisionItem?: EstimateRevisionItem;
+  defaultLabel: string;
   onSave: (draft: MeasurementDraft) => Promise<void>;
   onReplace: (
     reason: Exclude<EstimateRevisionChangeReason, "REMEASUREMENT">,
@@ -425,7 +430,13 @@ function MeasurementEditor({
   ) => Promise<void>;
   busy: boolean;
 }) {
-  const [draft, setDraft] = useState(() => measurementDraft(measurement));
+  const [draft, setDraft] = useState(() => {
+    const value = measurementDraft(measurement, defaultLabel);
+    const sourceMark = piece.mark.trim();
+    const oldDefault = piece.qty > 1 ? `${sourceMark} (${measurement.unitIndex}/${piece.qty})`.trim() : sourceMark;
+    if (measurement.status === "PENDING" && value.label.trim() === oldDefault) value.label = defaultLabel;
+    return value;
+  });
   const [reason, setReason] = useState<
     Exclude<EstimateRevisionChangeReason, "REMEASUREMENT"> | ""
   >(
@@ -554,7 +565,7 @@ function MeasurementEditor({
           <div className="flex items-center justify-between gap-3">
             <div>
               <span className="font-medium">
-                {piece.mark} · {piece.prod.name} · {piece.syst.name} ·{" "}
+                {draft.label.trim() || defaultLabel} · {piece.prod.name} · {piece.syst.name} ·{" "}
                 {piece.conf.conf}
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">
@@ -584,8 +595,9 @@ function MeasurementEditor({
         </summary>
         <div className="space-y-4 border-t p-4">
           <div className="space-y-2">
-            <Label>Label</Label>
+            <Label>Label (optional)</Label>
             <Input
+              placeholder={defaultLabel}
               value={draft.label}
               onChange={(event) =>
                 setDraft((value) => ({ ...value, label: event.target.value }))
@@ -740,7 +752,7 @@ function MeasurementEditor({
             </Button>
             <Button
               onClick={() => onSave(draft)}
-              disabled={busy || !draft.label.trim()}
+              disabled={busy}
             >
               {measurement.status === "COMPLETED"
                 ? "Update measured Piece"
@@ -840,6 +852,8 @@ export function InstallationDetailClient({
   const admin = userRole === "admin";
   const owner = job.estimate.idUser === userId;
   const latest = job.quotes[0];
+  const pendingMeasurements = job.measurements.filter((measurement) => measurement.status === "PENDING");
+  const quoteHistory = job.quotes.filter((quote) => quote.status !== "DRAFT");
   const latestRevision = latest
     ? job.revisions?.find((revision) => revision.quoteId === latest.id)
     : job.revisions?.[0];
@@ -873,7 +887,7 @@ export function InstallationDetailClient({
   const installationPaid = paidBaseFor(job, "INSTALLATION");
   const permitLocked = (job.payments ?? []).some(
     (payment) =>
-      payment.type === "MATERIAL" &&
+      ["MATERIAL", "INSTALLMENT"].includes(payment.type) &&
       (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
   );
   const permitOptions = job.permit ? PERMIT_TRANSITIONS[job.permit.status] : [];
@@ -960,12 +974,13 @@ export function InstallationDetailClient({
 
   const run = async (
     action: () => Promise<InstallationJob>,
-    success: string,
+    success: string | ((result: InstallationJob) => string),
   ) => {
     setBusy(true);
     try {
-      setJob(await action());
-      toast.success(success);
+      const result = await action();
+      setJob(result);
+      toast.success(typeof success === "function" ? success(result) : success);
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -1061,7 +1076,7 @@ export function InstallationDetailClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="text-sm">{title(job.status)}</Badge>
+          <Badge className="text-sm">{installationStageLabel(job)}</Badge>
           <Button variant="outline" asChild>
             <Link
               href={
@@ -1170,6 +1185,7 @@ export function InstallationDetailClient({
                         key={`${measurement.id}-${measurement.updatedAt ?? measurement.status}`}
                         measurement={measurement}
                         piece={piece}
+                        defaultLabel={piece.mark.trim() || `#${(job.estimate.pieces ?? []).findIndex((item) => item.id === piece.id) + 1}`}
                         sysConf={sysConf}
                         revisionItem={revisionItemByMeasurement.get(
                           measurement.id,
@@ -1183,7 +1199,7 @@ export function InstallationDetailClient({
                                 measurement.id,
                                 toMeasurementPayload(draft),
                               ),
-                            "Measurement saved and Estimate revision updated.",
+                            "Measurement confirmed. Submit Quote when the visit is complete.",
                           )
                         }
                         onReplace={(reason, note) =>
@@ -1310,7 +1326,7 @@ export function InstallationDetailClient({
           )}
 
           {latestRevision && (
-            <EstimateRevisionSummary revision={latestRevision} />
+            <EstimateRevisionSummary revision={latestRevision} comparison={job.revisionComparison} />
           )}
 
           <Card
@@ -1319,10 +1335,10 @@ export function InstallationDetailClient({
             }
           >
             <CardHeader>
-              <CardTitle>Quote {latest ? `v${latest.version}` : ""}</CardTitle>
+              <CardTitle>Quote {latest?.submittedAt ? `v${latest.version}` : ""}</CardTitle>
               <CardDescription>
                 {admin
-                  ? "Rates, metrics, profile, measurements, and adjustments are frozen in every version."
+                  ? "Confirm all measurements, then submit the completed visit."
                   : "Installation services and prices."}
               </CardDescription>
             </CardHeader>
@@ -1332,8 +1348,8 @@ export function InstallationDetailClient({
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
                     {privileged
-                      ? "Measurements, pieces, or services changed. Recalculate the quote before submitting it."
-                      : "The quote is being updated. The revised quote will be available for your approval."}
+                      ? "Changes will be recalculated when you submit. You can also recalculate now to preview the total."
+                      : "The quote is being checked. You will be asked to review it if measurements, services, or prices change."}
                   </span>
                 </div>
               )}
@@ -1343,7 +1359,7 @@ export function InstallationDetailClient({
                   showInternal={admin}
                   renderAction={canManageAdditionalServices ? (line) => {
                     const removable = line.canRemove ??
-                      (line.origin !== "AUTO" && latest.status === "DRAFT" &&
+                      (line.origin !== "AUTO" && (latest.status === "DRAFT" || (latest.status === "SUPERSEDED" && !latest.submittedAt)) &&
                         (privileged || line.origin === "USER_SELECTED"));
                     return removable ? (
                       <Button
@@ -1489,16 +1505,16 @@ export function InstallationDetailClient({
             )}
 
           {privileged &&
-            latest?.status === "DRAFT" &&
+            ["DRAFT", "SUPERSEDED"].includes(latest?.status ?? "") &&
             (Number(job.depositAmountSnapshot) === 0 ||
-              job.status === "QUOTE_DRAFT") && (
+              ["MEASUREMENT_SCHEDULED", "MEASUREMENT_PENDING", "QUOTE_DRAFT"].includes(job.status)) && (
               <Card>
                 <CardHeader>
                   <CardTitle>Submit final quote</CardTitle>
                   <CardDescription>
-                    {latest.needsRecalculation
-                      ? "Pricing changes must be recalculated before submission."
-                      : "The quote is current. You can submit it directly for admin approval."}
+                    {pendingMeasurements.length > 0
+                      ? `${pendingMeasurements.length} unit(s) still need confirmation.`
+                      : "Submit the completed visit. Unchanged measurements and prices keep the current quote; changes are sent for review."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -1510,7 +1526,7 @@ export function InstallationDetailClient({
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
-                      disabled={busy || !latest.needsRecalculation}
+                      disabled={busy || !latest?.needsRecalculation}
                       onClick={() =>
                         run(
                           () => recalculateInstallationQuote(job.id),
@@ -1521,7 +1537,7 @@ export function InstallationDetailClient({
                       <RefreshCw className="mr-2 h-4 w-4" /> Recalculate quote
                     </Button>
                     <Button
-                      disabled={busy || latest.needsRecalculation}
+                      disabled={busy || pendingMeasurements.length > 0}
                       onClick={() =>
                         run(
                           () =>
@@ -1529,7 +1545,9 @@ export function InstallationDetailClient({
                               job.id,
                               quoteNotes || undefined,
                             ),
-                          "Quote submitted for admin approval.",
+                          (result) => result.quotes[0]?.status === "APPROVED"
+                            ? "Remeasurement completed without changes. No new version or approval required."
+                            : "Changes submitted for review.",
                         )
                       }
                     >
@@ -1646,59 +1664,6 @@ export function InstallationDetailClient({
         </div>
 
         <aside className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment status</CardTitle>
-              <CardDescription>
-                Read-only operational reference. Checkout stays in Estimate or
-                Order.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {job.payments.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No payments created.
-                </p>
-              )}
-              {job.payments.map((payment) => (
-                <div key={payment.id} className="rounded-lg border p-3 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <strong>
-                      {title(payment.type)}
-                      {payment.type === "INSTALLATION" && payment.sequence > 1
-                        ? ` · v${payment.sequence}`
-                        : ""}
-                    </strong>
-                    <Badge
-                      variant={
-                        payment.status === "PAID" ? "default" : "secondary"
-                      }
-                    >
-                      {title(payment.status)}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 flex justify-between text-muted-foreground">
-                    <span>Base {money(payment.baseAmount)}</span>
-                    <span>Total {money(payment.amount)}</span>
-                  </div>
-                </div>
-              ))}
-              {owner && (
-                <Button asChild className="w-full" variant="outline">
-                  <Link
-                    href={
-                      job.estimate.order
-                        ? `/orders/${job.estimate.order.id}`
-                        : `/estimates/${job.estimateId}/edit`
-                    }
-                  >
-                    Open financial view
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
           {job.permit && (
             <Card>
               <CardHeader>
@@ -1852,6 +1817,7 @@ export function InstallationDetailClient({
                         <Button
                           type="button"
                           variant="outline"
+                          className="border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800 focus-visible:border-red-400 focus-visible:ring-red-200"
                           disabled={busy}
                           onClick={() =>
                             void respondToAppointment(
@@ -1864,6 +1830,8 @@ export function InstallationDetailClient({
                         </Button>
                         <Button
                           type="button"
+                          variant="outline"
+                          className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:border-emerald-400 focus-visible:ring-emerald-200"
                           disabled={busy}
                           onClick={() =>
                             void respondToAppointment(appointment.id, "ACCEPT")
@@ -2013,13 +1981,13 @@ export function InstallationDetailClient({
               </Card>
             )}
 
-          {job.quotes.length > 1 && (
+          {quoteHistory.length > 1 && (
             <Card>
               <CardHeader>
                 <CardTitle>Version history</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {job.quotes.map((quote) => (
+                {quoteHistory.map((quote) => (
                   <div
                     key={quote.id}
                     className="flex items-center justify-between rounded-md border p-3 text-sm"
@@ -2034,6 +2002,8 @@ export function InstallationDetailClient({
           )}
         </aside>
       </div>
+
+      {admin && <PaymentScheduleView schedule={job.paymentSchedule} />}
 
       <DeleteConfirmationDialog
         isOpen={cancelDialogOpen}

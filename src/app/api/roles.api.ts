@@ -20,7 +20,7 @@ export function updateRoleMarkup(id: number, markup: number) {
 
 export function updateRole(
   id: number,
-  data: { markup: number; installationPriceProfileId?: number | null },
+  data: { paymentPlanId?: number | null; markup: number; installationPriceProfileId?: number | null },
 ) {
   return apiFetch<Role>(`/api/roles/${id}`, {
     method: 'PATCH',

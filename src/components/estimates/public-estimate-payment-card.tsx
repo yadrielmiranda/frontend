@@ -1,6 +1,7 @@
 "use client";
 import { usePromotionExpired } from "@/components/promotions/promotion-banner";
 
+import { PaymentScheduleView } from "@/components/payments/payment-schedule";
 import { useState } from "react";
 import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ export function PublicEstimatePaymentCard({
 
   if (context.status === "complete" || !context.payment) {
     return (
+      <div className="mt-6 space-y-5 print:hidden"><PaymentScheduleView schedule={context.schedule} />
       <section className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950 print:hidden">
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5" />
@@ -51,7 +53,7 @@ export function PublicEstimatePaymentCard({
             </p>
           </div>
         </div>
-      </section>
+      </section></div>
     );
   }
 
@@ -87,6 +89,7 @@ export function PublicEstimatePaymentCard({
   };
 
   return (
+    <div className="mt-6 space-y-5 print:hidden"><PaymentScheduleView schedule={context.schedule} />
     <section className="mt-6 rounded-xl border border-slate-300 bg-white p-5 shadow-sm print:hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
@@ -173,9 +176,9 @@ export function PublicEstimatePaymentCard({
             ? "Opening checkout..."
             : payment.checkoutStarted
               ? "Resume payment"
-              : "Pay now"}
+              : baseAmount === 0 ? (payment.type === "INSTALLMENT" && payment.sequence === 1 ? "Confirm order" : "Confirm step") : "Pay now"}
         </Button>
       </div>
-    </section>
+    </section></div>
   );
 }
