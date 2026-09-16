@@ -10,6 +10,7 @@ import {
   cancelCheckoutSession,
   createCheckoutSession,
 } from "@/app/api/payments.api";
+import { getEstimate } from "@/app/api/estimates.api";
 import { getEstimateInstallation } from "@/app/api/installations.api";
 import type { PaymentType } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,6 +65,11 @@ export default function CheckoutCancelContent() {
     setCurrentAction("continuing");
 
     try {
+      if (paymentType === "INSTALLMENT") {
+        const estimate = await getEstimate(estimateId);
+        router.push(estimate.order?.id ? `/orders/${estimate.order.id}` : `/estimates/${estimateId}/edit#estimate-payment`);
+        return;
+      }
       // Si la sesión sigue abierta, el backend devuelve
       // la misma URL de Stripe.
       const { url } = await createCheckoutSession(
@@ -92,6 +98,7 @@ export default function CheckoutCancelContent() {
         estimateId,
         paymentType,
         sequence,
+        params.get("checkoutRef") ?? undefined,
       );
 
       // Protección por si el pago fue completado
@@ -202,7 +209,8 @@ export default function CheckoutCancelContent() {
         >
           {currentAction === "continuing"
             ? "Returning to Checkout..."
-            : (paymentType === "MATERIAL" || (paymentType === "INSTALLMENT" && sequence === 1)) && user?.role.name === "client"
+            : paymentType === "INSTALLMENT" ? "Review payments"
+            : paymentType === "MATERIAL" && user?.role.name === "client"
               ? "Review estimate"
               : "Continue Payment"}
         </Button>

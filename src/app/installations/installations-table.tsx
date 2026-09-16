@@ -290,7 +290,7 @@ export function InstallationsTable({
                     ]
                       .filter(Boolean)
                       .join(" ") || "—";
-                  const stage = installationStageLabelFromStatus(
+                  const stage = job.status !== "CANCELED" && job.estimate.status?.name === "Pending order review" ? "Pending order review" : installationStageLabelFromStatus(
                     job.status,
                     job.latestQuote?.approvalReason,
                   );

@@ -16,6 +16,7 @@ export type PaymentPlan = {
   isActive: boolean;
 };
 export type PaymentScheduleRow = {
+  kind?: 'CITY_FEE';
   sequence: number;
   milestone: PaymentMilestone;
   title: string;
@@ -27,6 +28,11 @@ export type PaymentScheduleRow = {
   status: "PAID" | "DUE" | "UPCOMING" | "CREDIT";
 };
 export type PaymentSchedule = {
+  fullBalance?: { amount: string; sequences: number[] } | null;
+  cityFeePending?: boolean;
+  requiresOrderReview?: boolean;
+  orderReviewPending?: boolean;
+  orderReviewBlockedReason?: string | null;
   name: string;
   provisional: boolean;
   provisionalMessage?: string | null;

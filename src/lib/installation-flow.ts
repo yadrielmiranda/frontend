@@ -75,8 +75,9 @@ export function installationStageLabelFromStatus(
 }
 
 export function installationStageLabel(job: InstallationJob): string {
+  if (job.status !== "CANCELED" && job.estimate.status?.name === "Pending order review") return "Pending order review";
   if (job.paymentSchedule) {
-    if (job.status === "MATERIAL_PAYMENT_PENDING") return "Awaiting first order installment";
+    if (["MATERIAL_PAYMENT_PENDING", "PERMIT_PAYMENT_PENDING", "PERMIT_PROCESSING"].includes(job.status)) return "Awaiting first order installment";
     if (job.status === "MATERIAL_PAID") return "Order placed";
     if (job.status === "INSTALLATION_PAYMENT_PENDING") return "Awaiting required installments";
     if (job.status === "INSTALLATION_PAID") return "Ready to schedule installation";

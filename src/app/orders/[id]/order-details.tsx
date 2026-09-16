@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EstimatePaymentCard } from "@/components/estimates/estimate-payment-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,20 @@ export function OrderDetails({
   canRecordManualPayment: boolean;
 }) {
   const [paymentTarget, setPaymentTarget] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!paymentTarget) return;
+    // Los cobros adicionales se montan en un portal después del primer render.
+    const scrollToPayment = () => {
+      const anchor = window.location.hash.slice(1);
+      if (anchor === "estimate-payment" || anchor === "order-additional-payments") {
+        document.getElementById(anchor)?.scrollIntoView({ block: "start" });
+      }
+    };
+    scrollToPayment();
+    window.addEventListener("hashchange", scrollToPayment);
+    return () => window.removeEventListener("hashchange", scrollToPayment);
+  }, [paymentTarget]);
 
   return (
     <div className="space-y-6">
@@ -233,7 +247,7 @@ export function OrderDetails({
         materialAmount={0} dealerMode={order.dealerModeSnapshot} paymentSchedule={order.paymentSchedule}
         cardSurchargeFraction={cardSurchargeFraction} canRecordManualPayment={canRecordManualPayment}
       />}
-      <div ref={setPaymentTarget} className="space-y-6 empty:hidden" />
+      <div id="order-additional-payments" ref={setPaymentTarget} className="scroll-mt-28 space-y-6 empty:hidden" />
     </div>
   );
 }

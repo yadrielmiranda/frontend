@@ -49,6 +49,8 @@ export function NotificationBell() {
     const actionUrl = notification.actionUrl;
     if (actionUrl?.startsWith("/") && !actionUrl.startsWith("//")) {
       router.push(actionUrl);
+      // Actualiza los datos también cuando la notificación apunta a la vista abierta.
+      router.refresh();
     }
   };
 

@@ -10,9 +10,11 @@ type Piece = EstimateWithRelations["pieces"][number];
 export function EstimateViewDealerPublic({
   estimate,
   pricingMode = "detailed",
+  showPaymentSchedule = true,
 }: {
   estimate: EstimateWithRelations;
   pricingMode?: "detailed" | "total";
+  showPaymentSchedule?: boolean;
 }) {
   const detailedPrices = pricingMode === "detailed";
   const showPromotions = customerCanSeePromotions(estimate);
@@ -41,6 +43,7 @@ export function EstimateViewDealerPublic({
 
       <ReportFinancialSummary
         estimate={estimate}
+        showPaymentSchedule={showPaymentSchedule}
         reportKind={
           detailedPrices ? "dealer-customer" : "dealer-customer-total"
         }

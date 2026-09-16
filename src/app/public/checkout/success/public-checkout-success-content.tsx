@@ -17,8 +17,7 @@ export default function PublicCheckoutSuccessContent() {
         <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
         <h1 className="mt-4 text-2xl font-semibold">Payment received</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your payment is being confirmed. The project will advance
-          automatically as soon as confirmation finishes.
+          Your payment is being confirmed. Projects with installation require administrative review before the order is created.
         </p>
         {token && (
           <Button asChild className="mt-6">

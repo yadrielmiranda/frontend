@@ -16,6 +16,8 @@ export function getEstimateStatusBadgeAppearance(
     };
   }
 
+  if (normalized === "pending order review") return { label: "Pending order review", className: "bg-amber-100 text-amber-900" };
+
   if (normalized === "ordered") {
     return {
       label: "Ordered",

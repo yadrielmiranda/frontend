@@ -1,3 +1,4 @@
+import { OrderReviewPanel } from "@/components/estimates/order-review-panel";
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -60,17 +61,18 @@ export default async function EditEstimatePage({
   const isPrivileged =
     isAdminRole(user.role.name) || isOperatorRole(user.role.name);
   const isActive = estimate.status?.name === "Active";
+  const pendingOrderReview = estimate.status?.name === "Pending order review";
 
   const isPaymentLocked = (estimate.payments ?? []).some((payment) =>
     (payment.type === "MATERIAL" || payment.type === "INSTALLMENT") &&
     (payment.status === "PAID" || payment.status === "REFUNDED" ||
       Boolean(payment.paidAt) || Boolean(payment.stripeSessionId)));
 
-  const canAccess = (isOwner || isPrivileged) && (isActive || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
+  const canAccess = (isOwner || isPrivileged) && (isActive || pendingOrderReview || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
 
   if (!canAccess) notFound();
 
-  const baseReadOnly = isPaymentLocked || Boolean(estimate.promotionLockedAt) ||
+  const baseReadOnly = pendingOrderReview || isPaymentLocked || Boolean(estimate.promotionLockedAt) ||
     Boolean(estimate.manualDiscount?.lockedAt);
   const canEdit = !baseReadOnly && canEditInstallationBeforePayment(installation, estimate.payments);
 
@@ -119,7 +121,7 @@ export default async function EditEstimatePage({
               Estimate #{estimate.number}
             </CardTitle>
             <CardDescription>
-              {canEdit
+              {pendingOrderReview ? "Payment confirmed. This estimate is awaiting administrative order review." : canEdit
                 ? "Update the details for this estimate."
                 : installation?.dealerMeasurementsAcceptedAt
                   ? "Installation uses the current measurements and price."
@@ -128,6 +130,7 @@ export default async function EditEstimatePage({
           </CardHeader>
 
           <CardContent className="min-w-0 px-4 sm:px-6">
+            {pendingOrderReview && <OrderReviewPanel estimateId={estimateId} isAdmin={isAdminRole(user.role.name)} blockedReason={estimate.paymentSchedule?.orderReviewBlockedReason} />}
             <EstimateForm
               estimate={estimate}
               initialInstallation={installation}

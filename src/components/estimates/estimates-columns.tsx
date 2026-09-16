@@ -40,6 +40,7 @@ import {
   isOperatorRole,
 } from "@/lib/rbac";
 import type { DataTableDateRangeValue } from "@/components/data-table";
+import { getEstimateCostColumns } from "./estimate-cost-columns";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 
 // =============================
@@ -51,6 +52,7 @@ export const getEstimateStatusName = (
 ): string => {
   const baseStatus = estimate.status?.name;
   if (baseStatus === "Active" && estimate.installationJob) {
+    if (estimate.paymentPlanSnapshot && ["PERMIT_PAYMENT_PENDING", "PERMIT_PROCESSING"].includes(estimate.installationJob.status)) return "Awaiting order payment";
     const installationStages: Record<string, string> = {
       REQUESTED: "Installation requested",
       DEPOSIT_PAYMENT_PENDING: "Awaiting installation deposit",
@@ -187,7 +189,7 @@ function getEstimateListAction(
     !estimate.order &&
     canManage;
 
-  return canOpen ? "open" : "details";
+  return canManage && estimate.status?.name === "Pending order review" ? "open" : canOpen ? "open" : "details";
 }
 
 // =============================
@@ -274,26 +276,17 @@ export const getEstimateColumns = (
       accessorKey: "units",
       header: () => <div className="text-center">Units</div>,
       cell: ({ row }) => (
-        <div className="text-center">{row.original.units}</div>
+        <div className="text-center tabular-nums">{row.original.units}</div>
       ),
     },
-    {
-      accessorKey: "priceT",
-      header: () => <div className="text-right">Price</div>,
-      cell: ({ row }) => (
-        <div className="text-right font-medium">
-          {formatMoney(row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER"
-            ? row.original.manualDiscountSummary.material.subtotal : row.original.priceT)}
-        </div>
-      ),
-    },
+    ...getEstimateCostColumns<EstimateWithRelations>((estimate) => estimate),
     ...(showInternalProfit
       ? [
           {
             accessorKey: "netProfit",
-            header: () => <div className="text-right">Net Profit ($)</div>,
+            header: () => <div className="text-center">Net Profit ($)</div>,
             cell: ({ row }) => (
-              <div className="text-right">
+              <div className="text-center tabular-nums">
                 {formatMoney(Number(row.original.netProfit) -
                   (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
               </div>
@@ -306,9 +299,9 @@ export const getEstimateColumns = (
       ? [
           {
             accessorKey: "netProfitD",
-            header: () => <div className="text-right">Net Profit D ($)</div>,
+            header: () => <div className="text-center">Net Profit D ($)</div>,
             cell: ({ row }) => (
-              <div className="text-right">
+              <div className="text-center tabular-nums">
                 {formatMoney(Number(row.original.netProfitD) +
                   Number(row.original.manualDiscountSummary?.material.netDiscount ?? 0) *
                   (row.original.manualDiscountSummary?.payer === "CUSTOMER" ? -1 : 1))}
@@ -317,15 +310,19 @@ export const getEstimateColumns = (
           } satisfies ColumnDef<EstimateWithRelations>,
         ]
       : []),
-    {
-      id: "createdBy",
-      accessorFn: (estimate) => estimate.user?.username ?? "",
-      header: () => <div className="text-center">Created By</div>,
-      filterFn: "equalsString",
-      cell: ({ row }) => (
-        <div className="text-center">{row.original.user?.username ?? "—"}</div>
-      ),
-    },
+    ...(role !== "client"
+      ? [
+          {
+            id: "createdBy",
+            accessorFn: (estimate) => estimate.user?.username ?? "",
+            header: () => <div className="text-center">Created By</div>,
+            filterFn: "equalsString",
+            cell: ({ row }) => (
+              <div className="text-center">{row.original.user?.username ?? "—"}</div>
+            ),
+          } satisfies ColumnDef<EstimateWithRelations>,
+        ]
+      : []),
     ...(showInternalProfit
       ? [
           {
@@ -344,12 +341,12 @@ export const getEstimateColumns = (
     {
       id: "status",
       accessorFn: (estimate) => getEstimateStatusName(estimate),
-      header: "Status",
+      header: () => <div className="text-center">Status</div>,
       filterFn: "equalsString",
       cell: ({ row }) => {
         const statusName = getEstimateStatusName(row.original);
 
-        return getStatusBadge(statusName);
+        return <div className="text-center">{getStatusBadge(statusName)}</div>;
       },
     },
     {
@@ -405,7 +402,11 @@ export const getEstimateColumns = (
           hasPayableMaterial &&
           (!estimate.installationJob ||
             estimate.installationJob.status === "CANCELED" ||
-            estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING");
+            estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING" ||
+            (Boolean(estimate.paymentPlanSnapshot) &&
+              ["PERMIT_PAYMENT_PENDING", "PERMIT_PROCESSING"].includes(
+                estimate.installationJob.status,
+              )));
 
         const paymentInstallation = hasActiveInstallation
           ? estimate.installationJob
@@ -416,7 +417,9 @@ export const getEstimateColumns = (
               "PERMIT_PAYMENT_PENDING",
               "MATERIAL_PAYMENT_PENDING",
               "INSTALLATION_PAYMENT_PENDING",
-            ].includes(paymentInstallation.status)
+            ].includes(paymentInstallation.status) ||
+            (Boolean(estimate.paymentPlanSnapshot) &&
+              paymentInstallation.status === "PERMIT_PROCESSING")
           : isActive && !estimate.order && !isPaid && hasPayableMaterial;
         const canCopyPaymentLink =
           isInternalDealer && isOwner && internalPaymentDue;
@@ -436,9 +439,8 @@ export const getEstimateColumns = (
         };
 
         const handlePay = async () => {
-          if (estimate.paymentPlanSnapshot) { router.push(`/estimates/${estimate.id}/edit`); return; }
-          if (currentUser?.role?.name === "client") {
-            router.push(`/estimates/${estimate.id}/edit`);
+          if (estimate.paymentPlanSnapshot || currentUser?.role?.name === "client") {
+            router.push(`/estimates/${estimate.id}/edit#estimate-payment`);
             return;
           }
           setIsPaying(true);
@@ -474,8 +476,8 @@ export const getEstimateColumns = (
                 className="h-8 px-3 shadow-sm"
                 onClick={() => void handlePay()}
                 disabled={isPaying}
-                title="Pay estimate and place order"
-                aria-label={`Pay estimate #${estimate.number} and place order`}
+                title="Open estimate payment"
+                aria-label={`Open payment for estimate #${estimate.number}`}
               >
                 {isPaying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

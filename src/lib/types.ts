@@ -910,6 +910,7 @@ export interface InstallationJobSummary {
   updatedAt: string;
   estimate: {
     idUser: number;
+    status?: { name: string };
     number: string;
     name: string;
     customerFirstName?: string | null;
@@ -1349,7 +1350,8 @@ export type EstimateWithRelations = Estimate & {
 
 export type OrderWithRelations = Order & {
   paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
-  estimate: Estimate;
+  paymentAnchor?: "estimate-payment" | "order-additional-payments" | null;
+  estimate: Estimate & { installationSummary?: EstimateInstallationReportSummary | null };
   status: OrderStatus;
   user: User;
   payment: EstimatePayment;

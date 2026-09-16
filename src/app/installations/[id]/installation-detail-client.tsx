@@ -809,6 +809,10 @@ export function InstallationDetailClient({
 }) {
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
+  // Incorpora los datos del servidor al refrescar la ruta sin desmontar la vista.
+  useEffect(() => {
+    setJob(initialJob);
+  }, [initialJob]);
   const [busy, setBusy] = useState(false);
   const [manualDraft, setManualDraft] = useState(measurementDraft());
   const [serviceId, setServiceId] = useState<string>("");
@@ -885,12 +889,13 @@ export function InstallationDetailClient({
       "MEASUREMENT_PENDING",
     ].includes(job.status);
   const installationPaid = paidBaseFor(job, "INSTALLATION");
-  const permitLocked = (job.payments ?? []).some(
+  const permitUsesPaymentPlan = Boolean(job.paymentSchedule);
+  const permitLocked = !permitUsesPaymentPlan && (job.payments ?? []).some(
     (payment) =>
       ["MATERIAL", "INSTALLMENT"].includes(payment.type) &&
       (payment.status === "PAID" || Boolean(payment.stripeSessionId)),
   );
-  const permitOptions = job.permit ? PERMIT_TRANSITIONS[job.permit.status] : [];
+  const permitOptions: InstallationPermitStatus[] = job.permit ? (permitUsesPaymentPlan && job.permit.status === "PAYMENT_PENDING" ? ["SUBMITTED"] : PERMIT_TRANSITIONS[job.permit.status]) : [];
   const approvingPermit = permitStatus === "APPROVED";
   const validCityFee =
     cityFee.trim() !== "" &&
@@ -1668,43 +1673,49 @@ export function InstallationDetailClient({
             <Card>
               <CardHeader>
                 <CardTitle>Permit</CardTitle>
-                <CardDescription>
-                  Permit Fee {money(job.manualDiscountSummary?.permit.total ?? job.permit.permitFeeSnapshot)} ·{" "}
-                  {title(job.permit.status)}
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {job.permit.cityFee != null && (
-                  <div className="flex justify-between text-sm">
-                    <span>City Fee</span>
-                    <strong>{money(job.manualDiscountSummary?.city.total ?? job.permit.cityFee)}</strong>
-                  </div>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span>Permit status</span>
+                  <Badge variant="outline">
+                    {permitUsesPaymentPlan && ["PAYMENT_PENDING", "PAID"].includes(job.permit.status)
+                      ? "Pending"
+                      : title(job.permit.status)}
+                  </Badge>
+                </div>
+                {permitUsesPaymentPlan && privileged && (
+                  <p className="text-sm text-muted-foreground">
+                    The permit can be submitted before or after the order is placed.
+                  </p>
                 )}
                 {privileged &&
-                  job.permit.status !== "PAYMENT_PENDING" &&
+                  (permitUsesPaymentPlan || job.permit.status !== "PAYMENT_PENDING") &&
                   !permitLocked && (
-                    <>
+                    <div className="space-y-3 rounded-lg border p-3">
                       {permitOptions.length > 0 && (
-                        <Select
-                          value={
-                            permitStatus === job.permit.status ? "" : permitStatus
-                          }
-                          disabled={busy}
-                          onValueChange={(value) =>
-                            setPermitStatus(value as InstallationPermitStatus)
-                          }
-                        >
-                          <SelectTrigger aria-label="Permit status">
-                            <SelectValue placeholder="Select next status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {permitOptions.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {title(status)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-2">
+                          <Label htmlFor="permit-next-status">Update permit status</Label>
+                          <Select
+                            value={
+                              permitStatus === job.permit.status ? "" : permitStatus
+                            }
+                            disabled={busy}
+                            onValueChange={(value) =>
+                              setPermitStatus(value as InstallationPermitStatus)
+                            }
+                          >
+                            <SelectTrigger id="permit-next-status" aria-label="Permit status">
+                              <SelectValue placeholder="Select permit status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {permitOptions.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {title(status)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       )}
                       {approvingPermit && (
                         <div className="space-y-2">
@@ -1721,12 +1732,16 @@ export function InstallationDetailClient({
                           />
                         </div>
                       )}
-                      <Textarea
-                        value={permitNotes}
-                        disabled={busy}
-                        onChange={(event) => setPermitNotes(event.target.value)}
-                        placeholder="Permit notes"
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="permit-notes">Permit notes</Label>
+                        <Textarea
+                          id="permit-notes"
+                          value={permitNotes}
+                          disabled={busy}
+                          onChange={(event) => setPermitNotes(event.target.value)}
+                          placeholder="Permit notes"
+                        />
+                      </div>
                       <Button
                         className="w-full"
                         disabled={!canSavePermit}
@@ -1746,7 +1761,7 @@ export function InstallationDetailClient({
                       >
                         Save permit
                       </Button>
-                    </>
+                    </div>
                   )}
                 {privileged && permitLocked && (
                   <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
@@ -1761,6 +1776,28 @@ export function InstallationDetailClient({
                     )}
                   </div>
                 )}
+                <div className="space-y-3 border-t pt-3">
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span>Permit Fee</span>
+                    <strong>{money(job.manualDiscountSummary?.permit.total ?? job.permit.permitFeeSnapshot)}</strong>
+                  </div>
+                  {permitUsesPaymentPlan && (
+                    <p className="text-xs text-muted-foreground">
+                      Included in the project payment schedule.
+                    </p>
+                  )}
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span>City Fee</span>
+                    <strong>{job.permit.cityFee == null
+                      ? "Pending"
+                      : money(job.manualDiscountSummary?.city.total ?? job.permit.cityFee)}</strong>
+                  </div>
+                  {job.permit.cityFee == null && (
+                    <p className="text-xs text-muted-foreground">
+                      The amount is entered when the permit is approved.
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1918,9 +1955,12 @@ export function InstallationDetailClient({
               {privileged &&
                 job.status === "SCHEDULED" &&
                 orderReadyToStartInstallation && (
+                  <div className="space-y-2">
+                  {job.permit && job.permit.status !== "APPROVED" && <p id="installation-permit-blocked" className="text-sm text-amber-800">The company-managed permit must be approved before installation can start.</p>}
                   <Button
                     className="w-full"
-                    disabled={busy}
+                    aria-describedby={job.permit && job.permit.status !== "APPROVED" ? "installation-permit-blocked" : undefined}
+                    disabled={busy || Boolean(job.permit && job.permit.status !== "APPROVED")}
                     onClick={() =>
                       run(
                         () => startInstallation(job.id),
@@ -1930,6 +1970,7 @@ export function InstallationDetailClient({
                   >
                     Start installation
                   </Button>
+                  </div>
                 )}
               {privileged && job.status === "IN_PROGRESS" && (
                 <Button

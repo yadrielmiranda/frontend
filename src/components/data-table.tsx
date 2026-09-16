@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePageTableScroll } from "@/components/use-page-table-scroll";
 import {
   Select,
   SelectContent,
@@ -84,6 +85,8 @@ interface DataTableProps<TData, TValue> {
 
   pagination?: boolean;
   maxHeightClassName?: string;
+  // El modo página se activa solo en las listas que lo solicitan.
+  scrollMode?: "container" | "page";
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -101,6 +104,7 @@ export function DataTable<TData, TValue>({
   filterStorageKey,
   pagination = false,
   maxHeightClassName = "max-h-[520px]",
+  scrollMode = "container",
 }: DataTableProps<TData, TValue>) {
   const storageKey = filterStorageKey
     ? `data-table:${filterStorageKey}:filters`
@@ -114,6 +118,8 @@ export function DataTable<TData, TValue>({
     pageSize: DEFAULT_PAGE_SIZE,
   });
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const pageScrollRequested = React.useRef(false);
+  const scrollToPageStart = usePageTableScroll(scrollMode === "page", scrollContainerRef);
 
   const [filtersVisible, setFiltersVisible] = React.useState(
     () => !collapsibleFilters,
@@ -249,7 +255,10 @@ export function DataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
     autoResetPageIndex: false,
-    onPaginationChange: setPaginationState,
+    onPaginationChange: (updater) => {
+      pageScrollRequested.current = true;
+      setPaginationState(updater);
+    },
     state: {
       columnFilters,
       pagination: paginationState,
@@ -301,12 +310,20 @@ export function DataTable<TData, TValue>({
   }, [filteredCount, pagination, storageRestored]);
 
   React.useEffect(() => {
-    if (pagination) scrollContainerRef.current?.scrollTo({ top: 0 });
+    if (!pagination) return;
+    if (scrollMode === "page") {
+      if (pageScrollRequested.current) scrollToPageStart();
+    } else {
+      scrollContainerRef.current?.scrollTo({ top: 0 });
+    }
+    pageScrollRequested.current = false;
   }, [
     columnFilters,
     pagination,
     paginationState.pageIndex,
     paginationState.pageSize,
+    scrollMode,
+    scrollToPageStart,
   ]);
 
   const activeFilterCount = columnFilters.length;
@@ -546,10 +563,14 @@ export function DataTable<TData, TValue>({
       <div className="rounded-md border">
         <div
           ref={scrollContainerRef}
-          className={`${maxHeightClassName} overflow-auto`}
+          className={scrollMode === "page" ? "relative isolate" : `${maxHeightClassName} overflow-auto`}
         >
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted/40">
+            <TableHeader
+              className={scrollMode === "page"
+                ? "relative z-10 bg-slate-50 shadow-sm dark:bg-slate-900"
+                : "sticky top-0 z-10 bg-muted/40"}
+            >
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => {
@@ -630,6 +651,7 @@ export function DataTable<TData, TValue>({
                 onValueChange={(value) => {
                   const pageSize = Number(value);
                   if (PAGE_SIZE_OPTIONS.includes(pageSize)) {
+                    pageScrollRequested.current = true;
                     setPaginationState({ pageIndex: 0, pageSize });
                   }
                 }}

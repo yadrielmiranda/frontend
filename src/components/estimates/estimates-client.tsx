@@ -115,6 +115,7 @@ export function EstimatesClient({
       collapsibleFilters
       filterStorageKey="estimates"
       pagination
+      scrollMode="page"
     />
   );
 }

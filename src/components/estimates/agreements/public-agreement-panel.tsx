@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,15 +17,20 @@ import { ContractPages } from "./contract-pages";
 import { ChangeOrderDetails } from "./change-order-details";
 import { PublicEstimatePaymentCard } from "@/components/estimates/public-estimate-payment-card";
 import type { PublicPaymentContext } from "@/app/api/payments.api";
+import type { EstimateWithRelations } from "@/lib/types";
+import { EstimateViewDealerPublic } from "../estimate-details/views/estimate-view-dealer-public";
+import { usePromotionExpired } from "@/components/promotions/promotion-banner";
 
 export function PublicAgreementPanel({
   token,
   initialStatus,
   paymentContext,
+  estimate,
 }: {
   token: string;
   initialStatus: AgreementStatus;
   paymentContext?: PublicPaymentContext | null;
+  estimate: EstimateWithRelations;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -34,6 +39,7 @@ export function PublicAgreementPanel({
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const paymentExpired = usePromotionExpired(paymentContext ?? undefined);
   const agreementId = initialStatus.current?.id;
   useEffect(() => {
     setStatus(initialStatus);
@@ -57,7 +63,24 @@ export function PublicAgreementPanel({
     return () => clearInterval(timer);
   }, [refresh]);
   const agreement = status.current;
-  if (!agreement) return null;
+  const canShowPayments = Boolean(
+    agreement?.signedAt && !agreement.invalidatedAt &&
+    status.paymentsEnabled && paymentContext,
+  );
+  const showPaymentStatus = Boolean(
+    canShowPayments && paymentContext?.enabled && paymentContext.schedule &&
+    paymentContext.status !== "expired" && !paymentExpired,
+  );
+  // La firma y el informe comparten estado para cambiar de tabla sin esperar una recarga.
+  // El cronograma original se conserva al imprimir y en el documento firmado.
+  const report = useMemo(() => (
+    <EstimateViewDealerPublic
+      estimate={estimate}
+      pricingMode={estimate.publicPricingMode ?? "detailed"}
+      showPaymentSchedule={!showPaymentStatus}
+    />
+  ), [estimate, showPaymentStatus]);
+  if (!agreement) return report;
   const isChangeOrder = agreement.kind === "CHANGE_ORDER";
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -80,6 +103,8 @@ export function PublicAgreementPanel({
     }
   }
   return (
+    <>
+    {report}
     <section
       className="mt-8 space-y-5 border-t pt-6 print:hidden"
       aria-label="Contract and signature"
@@ -90,7 +115,7 @@ export function PublicAgreementPanel({
             ? `Change Order #${agreement.changeOrderNumber}`
             : "Contract"}
         </h2>
-        {!agreement.signedAt && (
+        {!agreement.signedAt && isChangeOrder && (
           <a
             className="text-sm underline underline-offset-4"
             href={publicAgreementPdfUrl(
@@ -190,9 +215,10 @@ export function PublicAgreementPanel({
             className="mx-auto max-w-2xl space-y-4 border-t pt-6"
           >
             <div className="space-y-2">
-              <Label htmlFor="agreement-name">Full name</Label>
+              <Label htmlFor="agreement-name">Full legal name</Label>
               <Input
                 id="agreement-name"
+                aria-describedby="agreement-name-help"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={150}
@@ -200,6 +226,9 @@ export function PublicAgreementPanel({
                 required
                 disabled={busy}
               />
+              <p id="agreement-name-help" className="text-sm text-muted-foreground">
+                Enter your full name as it appears on your identification.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Signature</Label>
@@ -238,7 +267,7 @@ export function PublicAgreementPanel({
           {error}
         </p>
       )}
-      {status.paymentsEnabled && paymentContext && !agreement.invalidatedAt && (
+      {canShowPayments && paymentContext && (
         <PublicEstimatePaymentCard
           token={token}
           context={paymentContext}
@@ -247,5 +276,6 @@ export function PublicAgreementPanel({
         />
       )}
     </section>
+    </>
   );
 }

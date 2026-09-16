@@ -53,7 +53,7 @@ export default function CheckoutSuccessContent() {
 
     let alive = true;
 
-    // esperamos a que el webhook cree Order + cambie status
+    // Espera la confirmación del pago y el estado correspondiente del proyecto.
     const tick = async () => {
       try {
         const est = await getEstimate(estimateId);
@@ -84,6 +84,12 @@ export default function CheckoutSuccessContent() {
 
         if (paymentType === "INSTALLMENT") {
           const paid = est.payments?.some(payment => payment.type === 'INSTALLMENT' && payment.sequence === sequence && payment.status === 'PAID');
+          if (paid && !est.order && est.status?.name === "Pending order review") {
+            if (!alive || redirectedRef.current) return;
+            redirectedRef.current = true; setStatus("done");
+            toast.success("Payment confirmed. Pending order review.");
+            router.replace(`/estimates/${estimateId}/edit`); return;
+          }
           if (paid && est.order?.id) {
             if (!alive || redirectedRef.current) return;
             redirectedRef.current = true; setStatus('done'); setOrderId(est.order.id);
@@ -129,6 +135,12 @@ export default function CheckoutSuccessContent() {
         }
 
         const statusName = (est.status?.name ?? "").toLowerCase().trim();
+        if (statusName === "pending order review" && est.payments?.some(p => p.type === "MATERIAL" && p.status === "PAID")) {
+          if (!alive || redirectedRef.current) return;
+          redirectedRef.current = true; setStatus("done");
+          toast.success("Payment confirmed. Pending order review.");
+          router.replace(`/estimates/${estimateId}/edit`); return;
+        }
         const isOrdered = statusName === "ordered" || !!est.order;
 
         // intentamos capturar el orderId si existe
@@ -175,12 +187,12 @@ export default function CheckoutSuccessContent() {
 
     // limite (ej: 30 intentos ~ 60s)
     const timeout = setTimeout(() => {
-      if (!alive) return;
+      if (!alive || redirectedRef.current) return;
 
       setStatus("failed");
 
       toast.error(
-        "Payment received, but order is still processing. Refresh in a moment.",
+        "Payment confirmation is still processing. Refresh in a moment.",
       );
     }, 60000);
 
@@ -214,8 +226,7 @@ export default function CheckoutSuccessContent() {
       {status === "checking" && (
         <>
           <p className="text-sm text-muted-foreground">
-            We’re confirming your payment
-            {paymentType === "MATERIAL" ? " and creating the order" : ""}…
+            We’re confirming your payment…
           </p>
 
           <p className="text-xs text-muted-foreground">Attempts: {attempt}</p>

@@ -40,6 +40,7 @@ export default function PublicCheckoutCancelContent() {
 
   const resume = async () => {
     if (!token) return;
+    if (paymentType === "INSTALLMENT") { router.replace(backUrl); return; }
     setBusy("resume");
     try {
       const { url } = await createPublicCheckoutSession(
@@ -62,6 +63,7 @@ export default function PublicCheckoutCancelContent() {
         token,
         paymentType,
         sequence,
+        params.get("checkoutRef") ?? undefined,
       );
       if (result.status === "paid") {
         toast.success("Payment was already confirmed.");
@@ -89,7 +91,7 @@ export default function PublicCheckoutCancelContent() {
             disabled={!token || busy !== null}
             onClick={() => void resume()}
           >
-            {busy === "resume" ? "Opening..." : "Continue payment"}
+            {busy === "resume" ? "Opening..." : paymentType === "INSTALLMENT" ? "Review payments" : "Continue payment"}
           </Button>
           <Button
             variant="destructive"

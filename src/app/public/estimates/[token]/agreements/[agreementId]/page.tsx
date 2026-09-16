@@ -42,15 +42,17 @@ export default async function AgreementSnapshotPage({
       data-agreement-snapshot={agreementId}
     >
       <EstimateReportShell estimate={estimate}>
-        <EstimateViewDealerPublic
-          estimate={estimate}
-          pricingMode={estimate.publicPricingMode ?? "detailed"}
-        />
-        {status && (
+        {status ? (
           <PublicAgreementPanel
+            estimate={estimate}
             token={token}
             initialStatus={status}
             paymentContext={paymentContext}
+          />
+        ) : (
+          <EstimateViewDealerPublic
+            estimate={estimate}
+            pricingMode={estimate.publicPricingMode ?? "detailed"}
           />
         )}
       </EstimateReportShell>

@@ -1447,8 +1447,23 @@ export function EstimateForm({
           price: piece?.price,
         })),
         totalPayable: summary.totalPayable,
+        // El resumen también usa los importes del estimado dentro de la instalación.
+        // Refrescarlos después de guardar, incluso si solo cambia el precio o
+        // el impuesto del cliente y el costo del dealer permanece igual.
+        savedMaterialTotals: {
+          subtotal: promotionEstimate?.priceT,
+          taxRate: promotionEstimate?.taxRate,
+          taxAmount: promotionEstimate?.taxAmount,
+          totalPayable: promotionEstimate?.totalPayable,
+          discountAmount: promotionEstimate?.discountAmount,
+          customerSubtotal: promotionEstimate?.customerPriceT,
+          customerTaxRate: promotionEstimate?.customerTaxRate,
+          customerTaxAmount: promotionEstimate?.customerTaxAmount,
+          customerTotalPayable: promotionEstimate?.customerTotalPayable,
+          customerDiscountAmount: promotionEstimate?.customerDiscountAmount,
+        },
       }),
-    [watchedPieces, summary.totalPayable],
+    [watchedPieces, summary.totalPayable, promotionEstimate],
   );
 
   return (

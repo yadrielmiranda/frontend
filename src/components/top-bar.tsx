@@ -88,7 +88,7 @@ function TopBar() {
 
   if (!mounted) {
     return (
-      <header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+      <header data-app-header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
         <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <Brand />
@@ -107,7 +107,7 @@ function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+    <header data-app-header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
       <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
           <Brand />

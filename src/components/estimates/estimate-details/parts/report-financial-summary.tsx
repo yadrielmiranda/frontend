@@ -609,10 +609,12 @@ export function ReportFinancialSummary({
   estimate,
   reportKind,
   installationSummary = estimate.installationSummary ?? null,
+  showPaymentSchedule = true,
 }: {
   estimate: EstimateWithRelations;
   reportKind: EstimateReportKind;
   installationSummary?: EstimateInstallationReportSummary | null;
+  showPaymentSchedule?: boolean;
 }) {
   const hideDealerPromotions =
     (reportKind === "dealer-customer" ||
@@ -821,7 +823,11 @@ export function ReportFinancialSummary({
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
 
-      {!(customerFacing && estimate.dealerModeSnapshot === "EXTERNAL") && <PaymentScheduleView schedule={estimate.paymentSchedule} termsOnly />}
+      {!(customerFacing && estimate.dealerModeSnapshot === "EXTERNAL") && (
+        <div className={showPaymentSchedule ? undefined : "hidden print:block"}>
+          <PaymentScheduleView schedule={estimate.paymentSchedule} termsOnly />
+        </div>
+      )}
 
       <p className="pt-1 text-[11px] text-black">
         Product illustrations are visual references and are not to scale;

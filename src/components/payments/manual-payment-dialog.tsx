@@ -44,9 +44,13 @@ export function ManualPaymentDialog({
   estimateId,
   type,
   sequence,
+  sequences,
+  payFullBalance = false,
   amount,
   label = "Record manual payment",
   requiresDepositTerms = false,
+  requiresCityFeeAcceptance = false,
+  cityFeeAmount,
   depositTerms,
   beforeSubmit,
   onRecorded,
@@ -54,9 +58,13 @@ export function ManualPaymentDialog({
   estimateId: number;
   type: PaymentType;
   sequence?: number;
+  sequences?: number[];
+  payFullBalance?: boolean;
   amount: number;
   label?: string;
   requiresDepositTerms?: boolean;
+  requiresCityFeeAcceptance?: boolean;
+  cityFeeAmount?: number;
   depositTerms?: string | null;
   beforeSubmit?: () => Promise<boolean>;
   onRecorded?: (payment: ManualPaymentResult) => void;
@@ -69,6 +77,7 @@ export function ManualPaymentDialog({
   const [paidAt, setPaidAt] = useState(localDateTimeValue);
   const [fundsVerified, setFundsVerified] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [cityFeeAccepted, setCityFeeAccepted] = useState(false);
 
   const submit = async () => {
     if (!reference.trim()) {
@@ -83,6 +92,7 @@ export function ManualPaymentDialog({
       toast.error("Confirm acceptance of the deposit terms.");
       return;
     }
+    if (requiresCityFeeAcceptance && !cityFeeAccepted) { toast.error("Confirm customer acceptance of the City Fee adjustment."); return; }
     if (!paidAt || Number.isNaN(new Date(paidAt).getTime())) {
       toast.error("Enter a valid payment date.");
       return;
@@ -95,8 +105,11 @@ export function ManualPaymentDialog({
         estimateId,
         type,
         sequence,
+        sequences,
+        ...(payFullBalance ? { payFullBalance: true, expectedBalance: amount } : {}),
         method,
         fundsVerified: true,
+        cityFeeAccepted: requiresCityFeeAcceptance ? cityFeeAccepted : undefined,
         reference: reference.trim(),
         note: note.trim() || undefined,
         paidAt: new Date(paidAt).toISOString(),
@@ -125,7 +138,7 @@ export function ManualPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record confirmed manual payment</DialogTitle>
           <DialogDescription>
-            This immediately marks the charge paid and advances the workflow.
+            This records the selected payments as paid.
             Use it only after the funds are visible and verified.
           </DialogDescription>
         </DialogHeader>
@@ -188,6 +201,12 @@ export function ManualPaymentDialog({
             />
           </div>
 
+          {requiresCityFeeAcceptance && (
+            <label className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+              <Checkbox checked={cityFeeAccepted} onCheckedChange={value => setCityFeeAccepted(value === true)} />
+              <span>The customer accepted the City Fee adjustment of {formatMoney(cityFeeAmount ?? amount)}.</span>
+            </label>
+          )}
           {requiresDepositTerms && (
             <label className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
               <Checkbox
@@ -234,7 +253,8 @@ export function ManualPaymentDialog({
               busy ||
               !reference.trim() ||
               !fundsVerified ||
-              (requiresDepositTerms && !termsAccepted)
+              (requiresDepositTerms && !termsAccepted) ||
+              (requiresCityFeeAcceptance && !cityFeeAccepted)
             }
             onClick={() => void submit()}
           >

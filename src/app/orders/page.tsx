@@ -27,6 +27,8 @@ export default async function OrdersPage() {
       <div className="rounded-xl border bg-white shadow-sm p-4">
         <OrdersClient
           initialOrders={orders}
+          currentUserId={user.id}
+          currentUserRole={role}
           canEdit={canEdit}
           canViewFinancials={canViewFinancials}
         />

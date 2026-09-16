@@ -10,10 +10,14 @@ export function OrdersClient({
   initialOrders,
   canEdit,
   canViewFinancials,
+  currentUserId,
+  currentUserRole,
 }: {
   initialOrders: OrderWithRelations[];
   canEdit: boolean;
   canViewFinancials: boolean;
+  currentUserId: number;
+  currentUserRole: string | null;
 }) {
   const [orders, setOrders] = useState(initialOrders);
 
@@ -53,8 +57,8 @@ export function OrdersClient({
   }, [initialOrders]);
 
   const columns = useMemo(
-    () => getOrderColumns({ canEdit, canViewFinancials }),
-    [canEdit, canViewFinancials],
+    () => getOrderColumns({ canEdit, canViewFinancials, currentUserId, currentUserRole }),
+    [canEdit, canViewFinancials, currentUserId, currentUserRole],
   );
 
   return (
@@ -63,6 +67,9 @@ export function OrdersClient({
       data={orders}
       filterColumnId="number"
       filterPlaceholder="Filter by order number..."
+      filterStorageKey="orders"
+      pagination
+      scrollMode="page"
     />
   );
 }

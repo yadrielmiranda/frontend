@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal, Edit } from "lucide-react";
+import { MoreHorizontal, Edit, CreditCard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,13 +17,18 @@ import {
 import type { OrderWithRelations } from "@/lib/types";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { getEstimateCostColumns } from "@/components/estimates/estimate-cost-columns";
 
 export function getOrderColumns({
   canEdit,
   canViewFinancials,
+  currentUserId,
+  currentUserRole,
 }: {
   canEdit: boolean;
   canViewFinancials: boolean;
+  currentUserId: number;
+  currentUserRole: string | null;
 }): ColumnDef<OrderWithRelations>[] {
   const columns: ColumnDef<OrderWithRelations>[] = [
     { accessorKey: "number", header: "Order #" },
@@ -34,42 +39,62 @@ export function getOrderColumns({
       cell: ({ row }) => formatDateEn(row.original.date),
     },
     { accessorKey: "estimate.name", header: "Name" },
-    { accessorKey: "user.username", header: "Created By" },
-    { accessorKey: "units", header: "Units" },
+    ...(currentUserRole !== "client"
+      ? [
+          {
+            accessorKey: "user.username",
+            header: () => <div className="text-center">Created By</div>,
+            cell: ({ row }) => <div className="text-center">{row.original.user?.username ?? "—"}</div>,
+          } satisfies ColumnDef<OrderWithRelations>,
+        ]
+      : []),
     {
-      accessorKey: "amount",
-      header: "Amount",
-      cell: ({ row }) => (
-        <div className="text-right font-medium">
-          {formatMoney(row.original.amount)}
-        </div>
-      ),
+      accessorKey: "units",
+      header: () => <div className="text-center">Units</div>,
+      cell: ({ row }) => <div className="text-center tabular-nums">{row.original.units}</div>,
     },
+    ...getEstimateCostColumns<OrderWithRelations>((order) => order.estimate),
     {
       accessorKey: "status.name",
-      header: "Status",
-      cell: ({ row }) => <OrderStatusBadge name={row.original.status?.name} />,
+      header: () => <div className="text-center">Status</div>,
+      cell: ({ row }) => (
+        <div className="text-center"><OrderStatusBadge name={row.original.status?.name} /></div>
+      ),
     },
   ];
 
   if (canViewFinancials) {
     columns.splice(-1, 0, {
       id: "netProfitReal",
-      header: "Real Material Profit",
-      cell: ({ row }) =>
-        row.original.netProfitReal == null
-          ? "Pending"
-          : formatMoney(Number(row.original.netProfitReal)),
+      header: () => <div className="text-center">Real Material Profit</div>,
+      cell: ({ row }) => (
+        <div className="text-center tabular-nums">
+          {row.original.netProfitReal == null
+            ? "Pending"
+            : formatMoney(Number(row.original.netProfitReal))}
+        </div>
+      ),
     });
   }
 
   columns.push({
     id: "actions",
+    header: () => <div className="text-right">Actions</div>,
     cell: ({ row }) => {
       const order = row.original;
+      const canPay = order.userId === currentUserId && order.dealerModeSnapshot !== "INTERNAL" && order.paymentAnchor;
 
       return (
-        <div className="text-right">
+        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+          {canPay && (
+            <Button asChild size="sm" className="h-8 px-3 shadow-sm">
+              <Link href={`/orders/${order.id}#${order.paymentAnchor}`} prefetch={false}
+                title="Open order payment" aria-label={`Pay order ${order.number}`}>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Pay now
+              </Link>
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

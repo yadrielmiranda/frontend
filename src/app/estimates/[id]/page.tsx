@@ -49,6 +49,8 @@ export default async function EstimateDetailPage({
 
   const initialPublicView = resolvedSearchParams.view === "public";
 
+  if (estimate.status?.name === "Pending order review" && !initialPublicView) return redirect(`/estimates/${estimate.id}/edit`);
+
   if (initialPublicView && !isDealerRole(estimate.user.role.name)) {
     return redirect(`/estimates/${estimate.id}`);
   }
