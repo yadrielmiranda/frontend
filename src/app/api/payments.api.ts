@@ -17,7 +17,19 @@ export type CancelCheckoutSessionResponse = {
   orderId: number | null;
 };
 
+export type PublicPaymentSelection = { type: PaymentType; sequence: number };
+export type PublicPaymentOption = NonNullable<PublicPaymentContext["payment"]> & { advanceOnly?: boolean };
+
 export type PublicPaymentContext = {
+  payments?: PublicPaymentOption[];
+  fullBalance?: { amount: string; items: PublicPaymentSelection[] } | null;
+  checkouts?: Array<{
+    items: PublicPaymentSelection[];
+    baseAmount: string;
+    surchargePercent: string;
+    surchargeAmount: string;
+    totalAmount: string;
+  }>;
   agreement?: {
     required: boolean;
     satisfied: boolean;
@@ -107,12 +119,13 @@ export function createPublicCheckoutSession(
   cityFeeAccepted?: boolean,
   sequences?: number[],
   fullBalance?: FullBalanceRequest,
+  selection?: { items: PublicPaymentSelection[]; expectedBalance: number },
 ) {
   return apiFetch<CheckoutSessionResponse>(
     `/api/payments/public/${encodeURIComponent(token)}/checkout-session`,
     {
       method: "POST",
-      body: { installationDepositTermsAccepted, agreementId, cityFeeAccepted, sequences, ...fullBalance },
+      body: { installationDepositTermsAccepted, agreementId, cityFeeAccepted, sequences, ...fullBalance, ...selection },
       suppressAuthEvent: true,
     },
   );
