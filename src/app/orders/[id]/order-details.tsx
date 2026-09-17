@@ -227,7 +227,7 @@ export function OrderDetails({
           </div>
 
           <div className="border-t pt-3 text-xs text-muted-foreground">
-            Payment: {order.payment?.paymentMethod ?? "CARD"}
+            Payment: {order.payment?.paymentMethodLabel ?? (order.payment?.stripeSessionId ? "Stripe — pending verification" : order.payment?.paymentMethod ?? "Not recorded")}
             {order.payment?.manualReference
               ? ` · Ref. ${order.payment.manualReference}`
               : ""}
@@ -240,7 +240,7 @@ export function OrderDetails({
         </div>
       ) : null}
 
-      {order.paymentSchedule && <EstimatePaymentCard
+      {<EstimatePaymentCard
         estimateId={order.idEst} estimateOwnerId={order.userId} ownerRole={order.user.role.name}
         estimateStatus="Ordered" order={order} materialPayments={order.estimate.payments ?? []}
         installationJob={installation} currentUserId={isOwner ? order.userId : 0}

@@ -180,7 +180,7 @@ export function OrderInstallationPanel({
                 <div className="mt-4 space-y-2">
                   <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
                     <div className="flex items-center justify-between gap-3 font-semibold">
-                      <span>Card charge total</span>
+                      <span>Payment total</span>
                       <span>
                         {formatMoney(installationCardBreakdown.totalAmount)}
                       </span>

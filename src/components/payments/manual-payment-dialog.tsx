@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
 import type { PaymentMethod, PaymentType } from "@/lib/types";
 
-type ManualMethod = Exclude<PaymentMethod, "CARD">;
+type ManualMethod = Exclude<PaymentMethod, "CARD" | "BANK">;
 
 const localDateTimeValue = () => {
   const date = new Date();

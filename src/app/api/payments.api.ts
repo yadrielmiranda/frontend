@@ -30,7 +30,7 @@ export type PublicPaymentContext = {
   expiresAt?: string | null;
   promotionLockedAt?: string | null;
   enabled: boolean;
-  status: "not_applicable" | "complete" | "due" | "available" | "expired";
+  status: "not_applicable" | "complete" | "due" | "available" | "expired" | "review";
   payment: null | {
     type: PaymentType;
     sequence: number;
@@ -136,7 +136,7 @@ export function recordManualPayment(data: {
   sequences?: number[];
   payFullBalance?: boolean;
   expectedBalance?: number;
-  method: Exclude<PaymentMethod, "CARD">;
+  method: Exclude<PaymentMethod, "CARD" | "BANK">;
   fundsVerified: true;
   reference: string;
   note?: string;
@@ -152,4 +152,21 @@ export function recordManualPayment(data: {
 
 export function approveEstimateOrder(estimateId: number) {
   return apiFetch<{ id: number; number: string }>(`/api/payments/estimates/${estimateId}/approve-order`, { method: "POST" });
+}
+
+export type PaymentHistoryData = {
+  canReview: boolean;
+  reviewPending: boolean;
+  receipts: Array<{ id: number; title: string; amount: string; principal: string; fee: string; method: string; paidAt: string; refunded: string }>;
+  refunds: Array<{ id: string; amount: string; status: string; createdAt: string; reviewedAt: string | null; note?: string | null;
+    allocations: Array<{ id: number; title: string; amount: string; principal: string; creditAmount: string }> }>;
+};
+export function getPaymentHistory(estimateId: number) {
+  return apiFetch<PaymentHistoryData>(`/api/payments/estimates/${estimateId}/history`, { cache: "no-store" });
+}
+export function synchronizeStripePayments(estimateId: number) {
+  return apiFetch<PaymentHistoryData>(`/api/payments/estimates/${estimateId}/sync-stripe`, { method: "POST" });
+}
+export function reviewPaymentRefund(estimateId: number, refundId: string, data: { note: string; allocations: Array<{ id: number; creditAmount: number }> }) {
+  return apiFetch<{ reviewed: boolean }>(`/api/payments/estimates/${estimateId}/refunds/${encodeURIComponent(refundId)}/review`, { method: "POST", body: data });
 }

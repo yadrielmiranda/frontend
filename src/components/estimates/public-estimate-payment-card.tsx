@@ -47,6 +47,8 @@ export function PublicEstimatePaymentCard({
 
   if (!context.enabled) return null;
 
+  if (context.status === "review") return <div className="mt-6 space-y-5 print:hidden"><PaymentScheduleView schedule={context.schedule} /><p className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">A refund is under review. Any remaining amount to pay will appear once the balance is confirmed.</p></div>;
+
   if (context.status === "complete" || !context.payment) {
     return (
       <div className="mt-6 space-y-5 print:hidden"><PaymentScheduleView schedule={context.schedule} />
@@ -151,7 +153,7 @@ export function PublicEstimatePaymentCard({
               </div>
               <div className="mt-1 flex items-center justify-between gap-4">
                 <span>
-                  Card processing fee ({surchargePercentLabel}% ×{" "}
+                  Processing fee ({surchargePercentLabel}% ×{" "}
                   {formatMoney(baseAmount)})
                 </span>
                 <span className="font-medium text-slate-800">

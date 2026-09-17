@@ -14,7 +14,8 @@ const safeMoney = (value: unknown) => {
 };
 
 const hasLockedCardSnapshot = (payment?: EstimatePayment | null) =>
-  payment?.paymentMethod === "CARD" &&
+  Boolean(payment?.stripeSessionId || payment?.stripeMethodType || payment?.paymentMethod === "CARD") &&
+  payment != null &&
   (payment.status === "PAID" ||
     (payment.status === "PENDING" && Boolean(payment.stripeSessionId)));
 

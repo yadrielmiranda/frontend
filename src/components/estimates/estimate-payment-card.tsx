@@ -1,5 +1,7 @@
 "use client";
 
+import { hasRefundHistory, refundedBalance } from "@/lib/payment-accounting";
+import { PaymentHistory } from "@/components/payments/payment-history";
 import { FullBalancePrompt, FullBalanceReview, FullBalanceToggle, InstallmentSelection, selectedInstallmentCheckout, useInstallmentSelection } from "@/components/payments/installment-selection";
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
 import type { PaymentSchedule } from "@/lib/payment-plan";
@@ -26,10 +28,7 @@ import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-paym
 import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
 
-type CheckoutPaymentType = Extract<
-  PaymentType,
-  "INSTALLMENT" | "INSTALLATION_DEPOSIT" | "PERMIT" | "MATERIAL" | "INSTALLATION"
->;
+type CheckoutPaymentType = PaymentType;
 
 type PaymentAction = {
   type: CheckoutPaymentType;
@@ -69,6 +68,13 @@ export function resolveEstimatePaymentAction({
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
       : null;
+
+  const payments = [...materialPayments, ...(installationJob?.payments ?? [])];
+  const recovery = payments.find(p => p.type !== 'INSTALLMENT' && !p.refundReviewPending && hasRefundHistory(p) && refundedBalance(p) > 0 &&
+    (!paymentSchedule || ['DELIVERY', 'EXTRA'].includes(p.type) || (p.type === 'INSTALLATION_DEPOSIT' && activeJob?.status === 'DEPOSIT_PAYMENT_PENDING')));
+  if (recovery) return { type: recovery.type, sequence: recovery.sequence, title: 'Reviewed payment balance',
+    description: `Remaining ${recovery.type.toLowerCase().replaceAll('_', ' ')} balance after refund review.`, amount: refundedBalance(recovery) };
+  if (payments.some(p => p.refundReviewPending && p.type === 'INSTALLATION_DEPOSIT') && activeJob?.status === 'DEPOSIT_PAYMENT_PENDING') return null;
 
   if (paymentSchedule && activeJob?.status !== 'DEPOSIT_PAYMENT_PENDING') {
     const next = paymentSchedule.next;
@@ -159,7 +165,7 @@ export function resolveEstimatePaymentAction({
   return null;
 }
 
-export function EstimatePaymentCard({
+function EstimatePaymentCardContent({
   estimateId,
   estimateOwnerId,
   ownerRole,
@@ -334,7 +340,7 @@ export function EstimatePaymentCard({
 
         <div className="shrink-0 text-left sm:min-w-80 sm:text-right">
           <p className="text-xs font-medium text-slate-500">
-            {showCardCheckoutAmounts ? "Card charge total" : installments.isFullBalance ? "Payment amount" : "Due now"}
+            {showCardCheckoutAmounts ? "Payment total" : installments.isFullBalance ? "Payment amount" : "Due now"}
           </p>
           <p aria-live="polite" className="text-2xl font-semibold tracking-tight text-slate-950">
             {formatMoney(
@@ -530,4 +536,11 @@ export function EstimatePaymentCard({
     </section>
     </div>
   );
+}
+
+export function EstimatePaymentCard(props: Parameters<typeof EstimatePaymentCardContent>[0]) {
+  return <div className="space-y-5"><EstimatePaymentCardContent {...props} />
+    {(props.currentUserId === props.estimateOwnerId || props.canRecordManualPayment) &&
+      <PaymentHistory estimateId={props.estimateId} reviewPending={[...props.materialPayments, ...(props.installationJob?.payments ?? [])].some(p => p.refundReviewPending)} />}
+  </div>;
 }

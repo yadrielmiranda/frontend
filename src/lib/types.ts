@@ -361,6 +361,7 @@ export type PaymentStatus =
   | "EXPIRED"
   | "REFUNDED";
 export type PaymentMethod =
+  | "BANK"
   | "CARD"
   | "CHECK"
   | "ZELLE"
@@ -371,6 +372,13 @@ export type PaymentMethod =
 export type PaymentPayerType = "ACCOUNT_OWNER" | "CUSTOMER";
 
 export interface EstimatePayment {
+  netPaidBaseAmount?: string | number | null;
+  originalBaseAmount?: string | number | null;
+  refundedAmount?: string | number;
+  refundCreditAmount?: string | number;
+  refundReviewPending?: boolean;
+  paymentMethodLabel?: string | null;
+  stripeMethodType?: string | null;
   id: number;
   type: PaymentType;
   sequence: number;

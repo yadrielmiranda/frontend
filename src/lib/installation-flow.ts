@@ -1,3 +1,4 @@
+import { paidPrincipal } from "./payment-accounting";
 import type {
   EstimatePayment,
   InstallationJob,
@@ -107,15 +108,15 @@ export function paidInstallationCredit(job: InstallationJob): number {
       (payment) =>
         (payment.type === "INSTALLATION_DEPOSIT" ||
           payment.type === "INSTALLATION") &&
-        payment.status === "PAID",
+        (payment.status === "PAID" || payment.netPaidBaseAmount != null),
     )
-    .reduce((sum, payment) => sum + Number(payment.baseAmount), 0);
+    .reduce((sum, payment) => sum + paidPrincipal(payment) + Number(payment.refundCreditAmount ?? 0), 0);
 }
 
 export function paidBaseFor(job: InstallationJob, type: PaymentType): number {
   return job.payments
-    .filter((payment) => payment.type === type && payment.status === "PAID")
-    .reduce((sum, payment) => sum + Number(payment.baseAmount), 0);
+    .filter((payment) => payment.type === type && (payment.status === "PAID" || payment.netPaidBaseAmount != null))
+    .reduce((sum, payment) => sum + paidPrincipal(payment) + Number(payment.refundCreditAmount ?? 0), 0);
 }
 
 export function hasStartedInstallationPayment(payments: EstimatePayment[]): boolean {

@@ -23,7 +23,7 @@ export function CardFeeBreakdown({
       </div>
       <div className="mt-1 flex items-center justify-between gap-4">
         <span>
-          Card processing fee (
+          Processing fee (
           {formatCardFeePercent(breakdown.surchargePercent)}% ×{" "}
           {formatMoney(breakdown.baseAmount)})
         </span>

@@ -22,6 +22,7 @@ export function PaymentScheduleView({
             "Amounts are preliminary until the included charges are finalized."}
         </p>
       )}
+      {!termsOnly && schedule.refundReviewPending && <p className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">A refund is under review. Affected payments are temporarily unavailable; other due payments can still be paid.</p>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -48,6 +49,7 @@ export function PaymentScheduleView({
                 </td>
                 <td className="whitespace-nowrap p-2 text-right font-medium">
                   {formatMoney(Number(row.amount))}
+                  {Number(row.approvedCredit) > 0 && <span className="block text-xs font-normal text-muted-foreground">Reduced by {formatMoney(Number(row.approvedCredit))}</span>}
                 </td>
                 {!termsOnly && (
                   <>
@@ -61,7 +63,7 @@ export function PaymentScheduleView({
                       <span
                         className={`rounded-full px-2 py-1 text-xs ${row.status === "PAID" || row.status === "CREDIT" ? "bg-emerald-50 text-emerald-800" : row.status === "DUE" ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-600"}`}
                       >
-                        {row.status === "PAID"
+                        {row.status === "REVIEW" ? "Under review" : row.status === "PAID"
                           ? Number(row.amount) === 0
                             ? "No charge"
                             : Number(row.credit) > 0
@@ -96,6 +98,7 @@ export function PaymentScheduleView({
           </>
         )}
       </div>
+      {!termsOnly && Number(schedule.refunded) > 0 && <p className="mt-3 text-xs text-muted-foreground">Paid reflects confirmed refunds. Refunded receipts: {formatMoney(Number(schedule.refunded))}, including any refunded processing fees.{Number(schedule.approvedRefundCredit) > 0 ? ` Project total includes an approved reduction of ${formatMoney(Number(schedule.approvedRefundCredit))}.` : ""}</p>}
       <p className="mt-3 text-xs text-muted-foreground">
         Any installation deposit already paid is credited toward the first order
         installment. Unused credit carries forward. It is counted once. Delivery
