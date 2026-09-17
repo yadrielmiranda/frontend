@@ -23,6 +23,7 @@ import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
+import { getCurrentPlatformTerms, platformTermsPageUrl, type PlatformTermsVersion } from '@/app/api/platform-terms.api';
 
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
@@ -102,6 +103,24 @@ export function CardRegister() {
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [consentReload, setConsentReload] = useState(0);
+  const [platformTerms, setPlatformTerms] = useState<PlatformTermsVersion | null>(null);
+  const [platformTermsLoaded, setPlatformTermsLoaded] = useState(false);
+  const [platformTermsError, setPlatformTermsError] = useState<string | null>(null);
+  const [platformTermsAccepted, setPlatformTermsAccepted] = useState<number | null>(null);
+  const [platformTermsReload, setPlatformTermsReload] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPlatformTermsLoaded(false);
+    setPlatformTermsAccepted(null);
+    setPlatformTermsError(null);
+    getCurrentPlatformTerms().then(terms => {
+      if (!cancelled) { setPlatformTerms(terms); setPlatformTermsLoaded(true); }
+    }).catch(() => {
+      if (!cancelled) setPlatformTermsError('Could not load the Terms and Conditions. Please try again.');
+    });
+    return () => { cancelled = true; };
+  }, [platformTermsReload]);
 
   const {
     register,
@@ -170,8 +189,11 @@ export function CardRegister() {
   const handleRegister = async (data: RegisterFormData) => {
     const wantsSms = data.serviceConsent || data.promotionsConsent;
     if (!REGISTRATION_ENABLED || (wantsSms && !consentProgram)) return;
+    if (!platformTermsLoaded || (platformTerms && platformTermsAccepted !== platformTerms.id)) return;
     try {
-      await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}) });
+      await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
+        ...(platformTerms ? { platformTermsAccepted: true, platformTermsVersionId: platformTerms.id } : {}),
+      });
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
@@ -180,6 +202,10 @@ export function CardRegister() {
       router.push("/");
       router.refresh();
     } catch (err: any) {
+      if (err?.data?.code === 'PLATFORM_TERMS_CHANGED' || err?.data?.code === 'PLATFORM_TERMS_REQUIRED') {
+        setPlatformTermsAccepted(null);
+        setPlatformTermsReload(value => value + 1);
+      }
       if (err?.data?.code === "CONSENT_VERSION_CHANGED") {
         setConsentProgram(null);
         setValue("serviceConsent", false);
@@ -452,6 +478,22 @@ export function CardRegister() {
               </>
             )}
           </div>
+          <div className="space-y-3 rounded-xl border border-white/15 bg-black/20 p-4 md:col-span-2">
+            <p className="text-sm font-semibold text-white">Terms and Conditions</p>
+            {platformTermsError ? <div className="space-y-2"><p role="alert" className={errorClass}>{platformTermsError}</p>
+              <button type="button" className="text-sm text-blue-300 underline" onClick={() => setPlatformTermsReload(value => value + 1)}>Try again</button></div>
+            : !platformTermsLoaded ? <p role="status" className="text-sm text-white/60">Loading terms...</p>
+            : platformTerms ? <>
+              <p className="flex gap-4 text-sm"><a className="text-blue-300 underline underline-offset-4" href={platformTermsPageUrl()} target="_blank" rel="noopener noreferrer">Read terms</a>
+                </p>
+              <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
+                <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-emerald-500" disabled={isSubmitting}
+                  checked={platformTermsAccepted === platformTerms.id}
+                  onChange={event => setPlatformTermsAccepted(event.target.checked ? platformTerms.id : null)} />
+                <span>{platformTerms.consentText}</span>
+              </label>
+            </> : <p className="text-sm text-white/60">Terms and Conditions have not been published yet.</p>}
+          </div>
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
@@ -463,7 +505,7 @@ export function CardRegister() {
           <Button
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
-            disabled={!REGISTRATION_ENABLED || isSubmitting}
+            disabled={!REGISTRATION_ENABLED || isSubmitting || !platformTermsLoaded || Boolean(platformTerms && platformTermsAccepted !== platformTerms.id)}
             aria-describedby={!REGISTRATION_ENABLED ? "registration-availability" : undefined}
           >
             {isSubmitting ? (

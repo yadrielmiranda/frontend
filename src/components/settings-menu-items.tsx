@@ -305,6 +305,14 @@ export function SettingsMenuItems({
           Company
         </Link>
       </DropdownMenuItem>
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/platform-terms">
+            <FileSliders className={iconClass} />
+            Terms and Conditions
+          </Link>
+        </DropdownMenuItem>
+      )}
     </Fragment>
   );
 }

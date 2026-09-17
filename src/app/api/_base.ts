@@ -317,6 +317,15 @@ export async function apiFetch<T = unknown>(
     }
 
     const payload = await parseResponse(res);
+    if (res.status === 403 && payload && typeof payload === 'object' &&
+        (payload as { code?: string }).code === 'PLATFORM_TERMS_REQUIRED') {
+      if (isServer) {
+        const { redirect } = await import('next/navigation');
+        redirect('/terms');
+      } else {
+        window.dispatchEvent(new CustomEvent('platform-terms:required'));
+      }
+    }
     const message = extractErrorMessage(payload);
 
     throw new ApiError(message, res.status, payload);

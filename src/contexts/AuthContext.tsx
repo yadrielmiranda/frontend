@@ -272,7 +272,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       lastUserIdRef.current = newId;
 
-      const initialNotifications = await getNotifications();
+      // Una condición pendiente no invalida la sesión autenticada.
+      const initialNotifications = await getNotifications().catch(() => []);
       setNotifications(initialNotifications);
 
       // ✅ Programar idle probe desde ahora
