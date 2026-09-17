@@ -77,7 +77,10 @@ export function getProfileSilent() {
   });
 }
 
-export function updateMyProfile(userData: Omit<UpdateUserDto, "idRole">) {
+type ProfileFields = "username" | "firstName" | "lastName" | "email" | "phone" |
+  "street" | "city" | "state" | "postalCode";
+
+export function updateMyProfile(userData: Pick<UpdateUserDto, ProfileFields>) {
   return apiFetch<User>("/api/auth/profile", {
     method: "PATCH",
     body: userData,
@@ -119,7 +122,7 @@ export function resetPassword(data: ResetPasswordData) {
 /**
  * Signup público (si lo usas)
  */
-type RegisterUserData = Omit<CreateUserDto, "idRole" | "installationPriceProfileId"> & {
+type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
   serviceConsent: boolean;
   promotionsConsent: boolean;
   consentVersion?: string;

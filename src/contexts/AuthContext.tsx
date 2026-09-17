@@ -310,6 +310,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       withCredentials: true,
       transports: ["websocket"],
     });
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    socket.on("disconnect", (reason) => {
+      if (reason !== "io server disconnect" || disposed) return;
+      // Renueva las cookies mediante HTTP antes de volver a autenticar el socket.
+      reconnectTimer = setTimeout(() => {
+        void getProfileSilent().then(() => {
+          if (!disposed) socket.connect();
+        }).catch(() => undefined);
+      }, 1000);
+    });
 
     socket.on("new_notification", (newNotification: Notification) => {
       toast.info(newNotification.message);
@@ -320,6 +331,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       socket.disconnect();
     };
   }, [isAuthenticated, user?.id]);
