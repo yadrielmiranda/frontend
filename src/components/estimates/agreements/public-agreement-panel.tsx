@@ -16,7 +16,7 @@ import { SignaturePad } from "./signature-pad";
 import { ContractPages } from "./contract-pages";
 import { ChangeOrderDetails } from "./change-order-details";
 import { PublicEstimatePaymentCard } from "@/components/estimates/public-estimate-payment-card";
-import type { PublicPaymentContext } from "@/app/api/payments.api";
+import { getPublicPaymentContext, type PublicPaymentContext } from "@/app/api/payments.api";
 import type { EstimateWithRelations } from "@/lib/types";
 import { EstimateViewDealerPublic } from "../estimate-details/views/estimate-view-dealer-public";
 import { usePromotionExpired } from "@/components/promotions/promotion-banner";
@@ -24,7 +24,7 @@ import { usePromotionExpired } from "@/components/promotions/promotion-banner";
 export function PublicAgreementPanel({
   token,
   initialStatus,
-  paymentContext,
+  paymentContext: initialPaymentContext,
   estimate,
 }: {
   token: string;
@@ -34,6 +34,7 @@ export function PublicAgreementPanel({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
+  const [paymentContext, setPaymentContext] = useState(initialPaymentContext);
   const [name, setName] = useState("");
   const [signature, setSignature] = useState<SignatureStrokes>([]);
   const [accepted, setAccepted] = useState(false);
@@ -45,6 +46,9 @@ export function PublicAgreementPanel({
     setStatus(initialStatus);
   }, [initialStatus]);
   useEffect(() => {
+    setPaymentContext(initialPaymentContext);
+  }, [initialPaymentContext]);
+  useEffect(() => {
     setName("");
     setAccepted(false);
     setSignature([]);
@@ -52,10 +56,14 @@ export function PublicAgreementPanel({
   }, [agreementId]);
   const refresh = useCallback(async () => {
     if (!agreementId) return;
-    const next = await getPublicAgreement(token, agreementId);
+    const [next, payments] = await Promise.all([
+      getPublicAgreement(token, agreementId),
+      initialStatus.paymentsEnabled ? getPublicPaymentContext(token) : Promise.resolve(null),
+    ]);
     setStatus(next);
+    setPaymentContext(payments);
     if (next.current?.state !== initialStatus.current?.state) router.refresh();
-  }, [token, agreementId, initialStatus.current?.state, router]);
+  }, [token, agreementId, initialStatus.current?.state, initialStatus.paymentsEnabled, router]);
   useEffect(() => {
     const timer = setInterval(() => {
       void refresh().catch(() => undefined);
@@ -64,8 +72,12 @@ export function PublicAgreementPanel({
   }, [refresh]);
   const agreement = status.current;
   const canShowPayments = Boolean(
-    agreement?.signedAt && !agreement.invalidatedAt &&
+    agreement && !agreement.invalidatedAt &&
     status.paymentsEnabled && paymentContext,
+  );
+  const acceptedInAnotherView = Boolean(
+    canShowPayments && !agreement?.signedAt &&
+    paymentContext?.agreement?.required && paymentContext.agreement.satisfied,
   );
   const showPaymentStatus = Boolean(
     canShowPayments && paymentContext?.enabled && paymentContext.schedule &&
@@ -94,6 +106,7 @@ export function PublicAgreementPanel({
         accepted,
       });
       setStatus((previous) => ({ ...previous, current: result.current }));
+      await refresh().catch(() => undefined);
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -210,7 +223,11 @@ export function PublicAgreementPanel({
               url={publicAgreementPdfUrl(token, agreement.id, "contract")}
             />
           )}
-          <form
+          {acceptedInAnotherView ? (
+            <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+              A current agreement for this estimate has already been signed. No additional signature is needed for payment.
+            </p>
+          ) : <form
             onSubmit={submit}
             className="mx-auto max-w-2xl space-y-4 border-t pt-6"
           >
@@ -259,7 +276,7 @@ export function PublicAgreementPanel({
                   ? "Accept and sign Change Order"
                   : "Accept and sign"}
             </Button>
-          </form>
+          </form>}
         </>
       )}
       {error && (
@@ -272,7 +289,6 @@ export function PublicAgreementPanel({
           token={token}
           context={paymentContext}
           agreementId={agreement.id}
-          signatureRequired={!agreement.signedAt}
         />
       )}
     </section>

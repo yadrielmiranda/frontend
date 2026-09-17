@@ -5,6 +5,7 @@ import { FullBalancePrompt, FullBalanceReview, FullBalanceToggle, InstallmentSel
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,13 +21,12 @@ export function PublicEstimatePaymentCard({
   token,
   context,
   agreementId,
-  signatureRequired = false,
 }: {
   token: string;
   context: PublicPaymentContext;
   agreementId?: string;
-  signatureRequired?: boolean;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [acceptedCityKey, setAcceptedCityKey] = useState("");
@@ -96,6 +96,9 @@ export function PublicEstimatePaymentCard({
     maximumFractionDigits: 4,
   }).format(surchargePercent);
   const termsSatisfied = !payment.requiresTerms || termsAccepted;
+  // La firma depende del servidor y del tipo de cobro, nunca del monto del depósito.
+  const signatureRequired = payment.type !== "INSTALLATION_DEPOSIT" &&
+    Boolean(context.agreement?.required && !context.agreement.satisfied);
 
   const pay = async () => {
     if (!hasSelection || signatureRequired || busy || (payment.requiresCityFeeAcceptance && !cityFeeAccepted)) return;
@@ -118,6 +121,7 @@ export function PublicEstimatePaymentCard({
     } catch (error) {
       toast.error((error as Error).message);
       setBusy(false);
+      router.refresh();
     }
   };
 
@@ -198,9 +202,16 @@ export function PublicEstimatePaymentCard({
       )}
       {context.schedule?.orderReviewPending && <p className="mt-4 text-sm text-amber-900">Pending order review. An administrator will create the order after reviewing the project.</p>}
       {signatureRequired && (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Sign the agreement above to continue with this payment.
-        </p>
+        <div role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          {context.agreement?.signingUrl ? (
+            <>
+              <p>Review and sign the current agreement before payment.</p>
+              <a className="mt-2 inline-block font-medium underline underline-offset-4" href={context.agreement.signingUrl}>
+                Review agreement
+              </a>
+            </>
+          ) : <p>Ask your dealer for the updated agreement to sign before payment.</p>}
+        </div>
       )}
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         {(installments.offerFullBalance || installments.isFullBalance) && <FullBalanceToggle selected={installments.isFullBalance}

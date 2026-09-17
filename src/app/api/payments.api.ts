@@ -18,6 +18,11 @@ export type CancelCheckoutSessionResponse = {
 };
 
 export type PublicPaymentContext = {
+  agreement?: {
+    required: boolean;
+    satisfied: boolean;
+    signingUrl: string | null;
+  };
   installmentCheckouts?: Array<{
     sequences: number[];
     baseAmount: string;

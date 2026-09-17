@@ -3,7 +3,7 @@
 import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EstimateWithRelations } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -58,6 +58,9 @@ export function EstimateDetails({
   returnToEdit?: boolean;
 }) {
   const [readyShare, setReadyShare] = useState<ShareData | null>(null);
+  const [readyCopy, setReadyCopy] = useState<string | null>(null);
+  const [manualCopy, setManualCopy] = useState(false);
+  const copyField = useRef<HTMLTextAreaElement>(null);
   const [sharing, setSharing] = useState(false);
   const [agreementRefresh, setAgreementRefresh] = useState(0);
   const [includeContract, setIncludeContract] = useState(false);
@@ -107,6 +110,13 @@ export function EstimateDetails({
   const [customerPricingMode, setCustomerPricingMode] =
     useState<CustomerPricingMode>(initialCustomerPricingMode);
 
+  // Un enlace preparado pertenece al estimado y a la presentación seleccionados.
+  useEffect(() => {
+    setReadyCopy(null);
+    setReadyShare(null);
+    setManualCopy(false);
+  }, [estimate, reportMode, customerPricingMode, includeContract]);
+
   useEffect(() => {
     if (!allowedReportModes.includes(reportMode)) {
       setReportMode(defaultReportMode);
@@ -155,29 +165,39 @@ export function EstimateDetails({
   const canShareCustomerReport =
     currentUserIsDealer && ownerIsDealer && reportMode === "customer";
 
-  const copyTextToClipboard = async (text: string) => {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
+  const copyTextToClipboard = async (text: string, field?: HTMLTextAreaElement | null) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // Algunos navegadores rechazan la API aunque esté disponible.
     }
 
-    // comentario en español: fallback para HTTP/IP local donde clipboard puede venir undefined
-    const textarea = document.createElement("textarea");
+    // Compatibilidad con HTTP/IP local. Dentro del diálogo se usa el campo
+    // visible para respetar su control de foco y permitir también la copia manual.
+    const textarea = field ?? document.createElement("textarea");
+    const previousFocus = document.activeElement;
     textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    textarea.style.top = "0";
-
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    const copied = document.execCommand("copy");
-    textarea.remove();
-
-    if (!copied) {
-      throw new Error("Could not copy customer link.");
+    if (!field) {
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      document.body.appendChild(textarea);
+    }
+    try {
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      if (!field) {
+        textarea.remove();
+        if (previousFocus instanceof HTMLElement) previousFocus.focus({ preventScroll: true });
+      }
     }
   };
 
@@ -199,11 +219,29 @@ export function EstimateDetails({
     try {
       const url = await createCustomerLink();
 
-      await copyTextToClipboard(url);
-
-      toast.success("Customer link copied.");
+      if (await copyTextToClipboard(url)) {
+        toast.success("Customer link copied.");
+      } else {
+        // La generación del PDF puede consumir la activación del primer clic.
+        // Conservamos el resultado; el siguiente clic solo copia, sin generar otro acuerdo.
+        setManualCopy(false);
+        setReadyCopy(url);
+      }
     } catch (error) {
       toast.error((error as Error).message);
+    } finally { setSharing(false); }
+  };
+
+  const handleCopyReadyLink = async () => {
+    if (!readyCopy || sharing) return;
+    setSharing(true);
+    try {
+      if (await copyTextToClipboard(readyCopy, copyField.current)) {
+        setReadyCopy(null);
+        toast.success("Customer link copied.");
+      } else {
+        setManualCopy(true);
+      }
     } finally { setSharing(false); }
   };
 
@@ -288,6 +326,32 @@ export function EstimateDetails({
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
+      <Dialog open={Boolean(readyCopy)} onOpenChange={(open) => { if (!open) setReadyCopy(null); }}>
+        <DialogContent onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          copyField.current?.focus();
+          copyField.current?.select();
+        }}>
+          <DialogHeader>
+            <DialogTitle>Customer link ready</DialogTitle>
+            <DialogDescription>Your link is ready. Copy it below to share the estimate.</DialogDescription>
+          </DialogHeader>
+          <label htmlFor="ready-customer-link" className="text-sm font-medium">Customer link</label>
+          <textarea
+            ref={copyField}
+            id="ready-customer-link"
+            readOnly
+            value={readyCopy ?? ""}
+            rows={3}
+            onFocus={(event) => event.currentTarget.select()}
+            className="w-full resize-none rounded-md border bg-slate-50 p-3 text-sm break-all"
+          />
+          {manualCopy && <p role="status" className="text-sm text-muted-foreground">Select the link above and copy it manually.</p>}
+          <Button type="button" disabled={sharing} onClick={handleCopyReadyLink}>
+            <Copy className="mr-2 h-4 w-4" />{sharing ? "Copying…" : "Copy link"}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(readyShare)} onOpenChange={(open) => { if (!open) setReadyShare(null); }}>
         <DialogContent><DialogHeader><DialogTitle>Estimate ready to share</DialogTitle><DialogDescription>Your customer link is ready.</DialogDescription></DialogHeader>
           <Button onClick={() => { if (readyShare && navigator.share) void navigator.share(readyShare).then(() => setReadyShare(null)).catch((error: Error) => { if (error.name !== "AbortError") toast.error(error.message); }); }}><Share2 className="mr-2 h-4 w-4" />Share estimate</Button>
@@ -328,6 +392,7 @@ export function EstimateDetails({
                       activeReportOptionKey === option.key ? "default" : "ghost"
                     }
                     aria-pressed={activeReportOptionKey === option.key}
+                    disabled={sharing}
                     onClick={() => {
                       setReportMode(option.reportMode);
                       if (option.customerPricingMode) {
