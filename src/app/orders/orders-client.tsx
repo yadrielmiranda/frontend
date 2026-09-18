@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getOrders } from "@/app/api/orders.api";
-import { DataTable } from "@/components/data-table";
+import { DataTable, type DataTableFilter } from "@/components/data-table";
+import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { OrderWithRelations } from "@/lib/types";
 import { getOrderColumns } from "./columns-orders";
 
@@ -12,12 +13,14 @@ export function OrdersClient({
   canViewFinancials,
   currentUserId,
   currentUserRole,
+  initialPoFilter,
 }: {
   initialOrders: OrderWithRelations[];
   canEdit: boolean;
   canViewFinancials: boolean;
   currentUserId: number;
   currentUserRole: string | null;
+  initialPoFilter?: string;
 }) {
   const [orders, setOrders] = useState(initialOrders);
 
@@ -61,13 +64,67 @@ export function OrdersClient({
     [canEdit, canViewFinancials, currentUserId, currentUserRole],
   );
 
+  const initialColumnFilters = useMemo<ColumnFiltersState>(
+    () => canViewFinancials && initialPoFilter
+      ? [{ id: "poNumber", value: initialPoFilter }]
+      : [],
+    [canViewFinancials, initialPoFilter],
+  );
+
+  const filters = useMemo<DataTableFilter[]>(() => {
+    const options = (values: string[]) => [...new Set(values)]
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ label: value, value }));
+    const result: DataTableFilter[] = [
+      { columnId: "number", type: "text", placeholder: "Filter order #..." },
+      { columnId: "estimate_number", type: "text", placeholder: "Filter estimate #..." },
+      { columnId: "estimate_name", type: "text", placeholder: "Filter name..." },
+      { columnId: "date", type: "date-range", placeholder: "Order date" },
+      {
+        columnId: "status_name", type: "select", allLabel: "All statuses",
+        options: options(orders.map((order) => order.status.name)),
+      },
+    ];
+    if (canViewFinancials) {
+      result.push({
+        columnId: "poNumber", type: "select", allLabel: "All factory POs",
+        options: [
+          { label: "Pending PO", value: "pending" },
+          { label: "With PO", value: "assigned" },
+          { label: "Without PO", value: "missing" },
+        ],
+      });
+    }
+    if (currentUserRole !== "client") {
+      result.push({
+        columnId: "user_username", type: "select", allLabel: "All users",
+        options: options(orders.flatMap((order) => order.user?.username ? [order.user.username] : [])),
+      });
+    }
+    return result;
+  }, [orders, canViewFinancials, currentUserRole]);
+
+  const syncPoFilter = (next: ColumnFiltersState) => {
+    // El enlace mantiene la selección visible y deja de aplicarla al limpiar filtros.
+    const url = new URL(window.location.href);
+    const po = canViewFinancials ? next.find((filter) => filter.id === "poNumber")?.value : undefined;
+    if (typeof po === "string") url.searchParams.set("po", po);
+    else url.searchParams.delete("po");
+    if (url.href !== window.location.href) {
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  };
+
   return (
     <DataTable
       columns={columns}
       data={orders}
-      filterColumnId="number"
-      filterPlaceholder="Filter by order number..."
-      filterStorageKey="orders"
+      filters={filters}
+      filterPlacement="header"
+      collapsibleFilters
+      filterStorageKey={`orders:${currentUserId}:${currentUserRole}`}
+      initialColumnFilters={initialColumnFilters}
+      onFiltersChange={syncPoFilter}
       pagination
       scrollMode="page"
     />

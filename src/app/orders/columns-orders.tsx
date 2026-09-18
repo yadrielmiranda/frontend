@@ -18,6 +18,8 @@ import type { OrderWithRelations } from "@/lib/types";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { getEstimateCostColumns } from "@/components/estimates/estimate-cost-columns";
+import type { DataTableDateRangeValue } from "@/components/data-table";
+import { hasFactoryPo, isPendingPoOrder } from "@/lib/order-po";
 
 export function getOrderColumns({
   canEdit,
@@ -31,18 +33,25 @@ export function getOrderColumns({
   currentUserRole: string | null;
 }): ColumnDef<OrderWithRelations>[] {
   const columns: ColumnDef<OrderWithRelations>[] = [
-    { accessorKey: "number", header: "Order #" },
-    { accessorKey: "estimate.number", header: "Estimate #" },
+    { accessorKey: "number", header: "Order #", filterFn: "includesString" },
+    { accessorKey: "estimate.number", header: "Estimate #", filterFn: "includesString" },
     {
       accessorKey: "date",
       header: "Date",
+      filterFn: (row, _columnId, range: DataTableDateRangeValue) => {
+        const date = new Date(row.original.date);
+        if (Number.isNaN(date.getTime())) return false;
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        return (!range?.from || dateKey >= range.from) && (!range?.to || dateKey <= range.to);
+      },
       cell: ({ row }) => formatDateEn(row.original.date),
     },
-    { accessorKey: "estimate.name", header: "Name" },
+    { accessorKey: "estimate.name", header: "Name", filterFn: "includesString" },
     ...(currentUserRole !== "client"
       ? [
           {
             accessorKey: "user.username",
+            filterFn: "equalsString",
             header: () => <div className="text-center">Created By</div>,
             cell: ({ row }) => <div className="text-center">{row.original.user?.username ?? "—"}</div>,
           } satisfies ColumnDef<OrderWithRelations>,
@@ -56,6 +65,7 @@ export function getOrderColumns({
     ...getEstimateCostColumns<OrderWithRelations>((order) => order.estimate),
     {
       accessorKey: "status.name",
+      filterFn: "equalsString",
       header: () => <div className="text-center">Status</div>,
       cell: ({ row }) => (
         <div className="text-center"><OrderStatusBadge name={row.original.status?.name} /></div>
@@ -64,6 +74,17 @@ export function getOrderColumns({
   ];
 
   if (canViewFinancials) {
+    columns.splice(2, 0, {
+      accessorKey: "poNumber",
+      header: "Factory PO",
+      cell: ({ row }) => row.original.poNumber?.trim() || "—",
+      filterFn: (row, _columnId, filter: string) => {
+        if (filter === "pending") return isPendingPoOrder(row.original);
+        if (filter === "missing") return !hasFactoryPo(row.original);
+        if (filter === "assigned") return hasFactoryPo(row.original);
+        return true;
+      },
+    });
     columns.splice(-1, 0, {
       id: "netProfitReal",
       header: () => <div className="text-center">Real Material Profit</div>,

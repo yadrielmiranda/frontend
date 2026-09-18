@@ -34,6 +34,7 @@ import { getOrders } from "@/app/api/orders.api";
 import type { EstimateWithRelations, OrderWithRelations } from "@/lib/types";
 import { formatMoney } from "@/lib/formatters";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
+import { isPendingPoOrder } from "@/lib/order-po";
 
 function getEstimateStatusName(estimate: EstimateWithRelations) {
   if (estimate.status?.name) return estimate.status.name;
@@ -54,12 +55,6 @@ function isSignedOrOrderedEstimate(estimate: EstimateWithRelations) {
     status === "approved" ||
     Boolean(estimate.order)
   );
-}
-
-function isPendingPoOrder(order: OrderWithRelations) {
-  const status = order.status?.name?.trim().toLowerCase() ?? "";
-
-  return !order.poNumber && status !== "delivered";
 }
 
 function toMoneyNumber(value: unknown) {
@@ -195,6 +190,7 @@ export default function HomePage() {
           ? "..."
           : String(dashboardSummary.pendingPoCount),
         description: "Awaiting factory PO",
+        href: "/orders?po=pending",
         icon: ClipboardCheck,
         accent: "border-l-orange-500",
         iconBg: "bg-orange-50 text-orange-600",
@@ -365,12 +361,8 @@ export default function HomePage() {
         >
           {metricCards.map((card) => {
             const Icon = card.icon;
-
-            return (
-              <div
-                key={card.title}
-                className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.accent} border-l-4`}
-              >
+            const className = `rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${card.accent} border-l-4`;
+            const content = (
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
@@ -390,7 +382,13 @@ export default function HomePage() {
                     <Icon className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+            );
+            return card.href ? (
+              <Link key={card.title} href={card.href} className={className}>
+                {content}
+              </Link>
+            ) : (
+              <div key={card.title} className={className}>{content}</div>
             );
           })}
         </section>

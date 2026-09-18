@@ -82,6 +82,9 @@ interface DataTableProps<TData, TValue> {
   collapsibleFilters?: boolean;
   // Conserva filtros durante navegación y recargas de la pestaña.
   filterStorageKey?: string;
+  // Un enlace directo puede abrir una selección sin heredar filtros anteriores.
+  initialColumnFilters?: ColumnFiltersState;
+  onFiltersChange?: (filters: ColumnFiltersState) => void;
 
   pagination?: boolean;
   maxHeightClassName?: string;
@@ -92,6 +95,7 @@ interface DataTableProps<TData, TValue> {
 const ALL_FILTER_VALUE = "__all__";
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 10;
+const EMPTY_COLUMN_FILTERS: ColumnFiltersState = [];
 
 export function DataTable<TData, TValue>({
   columns,
@@ -102,6 +106,8 @@ export function DataTable<TData, TValue>({
   filterPlacement = "toolbar",
   collapsibleFilters = false,
   filterStorageKey,
+  initialColumnFilters = EMPTY_COLUMN_FILTERS,
+  onFiltersChange,
   pagination = false,
   maxHeightClassName = "max-h-[520px]",
   scrollMode = "container",
@@ -111,7 +117,7 @@ export function DataTable<TData, TValue>({
     : null;
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
+    initialColumnFilters,
   );
   const [paginationState, setPaginationState] = React.useState<PaginationState>({
     pageIndex: 0,
@@ -122,7 +128,7 @@ export function DataTable<TData, TValue>({
   const scrollToPageStart = usePageTableScroll(scrollMode === "page", scrollContainerRef);
 
   const [filtersVisible, setFiltersVisible] = React.useState(
-    () => !collapsibleFilters,
+    () => !collapsibleFilters || initialColumnFilters.length > 0,
   );
 
   const [storageRestored, setStorageRestored] = React.useState(
@@ -130,6 +136,14 @@ export function DataTable<TData, TValue>({
   );
 
   React.useEffect(() => {
+    if (initialColumnFilters.length > 0) {
+      setColumnFilters(initialColumnFilters);
+      setFiltersVisible(true);
+      setPaginationState((current) => ({ ...current, pageIndex: 0 }));
+      setStorageRestored(true);
+      return;
+    }
+
     if (!storageKey) {
       setStorageRestored(true);
       return;
@@ -182,7 +196,7 @@ export function DataTable<TData, TValue>({
     } finally {
       setStorageRestored(true);
     }
-  }, [pagination, storageKey]);
+  }, [pagination, storageKey, initialColumnFilters]);
 
   React.useEffect(() => {
     if (!storageKey || !storageRestored) {
@@ -243,7 +257,9 @@ export function DataTable<TData, TValue>({
     columns,
     getCoreRowModel: getCoreRowModel(),
     onColumnFiltersChange: (updater) => {
-      setColumnFilters(updater);
+      const next = typeof updater === "function" ? updater(columnFilters) : updater;
+      setColumnFilters(next);
+      onFiltersChange?.(next);
       if (pagination) {
         setPaginationState((current) =>
           current.pageIndex === 0 ? current : { ...current, pageIndex: 0 },

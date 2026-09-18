@@ -56,7 +56,7 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
     control,
     register,
     handleSubmit,
-    formState: { isSubmitting, isDirty },
+    formState: { isSubmitting, isDirty, errors },
   } = useForm<UpdateOrderData>({
     defaultValues: {
       statusId: order.statusId,
@@ -141,11 +141,34 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
             id="poNumber"
             placeholder="e.g. PO-12345"
             autoComplete="off"
-            {...register("poNumber")}
+            maxLength={50}
+            aria-invalid={Boolean(errors.poNumber)}
+            aria-describedby="poNumber-help poNumber-error"
+            {...register("poNumber", {
+              validate: (value, values) => {
+                if (value?.trim()) return true;
+                const target = statuses.find((status) => status.id === values.statusId);
+                if (values.statusId !== order.statusId && target && target.name !== "Pending") {
+                  return `Enter the factory PO before moving the order to "${target.name}".`;
+                }
+                if (order.poNumber?.trim() && order.status.name !== "Pending") {
+                  return "The factory PO cannot be removed after the order leaves Pending.";
+                }
+                if (Number(values.rateReal) > 0) {
+                  return "Enter the factory PO before recording the real factory cost.";
+                }
+                return true;
+              },
+            })}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Required before the real factory cost can be recorded.
+          <p id="poNumber-help" className="text-xs text-muted-foreground mt-1">
+            Required to move the order out of Pending or record the real factory cost.
           </p>
+          {errors.poNumber && (
+            <p id="poNumber-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.poNumber.message}
+            </p>
+          )}
         </div>
 
         {/* Rate Real */}
