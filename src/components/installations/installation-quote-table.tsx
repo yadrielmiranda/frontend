@@ -36,7 +36,7 @@ export function InstallationQuoteTable({
     quote.additionalInstallationCharge ??
       Math.max(
         0,
-        Number(quote.total) -
+        Number(quote.total) - Number(quote.installationSurcharge ?? 0) -
           quote.lines.reduce(
             (sum, line) => sum + Number(line.adjustedAmount),
             0,
@@ -119,6 +119,7 @@ export function InstallationQuoteTable({
               {renderAction && <td />}
             </tr>
           )}
+          {!showInternal && Number(quote.installationSurcharge ?? 0) > 0 && <tr className="border-t border-slate-200"><td className="p-3 font-medium">Installation surcharge</td><td className="p-3 text-right">{formatMoney(Number(quote.installationSurcharge))}</td><td className="p-3 text-right">1</td><td className="p-3 text-right font-medium">{formatMoney(Number(quote.installationSurcharge))}</td>{renderAction && <td />}</tr>}
         </tbody>
       </table>
     </div>

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import type {
   EstimatePayment,
   InstallationJob,
+  InstallationAddress,
   InstallationQuoteLine,
   InstallationService,
   Order,
@@ -43,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { canEditInstallationBeforePayment, hasStartedInstallationPayment, installationStageLabel, paidBaseFor } from "@/lib/installation-flow";
 import { EstimateRevisionDialog } from "./estimate-revision-dialog";
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
@@ -81,6 +83,7 @@ function additionalServiceDraftFromLine(
 export function InstallationEstimatePanel({
   estimateId,
   estimateOwnerId,
+  suggestedAddress,
   estimateStatus,
   order,
   estimatePayments,
@@ -98,6 +101,7 @@ export function InstallationEstimatePanel({
 }: {
   estimateId: number;
   estimateOwnerId: number;
+  suggestedAddress: InstallationAddress;
   estimateStatus: string;
   order: Order | null;
   estimatePayments: EstimatePayment[];
@@ -113,6 +117,19 @@ export function InstallationEstimatePanel({
   onQuoteApproved?: () => Promise<void>;
   onRequestEditingChange?: (isEditing: boolean) => void;
 }) {
+  const [address, setAddress] = useState<InstallationAddress>(suggestedAddress);
+  const [addressChoice, setAddressChoice] = useState<"suggested" | "different" | null>(null);
+  const [addressConfirmed, setAddressConfirmed] = useState(false);
+  const completeAddress = (value: InstallationAddress) => Object.values(value).every(part => part.trim());
+  const beginAddress = (value: InstallationAddress) => {
+    const state = value.state.trim().toUpperCase();
+    const complete = completeAddress(value);
+    setAddress(!complete && state && state !== "FL"
+      ? { street: "", city: "", state: "FL", postalCode: "" }
+      : { ...value, state: state || "FL" });
+    setAddressChoice(complete ? null : "different");
+    setAddressConfirmed(false);
+  };
   const [job, setJob] = useState<InstallationJob | null>(initialJob);
   const [services, setServices] = useState<InstallationService[]>([]);
   const [loading, setLoading] = useState(!initialJob);
@@ -219,6 +236,7 @@ export function InstallationEstimatePanel({
   };
 
   const beginNewRequest = () => {
+    beginAddress(suggestedAddress);
     setPermitRequested(null);
     setRows([]);
     setRequestEditing(true);
@@ -226,6 +244,7 @@ export function InstallationEstimatePanel({
 
   const beginEditRequest = () => {
     if (!job || !canEditBeforePayment) return;
+    beginAddress(job.installationAddress ?? suggestedAddress);
     const selectedLines = (job.quotes[0]?.lines ?? []).filter(
       (line) => line.isRequestedService ?? line.origin === "USER_SELECTED",
     );
@@ -241,6 +260,14 @@ export function InstallationEstimatePanel({
   };
 
   const submitRequest = async () => {
+    if (!addressConfirmed || !completeAddress(address)) {
+      toast.error("Confirm a complete installation address.");
+      return;
+    }
+    if (address.state !== "FL") {
+      toast.error("Installation is available only in Florida.");
+      return;
+    }
     if (permitRequested === null) {
       toast.error("Select a permit management option.");
       return;
@@ -262,6 +289,8 @@ export function InstallationEstimatePanel({
     setBusy(true);
     try {
       const payload = {
+        installationAddress: address,
+        installationAddressConfirmed: addressConfirmed,
         permitRequested,
         selectedServices: rows.map((row) => {
           const service = services.find(
@@ -341,6 +370,41 @@ export function InstallationEstimatePanel({
             </Button>
           ) : (
             <>
+              <fieldset disabled={busy} className="space-y-3 rounded-xl border border-red-200 p-4">
+                <legend className="px-1 font-semibold">Installation address</legend>
+                {addressChoice !== "different" ? (
+                  <>
+                    <p className="text-sm">{[address.street, address.city, address.state, address.postalCode].join(", ")}</p>
+                    <p className="text-sm font-medium">Is this the installation address?</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL"} onClick={() => { setAddressChoice("suggested"); setAddressConfirmed(true); }}>Use this address</Button>
+                      <Button type="button" variant="outline" onClick={() => { setAddress({ street: "", city: "", state: "FL", postalCode: "" }); setAddressChoice("different"); setAddressConfirmed(false); }}>Use a different address</Button>
+                    </div>
+                    {address.state !== "FL" && <p className="text-sm text-amber-800">Installation is available only in Florida. Enter a Florida installation address.</p>}
+                    {addressConfirmed && <p className="text-sm text-emerald-700">Installation address confirmed.</p>}
+                  </>
+                ) : (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {([['street', 'Street address'], ['city', 'City'], ['state', 'State'], ['postalCode', 'ZIP code']] as const).map(([key, label]) => (
+                        <div key={key} className={key === "street" ? "sm:col-span-2" : ""}>
+                          <Label htmlFor={`installation-${key}`}>{label}</Label>
+                          {key === "state" ? (
+                            <Select value={address.state} disabled={busy} onValueChange={state => { setAddress(current => ({ ...current, state })); setAddressConfirmed(false); }}>
+                              <SelectTrigger id="installation-state" className="w-full"><SelectValue placeholder="Select state" /></SelectTrigger>
+                              <SelectContent><SelectItem value="FL">Florida (FL)</SelectItem></SelectContent>
+                            </Select>
+                          ) : (
+                            <Input id={`installation-${key}`} value={address[key]} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { setAddress(current => ({ ...current, [key]: event.target.value })); setAddressConfirmed(false); }} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={addressConfirmed} onCheckedChange={value => setAddressConfirmed(value === true)} />This is the installation address.</label>
+                  </>
+                )}
+                <p className="text-xs text-muted-foreground">Availability and pricing will be verified for this address.</p>
+              </fieldset>
               <fieldset className="space-y-3">
                 <legend className="font-semibold">Permit coordination</legend>
                 <p className="text-sm text-muted-foreground">
@@ -745,6 +809,7 @@ export function InstallationEstimatePanel({
           </div>
         )}
 
+        {canEditBeforePayment && job.status === "DEPOSIT_PAYMENT_PENDING" && !job.installationAddressConfirmedAt && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Edit the installation request and confirm its address before continuing.</p>}
         {canRemoveBeforePayment && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm text-slate-600">
@@ -822,6 +887,7 @@ export function InstallationEstimatePanel({
           </div>
         )}
 
+        {job.installationAddress && <div className="rounded-lg border p-3 text-sm"><strong>Installation address</strong><p>{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
         {acceptedRemeasurement && !proposedRemeasurement && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             <strong className="block">Remeasurement date accepted</strong>

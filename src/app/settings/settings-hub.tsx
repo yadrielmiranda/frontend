@@ -25,6 +25,7 @@ import {
   Hammer,
   Link2,
   BadgeDollarSign,
+  MapPinned,
 } from "lucide-react";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
@@ -295,6 +296,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
       href: "/settings/installation-profiles",
       icon: BadgeDollarSign,
       color: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      title: "Installation coverage",
+      description: "Set the departure address, distance limits, and range charges.",
+      href: "/settings/installation-coverage",
+      icon: MapPinned,
+      color: "bg-orange-50 text-orange-600",
+      show: isAdmin,
     },
   ];
 

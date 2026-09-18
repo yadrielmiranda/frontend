@@ -743,7 +743,10 @@ export interface InstallationServiceMinimumSnapshot {
   adjustment: string | number;
 }
 
+export type InstallationAddress = { street: string; city: string; state: string; postalCode: string };
+
 export interface InstallationQuote {
+  installationSurcharge?: string | number;
   pricingDetailsVisible?: boolean;
   additionalInstallationCharge?: string | number;
   additionalServices?: Array<{ serviceId: number; name: string; amount: string | number }>;
@@ -793,6 +796,8 @@ export interface InstallationAppointment {
 }
 
 export interface InstallationJob {
+  installationAddress?: InstallationAddress | null;
+  installationAddressConfirmedAt?: string | null;
   revisionComparison?: InstallationRevisionComparison | null;
   paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
   manualDiscountSummary?: import("./estimate-discount").EstimateDiscountSummary | null;
@@ -846,6 +851,8 @@ export interface InstallationRevisionComparison {
 }
 
 export interface EstimateInstallationReportSummary {
+  installationSurcharge?: string | number;
+  installationAddress?: InstallationAddress | null;
   status: InstallationJobStatus;
   quoteStatus: InstallationQuoteStatus | null;
   installationAmount: string | number | null;

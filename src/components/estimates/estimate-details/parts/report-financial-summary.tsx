@@ -420,11 +420,12 @@ function InstallationSummary({
             {summary.installationAmount == null
               ? "Pending"
               : discount > 0
-                ? <OriginalPrice amount={numberValue(summary.installationAmount)} label="Before discount" />
-                : formatMoney(numberValue(summary.installationAmount))}
+                ? <OriginalPrice amount={(numberValue(summary.installationAmount) - numberValue(summary.installationSurcharge))} label="Before discount" />
+                : formatMoney((numberValue(summary.installationAmount) - numberValue(summary.installationSurcharge)))}
           </span>
         </MoneyRow>
 
+        {numberValue(summary.installationSurcharge) > 0 && <MoneyRow label="Installation surcharge" value={formatMoney(numberValue(summary.installationSurcharge))} />}
         {summary.quoteStatus !== null && (
           <>
             {summary.additionalServices.length > 0 ? (
@@ -724,6 +725,7 @@ export function ReportFinancialSummary({
         </h3>
       </div>
 
+      {installationSummary?.installationAddress && <p className="text-sm"><strong>Installation address: </strong>{[installationSummary.installationAddress.street, installationSummary.installationAddress.city, installationSummary.installationAddress.state, installationSummary.installationAddress.postalCode].join(", ")}</p>}
       {projectTotalOnly ? (
         externalDealerCharges ? (
           <ExternalDealerProjectScope summary={externalDealerCharges} />

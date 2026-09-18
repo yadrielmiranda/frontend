@@ -33,6 +33,7 @@ import {
   Hammer,
   Link2,
   BadgeDollarSign,
+  MapPinned,
 } from "lucide-react";
 
 import { isAdminRole, type RoleName } from "@/lib/rbac";
@@ -282,6 +283,15 @@ export function SettingsMenuItems({
           Price Profiles
         </Link>
       </DropdownMenuItem>
+
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/installation-coverage">
+            <MapPinned className={iconClass} />
+            Installation coverage
+          </Link>
+        </DropdownMenuItem>
+      )}
 
       <DropdownMenuSeparator />
 

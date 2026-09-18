@@ -1628,6 +1628,13 @@ export function EstimateForm({
           <InstallationEstimatePanel
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
+            suggestedAddress={isDealerRole(ownerRole) ? {
+              street: getValues("customerStreet") ?? "", city: getValues("customerCity") ?? "",
+              state: getValues("customerState") ?? "", postalCode: getValues("customerPostalCode") ?? "",
+            } : {
+              street: estimate.user?.street ?? "", city: estimate.user?.city ?? "",
+              state: estimate.user?.state ?? "", postalCode: estimate.user?.postalCode ?? "",
+            }}
             estimateStatus={needsRecalculation ? "Expired" : estimate.status?.name ?? ""}
 
             order={estimate.order ?? null}

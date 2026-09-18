@@ -34,7 +34,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
     extras.reduce((total, service) => total + service.amount, 0),
   );
   const baseInstallationTotal = roundMoney(
-    Number(quote?.total ?? 0) - additionalServicesTotal,
+    Number(quote?.total ?? 0) - additionalServicesTotal - Number(quote?.installationSurcharge ?? 0),
   );
   const installationTotal = Number(discount?.installation.total ?? quote?.total ?? 0);
   const installationDiscount = Number(discount?.installation.discount ?? 0);
@@ -56,6 +56,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
 
       {!canceled && quote && (
         <>
+          {Number(quote.installationSurcharge ?? 0) > 0 && <SummaryRow label="Installation surcharge">{formatMoney(Number(quote.installationSurcharge))}</SummaryRow>}
           {extras.length > 0 ? (
             <div className="mt-1 border-t pt-1">
               <p className="py-1.5 text-sm font-semibold">Additional services</p>

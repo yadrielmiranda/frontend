@@ -266,6 +266,8 @@ export async function getEstimateInstallation(
 export const requestInstallation = (
   estimateId: number,
   data: {
+    installationAddress: import("@/lib/types").InstallationAddress;
+    installationAddressConfirmed: boolean;
     permitRequested: boolean;
     selectedServices?: InstallationLineInput[];
   },
@@ -278,6 +280,8 @@ export const requestInstallation = (
 export const updateInstallationRequest = (
   jobId: number,
   data: {
+    installationAddress: import("@/lib/types").InstallationAddress;
+    installationAddressConfirmed: boolean;
     permitRequested: boolean;
     selectedServices?: InstallationLineInput[];
   },

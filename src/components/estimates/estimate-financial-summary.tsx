@@ -310,7 +310,7 @@ export function EstimateFinancialSummary({
   // The residual is the single Installation amount: every automatic line plus
   // service/profile minimum adjustments that must remain internal.
   const baseInstallationTotal = roundMoney(
-    numberValue(quote?.total) - additionalServicesTotal,
+    numberValue(quote?.total) - additionalServicesTotal - numberValue(quote?.installationSurcharge),
   );
   const permitFee = activeJob
     ? numberValue(manualDiscount?.permit.total ?? activeJob.permit?.permitFeeSnapshot)
@@ -558,7 +558,10 @@ export function EstimateFinancialSummary({
           )}
 
           {isExternalDealer ? (
-            <ExternalDealerServiceSummary summary={customerChargesSummary} discount={serviceDiscount} installationDiscount={numberValue(manualDiscount?.installation.discount)} />
+            <div>
+              <ExternalDealerServiceSummary summary={customerChargesSummary} discount={serviceDiscount} installationDiscount={numberValue(manualDiscount?.installation.discount)} />
+              {numberValue(quote?.installationSurcharge) > 0 && <p className="mt-2 text-sm text-muted-foreground">Your Installation cost includes an installation surcharge of {formatMoney(numberValue(quote?.installationSurcharge))}.</p>}
+            </div>
           ) : (
             <div className="rounded-lg border px-4 py-3">
               <h4 className="mb-1 text-sm font-semibold">
@@ -576,6 +579,7 @@ export function EstimateFinancialSummary({
                 </span>
               </SummaryRow>
 
+              {numberValue(quote?.installationSurcharge) > 0 && <SummaryRow label="Installation surcharge" value={formatMoney(numberValue(quote?.installationSurcharge))} />}
               {activeJob && (
                 <>
                   {extras.length > 0 ? (

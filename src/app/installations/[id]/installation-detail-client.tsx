@@ -1096,6 +1096,7 @@ export function InstallationDetailClient({
         </div>
       </div>
 
+      {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           {(admin || (owner && userRole === "dealer" && job.estimate.user.dealerMode === "INTERNAL")) &&
@@ -1431,6 +1432,7 @@ export function InstallationDetailClient({
                     </>
                   )}
                   </>)}
+                  {Number(latest.installationSurcharge ?? 0) > 0 && <><span className="text-muted-foreground">Installation surcharge</span><span className="text-right">{money(latest.installationSurcharge)}</span></>}
                   <strong>Total</strong>
                   <strong className="text-right">{money(latest.total)}</strong>
                 </div>
