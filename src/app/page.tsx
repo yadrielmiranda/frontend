@@ -23,6 +23,7 @@ import {
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import {
   canAccessSettings,
+  canViewOrderFinancials,
   isAdminRole,
   isClientRole,
   isDealerRole,
@@ -55,7 +56,7 @@ function isSignedOrOrderedEstimate(estimate: EstimateWithRelations) {
   );
 }
 
-function isPendingReviewOrder(order: OrderWithRelations) {
+function isPendingPoOrder(order: OrderWithRelations) {
   const status = order.status?.name?.trim().toLowerCase() ?? "";
 
   return !order.poNumber && status !== "delivered";
@@ -69,6 +70,7 @@ function toMoneyNumber(value: unknown) {
 export default function HomePage() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { companyName } = useCompanyBranding();
+  const canViewFactoryPo = canViewOrderFinancials(user?.role?.name);
   const [estimates, setEstimates] = useState<EstimateWithRelations[]>([]);
   const [orders, setOrders] = useState<OrderWithRelations[]>([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
@@ -128,15 +130,16 @@ export default function HomePage() {
       return total + toMoneyNumber(estimate.customerTotalPayable);
     }, 0);
 
-    const pendingReview = orders.filter(isPendingReviewOrder).length;
+    // El PO de fábrica es interno y no se incluye en las respuestas de client/dealer.
+    const pendingPo = canViewFactoryPo ? orders.filter(isPendingPoOrder).length : 0;
 
     return {
       activeEstimatesCount: activeEstimates.length,
       ordersCount: orders.length,
-      pendingReviewCount: pendingReview,
+      pendingPoCount: pendingPo,
       estimatesValue,
     };
-  }, [estimates, orders]);
+  }, [estimates, orders, canViewFactoryPo]);
 
   if (isLoading) {
     return (
@@ -180,22 +183,22 @@ export default function HomePage() {
         value: isDashboardLoading
           ? "..."
           : String(dashboardSummary.ordersCount),
-        description: "No pending orders",
+        description: "Total orders",
         icon: ShoppingBag,
         accent: "border-l-emerald-500",
         iconBg: "bg-emerald-50 text-emerald-600",
         show: true,
       },
       {
-        title: "Pending Review",
+        title: "Pending PO",
         value: isDashboardLoading
           ? "..."
-          : String(dashboardSummary.pendingReviewCount),
-        description: "Awaiting confirmation",
+          : String(dashboardSummary.pendingPoCount),
+        description: "Awaiting factory PO",
         icon: ClipboardCheck,
         accent: "border-l-orange-500",
         iconBg: "bg-orange-50 text-orange-600",
-        show: true,
+        show: canViewFactoryPo,
       },
       {
         title: "Estimates Value",
@@ -353,9 +356,11 @@ export default function HomePage() {
 
         <section
           className={
-            isClient
-              ? "grid gap-4 md:grid-cols-3"
-              : "grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+            metricCards.length === 2
+              ? "grid gap-4 md:grid-cols-2"
+              : metricCards.length === 3
+                ? "grid gap-4 md:grid-cols-3"
+                : "grid gap-4 md:grid-cols-2 xl:grid-cols-4"
           }
         >
           {metricCards.map((card) => {
