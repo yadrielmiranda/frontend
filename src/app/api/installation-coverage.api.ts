@@ -11,11 +11,14 @@ export type InstallationCoverage = {
   originPostalCode: string;
   maxDistanceMiles: string;
   includedMiles: string;
+  hoursPerDay: string;
   ranges: {
     fromMiles: string;
     upToMiles: string;
     chargeType: InstallationCoverageChargeType;
     value: string;
+    // Los rangos guardados antes del cargo diario se interpretan como cero.
+    dailyCharge?: string;
   }[];
   createdAt: string;
   updatedAt: string;
@@ -31,10 +34,12 @@ export type SaveInstallationCoverageInput = Pick<
 > & {
   maxDistanceMiles: number;
   includedMiles: number;
+  hoursPerDay: number;
   ranges: {
     upToMiles: number;
     chargeType: InstallationCoverageChargeType;
     value: number;
+    dailyCharge: number;
   }[];
 };
 

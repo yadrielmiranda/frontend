@@ -534,6 +534,7 @@ export interface InstallationServiceRule {
   maxValue: string | number | null;
   maxInclusive: boolean;
   rate: string | number;
+  estimatedMinutes?: string | number | null;
   sortOrder: number;
   isActive: boolean;
 }
@@ -546,6 +547,7 @@ export interface InstallationService {
   ruleMetric: InstallationRuleMetric;
   baseRate?: string | number;
   minimumCharge?: string | number;
+  estimatedMinutes?: string | number | null;
   availableForRequest: boolean;
   availableForField: boolean;
   isActive: boolean;

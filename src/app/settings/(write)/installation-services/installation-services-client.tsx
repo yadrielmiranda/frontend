@@ -42,6 +42,7 @@ type RuleDraft = {
   maxValue: string;
   maxInclusive: boolean;
   rate: string;
+  estimatedMinutes: string;
 };
 
 type ServiceDraft = {
@@ -51,6 +52,7 @@ type ServiceDraft = {
   ruleMetric: InstallationRuleMetric;
   baseRate: string;
   minimumCharge: string;
+  estimatedMinutes: string;
   availableForRequest: boolean;
   availableForField: boolean;
   isActive: boolean;
@@ -65,6 +67,7 @@ const emptyDraft = (): ServiceDraft => ({
   ruleMetric: "NONE",
   baseRate: "0",
   minimumCharge: "0",
+  estimatedMinutes: "0",
   availableForRequest: false,
   availableForField: true,
   isActive: true,
@@ -79,6 +82,7 @@ const fromService = (service: InstallationService): ServiceDraft => ({
   ruleMetric: service.ruleMetric,
   baseRate: String(Number(service.baseRate)),
   minimumCharge: String(Number(service.minimumCharge)),
+  estimatedMinutes: String(Number(service.estimatedMinutes ?? 0)),
   availableForRequest: service.availableForRequest,
   availableForField: service.availableForField,
   isActive: service.isActive,
@@ -92,6 +96,7 @@ const fromService = (service: InstallationService): ServiceDraft => ({
       maxValue: rule.maxValue == null ? "" : String(Number(rule.maxValue)),
       maxInclusive: rule.maxInclusive,
       rate: String(Number(rule.rate)),
+      estimatedMinutes: rule.estimatedMinutes == null ? "" : String(Number(rule.estimatedMinutes)),
     })),
 });
 
@@ -111,6 +116,22 @@ const metricLabels: Record<InstallationRuleMetric, string> = {
   PANEL_COUNT: "Panel count",
   LENGTH: "Length",
 };
+
+const timeUnits: Record<InstallationBillingUnit, string> = {
+  UNIT: "unit",
+  PANEL: "panel",
+  SQFT: "ft²",
+  SQFT_RECTANGULAR: "ft²",
+  LINEAR_FOOT: "linear ft",
+};
+
+function validTime(value: string) {
+  return value === "" || (/^\d+(?:\.\d{1,4})?$/.test(value) && Number(value) <= 99999999.9999);
+}
+
+function timeLabel(value: string | number | null | undefined, unit: InstallationBillingUnit) {
+  return `${Number(value ?? 0)} min/${timeUnits[unit]}`;
+}
 
 function money(value: string | number) {
   return new Intl.NumberFormat("en-US", {
@@ -166,6 +187,16 @@ export function InstallationServicesClient({
       return;
     }
 
+    if (!validTime(draft.estimatedMinutes)) {
+      toast.error("Enter a valid base time: zero or a positive number with up to four decimal places.");
+      return;
+    }
+    const invalidTimeRange = draft.ruleMetric === "NONE" ? -1 : draft.rules.findIndex((rule) => !validTime(rule.estimatedMinutes));
+    if (invalidTimeRange >= 0) {
+      toast.error(`Enter a valid time for range ${invalidTimeRange + 1}: zero or a positive number with up to four decimal places, or leave it blank to use the base time.`);
+      return;
+    }
+
     const rules: InstallationRuleInput[] =
       draft.ruleMetric === "NONE"
         ? []
@@ -175,6 +206,7 @@ export function InstallationServicesClient({
             maxValue: rule.maxValue === "" ? null : Number(rule.maxValue),
             maxInclusive: rule.maxInclusive,
             rate: Number(rule.rate),
+            estimatedMinutes: rule.estimatedMinutes === "" ? null : Number(rule.estimatedMinutes),
             sortOrder: index,
             isActive: true,
           }));
@@ -188,6 +220,7 @@ export function InstallationServicesClient({
         ruleMetric: draft.ruleMetric,
         baseRate: Number(draft.baseRate),
         minimumCharge: Number(draft.minimumCharge),
+        estimatedMinutes: Number(draft.estimatedMinutes || "0"),
         availableForRequest: draft.availableForRequest,
         availableForField: draft.availableForField,
         isActive: draft.isActive,
@@ -325,6 +358,9 @@ export function InstallationServicesClient({
                     setDraft((current) => ({
                       ...current,
                       billingUnit: value as InstallationBillingUnit,
+                      // Otra unidad reinicia el tiempo base en cero y los rangos heredan ese valor.
+                      estimatedMinutes: value === current.billingUnit ? current.estimatedMinutes : "0",
+                      rules: value === current.billingUnit ? current.rules : current.rules.map((rule) => ({ ...rule, estimatedMinutes: "" })),
                     }))
                   }
                 >
@@ -335,6 +371,9 @@ export function InstallationServicesClient({
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Changing the formula resets the base time to 0 and the ranges to use the base time.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Rule selector metric</Label>
@@ -355,6 +394,26 @@ export function InstallationServicesClient({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="installation-service-time">
+                  Base time (min/{timeUnits[draft.billingUnit]})
+                </Label>
+                <Input
+                  id="installation-service-time"
+                  type="number"
+                  min="0"
+                  max="99999999.9999"
+                  step="0.0001"
+                  placeholder="0"
+                  className="max-w-sm"
+                  value={draft.estimatedMinutes}
+                  onChange={(event) => setDraft((current) => ({ ...current, estimatedMinutes: event.target.value || "0" }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Estimated time for the installation team per {timeUnits[draft.billingUnit]}.
+                  Defaults to 0. Enter the time needed for this service.
+                </p>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Description</Label>
@@ -405,12 +464,15 @@ export function InstallationServicesClient({
 
             {draft.ruleMetric !== "NONE" && (
               <div className="space-y-3 rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
                   <div>
                     <h3 className="font-semibold">Rate ranges</h3>
                     <p className="text-xs text-muted-foreground">
                       Leave the first minimum and last maximum empty. Adjacent
                       boundaries must match and belong to exactly one range.
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Each range can override the base time. Leave its time blank to use the base time.
                     </p>
                   </div>
                   <Button
@@ -428,6 +490,7 @@ export function InstallationServicesClient({
                             maxValue: "",
                             maxInclusive: false,
                             rate: current.baseRate,
+                            estimatedMinutes: "",
                           },
                         ],
                       }))
@@ -439,7 +502,9 @@ export function InstallationServicesClient({
                 {draft.rules.map((rule, index) => (
                   <div
                     key={index}
-                    className="grid items-end gap-3 rounded-md bg-slate-50 p-3 md:grid-cols-[1fr_auto_1fr_auto_1fr_auto]"
+                    role="group"
+                    aria-label={`Range ${index + 1}`}
+                    className="grid min-w-0 items-end gap-3 rounded-md bg-slate-50 p-3 md:grid-cols-2 xl:grid-cols-[minmax(80px,1fr)_auto_minmax(80px,1fr)_auto_minmax(100px,1fr)_minmax(140px,1.2fr)_auto]"
                   >
                     <div className="space-y-1">
                       <Label>Minimum</Label>
@@ -493,6 +558,21 @@ export function InstallationServicesClient({
                         }
                       />
                     </div>
+                    <div className="min-w-0 space-y-1">
+                      <Label htmlFor={`installation-rule-time-${index}`}>
+                        Time (min/{timeUnits[draft.billingUnit]})
+                      </Label>
+                      <Input
+                        id={`installation-rule-time-${index}`}
+                        type="number"
+                        min="0"
+                        max="99999999.9999"
+                        step="0.0001"
+                        value={rule.estimatedMinutes}
+                        placeholder={`Use base: ${draft.estimatedMinutes || "0"}`}
+                        onChange={(event) => updateRule(index, { estimatedMinutes: event.target.value })}
+                      />
+                    </div>
                     <Button
                       type="button"
                       size="icon"
@@ -503,6 +583,7 @@ export function InstallationServicesClient({
                           rules: current.rules.filter((_, i) => i !== index),
                         }))
                       }
+                      aria-label={`Remove range ${index + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -548,6 +629,18 @@ export function InstallationServicesClient({
                 <span className="text-right font-medium">{service.baseRate == null ? "—" : money(service.baseRate)}</span>
                 <span className="text-muted-foreground">Minimum charge</span>
                 <span className="text-right font-medium">{service.minimumCharge == null ? "—" : money(service.minimumCharge)}</span>
+                {canEdit && (
+                  <>
+                    <span className="text-muted-foreground">Base time</span>
+                    <span className="text-right font-medium">{timeLabel(service.estimatedMinutes, service.billingUnit)}</span>
+                    {service.ruleMetric !== "NONE" && (service.rules?.length ?? 0) > 0 && (
+                      <>
+                        <span className="text-muted-foreground">Time overrides</span>
+                        <span className="text-right font-medium">{service.rules?.filter((rule) => rule.isActive && rule.estimatedMinutes != null).length ?? 0}</span>
+                      </>
+                    )}
+                  </>
+                )}
                 <span className="text-muted-foreground">Ranges</span>
                 <span className="text-right font-medium">{service.rules?.length ?? 0}</span>
               </div>

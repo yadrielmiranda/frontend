@@ -21,6 +21,7 @@ export type InstallationRuleInput = {
   maxValue?: number | null;
   maxInclusive?: boolean;
   rate: number;
+  estimatedMinutes?: number | null;
   sortOrder?: number;
   isActive?: boolean;
 };
@@ -32,6 +33,7 @@ export type InstallationServiceInput = {
   ruleMetric: InstallationRuleMetric;
   baseRate: number;
   minimumCharge: number;
+  estimatedMinutes?: number | null;
   availableForRequest?: boolean;
   availableForField?: boolean;
   isActive?: boolean;

@@ -22,10 +22,12 @@ type Draft = {
   originPostalCode: string;
   maxDistanceMiles: string;
   includedMiles: string;
+  hoursPerDay: string;
   ranges: {
     upToMiles: string;
     chargeType: InstallationCoverageChargeType;
     value: string;
+    dailyCharge: string;
   }[];
 };
 type CompanyAddress = {
@@ -47,11 +49,13 @@ function toDraft(coverage: InstallationCoverage | null): Draft {
     originPostalCode: coverage?.originPostalCode ?? "",
     maxDistanceMiles: coverage ? displayNumber(coverage.maxDistanceMiles) : "",
     includedMiles: coverage ? displayNumber(coverage.includedMiles) : "",
+    hoursPerDay: displayNumber(coverage?.hoursPerDay ?? "8"),
     ranges:
       coverage?.ranges.map((range) => ({
         upToMiles: displayNumber(range.upToMiles),
         chargeType: range.chargeType,
         value: displayNumber(range.value),
+        dailyCharge: displayNumber(range.dailyCharge ?? "0"),
       })) ?? [],
   };
 }
@@ -81,6 +85,9 @@ function validateDraft(draft: Draft): string | null {
     return "Enter the included miles, using zero or a positive number with up to two decimal places.";
   if (Number(draft.includedMiles) > Number(draft.maxDistanceMiles))
     return "Included miles cannot exceed the maximum distance.";
+  if (!validAmount(draft.hoursPerDay, 24) || Number(draft.hoursPerDay) <= 0) {
+    return "Hours per installation day must be greater than zero and no more than 24, with up to two decimal places.";
+  }
   let lower = Number(draft.includedMiles);
   for (const [index, range] of draft.ranges.entries()) {
     const upper = Number(range.upToMiles);
@@ -93,6 +100,8 @@ function validateDraft(draft: Draft): string | null {
     }
     if (!validAmount(range.value, 9999999999.99))
       return `Enter a valid charge for range ${index + 1}, with up to two decimal places.`;
+    if (!validAmount(range.dailyCharge, 9999999999.99))
+      return `Enter a valid daily charge for range ${index + 1}, using zero or a positive amount with up to two decimal places.`;
     lower = upper;
   }
   if (lower !== Number(draft.maxDistanceMiles)) {
@@ -151,10 +160,12 @@ export function InstallationCoverageClient({
         originPostalCode: draft.originPostalCode.trim(),
         maxDistanceMiles: Number(draft.maxDistanceMiles),
         includedMiles: Number(draft.includedMiles),
+        hoursPerDay: Number(draft.hoursPerDay),
         ranges: draft.ranges.map((range) => ({
           upToMiles: Number(range.upToMiles),
           chargeType: range.chargeType,
           value: Number(range.value),
+          dailyCharge: Number(range.dailyCharge),
         })),
       });
       setSaved(result);
@@ -328,6 +339,34 @@ export function InstallationCoverageClient({
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle>Installation workday</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-sm space-y-2">
+                <Label htmlFor="coverage-hours-per-day">
+                  Hours per installation day
+                </Label>
+                <Input
+                  id="coverage-hours-per-day"
+                  type="number"
+                  min="0.01"
+                  max="24"
+                  step="0.01"
+                  value={draft.hoursPerDay}
+                  onChange={(event) =>
+                    change({ hoursPerDay: event.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Effective working hours per day for the installation team.
+                  Applies to all distance ranges.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="flex flex-wrap items-start justify-between gap-3 sm:flex-row">
               <div className="space-y-2">
                 <CardTitle>Distance ranges</CardTitle>
@@ -345,7 +384,12 @@ export function InstallationCoverageClient({
                   change({
                     ranges: [
                       ...draft.ranges,
-                      { upToMiles: "", chargeType: "FIXED", value: "" },
+                      {
+                        upToMiles: "",
+                        chargeType: "FIXED",
+                        value: "",
+                        dailyCharge: "0",
+                      },
                     ],
                   })
                 }
@@ -365,9 +409,9 @@ export function InstallationCoverageClient({
                   key={index}
                   role="group"
                   aria-label={`Range ${index + 1}`}
-                  className="grid min-w-0 gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2 md:grid-cols-[1fr_130px_170px_140px_40px] md:items-end"
+                  className="grid min-w-0 gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(100px,1fr)_120px_170px_130px_170px_40px] xl:items-end"
                 >
-                  <div className="pb-1 text-sm sm:col-span-2 md:col-span-1">
+                  <div className="pb-1 text-sm sm:col-span-2 xl:col-span-1">
                     <p className="font-semibold text-slate-900">
                       Range {index + 1}
                     </p>
@@ -397,7 +441,7 @@ export function InstallationCoverageClient({
                   </div>
                   <div className="min-w-0 space-y-2">
                     <Label htmlFor={`coverage-type-${index}`}>
-                      Charge type
+                      One-time charge type
                     </Label>
                     <select
                       id={`coverage-type-${index}`}
@@ -429,6 +473,22 @@ export function InstallationCoverageClient({
                       value={range.value}
                       onChange={(event) =>
                         changeRange(index, { value: event.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor={`coverage-daily-${index}`}>
+                      Daily charge ($/day)
+                    </Label>
+                    <Input
+                      id={`coverage-daily-${index}`}
+                      type="number"
+                      min="0"
+                      max="9999999999.99"
+                      step="0.01"
+                      value={range.dailyCharge}
+                      onChange={(event) =>
+                        changeRange(index, { dailyCharge: event.target.value })
                       }
                     />
                   </div>
