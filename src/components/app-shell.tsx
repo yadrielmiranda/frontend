@@ -12,7 +12,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isPublicAuthPage = pathname === "/" || pathname.startsWith("/login") || pathname === "/terms" || pathname.startsWith("/terms/") || pathname === "/sms" || pathname.startsWith("/sms/");
 
-  const showTopBar = isLoading || isAuthenticated || !isPublicAuthPage;
+  // Los enlaces compartidos muestran el documento sin la navegación del portal.
+  const isPublicDocumentPage = pathname.startsWith("/public/");
+  const showTopBar =
+    !isPublicDocumentPage && (isLoading || isAuthenticated || !isPublicAuthPage);
 
   return (
     <PlatformTermsGate>
@@ -27,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      {!pathname.startsWith('/public/') && (
+      {!isPublicDocumentPage && (
         <footer className="px-4 py-5 text-center text-xs text-slate-500">
           <Link href="/terms" className="underline underline-offset-4">Terms and Conditions</Link>
         </footer>
