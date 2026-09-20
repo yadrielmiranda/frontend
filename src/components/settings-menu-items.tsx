@@ -34,6 +34,7 @@ import {
   Link2,
   BadgeDollarSign,
   MapPinned,
+  Warehouse,
 } from "lucide-react";
 
 import { isAdminRole, type RoleName } from "@/lib/rbac";
@@ -295,10 +296,19 @@ export function SettingsMenuItems({
 
       <DropdownMenuSeparator />
 
-      {/* Administration */}
+      {/* Administración */}
       <DropdownMenuLabel className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         Administration
       </DropdownMenuLabel>
+
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/warehouse-delivery">
+            <Warehouse className={iconClass} />
+            Warehouse &amp; Delivery
+          </Link>
+        </DropdownMenuItem>
+      )}
 
       {isAdmin && (
         <DropdownMenuItem asChild className={itemClass}>

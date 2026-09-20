@@ -43,6 +43,7 @@ import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-paym
 import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
 import { OrderPaymentSection } from "./order-payment-section";
+import { WarehousePickupAddress } from "./warehouse-pickup-address";
 
 const deliveryName = (type: DeliveryType) => {
   if (type === "INSTALLATION_OVERRIDE") return "Delivery with installation";
@@ -337,6 +338,7 @@ export function OrderDeliveryPanel({
 
       {ready && !installationActive && !activePrimaryDelivery && (
         <div className="mt-4 rounded-lg border p-4">
+          <WarehousePickupAddress />
           {fulfillmentMethod === "CUSTOMER_PICKUP" ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

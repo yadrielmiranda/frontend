@@ -26,6 +26,7 @@ import {
   Link2,
   BadgeDollarSign,
   MapPinned,
+  Warehouse,
 } from "lucide-react";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
@@ -258,6 +259,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
   ];
 
   const administrationItems: SettingsItem[] = [
+    {
+      title: "Warehouse & Delivery",
+      description: "Set the pickup address, delivery distance, and delivery pricing.",
+      href: "/settings/warehouse-delivery",
+      icon: Warehouse,
+      color: "bg-orange-50 text-orange-600",
+      show: isAdmin,
+    },
     {
       title: "Users",
       description: "Manage system users.",
