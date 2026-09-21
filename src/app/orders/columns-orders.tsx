@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal, Edit, CreditCard } from "lucide-react";
+import { MoreHorizontal, Edit, CreditCard, FileJson } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -134,6 +134,14 @@ export function getOrderColumns({
               <DropdownMenuItem asChild>
                 <Link href={`/orders/${order.id}`}>View Details</Link>
               </DropdownMenuItem>
+
+              {currentUserRole === "admin" && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/orders/${order.id}/factory-import`}>
+                    <FileJson className="mr-2 h-4 w-4" />Import factory order
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
               {canEdit && (
                 <DropdownMenuItem asChild>

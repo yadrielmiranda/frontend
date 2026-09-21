@@ -56,7 +56,7 @@ export default async function EditOrderPage({
           <CardDescription>Update the status for this order.</CardDescription>
         </CardHeader>
         <CardContent>
-          <OrderForm order={order} statuses={statuses} />
+          <OrderForm order={order} statuses={statuses} isAdmin={role === "admin"} />
         </CardContent>
       </Card>
     </div>

@@ -27,3 +27,5 @@ export const isAdminRole = (role?: RoleName | string | null) => role === "admin"
 export const isOperatorRole = (role?: RoleName | string | null) => role === "operator";
 export const isDealerRole = (role?: RoleName | string | null) => role === "dealer";
 export const isClientRole = (role?: RoleName | string | null) => role === "client";
+export const canAccessWarehouse = (role?: RoleName | string | null) =>
+  role === "admin" || role === "operator";

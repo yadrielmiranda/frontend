@@ -52,7 +52,7 @@ export function OrderDetails({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Order #{order.number}</h1>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
@@ -60,10 +60,16 @@ export function OrderDetails({
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/orders">Back to Orders</Link>
           </Button>
+
+          {isAdmin && (
+            <Button asChild variant="outline">
+              <Link href={`/orders/${order.id}/factory-import`}>Import factory order</Link>
+            </Button>
+          )}
 
           {canEdit ? (
             <Button asChild>

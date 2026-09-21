@@ -3,12 +3,10 @@
 import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,107 +14,80 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import type {
   OrderWithRelations,
   OrderStatus,
   UpdateOrderData,
 } from "@/lib/types";
+import { formatMoney } from "@/lib/formatters";
 import { updateOrder } from "@/app/api/orders.api";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
-interface OrderFormProps {
+export function OrderForm({
+  order,
+  statuses,
+  isAdmin,
+}: {
   order: OrderWithRelations;
   statuses: OrderStatus[];
-}
-
-export function OrderForm({ order, statuses }: OrderFormProps) {
+  isAdmin: boolean;
+}) {
   const router = useRouter();
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<UpdateOrderData | null>(
-    null,
-  );
+  const [pending, setPending] = useState<UpdateOrderData | null>(null);
   const selectableStatuses = useMemo(() => {
     const nextByStatus: Record<string, string | null> = {
       Pending: "In production",
       "In production": "Ready to pick up",
-      "Ready to pick up": null,
-      "Picked up": null,
-      Delivered: null,
-      "Installation in progress": null,
-      Installed: null,
     };
-    const next = nextByStatus[order.status.name];
     return statuses.filter(
-      (status) => status.id === order.statusId || status.name === next,
+      (status) =>
+        status.id === order.statusId ||
+        status.name === nextByStatus[order.status.name],
     );
   }, [order.status.name, order.statusId, statuses]);
-
   const {
     control,
-    register,
     handleSubmit,
-    formState: { isSubmitting, isDirty, errors },
-  } = useForm<UpdateOrderData>({
-    defaultValues: {
-      statusId: order.statusId,
-      poNumber: order.poNumber ?? "",
-      rateReal: order.rateReal ?? null,
-    },
-  });
+    formState: { isDirty, errors },
+  } = useForm<UpdateOrderData>({ defaultValues: { statusId: order.statusId } });
 
-  // comentario en espanol: prepara payload y abre confirm dialog
-  const onSubmit = handleSubmit(async (data) => {
+  async function confirmSave() {
+    if (!pending) return;
     try {
-      const payload: UpdateOrderData = {
-        statusId: data.statusId,
-        poNumber:
-          data.poNumber === undefined
-            ? undefined
-            : String(data.poNumber || "").trim() || null,
-        rateReal: data.rateReal,
-      };
-
-      setPendingPayload(payload);
-      setShowConfirm(true);
-    } catch (error) {
-      toast.error((error as Error).message);
-    }
-  });
-
-  // comentario en espanol: solo aqui realmente guardamos
-  const confirmSave = async () => {
-    if (!pendingPayload) {
-      setShowConfirm(false);
-      return;
-    }
-
-    try {
-      await updateOrder(order.id, pendingPayload);
+      await updateOrder(order.id, pending);
       toast.success("Order updated successfully!");
       router.push("/orders");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
-      setShowConfirm(false);
-      setPendingPayload(null);
+      setPending(null);
     }
-  };
+  }
 
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-6">
-        {/* Status */}
-        <div>
+      <form
+        onSubmit={handleSubmit((data) =>
+          setPending({ statusId: data.statusId }),
+        )}
+        className="space-y-6"
+      >
+        <div className="space-y-2">
           <Label htmlFor="statusId">Order Status</Label>
           <Controller
             name="statusId"
             control={control}
-            rules={{ required: true }}
+            rules={{
+              required: true,
+              validate: (value) =>
+                value === order.statusId ||
+                Boolean(order.poNumber?.trim()) ||
+                "An administrator must import the factory order before moving it out of Pending.",
+            }}
             render={({ field }) => (
               <Select
-                onValueChange={(v) => field.onChange(Number(v))}
+                onValueChange={(value) => field.onChange(Number(value))}
                 value={String(field.value ?? "")}
               >
                 <SelectTrigger id="statusId">
@@ -132,97 +103,49 @@ export function OrderForm({ order, statuses }: OrderFormProps) {
               </Select>
             )}
           />
-        </div>
-
-        {/* PO Number */}
-        <div>
-          <Label htmlFor="poNumber">PO Number (Factory)</Label>
-          <Input
-            id="poNumber"
-            placeholder="e.g. PO-12345"
-            autoComplete="off"
-            maxLength={50}
-            aria-invalid={Boolean(errors.poNumber)}
-            aria-describedby="poNumber-help poNumber-error"
-            {...register("poNumber", {
-              validate: (value, values) => {
-                if (value?.trim()) return true;
-                const target = statuses.find((status) => status.id === values.statusId);
-                if (values.statusId !== order.statusId && target && target.name !== "Pending") {
-                  return `Enter the factory PO before moving the order to "${target.name}".`;
-                }
-                if (order.poNumber?.trim() && order.status.name !== "Pending") {
-                  return "The factory PO cannot be removed after the order leaves Pending.";
-                }
-                if (Number(values.rateReal) > 0) {
-                  return "Enter the factory PO before recording the real factory cost.";
-                }
-                return true;
-              },
-            })}
-          />
-          <p id="poNumber-help" className="text-xs text-muted-foreground mt-1">
-            Required to move the order out of Pending or record the real factory cost.
-          </p>
-          {errors.poNumber && (
-            <p id="poNumber-error" role="alert" className="mt-1 text-sm text-destructive">
-              {errors.poNumber.message}
+          {errors.statusId && (
+            <p role="alert" className="text-sm text-destructive">
+              {errors.statusId.message}
             </p>
           )}
         </div>
-
-        {/* Rate Real */}
-        <div>
-          <Label htmlFor="rateReal">Rate Real (Factory Cost)</Label>
-          <Controller
-            name="rateReal"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="rateReal"
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-                value={
-                  field.value === null || field.value === undefined
-                    ? ""
-                    : String(field.value)
-                }
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  if (raw === "") return field.onChange(null);
-                  field.onChange(Number(raw));
-                }}
-              />
-            )}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Once entered, the real material profit is calculated automatically
-            from this order&apos;s material sale subtotal. Installation profit
-            is not included.
+        <div className="space-y-3 rounded-lg border bg-slate-50 p-4 text-sm">
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Factory PO</span>
+            <span className="font-medium">
+              {order.poNumber || "Pending import"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Real factory cost</span>
+            <span className="font-medium">
+              {order.rateReal == null ? "—" : formatMoney(order.rateReal)}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The factory PO and cost are loaded from the factory JSON by an
+            administrator.
           </p>
+          {isAdmin && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/orders/${order.id}/factory-import`}>
+                Import factory order
+              </Link>
+            </Button>
+          )}
         </div>
-
-        {/* Footer */}
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
-
-          <Button type="submit" disabled={!isDirty || isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={!isDirty}>
             Save Changes
           </Button>
         </div>
       </form>
-
       <ConfirmActionDialog
-        isOpen={showConfirm}
-        onClose={() => {
-          setShowConfirm(false);
-          setPendingPayload(null);
-        }}
+        isOpen={Boolean(pending)}
+        onClose={() => setPending(null)}
         onConfirm={confirmSave}
         title="Save changes?"
         description="You’re about to update this order. Please confirm to continue."

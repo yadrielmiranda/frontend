@@ -17,12 +17,12 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Menu, FileText, ShoppingBag, Settings, Hammer } from "lucide-react";
+import { Menu, FileText, ShoppingBag, Settings, Hammer, Warehouse } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import brandLogo from "../../public/logo.png";
 import { NotificationBell } from "./notifications-bell";
-import { canAccessSettings } from "@/lib/rbac";
+import { canAccessSettings, canAccessWarehouse } from "@/lib/rbac";
 import { usePathname } from "next/navigation";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
@@ -35,6 +35,7 @@ function TopBar() {
   const pathname = usePathname();
 
   const isEstimatesActive = pathname.startsWith("/estimates");
+  const isWarehouseActive = pathname.startsWith("/warehouse");
   const isOrdersActive = pathname.startsWith("/orders");
   const isInstallationsActive = pathname.startsWith("/installations");
   const isSettingsActive = pathname.startsWith("/settings");
@@ -79,7 +80,7 @@ function TopBar() {
         <h1 className="text-xl font-bold tracking-tight text-white">
           {companyName}
         </h1>
-        <p className="hidden text-xs font-medium text-white/50 sm:block">
+        <p className="hidden text-xs font-medium text-white/50 xl:block">
           Impact Windows Portal
         </p>
       </div>
@@ -95,9 +96,9 @@ function TopBar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden h-9 w-28 animate-pulse rounded-xl bg-slate-200 md:block" />
+            <div className="hidden h-9 w-28 animate-pulse rounded-xl bg-slate-200 xl:block" />
             <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200" />
-            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200 md:hidden" />
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200 xl:hidden" />
           </div>
         </div>
 
@@ -114,7 +115,7 @@ function TopBar() {
         </div>
 
         {isAuthenticated && (
-          <nav className="hidden items-center gap-2 md:flex">
+          <nav className="hidden items-center gap-2 xl:flex">
             <Button
               variant="ghost"
               className={navButtonClass(isEstimatesActive)}
@@ -148,6 +149,12 @@ function TopBar() {
               </Link>
             </Button>
 
+            {canAccessWarehouse(user?.role?.name) && (
+              <Button variant="ghost" className={navButtonClass(isWarehouseActive)} asChild>
+                <Link href="/warehouse"><Warehouse className="mr-2 h-4 w-4" />Warehouse</Link>
+              </Button>
+            )}
+
             {canAccessSettings(user?.role?.name) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,7 +176,7 @@ function TopBar() {
         )}
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="md:hidden">
+          <div className="xl:hidden">
             {isAuthenticated && (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -221,6 +228,12 @@ function TopBar() {
                         Orders
                       </Link>
                     </Button>
+
+                    {canAccessWarehouse(user?.role?.name) && (
+                      <Button variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(isWarehouseActive)}`} asChild>
+                        <Link href="/warehouse"><Warehouse className="mr-2 h-4 w-4" />Warehouse</Link>
+                      </Button>
+                    )}
 
                     {canAccessSettings(user?.role?.name) && (
                       <DropdownMenu>
