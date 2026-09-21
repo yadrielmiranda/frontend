@@ -120,6 +120,7 @@ function isAuthUrl(url: string) {
   return (
     url.includes("/api/auth/refresh") ||
     url.includes("/api/auth/login") ||
+    url.includes("/api/auth/technician-login") ||
     url.includes("/api/auth/register") ||
     url.includes("/api/auth/forgot-password") ||
     url.includes("/api/auth/reset-password")

@@ -86,6 +86,8 @@ export const columns: ColumnDef<User>[] = [
     cell: ({ row }) => {
       const user = row.original;
 
+      if (user.role.name === "technician") return <span className="text-gray-400">Not applicable</span>;
+
       if (user.markupOverride !== null && user.markupOverride !== undefined) {
         return (
           <div className="flex items-center gap-1 font-semibold text-blue-600">

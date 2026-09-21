@@ -58,8 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const notificationsInFlightRef = useRef(false);
+  const currentRoleRef = useRef<string | undefined>(undefined);
+  currentRoleRef.current = user?.role?.name;
   const refreshNotifications = useCallback(async () => {
-    if (notificationsInFlightRef.current) return;
+    if (currentRoleRef.current === "technician" || notificationsInFlightRef.current) return;
     notificationsInFlightRef.current = true;
 
     try {
@@ -115,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // ✅ Si cambió el usuario, mandar a "/"
       if (oldId !== null && newId !== null && oldId !== newId) {
-        router.push("/");
+        router.push(u.role?.name === "technician" ? "/technician" : "/");
         router.refresh();
       }
 
@@ -266,14 +268,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // ✅ Si cambió el usuario, mandar a "/"
       if (oldId !== null && newId !== null && oldId !== newId) {
-        router.push("/");
+        router.push(u.role?.name === "technician" ? "/technician" : "/");
         router.refresh();
       }
 
       lastUserIdRef.current = newId;
 
       // Una condición pendiente no invalida la sesión autenticada.
-      const initialNotifications = await getNotifications().catch(() => []);
+      const initialNotifications = u.role?.name === "technician" ? [] : await getNotifications().catch(() => []);
       setNotifications(initialNotifications);
 
       // ✅ Programar idle probe desde ahora
@@ -305,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const socketsEnabled = process.env.NEXT_PUBLIC_ENABLE_SOCKET === "true";
 
     if (!socketsEnabled) return;
-    if (!isAuthenticated || !user?.id) return;
+    if (!isAuthenticated || !user?.id || user.role?.name === "technician") return;
 
     const socket: Socket = io(API_URL, {
       withCredentials: true,
@@ -336,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       socket.disconnect();
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, user?.role?.name]);
 
   const revalidate = () => setFetchCount((p) => p + 1);
 

@@ -1,4 +1,5 @@
 import { apiFetch } from "../../_base";
+import { userView, type ApiUser } from "@/lib/user-view";
 import type { CreateUserDto, User, UpdateUserDto } from "../../../../lib/types";
 
 // --- Tipos auxiliares de auth ---
@@ -9,6 +10,7 @@ export interface LoginData {
 
 export interface LoginResponse {
   message?: string;
+  role?: string;
 }
 
 export interface LogoutResponse {
@@ -64,7 +66,7 @@ export function logoutUser() {
  * Profile normal: si es 401 en cliente, dispara auth:login-required (modal).
  */
 export function getProfile() {
-  return apiFetch<User>("/api/auth/profile");
+  return apiFetch<ApiUser>("/api/auth/profile").then(userView);
 }
 
 /**
@@ -72,9 +74,9 @@ export function getProfile() {
  * Úsalo en el load inicial (landing) para que NO abra login automáticamente.
  */
 export function getProfileSilent() {
-  return apiFetch<User>("/api/auth/profile", {
+  return apiFetch<ApiUser>("/api/auth/profile", {
     suppressAuthEvent: true,
-  });
+  }).then(userView);
 }
 
 type ProfileFields = "username" | "firstName" | "lastName" | "email" | "phone" |

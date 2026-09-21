@@ -10,17 +10,19 @@ import { warehouseRequestKey, type ScanResult } from "@/app/api/warehouse.api";
 import { errorMessage } from "./warehouse-shared";
 
 type Pending = { barcode: string; requestKey: string };
-export function ScanPad({
+export function ScanPad<Result = ScanResult>({
   scope,
+  persistent = false,
   disabled,
   onRead,
   onSaved,
   onPendingChange,
 }: {
   scope: string;
+  persistent?: boolean;
   disabled?: boolean;
-  onRead: (barcode: string, requestKey: string) => Promise<ScanResult>;
-  onSaved: (result: ScanResult) => void;
+  onRead: (barcode: string, requestKey: string) => Promise<Result>;
+  onSaved: (result: Result) => void;
   onPendingChange?: (pending: boolean) => void;
 }) {
   const [barcode, setBarcode] = useState(""),
@@ -40,6 +42,7 @@ export function ScanPad({
     blocked = useRef(Boolean(disabled));
   blocked.current = Boolean(disabled);
   const storageKey = `warehouse-reading:${scope}`;
+  const readingStorage = () => persistent ? localStorage : sessionStorage;
 
   function stopCamera() {
     generation.current++;
@@ -53,7 +56,7 @@ export function ScanPad({
   useEffect(() => {
     mounted.current = true;
     try {
-      const saved = sessionStorage.getItem(storageKey);
+      const saved = readingStorage().getItem(storageKey);
       if (saved) {
         const value = JSON.parse(saved) as Pending;
         if (
@@ -76,7 +79,7 @@ export function ScanPad({
     };
     // El padre remonta el lector al cambiar de operación.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, persistent]);
   useEffect(() => {
     onPendingChange?.(busy || Boolean(pending));
   }, [busy, pending, onPendingChange]);
@@ -105,14 +108,19 @@ export function ScanPad({
     };
     setPending(reading);
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify(reading));
+      readingStorage().setItem(storageKey, JSON.stringify(reading));
     } catch {
-      /* Sin almacenamiento local. */
+      if (persistent) {
+        // No enviar un movimiento técnico sin conservar su clave de reintento.
+        setPending(null); setBusy(false); lock.current = false;
+        setError("Browser storage is unavailable. Enable site storage before scanning. Nothing was sent.");
+        return;
+      }
     }
     try {
       const result = await onRead(reading.barcode, reading.requestKey);
       try {
-        sessionStorage.removeItem(storageKey);
+        readingStorage().removeItem(storageKey);
       } catch {
         /* Sin almacenamiento local. */
       }
@@ -124,10 +132,11 @@ export function ScanPad({
       navigator.vibrate?.(60);
     } catch (e) {
       if (!mounted.current) return;
-      if (isApiError(e) && e.status >= 400 && e.status < 500) {
+      if (isApiError(e) && e.status >= 400 && e.status < 500 &&
+          (!persistent || ![401, 403, 408, 429].includes(e.status))) {
         setPending(null);
         try {
-          sessionStorage.removeItem(storageKey);
+          readingStorage().removeItem(storageKey);
         } catch {
           /* Sin almacenamiento local. */
         }

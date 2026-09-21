@@ -1,4 +1,4 @@
-export type RoleName = "admin" | "operator" | "dealer" | "client";
+export type RoleName = "admin" | "operator" | "dealer" | "client" | "technician";
 
 export const canAccessSettings = (role?: RoleName | string | null) =>
   role === "admin" || role === "operator";

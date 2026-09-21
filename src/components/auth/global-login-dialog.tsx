@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 import { CardLogin } from "@/components/card-login";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export function GlobalLoginDialog() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, reason } =
     useLoginDialog();
@@ -30,6 +31,9 @@ export function GlobalLoginDialog() {
     // Solo permitimos cerrar manualmente en modo manual
     if (!isExpired) closeLoginDialog();
   };
+
+  // El portal técnico tiene su propio acceso, sin registro público ni área comercial.
+  if (pathname === "/technician" || pathname.startsWith("/technician/")) return null;
 
   return (
     <Dialog

@@ -77,12 +77,15 @@ export function CardLogin({
 
   const handleLogin = async (data: LoginFormData) => {
     try {
-      await loginUser(data);
+      const result = await loginUser(data);
       await revalidate();
 
       toast.success(isUnlock ? "Session restored." : "Signed in successfully.");
 
-      if (onLoginSuccess) {
+      if (result.role === "technician") {
+        onClose?.();
+        router.replace("/technician");
+      } else if (onLoginSuccess) {
         onLoginSuccess();
       } else {
         router.push("/");

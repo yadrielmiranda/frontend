@@ -27,7 +27,7 @@ export default async function NewUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm roles={roles} profiles={profiles} paymentPlans={paymentPlans} />
+          <UserForm roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} />
         </CardContent>
       </Card>
     </div>

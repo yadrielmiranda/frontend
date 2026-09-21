@@ -18,7 +18,7 @@ export default async function AdminUsersPage({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="text-4xl font-bold">User Management</h1>
 
@@ -29,7 +29,7 @@ export default async function AdminUsersPage({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" asChild>
             <Link
               href={
@@ -40,6 +40,10 @@ export default async function AdminUsersPage({
             >
               {showDeleted ? "Hide Deleted" : "Show Deleted"}
             </Link>
+          </Button>
+
+          <Button variant="outline" asChild>
+            <Link href="/settings/users/new/technician">+ New Technician</Link>
           </Button>
 
           <Button asChild>

@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import TopBar from "@/components/top-bar";
 import Link from 'next/link';
@@ -8,7 +9,16 @@ import { PlatformTermsGate } from '@/components/platform-terms/platform-terms-ga
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const router = useRouter();
+  const technicianPath = pathname === "/technician" || pathname.startsWith("/technician/");
+  const technicianAccount = user?.role?.name === "technician";
+  useEffect(() => {
+    if (technicianAccount && !technicianPath) router.replace("/technician");
+  }, [technicianAccount, technicianPath, router]);
+
+  if (technicianPath) return <main className="min-h-dvh bg-slate-50">{children}</main>;
+  if (technicianAccount) return <main className="p-8 text-center" role="status">Opening technician workspace…</main>;
 
   const isPublicAuthPage = pathname === "/" || pathname.startsWith("/login") || pathname === "/terms" || pathname.startsWith("/terms/") || pathname === "/sms" || pathname.startsWith("/sms/");
 

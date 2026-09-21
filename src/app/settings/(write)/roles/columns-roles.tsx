@@ -162,16 +162,16 @@ export const getColumns = (
       <div className="capitalize font-medium">{row.original.name}</div>
     ),
   },
-  { id: "paymentPlan", header: "Payment Plan", cell: ({row}) => <PaymentPlanCell role={row.original} plans={paymentPlans} /> },
+  { id: "paymentPlan", header: "Payment Plan", cell: ({row}) => row.original.name === "technician" ? "Not applicable" : <PaymentPlanCell role={row.original} plans={paymentPlans} /> },
   {
     accessorKey: "markup",
     header: "Default Markup",
-    cell: ({ row }) => <EditableMarkupCell role={row.original} />,
+    cell: ({ row }) => row.original.name === "technician" ? "Not applicable" : <EditableMarkupCell role={row.original} />,
   },
   {
     id: "installationProfile",
     header: "Installation Profile",
-    cell: ({ row }) => (
+    cell: ({ row }) => row.original.name === "technician" ? "Not applicable" : (
       <InstallationProfileCell role={row.original} profiles={profiles} />
     ),
   },

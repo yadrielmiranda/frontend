@@ -6,6 +6,7 @@ import { BackLink } from "@/components/navigation/back-link";
 import { getUser } from "@/app/api/users.api";
 import { getRoles } from "@/app/api/roles.api";
 import { UserForm } from "../../new/user-form";
+import { TechnicianAccountForm } from "../../technician-account-form";
 import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function EditUserPage({
@@ -36,11 +37,12 @@ export default async function EditUserPage({
         <CardHeader>
           <CardTitle>Edit User: {user.username}</CardTitle>
           <CardDescription>
-            Update the role or set a custom markup for this user.
+            {user.role.name === "technician" ? "Manage this separate internal technician account." : "Update the role or set a custom markup for this user."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm user={user} roles={roles} profiles={profiles} paymentPlans={paymentPlans} />
+          {user.role.name === "technician" ? <TechnicianAccountForm user={user} /> :
+            <UserForm user={user} roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} /> }
         </CardContent>
       </Card>
     </div>
