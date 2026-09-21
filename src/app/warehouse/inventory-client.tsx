@@ -145,6 +145,7 @@ export function InventoryClient({
         [
           "Order",
           "Customer",
+          "PO",
           "Mark",
           "Product",
           "System",
@@ -160,6 +161,7 @@ export function InventoryClient({
         ...rows.map((r) => [
           r.orderNumber,
           r.customer,
+          r.poNumber,
           r.mark,
           r.product,
           r.system,
@@ -306,6 +308,7 @@ export function InventoryClient({
                   <tr>
                     {[
                       "Order / customer",
+                      "PO",
                       "Piece",
                       "Line number",
                       "Expected",
@@ -334,6 +337,9 @@ export function InventoryClient({
                         <p className="mt-1 text-xs text-muted-foreground">
                           {row.customer}
                         </p>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 font-mono">
+                        {row.poNumber || "—"}
                       </td>
                       <td className="px-4 py-4">
                         <p className="font-medium">
@@ -378,6 +384,9 @@ export function InventoryClient({
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Order #{row.orderNumber} · {row.customer}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        PO: <span className="font-mono text-foreground">{row.poNumber || "—"}</span>
                       </p>
                     </div>
                     <State unit={row} />
