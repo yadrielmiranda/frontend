@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { StoreSelect } from "../store-select";
 import { CheckCircle2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,6 +9,8 @@ import {
   warehouseUndo,
   warehouseInventory,
   warehouseRequestKey,
+  warehouseStores,
+  type WarehouseStore,
   type WarehouseAction,
   type ScanResult,
 } from "@/app/api/warehouse.api";
@@ -16,6 +20,7 @@ import {
   UnitSummary,
   errorMessage,
   movementLabels,
+  MovementLocation,
 } from "../warehouse-shared";
 
 const actions: {
@@ -27,25 +32,27 @@ const actions: {
     value: "COLLECT",
     label: "Collect from factory",
     description:
-      "Scan each part as it is collected. It will be in transit until received at the warehouse.",
+      "Scan each part as it is collected. It stays in transit without a store until you receive it at the warehouse.",
   },
   {
     value: "RECEIVE",
     label: "Receive at warehouse",
     description:
-      "Scan each arriving part. Parts in transit move into stock; direct receipts are also supported.",
+      "Choose the destination store, then scan each arriving part. To receive selected units without rescanning, use Pending receipt. Direct receipts are also supported.",
   },
   {
     value: "RELEASE",
     label: "Release from warehouse",
     description:
-      "Scan each part leaving the warehouse. Complete pickup or delivery from the order after the handover.",
+      "Choose the source store, then scan each part leaving it. Complete pickup or delivery from the order after the handover.",
   },
 ];
 export function ScanClient({
   activeCountId,
+  initialStores,
 }: {
   activeCountId: number | null;
+  initialStores: WarehouseStore[];
 }) {
   const [action, setAction] = useState<WarehouseAction>("RECEIVE"),
     [last, setLast] = useState<ScanResult | null>(null),
@@ -54,11 +61,15 @@ export function ScanClient({
     [undoing, setUndoing] = useState(false),
     [undone, setUndone] = useState(false),
     [error, setError] = useState("");
+  const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState("");
   const undoKey = useRef("");
+  const locationValid = action === "COLLECT" ||
+    (action === "RELEASE" && storeId === "unassigned") ||
+    stores.some((s) => String(s.id) === storeId && (action === "RELEASE" || s.isActive));
   useEffect(() => {
     const refresh = () =>
-      warehouseInventory({ pageSize: 1 })
-        .then((r) => setCountId(r.activeCountId))
+      Promise.all([warehouseInventory({ pageSize: 1 }), warehouseStores()])
+        .then(([r, nextStores]) => { setCountId(r.activeCountId); setStores(nextStores); })
         .catch(() => undefined);
     const timer = setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
@@ -99,6 +110,7 @@ export function ScanClient({
             disabled={pending || undoing}
             onClick={() => {
               setAction(option.value);
+              setStoreId("");
               setLast(null);
               setError("");
             }}
@@ -111,11 +123,22 @@ export function ScanClient({
       <p className="text-sm text-muted-foreground">
         {actions.find((a) => a.value === action)?.description}
       </p>
-      <ScanPad
-        key={action}
-        scope={action}
+      {action !== "COLLECT" && (
+        <div className="space-y-2 sm:max-w-sm">
+          <p className="text-sm font-medium">{action === "RECEIVE" ? "Destination store" : "Source store"}</p>
+          <StoreSelect stores={stores} value={storeId} onChange={setStoreId}
+            allowUnassigned={action === "RELEASE"} includeInactive={action === "RELEASE"}
+            disabled={pending || undoing} label={action === "RECEIVE" ? "Destination store" : "Source store"} />
+          {!stores.some((s) => s.isActive) && <p className="text-sm text-muted-foreground">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> before receiving parts.</p>}
+        </div>
+      )}
+      {action === "RECEIVE" && <Link href="/warehouse/receipts" className="inline-block text-sm font-medium underline">Receive selected or all pending units without rescanning</Link>}
+      {(locationValid || pending) && <ScanPad
+        key={action === "COLLECT" ? action : `${action}:${storeId}`}
+        scope={action === "COLLECT" ? action : `${action}:${storeId}`}
         disabled={Boolean(countId) || undoing}
-        onRead={(barcode, key) => warehouseScan(barcode, action, key)}
+        onRead={(barcode, key) => warehouseScan(barcode, action, key,
+          action === "COLLECT" ? undefined : storeId === "unassigned" ? null : Number(storeId))}
         onPendingChange={setPending}
         onSaved={(result) => {
           setLast(result);
@@ -123,7 +146,7 @@ export function ScanClient({
           setError("");
           undoKey.current = "";
         }}
-      />
+      />}
       {last && (
         <section className="space-y-4 rounded-xl border border-emerald-200 bg-white p-4 sm:p-6">
           <p
@@ -139,6 +162,7 @@ export function ScanClient({
             Last saved reading ·{" "}
             {new Date(last.movement.createdAt).toLocaleTimeString()}
           </p>
+          <MovementLocation movement={last.movement} />
           <UnitSummary unit={last.stock} />
           {!undone && (
             <Button

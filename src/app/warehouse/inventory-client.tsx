@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { StoreSelect } from "./store-select";
+import { TransferForm } from "./transfer-form";
 import { Download, RefreshCw, Search, ScanBarcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,8 @@ import {
   warehouseParts,
   warehouseUnit,
   warehouseRequestKey,
+  warehouseStores,
+  type WarehouseStore,
   type Inventory,
   type WarehouseUnit,
   type WarehouseMovement,
@@ -37,6 +41,8 @@ import {
   movementLabels,
   Pagination,
   UnitSummary,
+  MovementLocation,
+  storeBreakdown,
 } from "./warehouse-shared";
 
 const states: Record<string, string> = {
@@ -63,11 +69,15 @@ export function InventoryClient({
   initial,
   initialSearch,
   initialView,
+  initialStores,
+  initialStoreId,
   admin,
 }: {
   initial: Inventory;
   initialSearch: string;
   initialView: string;
+  initialStores: WarehouseStore[];
+  initialStoreId: string;
   admin: boolean;
 }) {
   const [data, setData] = useState(initial),
@@ -78,14 +88,16 @@ export function InventoryClient({
     [exporting, setExporting] = useState(false),
     [error, setError] = useState(""),
     [selected, setSelected] = useState<WarehouseUnit | null>(null);
+  const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState(initialStoreId);
   const sequence = useRef(0);
   const refresh = useCallback(async () => {
     const id = ++sequence.current;
     setBusy(true);
     try {
-      const next = await warehouseInventory({ search, view, page });
+      const [next, nextStores] = await Promise.all([warehouseInventory({ search, view, page, storeId }), warehouseStores()]);
       if (id === sequence.current) {
         setData(next);
+        setStores(nextStores);
         setError("");
       }
     } catch (e) {
@@ -93,7 +105,7 @@ export function InventoryClient({
     } finally {
       if (id === sequence.current) setBusy(false);
     }
-  }, [search, view, page]);
+  }, [search, view, page, storeId]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => {
@@ -124,6 +136,7 @@ export function InventoryClient({
           view,
           page: current,
           pageSize: 100,
+          storeId,
         });
         rows.push(...result.items);
         if (current * 100 >= result.total) break;
@@ -140,6 +153,8 @@ export function InventoryClient({
           "Expected parts",
           "In transit",
           "In warehouse",
+          "Store breakdown",
+          "Unassigned",
           "Released",
         ],
         ...rows.map((r) => [
@@ -153,6 +168,8 @@ export function InventoryClient({
           r.expectedParts,
           r.inTransit,
           r.onHand,
+          storeBreakdown(r),
+          r.unassigned,
           r.released,
         ]),
       ]
@@ -175,11 +192,12 @@ export function InventoryClient({
   return (
     <div className="space-y-5">
       <CountNotice id={data.activeCountId} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ["In warehouse", data.summary.onHand],
           ["In transit", data.summary.inTransit],
           ["Released", data.summary.released],
+          ["Unassigned (included in warehouse)", data.summary.unassigned],
         ].map(([label, value]) => (
           <div
             key={label}
@@ -193,9 +211,11 @@ export function InventoryClient({
           </div>
         ))}
       </div>
+      <p className="text-xs text-muted-foreground">Totals across all stores. Location filters below apply to the unit list.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Inventory</h2>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline"><Link href="/warehouse/receipts">Pending receipt</Link></Button>
           <Button asChild>
             <Link href="/warehouse/scan">
               <ScanBarcode className="mr-2 h-4 w-4" />
@@ -214,7 +234,7 @@ export function InventoryClient({
           </Button>
         </div>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 lg:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
@@ -233,6 +253,7 @@ export function InventoryClient({
           value={view}
           onValueChange={(value) => {
             setView(value);
+            if (value === "in_transit") setStoreId("all");
             setPage(1);
           }}
         >
@@ -250,6 +271,10 @@ export function InventoryClient({
             ))}
           </SelectContent>
         </Select>
+        <div className="w-full lg:w-56">
+          <StoreSelect stores={stores} value={storeId} allowAll allowUnassigned includeInactive disabled={view === "in_transit"} label="Inventory store filter"
+            onChange={(value) => { setStoreId(value); setPage(1); }} />
+        </div>
         <Button
           variant="outline"
           aria-label="Refresh inventory"
@@ -286,6 +311,7 @@ export function InventoryClient({
                       "Expected",
                       "Transit",
                       "On hand",
+                      "Locations",
                       "Released",
                       "Status",
                     ].map((h) => (
@@ -328,6 +354,7 @@ export function InventoryClient({
                       <td className="px-4 py-4">{row.expectedParts ?? "—"}</td>
                       <td className="px-4 py-4">{row.inTransit}</td>
                       <td className="px-4 py-4 font-semibold">{row.onHand}</td>
+                      <td className="min-w-40 max-w-64 px-4 py-4 text-xs text-muted-foreground">{storeBreakdown(row) || "—"}</td>
                       <td className="px-4 py-4">{row.released}</td>
                       <td className="px-4 py-4">
                         <State unit={row} />
@@ -358,6 +385,7 @@ export function InventoryClient({
                   <p className="font-mono text-sm text-red-700">
                     {row.barcode}
                   </p>
+                  {row.onHand > 0 && <p className="text-xs text-muted-foreground">{storeBreakdown(row)}</p>}
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <span>
                       On hand{" "}
@@ -384,6 +412,8 @@ export function InventoryClient({
           key={selected.lineNumber}
           initial={selected}
           admin={admin}
+          stores={stores}
+          activeCountId={data.activeCountId}
           onClose={() => setSelected(null)}
           onChanged={() => void refresh()}
         />
@@ -403,11 +433,15 @@ function State({ unit }: { unit: WarehouseUnit }) {
 function UnitDetails({
   initial,
   admin,
+  stores,
+  activeCountId,
   onClose,
   onChanged,
 }: {
   initial: WarehouseUnit;
   admin: boolean;
+  stores: WarehouseStore[];
+  activeCountId: number | null;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -416,8 +450,9 @@ function UnitDetails({
     [expected, setExpected] = useState(String(initial.expectedParts ?? ""));
   const [reason, setReason] = useState(""),
     [editing, setEditing] = useState(initial.expectedParts === null),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useState(true),
     [error, setError] = useState("");
+  const [moving, setMoving] = useState(false);
   const request = useRef<{ signature: string; key: string } | null>(null);
   useEffect(() => {
     let live = true;
@@ -434,7 +469,8 @@ function UnitDetails({
       })
       .catch((e) => {
         if (live) setError(errorMessage(e));
-      });
+      })
+      .finally(() => { if (live) setBusy(false); });
     return () => {
       live = false;
     };
@@ -471,7 +507,7 @@ function UnitDetails({
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && !busy && !moving) onClose();
       }}
     >
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
@@ -483,10 +519,25 @@ function UnitDetails({
         </SheetHeader>
         <div className="space-y-6 p-4">
           <UnitSummary unit={unit} />
+          <CountNotice id={activeCountId} />
+          <Button variant="outline" disabled={busy || moving} onClick={async () => {
+            setError(""); setBusy(true);
+            try {
+              const [next, rows] = await Promise.all([warehouseUnit(unit.lineNumber), warehouseHistory({ lineNumber: unit.lineNumber, pageSize: 20 })]);
+              setUnit(next); setExpected(String(next.expectedParts ?? "")); setHistory(rows.items);
+            } catch (e) { setError(errorMessage(e)); }
+            finally { setBusy(false); }
+          }}>Refresh unit</Button>
+          <TransferForm key={`${unit.lineNumber}:${unit.version}`} unit={unit} stores={stores}
+            disabled={busy || Boolean(activeCountId)} onPendingChange={setMoving}
+            onSaved={(result) => {
+              setUnit(result.stock); onChanged();
+              warehouseHistory({ lineNumber: unit.lineNumber, pageSize: 20 }).then((rows) => setHistory(rows.items)).catch((e) => setError(errorMessage(e)));
+            }} />
           {admin && (
             <div className="space-y-3 border-t pt-4">
               {!editing ? (
-                <Button variant="outline" onClick={() => setEditing(true)}>
+                <Button variant="outline" disabled={moving || Boolean(activeCountId)} onClick={() => setEditing(true)}>
                   Edit expected parts
                 </Button>
               ) : (
@@ -519,7 +570,7 @@ function UnitDetails({
                   <Button
                     onClick={save}
                     disabled={
-                      busy ||
+                      busy || moving || Boolean(activeCountId) ||
                       !Number.isInteger(Number(expected)) ||
                       Number(expected) < 1 ||
                       Number(expected) > 200 ||
@@ -555,6 +606,7 @@ function UnitDetails({
                   Warehouse: {m.onHandAfter} · Transit: {m.transitAfter} ·
                   Released: {m.releasedAfter}
                 </p>
+                <MovementLocation movement={m} />
                 {m.reason && <p className="mt-1 break-words">{m.reason}</p>}
               </div>
             ))}

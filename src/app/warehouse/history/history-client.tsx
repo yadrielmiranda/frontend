@@ -12,6 +12,7 @@ import {
   dateLabel,
   errorMessage,
   movementLabels,
+  MovementLocation,
   Pagination,
 } from "../warehouse-shared";
 
@@ -136,6 +137,7 @@ export function HistoryClient({
                 </span>
               </p>
             )}
+            <MovementLocation movement={m} />
             {m.reason && (
               <p className="break-words text-sm text-muted-foreground">
                 {m.reason}

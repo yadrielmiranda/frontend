@@ -1,5 +1,11 @@
 import { apiFetch } from "./_base";
 
+export type WarehouseStoreRef = { id: number; name: string; isActive: boolean };
+export type WarehouseStore = WarehouseStoreRef & {
+  version: number;
+  onHand: number;
+  units: number;
+};
 export type WarehouseUnit = {
   lineNumber: string;
   barcode: string;
@@ -16,6 +22,8 @@ export type WarehouseUnit = {
   expectedParts: number | null;
   inTransit: number;
   onHand: number;
+  unassigned: number;
+  stores: (WarehouseStoreRef & { onHand: number })[];
   released: number;
   pending: number | null;
   version: number;
@@ -26,6 +34,9 @@ export type WarehouseMovement = {
   id: number;
   lineNumber: string;
   type: string;
+  quantity: number;
+  fromStore: WarehouseStoreRef | null;
+  toStore: WarehouseStoreRef | null;
   transitDelta: number;
   onHandDelta: number;
   releasedDelta: number;
@@ -57,12 +68,15 @@ export type Paged<T> = {
   pageSize: number;
 };
 export type Inventory = Paged<WarehouseUnit> & {
-  summary: { onHand: number; inTransit: number; released: number };
+  summary: { onHand: number; unassigned: number; inTransit: number; released: number };
   activeCountId: number | null;
 };
 export type CountInfo = {
   id: number;
   status: "OPEN" | "COMPLETED" | "CANCELED";
+  scope: "ALL" | "STORE" | "UNASSIGNED";
+  storeId: number | null;
+  store: WarehouseStoreRef | null;
   startedAt: string;
   closedAt: string | null;
   reason: string | null;
@@ -101,7 +115,8 @@ export const warehouseScan = (
   barcode: string,
   action: WarehouseAction,
   requestKey: string,
-) => post<ScanResult>("scan", { barcode, action, requestKey });
+  storeId?: number | null,
+) => post<ScanResult>("scan", { barcode, action, requestKey, storeId });
 export const warehouseUndo = (id: number, requestKey: string) =>
   post<ScanResult>(`movements/${id}/undo`, { requestKey });
 export const warehouseParts = (
@@ -117,8 +132,11 @@ export const warehouseParts = (
     requestKey,
   });
 export const warehouseCounts = () => get<CountInfo[]>("counts");
-export const warehouseStartCount = (requestKey: string) =>
-  post<{ id: number }>("counts", { requestKey });
+export const warehouseStartCount = (
+  requestKey: string,
+  scope: CountInfo["scope"],
+  storeId: number | null,
+) => post<{ id: number }>("counts", { requestKey, scope, storeId });
 export const warehouseCount = (id: number, query?: Query) =>
   get<PhysicalCount>(`counts/${id}`, query);
 export const warehouseCountScan = (
@@ -137,6 +155,28 @@ export const warehouseCloseCount = (
     reason,
     revision,
   });
+
+export const warehouseStores = () => get<WarehouseStore[]>("stores");
+export const warehouseCreateStore = (name: string) =>
+  post<WarehouseStoreRef & { version: number }>("stores", { name });
+export const warehouseUpdateStore = (store: WarehouseStore, name: string, isActive: boolean) =>
+  apiFetch<WarehouseStoreRef & { version: number }>(`/api/warehouse/stores/${store.id}`, {
+    method: "PATCH", body: { name, isActive, version: store.version },
+  });
+export type ReceiptItem = { barcode: string; quantity: number; version: number };
+export type ReceiptResult = {
+  units: number; parts: number; storeId: number; storeName: string; replayed: boolean;
+};
+export const warehouseReceive = (storeId: number, items: ReceiptItem[], requestKey: string) =>
+  apiFetch<ReceiptResult>("/api/warehouse/receipts", {
+    method: "POST", body: { storeId, items, requestKey }, timeoutMs: 90000,
+  });
+export const warehouseTransfer = (
+  unit: WarehouseUnit, fromStoreId: number | null, toStoreId: number,
+  quantity: number, requestKey: string,
+) => post<ScanResult>("transfers", {
+  barcode: unit.barcode, version: unit.version, fromStoreId, toStoreId, quantity, requestKey,
+});
 
 // getRandomValues funciona también en el HTTP local usado con lectores físicos.
 export function warehouseRequestKey() {

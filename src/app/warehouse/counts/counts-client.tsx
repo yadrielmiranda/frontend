@@ -2,28 +2,31 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { StoreSelect } from "../store-select";
 import { Button } from "@/components/ui/button";
 import {
   warehouseCounts,
   warehouseStartCount,
   warehouseRequestKey,
   type CountInfo,
+  type WarehouseStore,
 } from "@/app/api/warehouse.api";
-import { dateLabel, errorMessage } from "../warehouse-shared";
+import { dateLabel, errorMessage, countLocation } from "../warehouse-shared";
 
-export function CountsClient({ initial }: { initial: CountInfo[] }) {
+export function CountsClient({ initial, initialStores }: { initial: CountInfo[]; initialStores: WarehouseStore[] }) {
   const router = useRouter(),
     key = useRef("");
   const [counts, setCounts] = useState(initial),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [location, setLocation] = useState("");
   const open = counts.find((c) => c.status === "OPEN");
   async function start() {
     setBusy(true);
     setError("");
     if (!key.current) key.current = warehouseRequestKey();
     try {
-      const result = await warehouseStartCount(key.current);
+      const result = await warehouseStartCount(key.current, location === "unassigned" ? "UNASSIGNED" : "STORE", location === "unassigned" ? null : Number(location));
       router.push(`/warehouse/counts/${result.id}`);
     } catch (e) {
       setError(errorMessage(e));
@@ -39,7 +42,7 @@ export function CountsClient({ initial }: { initial: CountInfo[] }) {
       <div className="space-y-3 rounded-xl border bg-white p-5">
         <p className="text-sm text-muted-foreground">
           Scan what is physically in the warehouse and compare it with recorded
-          stock. Starting a count pauses stock movements until the count is
+          stock for the selected location only. Starting a count pauses stock movements until the count is
           completed or canceled. Count readings do not receive any stock.
         </p>
         {open ? (
@@ -49,9 +52,14 @@ export function CountsClient({ initial }: { initial: CountInfo[] }) {
             </Link>
           </Button>
         ) : (
-          <Button onClick={start} disabled={busy}>
-            {busy ? "Starting…" : "Start physical count"}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <div className="w-full sm:max-w-xs"><StoreSelect stores={initialStores} value={location}
+              onChange={(value) => { setLocation(value); key.current = ""; }} allowUnassigned disabled={busy}
+              label="Physical count location" placeholder="Choose the location to count" /></div>
+            <Button onClick={start} disabled={busy || !location}>
+              {busy ? "Starting…" : "Start physical count"}
+            </Button>
+          </div>
         )}
       </div>
       {error && (
@@ -72,7 +80,7 @@ export function CountsClient({ initial }: { initial: CountInfo[] }) {
               className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-slate-50"
             >
               <div>
-                <p className="font-medium">Count #{c.id}</p>
+                <p className="font-medium">Count #{c.id} · {countLocation(c)}</p>
                 <p className="text-xs text-muted-foreground">
                   {dateLabel(c.startedAt)} · {c.startedBy.firstName}{" "}
                   {c.startedBy.lastName}

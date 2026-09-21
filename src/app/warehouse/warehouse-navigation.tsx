@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, ScanBarcode, History, ClipboardCheck } from "lucide-react";
+import { Boxes, ScanBarcode, History, ClipboardCheck, PackageCheck, Warehouse } from "lucide-react";
 
 const links = [
   { href: "/warehouse", label: "Inventory", icon: Boxes },
+  { href: "/warehouse/receipts", label: "Pending receipt", icon: PackageCheck },
+  { href: "/warehouse/stores", label: "Stores", icon: Warehouse },
   { href: "/warehouse/scan", label: "Scan", icon: ScanBarcode },
   { href: "/warehouse/history", label: "History", icon: History },
   { href: "/warehouse/counts", label: "Physical counts", icon: ClipboardCheck },

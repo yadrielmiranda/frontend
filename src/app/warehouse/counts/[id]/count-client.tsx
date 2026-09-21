@@ -14,7 +14,7 @@ import {
   type ScanResult,
 } from "@/app/api/warehouse.api";
 import { ScanPad } from "../../scan-pad";
-import { dateLabel, errorMessage, Pagination } from "../../warehouse-shared";
+import { dateLabel, errorMessage, Pagination, countLocation } from "../../warehouse-shared";
 
 export function CountClient({
   initial,
@@ -106,7 +106,7 @@ export function CountClient({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Physical count #{data.id}</h2>
+          <h2 className="text-xl font-semibold">Physical count #{data.id} · {countLocation(data)}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             Started {dateLabel(data.startedAt)} · {data.startedBy.firstName}{" "}
             {data.startedBy.lastName}
@@ -121,7 +121,7 @@ export function CountClient({
         className={`rounded-xl border p-4 text-sm ${open ? "border-amber-200 bg-amber-50 text-amber-900" : "bg-slate-50 text-slate-700"}`}
       >
         {open
-          ? "Stock movements are paused while this count is open. Scan every physical part in the warehouse once."
+          ? `Stock movements are paused while this count is open. Scan every physical part in ${countLocation(data)} once. Do not include parts in other locations.`
           : data.status === "COMPLETED"
             ? "Count completed. Approved differences were recorded as inventory adjustments."
             : "Count canceled. Stock was not changed."}

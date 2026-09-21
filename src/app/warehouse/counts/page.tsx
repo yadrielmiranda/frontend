@@ -1,7 +1,8 @@
 import { requireWarehouseUser } from "../warehouse-access";
-import { warehouseCounts } from "@/app/api/warehouse.api";
+import { warehouseCounts, warehouseStores } from "@/app/api/warehouse.api";
 import { CountsClient } from "./counts-client";
 export default async function CountsPage() {
   await requireWarehouseUser();
-  return <CountsClient initial={await warehouseCounts()} />;
+  const [counts, stores] = await Promise.all([warehouseCounts(), warehouseStores()]);
+  return <CountsClient initial={counts} initialStores={stores} />;
 }
