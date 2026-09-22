@@ -71,6 +71,19 @@ export type Inventory = Paged<WarehouseUnit> & {
   summary: { onHand: number; unassigned: number; inTransit: number; released: number };
   activeCountId: number | null;
 };
+export type WarehousePoGroup = {
+  key: string;
+  orderId: number | null;
+  orderNumber: string;
+  poNumber: string;
+  customer: string;
+  project: string;
+  units: WarehouseUnit[];
+};
+export type WarehousePoInventory = Paged<WarehousePoGroup> & {
+  summary: Inventory["summary"];
+  activeCountId: number | null;
+};
 export type CountInfo = {
   id: number;
   status: "OPEN" | "COMPLETED" | "CANCELED";
@@ -107,6 +120,8 @@ const post = <T>(path: string, body: unknown) =>
 
 export const warehouseInventory = (query?: Query) =>
   get<Inventory>("inventory", query);
+export const warehouseInventoryByPo = (query?: Query) =>
+  get<WarehousePoInventory>("inventory/po", query);
 export const warehouseUnit = (barcode: string) =>
   get<WarehouseUnit>(`units/${encodeURIComponent(barcode)}`);
 export const warehouseHistory = (query?: Query) =>

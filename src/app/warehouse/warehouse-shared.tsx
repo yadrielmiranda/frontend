@@ -39,18 +39,20 @@ export function Pagination({
   pageSize,
   onPage,
   disabled = false,
+  label = "records",
 }: {
   page: number;
   total: number;
   pageSize: number;
   onPage: (page: number) => void;
   disabled?: boolean;
+  label?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-muted-foreground">
       <span>
-        {total.toLocaleString()} records · Page {page} of {pages}
+        {total.toLocaleString()} {label} · Page {page} of {pages}
       </span>
       <div className="flex gap-2">
         <Button

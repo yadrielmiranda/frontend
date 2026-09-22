@@ -1,10 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { StoreSelect } from "./store-select";
 import { TransferForm } from "./transfer-form";
-import { Download, RefreshCw, Search, ScanBarcode } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  RefreshCw,
+  Search,
+  ScanBarcode,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +31,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   warehouseInventory,
+  warehouseInventoryByPo,
   warehouseHistory,
   warehouseParts,
   warehouseUnit,
@@ -31,6 +39,8 @@ import {
   warehouseStores,
   type WarehouseStore,
   type Inventory,
+  type WarehousePoGroup,
+  type WarehousePoInventory,
   type WarehouseUnit,
   type WarehouseMovement,
 } from "@/app/api/warehouse.api";
@@ -64,6 +74,446 @@ const csvCell = (value: unknown) => {
   const text = String(value ?? "");
   return `"${(/^[=+\-@\t\r]/.test(text) ? "'" : "") + text.replaceAll('"', '""')}"`;
 };
+type InventoryMode = "po" | "piece";
+
+function locationQuantity(unit: WarehouseUnit, storeId: string) {
+  if (storeId === "all") return unit.onHand;
+  if (storeId === "unassigned") return unit.unassigned;
+  return unit.stores.find((store) => String(store.id) === storeId)?.onHand ?? 0;
+}
+
+function expectedParts(units: WarehouseUnit[]) {
+  return units.every((unit) => unit.expectedParts !== null)
+    ? units.reduce((total, unit) => total + (unit.expectedParts ?? 0), 0)
+    : null;
+}
+
+function poLocations(units: WarehouseUnit[]) {
+  const locations = new Map<string, number>();
+  for (const unit of units) {
+    for (const store of unit.stores)
+      locations.set(store.name, (locations.get(store.name) ?? 0) + store.onHand);
+    if (unit.unassigned > 0)
+      locations.set("Unassigned", (locations.get("Unassigned") ?? 0) + unit.unassigned);
+  }
+  return [...locations.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, quantity]) => `${name}: ${quantity}`)
+    .join(" · ");
+}
+
+function poMetrics(group: WarehousePoGroup, storeId: string) {
+  return {
+    pieces: group.units.length,
+    parts: expectedParts(group.units),
+    transit: group.units.reduce((sum, unit) => sum + unit.inTransit, 0),
+    onHand: group.units.reduce(
+      (sum, unit) => sum + locationQuantity(unit, storeId),
+      0,
+    ),
+    released: group.units.reduce((sum, unit) => sum + unit.released, 0),
+    locations: poLocations(group.units),
+  };
+}
+
+function PieceDescription({ unit }: { unit: WarehouseUnit }) {
+  return (
+    <div>
+      <p className="font-medium">{unit.product}</p>
+      <p className="text-xs text-muted-foreground">
+        {unit.system} · {unit.configuration}
+      </p>
+    </div>
+  );
+}
+
+function PoInventoryTable({
+  data,
+  storeId,
+  expanded,
+  onToggle,
+  onSelect,
+}: {
+  data: WarehousePoInventory;
+  storeId: string;
+  expanded: Set<string>;
+  onToggle: (key: string) => void;
+  onSelect: (unit: WarehouseUnit) => void;
+}) {
+  const allStores = storeId === "all";
+  const columns = allStores ? 8 : 7;
+  return (
+    <>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              {[
+                "PO",
+                "Order / customer",
+                "Pieces",
+                "Parts",
+                "Transit",
+                "On hand",
+                ...(allStores ? ["Locations"] : []),
+                "Released",
+              ].map((heading) => (
+                <th key={heading} className="px-4 py-3 font-medium">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {data.items.map((group) => {
+              const open = expanded.has(group.key),
+                metrics = poMetrics(group, storeId);
+              return (
+                <Fragment key={group.key}>
+                  <tr className="hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 font-mono font-semibold text-red-700 hover:underline"
+                        onClick={() => onToggle(group.key)}
+                        aria-expanded={open}
+                      >
+                        {open ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        {group.poNumber || "—"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-4">
+                      {group.orderId ? (
+                        <Link
+                          className="font-medium underline"
+                          href={`/orders/${group.orderId}`}
+                        >
+                          #{group.orderNumber}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">—</span>
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {group.customer}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 font-semibold">{metrics.pieces}</td>
+                    <td className="px-4 py-4">{metrics.parts ?? "—"}</td>
+                    <td className="px-4 py-4">{metrics.transit}</td>
+                    <td className="px-4 py-4 font-semibold">{metrics.onHand}</td>
+                    {allStores && (
+                      <td className="min-w-40 max-w-72 px-4 py-4 text-xs text-muted-foreground">
+                        {metrics.locations || "—"}
+                      </td>
+                    )}
+                    <td className="px-4 py-4">{metrics.released}</td>
+                  </tr>
+                  {open && (
+                    <tr className="bg-slate-50/60">
+                      <td colSpan={columns} className="p-0">
+                        <div className="border-t px-4 py-3">
+                          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Pieces in PO {group.poNumber || "—"}
+                          </p>
+                          <div className="overflow-x-auto rounded-lg border bg-white">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                                <tr>
+                                  {[
+                                    "Mark",
+                                    "Piece",
+                                    "Line number",
+                                    "Expected",
+                                    "Transit",
+                                    "On hand",
+                                    ...(allStores ? ["Locations"] : []),
+                                    "Released",
+                                    "Status",
+                                  ].map((heading) => (
+                                    <th key={heading} className="px-3 py-2 font-medium">
+                                      {heading}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {group.units.map((unit) => (
+                                  <tr key={unit.lineNumber}>
+                                    <td className="px-3 py-3 font-medium">
+                                      {unit.mark || "—"}
+                                    </td>
+                                    <td className="px-3 py-3">
+                                      <PieceDescription unit={unit} />
+                                    </td>
+                                    <td className="px-3 py-3">
+                                      <button
+                                        type="button"
+                                        className="font-mono text-red-700 underline"
+                                        onClick={() => onSelect(unit)}
+                                      >
+                                        {unit.lineNumber}
+                                      </button>
+                                    </td>
+                                    <td className="px-3 py-3">
+                                      {unit.expectedParts ?? "—"}
+                                    </td>
+                                    <td className="px-3 py-3">{unit.inTransit}</td>
+                                    <td className="px-3 py-3 font-semibold">
+                                      {locationQuantity(unit, storeId)}
+                                    </td>
+                                    {allStores && (
+                                      <td className="min-w-40 px-3 py-3 text-xs text-muted-foreground">
+                                        {storeBreakdown(unit) || "—"}
+                                      </td>
+                                    )}
+                                    <td className="px-3 py-3">{unit.released}</td>
+                                    <td className="px-3 py-3">
+                                      <State unit={unit} />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="divide-y md:hidden">
+        {data.items.map((group) => {
+          const open = expanded.has(group.key),
+            metrics = poMetrics(group, storeId);
+          return (
+            <article key={group.key} className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 font-mono font-semibold text-red-700"
+                    onClick={() => onToggle(group.key)}
+                    aria-expanded={open}
+                  >
+                    {open ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                    PO {group.poNumber || "—"}
+                  </button>
+                  <p className="mt-1 text-sm">
+                    {group.orderId ? (
+                      <Link className="underline" href={`/orders/${group.orderId}`}>
+                        #{group.orderNumber}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}{" "}
+                    · {group.customer}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <span>Pieces <b>{metrics.pieces}</b></span>
+                <span>Parts <b>{metrics.parts ?? "—"}</b></span>
+                <span>On hand <b>{metrics.onHand}</b></span>
+                <span>Transit <b>{metrics.transit}</b></span>
+                <span>Released <b>{metrics.released}</b></span>
+              </div>
+              {allStores && metrics.locations && (
+                <p className="text-xs text-muted-foreground">
+                  {metrics.locations}
+                </p>
+              )}
+              {open && (
+                <div className="space-y-2 border-t pt-3">
+                  {group.units.map((unit) => (
+                    <button
+                      type="button"
+                      key={unit.lineNumber}
+                      className="block w-full rounded-lg border bg-slate-50 p-3 text-left"
+                      onClick={() => onSelect(unit)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Mark {unit.mark || "—"}
+                          </p>
+                          <p className="font-medium">{unit.product}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {unit.system} · {unit.configuration}
+                          </p>
+                        </div>
+                        <State unit={unit} />
+                      </div>
+                      <p className="mt-2 font-mono text-sm text-red-700">
+                        {unit.lineNumber}
+                      </p>
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <span>Expected <b>{unit.expectedParts ?? "—"}</b></span>
+                        <span>Transit <b>{unit.inTransit}</b></span>
+                        <span>On hand <b>{locationQuantity(unit, storeId)}</b></span>
+                      </div>
+                      {allStores && unit.onHand > 0 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {storeBreakdown(unit)}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function PieceInventoryTable({
+  data,
+  storeId,
+  onSelect,
+}: {
+  data: Inventory;
+  storeId: string;
+  onSelect: (unit: WarehouseUnit) => void;
+}) {
+  const allStores = storeId === "all";
+  return (
+    <>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              {[
+                "Order / customer",
+                "PO",
+                "Mark",
+                "Piece",
+                "Line number",
+                "Expected",
+                "Transit",
+                "On hand",
+                ...(allStores ? ["Locations"] : []),
+                "Released",
+                "Status",
+              ].map((heading) => (
+                <th key={heading} className="px-4 py-3 font-medium">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {data.items.map((row) => (
+              <tr key={row.lineNumber} className="hover:bg-slate-50">
+                <td className="px-4 py-4">
+                  {row.orderId ? (
+                    <Link
+                      className="font-medium underline"
+                      href={`/orders/${row.orderId}`}
+                    >
+                      #{row.orderNumber}
+                    </Link>
+                  ) : (
+                    <span>—</span>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {row.customer}
+                  </p>
+                </td>
+                <td className="whitespace-nowrap px-4 py-4 font-mono">
+                  {row.poNumber || "—"}
+                </td>
+                <td className="px-4 py-4 font-medium">{row.mark || "—"}</td>
+                <td className="px-4 py-4">
+                  <PieceDescription unit={row} />
+                </td>
+                <td className="px-4 py-4">
+                  <button
+                    type="button"
+                    className="font-mono text-red-700 underline"
+                    onClick={() => onSelect(row)}
+                  >
+                    {row.lineNumber}
+                  </button>
+                </td>
+                <td className="px-4 py-4">{row.expectedParts ?? "—"}</td>
+                <td className="px-4 py-4">{row.inTransit}</td>
+                <td className="px-4 py-4 font-semibold">
+                  {locationQuantity(row, storeId)}
+                </td>
+                {allStores && (
+                  <td className="min-w-40 max-w-64 px-4 py-4 text-xs text-muted-foreground">
+                    {storeBreakdown(row) || "—"}
+                  </td>
+                )}
+                <td className="px-4 py-4">{row.released}</td>
+                <td className="px-4 py-4">
+                  <State unit={row} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="divide-y md:hidden">
+        {data.items.map((row) => (
+          <button
+            type="button"
+            key={row.lineNumber}
+            className="block w-full space-y-3 p-4 text-left hover:bg-slate-50"
+            onClick={() => onSelect(row)}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Mark {row.mark || "—"}
+                </p>
+                <p className="font-semibold">{row.product}</p>
+                <p className="text-xs text-muted-foreground">
+                  {row.system} · {row.configuration}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Order #{row.orderNumber} · {row.customer}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  PO: <span className="font-mono text-foreground">{row.poNumber || "—"}</span>
+                </p>
+              </div>
+              <State unit={row} />
+            </div>
+            <p className="font-mono text-sm text-red-700">{row.barcode}</p>
+            {allStores && row.onHand > 0 && (
+              <p className="text-xs text-muted-foreground">{storeBreakdown(row)}</p>
+            )}
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <span>
+                On hand{" "}
+                <b>
+                  {locationQuantity(row, storeId)}/{row.expectedParts ?? "?"}
+                </b>
+              </span>
+              <span>Transit <b>{row.inTransit}</b></span>
+              <span>Released <b>{row.released}</b></span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
 
 export function InventoryClient({
   initial,
@@ -73,30 +523,45 @@ export function InventoryClient({
   initialStoreId,
   admin,
 }: {
-  initial: Inventory;
+  initial: WarehousePoInventory;
   initialSearch: string;
   initialView: string;
   initialStores: WarehouseStore[];
   initialStoreId: string;
   admin: boolean;
 }) {
-  const [data, setData] = useState(initial),
+  const [poData, setPoData] = useState<WarehousePoInventory | null>(initial),
+    [pieceData, setPieceData] = useState<Inventory | null>(null),
+    [mode, setMode] = useState<InventoryMode>("po"),
     [search, setSearch] = useState(initialSearch),
     [view, setView] = useState(initialView),
     [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false),
     [exporting, setExporting] = useState(false),
     [error, setError] = useState(""),
-    [selected, setSelected] = useState<WarehouseUnit | null>(null);
-  const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState(initialStoreId);
+    [selected, setSelected] = useState<WarehouseUnit | null>(null),
+    [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [stores, setStores] = useState(initialStores),
+    [storeId, setStoreId] = useState(initialStoreId);
   const sequence = useRef(0);
   const refresh = useCallback(async () => {
     const id = ++sequence.current;
     setBusy(true);
     try {
-      const [next, nextStores] = await Promise.all([warehouseInventory({ search, view, page, storeId }), warehouseStores()]);
+      const query = {
+        search,
+        view,
+        page,
+        storeId,
+        pageSize: mode === "po" ? 20 : 50,
+      };
+      const [next, nextStores] = await Promise.all([
+        mode === "po" ? warehouseInventoryByPo(query) : warehouseInventory(query),
+        warehouseStores(),
+      ]);
       if (id === sequence.current) {
-        setData(next);
+        if (mode === "po") setPoData(next as WarehousePoInventory);
+        else setPieceData(next as Inventory);
         setStores(nextStores);
         setError("");
       }
@@ -105,7 +570,7 @@ export function InventoryClient({
     } finally {
       if (id === sequence.current) setBusy(false);
     }
-  }, [search, view, page, storeId]);
+  }, [search, view, page, storeId, mode]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => {
@@ -158,24 +623,24 @@ export function InventoryClient({
           "Unassigned",
           "Released",
         ],
-        ...rows.map((r) => [
-          r.orderNumber,
-          r.customer,
-          r.poNumber,
-          r.mark,
-          r.product,
-          r.system,
-          r.configuration,
-          r.lineNumber,
-          r.expectedParts,
-          r.inTransit,
-          r.onHand,
-          storeBreakdown(r),
-          r.unassigned,
-          r.released,
+        ...rows.map((row) => [
+          row.orderNumber,
+          row.customer,
+          row.poNumber,
+          row.mark,
+          row.product,
+          row.system,
+          row.configuration,
+          row.lineNumber,
+          row.expectedParts,
+          row.inTransit,
+          row.onHand,
+          storeBreakdown(row),
+          row.unassigned,
+          row.released,
         ]),
       ]
-        .map((r) => r.map(csvCell).join(","))
+        .map((row) => row.map(csvCell).join(","))
         .join("\r\n");
       const url = URL.createObjectURL(
         new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" }),
@@ -191,15 +656,18 @@ export function InventoryClient({
       setExporting(false);
     }
   }
+
+  const currentData = mode === "po" ? poData : pieceData,
+    summaryData = currentData ?? (mode === "po" ? pieceData : poData) ?? initial;
   return (
     <div className="space-y-5">
-      <CountNotice id={data.activeCountId} />
+      <CountNotice id={summaryData.activeCountId} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ["In warehouse", data.summary.onHand],
-          ["In transit", data.summary.inTransit],
-          ["Released", data.summary.released],
-          ["Unassigned (included in warehouse)", data.summary.unassigned],
+          ["In warehouse", summaryData.summary.onHand],
+          ["In transit", summaryData.summary.inTransit],
+          ["Released", summaryData.summary.released],
+          ["Unassigned (included in warehouse)", summaryData.summary.unassigned],
         ].map(([label, value]) => (
           <div
             key={label}
@@ -213,11 +681,41 @@ export function InventoryClient({
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">Totals across all stores. Location filters below apply to the unit list.</p>
+      <p className="text-xs text-muted-foreground">
+        Totals across all stores. Location filters below apply to the inventory list.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Inventory</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl font-semibold">Inventory</h2>
+          <div className="inline-flex rounded-lg border bg-white p-1">
+            {(["po", "piece"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={mode === value}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  mode === value
+                    ? "bg-red-50 text-red-700"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+                onClick={() => {
+                  if (mode === value) return;
+                  setMode(value);
+                  setPage(1);
+                  setExpanded(new Set());
+                  if (value === "piece") setPieceData(null);
+                  else setPoData(null);
+                }}
+              >
+                {value === "po" ? "By PO" : "By Piece"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline"><Link href="/warehouse/receipts">Pending receipt</Link></Button>
+          <Button asChild variant="outline">
+            <Link href="/warehouse/receipts">Pending receipt</Link>
+          </Button>
           <Button asChild>
             <Link href="/warehouse/scan">
               <ScanBarcode className="mr-2 h-4 w-4" />
@@ -245,9 +743,10 @@ export function InventoryClient({
             className="pl-9"
             placeholder="Order, customer, mark, PO or barcode"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+            onChange={(event) => {
+              setSearch(event.target.value);
               setPage(1);
+              setExpanded(new Set());
             }}
           />
         </div>
@@ -257,6 +756,7 @@ export function InventoryClient({
             setView(value);
             if (value === "in_transit") setStoreId("all");
             setPage(1);
+            setExpanded(new Set());
           }}
         >
           <SelectTrigger
@@ -274,8 +774,20 @@ export function InventoryClient({
           </SelectContent>
         </Select>
         <div className="w-full lg:w-56">
-          <StoreSelect stores={stores} value={storeId} allowAll allowUnassigned includeInactive disabled={view === "in_transit"} label="Inventory store filter"
-            onChange={(value) => { setStoreId(value); setPage(1); }} />
+          <StoreSelect
+            stores={stores}
+            value={storeId}
+            allowAll
+            allowUnassigned
+            includeInactive
+            disabled={view === "in_transit"}
+            label="Inventory store filter"
+            onChange={(value) => {
+              setStoreId(value);
+              setPage(1);
+              setExpanded(new Set());
+            }}
+          />
         </div>
         <Button
           variant="outline"
@@ -292,7 +804,11 @@ export function InventoryClient({
         </p>
       )}
       <div className="overflow-hidden rounded-xl border bg-white">
-        {data.items.length === 0 ? (
+        {!currentData ? (
+          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+            Loading inventory…
+          </div>
+        ) : currentData.items.length === 0 ? (
           <div className="space-y-2 px-5 py-12 text-center">
             <p className="font-medium">No units match this view.</p>
             <p className="text-sm text-muted-foreground">
@@ -300,129 +816,47 @@ export function InventoryClient({
               factory JSON from an order to register its barcodes.
             </p>
           </div>
+        ) : mode === "po" ? (
+          <PoInventoryTable
+            data={currentData as WarehousePoInventory}
+            storeId={storeId}
+            expanded={expanded}
+            onToggle={(key) =>
+              setExpanded((current) => {
+                const next = new Set(current);
+                if (next.has(key)) next.delete(key);
+                else next.add(key);
+                return next;
+              })
+            }
+            onSelect={setSelected}
+          />
         ) : (
-          <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    {[
-                      "Order / customer",
-                      "PO",
-                      "Piece",
-                      "Line number",
-                      "Expected",
-                      "Transit",
-                      "On hand",
-                      "Locations",
-                      "Released",
-                      "Status",
-                    ].map((h) => (
-                      <th key={h} className="px-4 py-3 font-medium">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {data.items.map((row) => (
-                    <tr key={row.lineNumber} className="hover:bg-slate-50">
-                      <td className="px-4 py-4">
-                        <Link
-                          className="font-medium underline"
-                          href={`/orders/${row.orderId}`}
-                        >
-                          #{row.orderNumber}
-                        </Link>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {row.customer}
-                        </p>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-mono">
-                        {row.poNumber || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-medium">
-                          {row.mark || "—"} · {row.product}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.system} · {row.configuration}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <button
-                          className="font-mono text-red-700 underline"
-                          onClick={() => setSelected(row)}
-                        >
-                          {row.lineNumber}
-                        </button>
-                      </td>
-                      <td className="px-4 py-4">{row.expectedParts ?? "—"}</td>
-                      <td className="px-4 py-4">{row.inTransit}</td>
-                      <td className="px-4 py-4 font-semibold">{row.onHand}</td>
-                      <td className="min-w-40 max-w-64 px-4 py-4 text-xs text-muted-foreground">{storeBreakdown(row) || "—"}</td>
-                      <td className="px-4 py-4">{row.released}</td>
-                      <td className="px-4 py-4">
-                        <State unit={row} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="divide-y md:hidden">
-              {data.items.map((row) => (
-                <button
-                  key={row.lineNumber}
-                  className="block w-full space-y-3 p-4 text-left hover:bg-slate-50"
-                  onClick={() => setSelected(row)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">
-                        {row.mark || "—"} · {row.product}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Order #{row.orderNumber} · {row.customer}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        PO: <span className="font-mono text-foreground">{row.poNumber || "—"}</span>
-                      </p>
-                    </div>
-                    <State unit={row} />
-                  </div>
-                  <p className="font-mono text-sm text-red-700">
-                    {row.barcode}
-                  </p>
-                  {row.onHand > 0 && <p className="text-xs text-muted-foreground">{storeBreakdown(row)}</p>}
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <span>
-                      On hand{" "}
-                      <b>
-                        {row.onHand}/{row.expectedParts ?? "?"}
-                      </b>
-                    </span>
-                    <span>
-                      Transit <b>{row.inTransit}</b>
-                    </span>
-                    <span>
-                      Released <b>{row.released}</b>
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </>
+          <PieceInventoryTable
+            data={currentData as Inventory}
+            storeId={storeId}
+            onSelect={setSelected}
+          />
         )}
       </div>
-      <Pagination {...data} onPage={setPage} disabled={busy} />
+      {currentData && (
+        <Pagination
+          {...currentData}
+          onPage={(nextPage) => {
+            setPage(nextPage);
+            setExpanded(new Set());
+          }}
+          disabled={busy}
+          label={mode === "po" ? "POs" : "records"}
+        />
+      )}
       {selected && (
         <UnitDetails
           key={selected.lineNumber}
           initial={selected}
           admin={admin}
           stores={stores}
-          activeCountId={data.activeCountId}
+          activeCountId={summaryData.activeCountId}
           onClose={() => setSelected(null)}
           onChanged={() => void refresh()}
         />
@@ -430,6 +864,7 @@ export function InventoryClient({
     </div>
   );
 }
+
 function State({ unit }: { unit: WarehouseUnit }) {
   return (
     <span

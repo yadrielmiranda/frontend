@@ -1,5 +1,5 @@
 import { requireWarehouseUser } from "./warehouse-access";
-import { warehouseInventory, warehouseStores } from "@/app/api/warehouse.api";
+import { warehouseInventoryByPo, warehouseStores } from "@/app/api/warehouse.api";
 import { InventoryClient } from "./inventory-client";
 
 export default async function WarehousePage({
@@ -17,7 +17,7 @@ export default async function WarehousePage({
   const search =
     typeof query.search === "string" ? query.search.slice(0, 150) : "";
   const storeId = view !== "in_transit" && (query.storeId === "unassigned" || (/^[1-9]\d*$/.test(query.storeId ?? "") && Number.isSafeInteger(Number(query.storeId)))) ? query.storeId! : "all";
-  const [initial, stores] = await Promise.all([warehouseInventory({ search, view, storeId }), warehouseStores()]);
+  const [initial, stores] = await Promise.all([warehouseInventoryByPo({ search, view, storeId, pageSize: 20 }), warehouseStores()]);
   return (
     <InventoryClient
       initial={initial}
