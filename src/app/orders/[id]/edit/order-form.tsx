@@ -35,16 +35,37 @@ export function OrderForm({
   const router = useRouter();
   const [pending, setPending] = useState<UpdateOrderData | null>(null);
   const selectableStatuses = useMemo(() => {
-    const nextByStatus: Record<string, string | null> = {
-      Pending: "In production",
-      "In production": "Ready to pick up",
-    };
-    return statuses.filter(
-      (status) =>
-        status.id === order.statusId ||
-        status.name === nextByStatus[order.status.name],
+    const releaseCovered = order.paymentSchedule?.canRelease ?? true;
+    let nextStatus: string | null = null;
+
+    if (order.status.name === "Pending") nextStatus = "In production";
+    if (order.status.name === "In production") {
+      nextStatus = releaseCovered ? "Preparing for pickup" : "Awaiting release";
+    }
+    if (order.status.name === "Awaiting release" && releaseCovered) {
+      nextStatus = "Preparing for pickup";
+    }
+    if (
+      order.status.name === "Preparing for pickup" &&
+      ["CUSTOMER_PICKUP", "FACTORY_PICKUP"].includes(order.fulfillmentMethod)
+    ) {
+      nextStatus = "Ready to pick up";
+    }
+
+    const currentStatus = statuses.find((status) => status.id === order.statusId);
+    const followingStatus = nextStatus
+      ? statuses.find((status) => status.name === nextStatus)
+      : null;
+    return [currentStatus, followingStatus].filter(
+      (status): status is OrderStatus => Boolean(status),
     );
-  }, [order.status.name, order.statusId, statuses]);
+  }, [
+    order.fulfillmentMethod,
+    order.paymentSchedule?.canRelease,
+    order.status.name,
+    order.statusId,
+    statuses,
+  ]);
   const {
     control,
     handleSubmit,

@@ -86,6 +86,13 @@ export function selectOrderPickup(orderId: number) {
   }>(`/api/orders/${orderId}/fulfillment/pickup`, { method: "POST" });
 }
 
+export function selectOrderFactoryPickup(orderId: number) {
+  return apiFetch<{
+    order: Order;
+    canceledDelivery: OrderDelivery | null;
+  }>(`/api/orders/${orderId}/fulfillment/factory-pickup`, { method: "POST" });
+}
+
 export function completeOrderPickup(orderId: number) {
   return apiFetch<Order>(`/api/orders/${orderId}/fulfillment/pickup/complete`, {
     method: "POST",

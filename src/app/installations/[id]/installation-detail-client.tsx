@@ -972,7 +972,9 @@ export function InstallationDetailClient({
   const orderReadyToStartInstallation = Boolean(
     installationOrder &&
       (installationOrder.status?.name === "Delivered" ||
-        (installationOrder.status?.name === "Ready to pick up" &&
+        (["Preparing for pickup", "Ready to pick up"].includes(
+          installationOrder.status?.name ?? "",
+        ) &&
           installationOrder.fulfillmentMethod === "INSTALLATION_DELIVERY")) &&
       deliveryOverridePaid,
   );

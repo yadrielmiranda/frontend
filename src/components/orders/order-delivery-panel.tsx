@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
+  Factory,
   MapPin,
   PackageCheck,
   Store,
@@ -24,6 +25,7 @@ import {
   completeOrderPickup,
   createOrderDelivery,
   scheduleOrderDelivery,
+  selectOrderFactoryPickup,
   selectOrderPickup,
 } from "@/app/api/orders.api";
 import {
@@ -128,6 +130,24 @@ export function OrderDeliveryPanel({
       setFulfillmentMethod("CUSTOMER_PICKUP");
       setFormType(null);
       toast.success("Customer pickup selected.");
+      router.refresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const chooseFactoryPickup = async () => {
+    setBusy(true);
+    try {
+      const result = await selectOrderFactoryPickup(order.id);
+      if (result.canceledDelivery) {
+        replaceDelivery(result.canceledDelivery);
+      }
+      setFulfillmentMethod("FACTORY_PICKUP");
+      setFormType(null);
+      toast.success("Factory pickup selected.");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -291,17 +311,32 @@ export function OrderDeliveryPanel({
     }
   };
 
+  const preparing = order.status.name === "Preparing for pickup";
   const ready = order.status.name === "Ready to pick up";
+  const fulfillmentStage = preparing || ready;
   const releaseBlocked = order.paymentSchedule?.canRelease === false;
+  const releasePaymentRelevant = [
+    "Awaiting release",
+    "Preparing for pickup",
+    "Ready to pick up",
+  ].includes(order.status.name);
   const activePrimaryDelivery = deliveries.some(
     (delivery) =>
       delivery.type !== "REDELIVERY" && delivery.status !== "CANCELED",
   );
-  const canChoose = ready && (isOwner || isPrivileged);
+  const canChoose = fulfillmentStage && (isOwner || isPrivileged);
+  const factoryPickupLocked =
+    fulfillmentMethod === "FACTORY_PICKUP" && !isPrivileged;
   const canCreateStandard =
-    canChoose && !installationActive && !activePrimaryDelivery;
+    canChoose &&
+    !installationActive &&
+    !activePrimaryDelivery &&
+    !factoryPickupLocked;
   const canCreateSpecial =
-    ready && installationActive && isAdmin && !activePrimaryDelivery;
+    fulfillmentStage &&
+    installationActive &&
+    isAdmin &&
+    !activePrimaryDelivery;
   const canCreateRedelivery =
     isAdmin &&
     ["Delivered", "Installation in progress", "Installed"].includes(
@@ -320,7 +355,7 @@ export function OrderDeliveryPanel({
         </div>
       </div>
 
-      {releaseBlocked && (
+      {releasePaymentRelevant && releaseBlocked && (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           Pay the installments required for material release before pickup or delivery.
         </p>
@@ -336,20 +371,74 @@ export function OrderDeliveryPanel({
         </div>
       )}
 
-      {ready && !installationActive && !activePrimaryDelivery && (
+      {fulfillmentStage && !installationActive && !activePrimaryDelivery && (
         <div className="mt-4 rounded-lg border p-4">
-          <WarehousePickupAddress />
           {fulfillmentMethod === "CUSTOMER_PICKUP" ? (
+            <div>
+              <WarehousePickupAddress />
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <strong className="flex items-center gap-2">
+                    <Store className="h-4 w-4" /> Warehouse pickup selected
+                  </strong>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {ready
+                      ? "This order is ready for pickup."
+                      : "An administrator will mark the order Ready to pick up when the materials are available."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {canCreateStandard && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => setFormType("STANDARD")}
+                    >
+                      Change to delivery
+                    </Button>
+                  )}
+                  {isPrivileged && preparing && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void chooseFactoryPickup()}
+                    >
+                      <Factory className="h-4 w-4" /> Change to factory pickup
+                    </Button>
+                  )}
+                  {isPrivileged && ready && (
+                    <Button
+                      disabled={busy || releaseBlocked}
+                      onClick={() => void finishPickup()}
+                    >
+                      <PackageCheck className="h-4 w-4" /> Complete pickup
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : fulfillmentMethod === "FACTORY_PICKUP" ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <strong className="flex items-center gap-2">
-                  <Store className="h-4 w-4" /> Customer pickup selected
+                  <Factory className="h-4 w-4" /> Factory pickup selected
                 </strong>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  No delivery charge applies.
+                  {ready
+                    ? "Pickup is authorized. Follow the pickup instructions provided by the company."
+                    : "Pickup instructions will be provided when the order is ready."}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {isPrivileged && preparing && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void choosePickup()}
+                  >
+                    <Store className="h-4 w-4" /> Change to warehouse pickup
+                  </Button>
+                )}
                 {canCreateStandard && (
                   <Button
                     variant="outline"
@@ -359,7 +448,7 @@ export function OrderDeliveryPanel({
                     Change to delivery
                   </Button>
                 )}
-                {isPrivileged && (
+                {isPrivileged && ready && (
                   <Button disabled={busy || releaseBlocked} onClick={() => void finishPickup()}>
                     <PackageCheck className="h-4 w-4" /> Complete pickup
                   </Button>
@@ -376,7 +465,16 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Free customer pickup
+                    <Store className="h-4 w-4" /> Warehouse pickup
+                  </Button>
+                )}
+                {isPrivileged && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void chooseFactoryPickup()}
+                  >
+                    <Factory className="h-4 w-4" /> Factory pickup
                   </Button>
                 )}
                 {canCreateStandard && (
@@ -809,10 +907,9 @@ export function OrderDeliveryPanel({
         })}
       </div>
 
-      {!ready && deliveries.length === 0 && !installationActive && (
+      {!fulfillmentStage && deliveries.length === 0 && !installationActive && (
         <p className="mt-4 text-sm text-muted-foreground">
-          Pickup or delivery becomes available when production marks this order
-          Ready to pick up.
+          Pickup or delivery becomes available after the material release stage.
         </p>
       )}
     </section>

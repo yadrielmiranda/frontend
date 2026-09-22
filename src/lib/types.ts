@@ -1010,6 +1010,7 @@ export interface Order {
 export type OrderFulfillmentMethod =
   | "UNDECIDED"
   | "CUSTOMER_PICKUP"
+  | "FACTORY_PICKUP"
   | "COMPANY_DELIVERY"
   | "INSTALLATION_DELIVERY";
 

@@ -7,6 +7,8 @@ export function OrderStatusBadge({ name }: { name?: string | null }) {
   
   if (statusName === "Pending") colorClasses = "bg-gray-100 text-gray-800";
   if (statusName === "In production") colorClasses = "bg-yellow-100 text-yellow-800";
+  if (statusName === "Awaiting release") colorClasses = "bg-orange-100 text-orange-800";
+  if (statusName === "Preparing for pickup") colorClasses = "bg-cyan-100 text-cyan-800";
   if (statusName === "Delivered") colorClasses = "bg-green-100 text-green-800";
   if (statusName === "Picked up") colorClasses = "bg-emerald-100 text-emerald-800";
   if (statusName === "Ready to pick up") colorClasses = "bg-blue-100 text-blue-800";
