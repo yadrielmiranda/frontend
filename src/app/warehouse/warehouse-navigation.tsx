@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Boxes, ScanBarcode, History, ClipboardCheck, PackageCheck, Warehouse } from "lucide-react";
@@ -13,8 +14,17 @@ const links = [
 ];
 export function WarehouseNavigation() {
   const path = usePathname();
+  const [scanFocus, setScanFocus] = useState(false);
+
+  useEffect(() => {
+    const handleScanFocus = (event: Event) =>
+      setScanFocus(Boolean((event as CustomEvent<boolean>).detail));
+    window.addEventListener("warehouse-scan-focus", handleScanFocus);
+    return () => window.removeEventListener("warehouse-scan-focus", handleScanFocus);
+  }, []);
+
   return (
-    <div className="space-y-5">
+    <div className={`space-y-5 ${scanFocus ? "hidden sm:block" : ""}`}>
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Warehouse</h1>
         <p className="mt-2 text-sm text-muted-foreground">

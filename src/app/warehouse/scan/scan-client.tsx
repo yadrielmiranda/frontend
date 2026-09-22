@@ -62,10 +62,23 @@ export function ScanClient({
     [undone, setUndone] = useState(false),
     [error, setError] = useState("");
   const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState("");
-  const undoKey = useRef("");
+  const [scanFocus, setScanFocus] = useState(false), [scannerRevision, setScannerRevision] = useState(0);
+  const undoKey = useRef(""), focusRoot = useRef<HTMLDivElement>(null);
   const locationValid = action === "COLLECT" ||
     (action === "RELEASE" && storeId === "unassigned") ||
     stores.some((s) => String(s.id) === storeId && (action === "RELEASE" || s.isActive));
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("warehouse-scan-focus", { detail: scanFocus }));
+    if (scanFocus && window.matchMedia("(max-width: 639px)").matches) {
+      requestAnimationFrame(() =>
+        focusRoot.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+    }
+    return () => {
+      if (scanFocus)
+        window.dispatchEvent(new CustomEvent("warehouse-scan-focus", { detail: false }));
+    };
+  }, [scanFocus]);
   useEffect(() => {
     const refresh = () =>
       Promise.all([warehouseInventory({ pageSize: 1 }), warehouseStores()])
@@ -78,6 +91,10 @@ export function ScanClient({
       window.removeEventListener("focus", refresh);
     };
   }, []);
+  function leaveScanFocus() {
+    setScanFocus(false);
+    setScannerRevision((value) => value + 1);
+  }
   async function undo() {
     if (!last) return;
     setUndoing(true);
@@ -93,12 +110,36 @@ export function ScanClient({
       setUndoing(false);
     }
   }
+  const activeAction = actions.find((option) => option.value === action)!;
+  const activeStoreName = storeId === "unassigned"
+    ? "Unassigned"
+    : stores.find((store) => String(store.id) === storeId)?.name;
   return (
-    <div className="space-y-5">
-      <CountNotice id={countId} />
-      <h2 className="text-xl font-semibold">Scan parts</h2>
+    <div ref={focusRoot} className="scroll-mt-24 space-y-5 sm:scroll-mt-0">
+      {scanFocus && (
+        <section className="rounded-xl border border-red-200 bg-red-50 p-3 sm:hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Scanning</p>
+              <p className="mt-1 font-semibold text-slate-950">{activeAction.label}</p>
+              {action !== "COLLECT" && activeStoreName && (
+                <p className="mt-1 text-xs text-slate-600">
+                  {action === "RECEIVE" ? "To" : "From"}: {activeStoreName}
+                </p>
+              )}
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={leaveScanFocus} disabled={pending || undoing}>
+              Change operation
+            </Button>
+          </div>
+        </section>
+      )}
+      <div className={scanFocus ? "hidden sm:block" : ""}>
+        <CountNotice id={countId} />
+      </div>
+      <h2 className={`text-xl font-semibold ${scanFocus ? "hidden sm:block" : ""}`}>Scan parts</h2>
       <div
-        className="grid gap-3 sm:grid-cols-3"
+        className={`${scanFocus ? "hidden sm:grid" : "grid"} gap-3 sm:grid-cols-3`}
         role="group"
         aria-label="Warehouse operation"
       >
@@ -120,11 +161,11 @@ export function ScanClient({
           </button>
         ))}
       </div>
-      <p className="text-sm text-muted-foreground">
-        {actions.find((a) => a.value === action)?.description}
+      <p className={`text-sm text-muted-foreground ${scanFocus ? "hidden sm:block" : ""}`}>
+        {activeAction.description}
       </p>
       {action !== "COLLECT" && (
-        <div className="space-y-2 sm:max-w-sm">
+        <div className={`space-y-2 sm:max-w-sm ${scanFocus ? "hidden sm:block" : ""}`}>
           <p className="text-sm font-medium">{action === "RECEIVE" ? "Destination store" : "Source store"}</p>
           <StoreSelect stores={stores} value={storeId} onChange={setStoreId}
             allowUnassigned={action === "RELEASE"} includeInactive={action === "RELEASE"}
@@ -132,14 +173,16 @@ export function ScanClient({
           {!stores.some((s) => s.isActive) && <p className="text-sm text-muted-foreground">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> before receiving parts.</p>}
         </div>
       )}
-      {action === "RECEIVE" && <Link href="/warehouse/receipts" className="inline-block text-sm font-medium underline">Receive selected or all pending units without rescanning</Link>}
+      {action === "RECEIVE" && <Link href="/warehouse/receipts" className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>Receive selected or all pending units without rescanning</Link>}
       {(locationValid || pending) && <ScanPad
-        key={action === "COLLECT" ? action : `${action}:${storeId}`}
+        key={`${action === "COLLECT" ? action : `${action}:${storeId}`}:${scannerRevision}`}
         scope={action === "COLLECT" ? action : `${action}:${storeId}`}
         disabled={Boolean(countId) || undoing}
         onRead={(barcode, key) => warehouseScan(barcode, action, key,
           action === "COLLECT" ? undefined : storeId === "unassigned" ? null : Number(storeId))}
         onPendingChange={setPending}
+        mobileFocus
+        onScanModeChange={setScanFocus}
         onSaved={(result) => {
           setLast(result);
           setUndone(false);

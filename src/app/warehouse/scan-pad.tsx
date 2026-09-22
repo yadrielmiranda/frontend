@@ -17,6 +17,8 @@ export function ScanPad<Result = ScanResult>({
   onRead,
   onSaved,
   onPendingChange,
+  mobileFocus = false,
+  onScanModeChange,
 }: {
   scope: string;
   persistent?: boolean;
@@ -24,13 +26,16 @@ export function ScanPad<Result = ScanResult>({
   onRead: (barcode: string, requestKey: string) => Promise<Result>;
   onSaved: (result: Result) => void;
   onPendingChange?: (pending: boolean) => void;
+  mobileFocus?: boolean;
+  onScanModeChange?: (active: boolean) => void;
 }) {
   const [barcode, setBarcode] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [pending, setPending] = useState<Pending | null>(null),
     [camera, setCamera] = useState(false),
-    [paused, setPaused] = useState(false);
+    [paused, setPaused] = useState(false),
+    [scanMode, setScanMode] = useState(false);
   const video = useRef<HTMLVideoElement>(null),
     input = useRef<HTMLInputElement>(null),
     lock = useRef(false);
@@ -44,7 +49,7 @@ export function ScanPad<Result = ScanResult>({
   const storageKey = `warehouse-reading:${scope}`;
   const readingStorage = () => persistent ? localStorage : sessionStorage;
 
-  function stopCamera() {
+  function stopCameraStream() {
     generation.current++;
     controls.current?.stop();
     controls.current = null;
@@ -52,6 +57,10 @@ export function ScanPad<Result = ScanResult>({
     stream.current = null;
     if (video.current) video.current.srcObject = null;
     if (mounted.current) setCamera(false);
+  }
+  function endScanMode() {
+    stopCameraStream();
+    if (mounted.current) setScanMode(false);
   }
   useEffect(() => {
     mounted.current = true;
@@ -75,7 +84,7 @@ export function ScanPad<Result = ScanResult>({
     }
     return () => {
       mounted.current = false;
-      stopCamera();
+      stopCameraStream();
     };
     // El padre remonta el lector al cambiar de operación.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,7 +93,10 @@ export function ScanPad<Result = ScanResult>({
     onPendingChange?.(busy || Boolean(pending));
   }, [busy, pending, onPendingChange]);
   useEffect(() => {
-    if (disabled) stopCamera();
+    onScanModeChange?.(scanMode);
+  }, [scanMode, onScanModeChange]);
+  useEffect(() => {
+    if (disabled) endScanMode();
   }, [disabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -101,7 +113,7 @@ export function ScanPad<Result = ScanResult>({
     lock.current = true;
     setBusy(true);
     setError("");
-    stopCamera();
+    stopCameraStream();
     const reading = retry ?? {
       barcode: code,
       requestKey: warehouseRequestKey(),
@@ -158,9 +170,10 @@ export function ScanPad<Result = ScanResult>({
       );
       return;
     }
-    stopCamera();
+    stopCameraStream();
     const token = generation.current;
     setError("");
+    setScanMode(true);
     setCamera(true);
     setPaused(false);
     try {
@@ -208,7 +221,8 @@ export function ScanPad<Result = ScanResult>({
       else controls.current = handle;
     } catch (e) {
       if (token !== generation.current || !mounted.current) return;
-      stopCamera();
+      stopCameraStream();
+      setScanMode(false);
       setError(
         e instanceof DOMException && e.name === "NotAllowedError"
           ? "Camera access was denied. Allow camera access or use the barcode field."
@@ -216,28 +230,35 @@ export function ScanPad<Result = ScanResult>({
       );
     }
   }
+  const focusedMobile = mobileFocus && scanMode;
   return (
-    <section className="space-y-4 rounded-xl border bg-white p-4 sm:p-6">
+    <section
+      data-mobile-scan-focused={focusedMobile ? "true" : undefined}
+      className={`space-y-4 rounded-xl border bg-white p-4 sm:p-6 ${focusedMobile ? "max-sm:rounded-none max-sm:border-0 max-sm:p-0" : ""}`}
+    >
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
           variant="outline"
-          onClick={camera ? stopCamera : startCamera}
+          onClick={camera ? endScanMode : startCamera}
           disabled={disabled || busy || Boolean(pending)}
         >
           <Camera className="mr-2 h-4 w-4" />
           {camera ? "Stop camera" : paused ? "Scan next part" : "Start camera"}
         </Button>
-        <span className="text-sm text-muted-foreground">
+        <span className={`text-sm text-muted-foreground ${focusedMobile ? "max-sm:hidden" : ""}`}>
           One reading records one physical part.
         </span>
       </div>
-      <div hidden={!camera} className="overflow-hidden rounded-lg bg-slate-950">
+      <div
+        hidden={!camera}
+        className={`overflow-hidden rounded-lg bg-slate-950 ${focusedMobile ? "max-sm:rounded-xl" : ""}`}
+      >
         <video
           ref={video}
           muted
           playsInline
-          className="max-h-80 w-full object-contain"
+          className={`w-full object-contain ${focusedMobile ? "max-sm:max-h-[58dvh] sm:max-h-80" : "max-h-80"}`}
           aria-label="Barcode camera preview"
         />
         <p className="p-3 text-center text-sm text-white">
