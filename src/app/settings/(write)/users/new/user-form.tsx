@@ -32,6 +32,12 @@ import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
 import { StateCombobox } from "@/components/StateCombobox";
 import { updateMyProfile } from "@/app/api/auth/me/auth.api";
+import {
+  isValidUsername,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_VALIDATION_MESSAGE,
+} from "@/lib/username-policy";
 
 interface UserFormProps {
   user?: User;
@@ -367,12 +373,16 @@ export function UserForm({
         <div>
           <Label>Username{showRequiredMark && <RequiredMark />}</Label>
           <Input
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
             {...register("username", {
               required: "Username is required",
-              minLength: {
-                value: 3,
-                message: "Username must be at least 3 characters",
-              },
+              setValueAs: (value) => String(value ?? "").trim(),
+              validate: (value) =>
+                isValidUsername(value) || USERNAME_VALIDATION_MESSAGE,
             })}
             disabled={isAdminEditMode}
           />

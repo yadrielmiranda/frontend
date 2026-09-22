@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTechnician, updateTechnician } from "@/app/api/users.api";
 import type { User } from "@/lib/types";
+import {
+  isValidUsername,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_VALIDATION_MESSAGE,
+} from "@/lib/username-policy";
 
 export function TechnicianAccountForm({ user }: { user?: User }) {
   const router = useRouter();
@@ -23,6 +29,10 @@ export function TechnicianAccountForm({ user }: { user?: User }) {
       lastName: String(form.get("lastName") ?? "").trim(),
       username: String(form.get("username") ?? "").trim(),
     };
+    if (!isValidUsername(data.username)) {
+      setError(USERNAME_VALIDATION_MESSAGE);
+      return;
+    }
     if ((!user || password) && (password.length < 8 || new TextEncoder().encode(password).length > 72)) {
       setError("Use a password with at least 8 characters and at most 72 UTF-8 bytes.");
       return;
@@ -40,7 +50,7 @@ export function TechnicianAccountForm({ user }: { user?: User }) {
     <div className="grid gap-5 sm:grid-cols-2">
       <div className="space-y-2"><Label htmlFor="tech-first">First name</Label><Input id="tech-first" name="firstName" required maxLength={100} defaultValue={user?.firstName} disabled={busy} /></div>
       <div className="space-y-2"><Label htmlFor="tech-last">Last name</Label><Input id="tech-last" name="lastName" required maxLength={100} defaultValue={user?.lastName} disabled={busy} /></div>
-      <div className="space-y-2"><Label htmlFor="tech-username">Username</Label><Input id="tech-username" name="username" required minLength={3} maxLength={50} pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,49}" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" defaultValue={user?.username} disabled={busy} /></div>
+      <div className="space-y-2"><Label htmlFor="tech-username">Username</Label><Input id="tech-username" name="username" required minLength={USERNAME_MIN_LENGTH} maxLength={USERNAME_MAX_LENGTH} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" defaultValue={user?.username} disabled={busy} /></div>
       <div className="space-y-2"><Label htmlFor="tech-password">{user ? "New password (optional)" : "Password"}</Label><Input id="tech-password" name="password" type="password" required={!user} minLength={8} maxLength={72} autoComplete="new-password" disabled={busy} /><p className="text-xs text-muted-foreground">{user ? "Leave empty to keep the current password. A change signs out existing sessions." : "At least 8 characters."}</p></div>
     </div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

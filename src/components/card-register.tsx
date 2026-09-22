@@ -41,6 +41,12 @@ import { lookupZip } from "@/app/api/geo.api";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
+import {
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_PATTERN,
+  USERNAME_VALIDATION_MESSAGE,
+} from "@/lib/username-policy";
 
 // El registro público queda habilitado una vez validada la cobertura de delivery.
 const REGISTRATION_ENABLED = true;
@@ -68,9 +74,10 @@ const registerSchema = z.object({
       message: "Please enter a valid US phone number.",
     }),
 
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters long.",
-  }),
+  username: z
+    .string()
+    .trim()
+    .regex(USERNAME_PATTERN, { message: USERNAME_VALIDATION_MESSAGE }),
 
   street: z.string().min(1, {
     message: "Street address is required.",
@@ -347,6 +354,11 @@ export function CardRegister() {
             <Input
               id="username"
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              minLength={USERNAME_MIN_LENGTH}
+              maxLength={USERNAME_MAX_LENGTH}
               placeholder="Choose a username"
               className={inputClass}
               {...register("username")}
