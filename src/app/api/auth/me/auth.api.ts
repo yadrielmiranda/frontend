@@ -132,8 +132,10 @@ type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
   consentVersion?: string;
 };
 
+export type RegisterUserResponse = User & { deliveryAvailable: boolean };
+
 export function registerUser(userData: RegisterUserData) {
-  return apiFetch<User>("/api/auth/register", {
+  return apiFetch<RegisterUserResponse>("/api/auth/register", {
     method: "POST",
     body: userData,
   });

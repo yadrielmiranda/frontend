@@ -10,6 +10,15 @@ import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -33,8 +42,8 @@ import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
 
-// Bloqueo temporal: cambiar a true para habilitar el registro y retirar el aviso.
-const REGISTRATION_ENABLED = false;
+// El registro público queda habilitado una vez validada la cobertura de delivery.
+const REGISTRATION_ENABLED = true;
 
 const registerSchema = z.object({
   firstName: z.string().min(1, {
@@ -100,6 +109,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export function CardRegister() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [deliveryUnavailable, setDeliveryUnavailable] = useState(false);
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [consentReload, setConsentReload] = useState(0);
@@ -191,13 +201,18 @@ export function CardRegister() {
     if (!REGISTRATION_ENABLED || (wantsSms && !consentProgram)) return;
     if (!platformTermsLoaded || (platformTerms && platformTermsAccepted !== platformTerms.id)) return;
     try {
-      await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
+      const result = await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
         ...(platformTerms ? { platformTermsAccepted: true, platformTermsVersionId: platformTerms.id } : {}),
       });
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
       });
+
+      if (!result.deliveryAvailable) {
+        setDeliveryUnavailable(true);
+        return;
+      }
 
       router.push("/");
       router.refresh();
@@ -231,6 +246,7 @@ export function CardRegister() {
   const errorClass = "text-xs text-red-400";
 
   return (
+    <>
     <Card className="w-full max-w-2xl rounded-3xl border border-red-600/70 bg-black/45 text-white shadow-[0_0_45px_rgba(220,38,38,0.12)] backdrop-blur-xl">
       <CardHeader className="space-y-2 text-center">
         <CardTitle className="text-2xl font-semibold text-white">
@@ -529,5 +545,24 @@ export function CardRegister() {
         </CardFooter>
       </form>
     </Card>
+
+    <AlertDialog open={deliveryUnavailable}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Delivery is not available to your home address.
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Pickup is available at our warehouse in Miami, FL.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={handleBackToSignIn}>
+            Continue to Sign In
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
