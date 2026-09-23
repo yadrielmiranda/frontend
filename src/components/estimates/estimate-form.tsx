@@ -215,8 +215,10 @@ export function EstimateForm({
   const { user } = useAuth();
   const role = user?.role?.name ?? null;
 
-  const canUseCustomerPricing = canSetCustomerOnEstimate(role);
   const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
+  // Los campos de reventa dependen del dueño del estimado, además del permiso del editor.
+  const canUseCustomerPricing =
+    isDealerRole(ownerRole) && canSetCustomerOnEstimate(role);
   const useCurrentDealerClassification = Boolean(
     estimate && estimate.status?.name === "Active" && !estimate.order,
   );

@@ -49,7 +49,7 @@ import {
 } from "@/lib/username-policy";
 
 // El registro público queda habilitado una vez validada la cobertura de delivery.
-const REGISTRATION_ENABLED = true;
+const REGISTRATION_ENABLED = false;
 
 const registerSchema = z.object({
   firstName: z.string().min(1, {

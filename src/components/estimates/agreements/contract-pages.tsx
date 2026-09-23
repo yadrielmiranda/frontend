@@ -16,11 +16,34 @@ import type {
   RenderTask,
 } from "pdfjs-dist";
 
+function ContractReadFallback({
+  url,
+  className = "",
+}: {
+  url: string;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-3 text-center ${className}`}>
+      <p role="status" className="text-sm text-muted-foreground">
+        Open contract to read it, then return here to sign.
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          Open contract
+        </a>
+      </Button>
+    </div>
+  );
+}
+
 function ContractPage({
+  url,
   pdf,
   number,
   viewport,
 }: {
+  url: string;
   pdf: PDFDocumentProxy;
   number: number;
   viewport: RefObject<HTMLDivElement | null>;
@@ -105,9 +128,10 @@ function ContractPage({
         <div ref={surface} />
         <p className="sr-only">{text}</p>
         {error && (
-          <p className="absolute inset-x-4 top-4 text-sm text-muted-foreground">
-            Could not display this page. Use Download PDF to read the contract.
-          </p>
+          <ContractReadFallback
+            url={url}
+            className="absolute inset-x-4 top-4 rounded-md border bg-white p-4"
+          />
         )}
       </div>
       {pdf.numPages > 1 && (
@@ -149,7 +173,7 @@ function ContractViewer({
     container.scrollTo({
       top: page.getBoundingClientRect().top -
         container.getBoundingClientRect().top + container.scrollTop - 16,
-      behavior: "instant",
+      behavior: "auto",
     });
     setCurrentPage(number);
   }, []);
@@ -183,7 +207,7 @@ function ContractViewer({
   }, [pdf, initialPage, goToPage, updateCurrentPage]);
 
   return (
-    <div className={`flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white ${expanded ? "flex-1" : "h-[65dvh] max-h-[680px]"}`}>
+    <div className={`flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white ${expanded ? "flex-1" : error ? "" : "h-[65dvh] max-h-[680px]"}`}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <div className="flex items-center gap-1">
           <Button type="button" variant="ghost" size="icon" aria-label="Previous contract page" disabled={!pdf || currentPage <= 1} onClick={() => goToPage(currentPage - 1)}>
@@ -218,15 +242,13 @@ function ContractViewer({
         className="relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-slate-100 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
       >
         {error ? (
-          <p role="status" className="py-8 text-center text-sm text-muted-foreground">
-            Could not display the contract. Use Download PDF to open it.
-          </p>
+          <ContractReadFallback url={url} className="py-8" />
         ) : !pdf ? (
           <p role="status" className="py-8 text-center text-sm text-muted-foreground">Loading contract…</p>
         ) : (
           <div ref={pages} className="space-y-4" aria-label="Contract pages">
             {Array.from({ length: pdf.numPages }, (_, index) => (
-              <ContractPage key={index} pdf={pdf} number={index + 1} viewport={viewport} />
+              <ContractPage key={index} url={url} pdf={pdf} number={index + 1} viewport={viewport} />
             ))}
           </div>
         )}
@@ -247,10 +269,19 @@ export function ContractPages({ url }: { url: string }) {
     setError(false);
     setExpanded(false);
     void (async () => {
-      const pdfjs = await import("pdfjs-dist");
+      // Si faltan las funciones del visor, se mantiene la lectura por enlace.
+      if (
+        typeof IntersectionObserver === "undefined" ||
+        typeof ResizeObserver === "undefined"
+      ) {
+        setError(true);
+        return;
+      }
+      // El visor y su worker usan juntos la variante compatible del paquete.
+      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
       if (canceled) return;
       pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.mjs",
+        "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
         import.meta.url,
       ).toString();
       task = pdfjs.getDocument({ url, isEvalSupported: false });
