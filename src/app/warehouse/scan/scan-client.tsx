@@ -15,7 +15,7 @@ import {
   type ScanResult,
 } from "@/app/api/warehouse.api";
 import { ScanPad } from "../scan-pad";
-import { FactoryPickup } from "@/app/technician/factory-pickup";
+import { FactoryPickups } from "@/app/technician/factory-pickups";
 import {
   CountNotice,
   UnitSummary,
@@ -50,10 +50,12 @@ const actions: {
 ];
 export function ScanClient({
   actorId,
+  isAdmin,
   activeCountId,
   initialStores,
 }: {
   actorId: number;
+  isAdmin: boolean;
   activeCountId: number | null;
   initialStores: WarehouseStore[];
 }) {
@@ -158,7 +160,7 @@ export function ScanClient({
         role="group"
         aria-label="Warehouse operation"
       >
-        {actions.map((option) => (
+        {actions.filter((option) => isAdmin || option.value !== "COLLECT").map((option) => (
           <button
             key={option.value}
             type="button"
@@ -190,8 +192,8 @@ export function ScanClient({
         </div>
       )}
       {action === "RECEIVE" && <Link href="/warehouse/receipts" className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>Receive selected or all pending units without rescanning</Link>}
-      {action === "COLLECT" && (
-        <FactoryPickup
+      {action === "COLLECT" && isAdmin && (
+        <FactoryPickups
           key={`${actorId}:warehouse-pickup:${pickupRevision}`}
           actorId={actorId}
           surface="warehouse"
@@ -199,11 +201,6 @@ export function ScanClient({
           blocked={Boolean(countId)}
           onBusy={setPending}
           onScanModeChange={setScanFocus}
-          onFinished={() => {
-            setScanFocus(false);
-            setPickupRevision((value) => value + 1);
-          }}
-          finishedActionLabel="Start another pickup"
         />
       )}
       {action !== "COLLECT" && (locationValid || pending) && <ScanPad

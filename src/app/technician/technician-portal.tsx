@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { InstallApp } from "./install-app";
 import { TechnicianReceipts, pendingReceiptKey, pendingInstallationDeliveryKey } from "./technician-receipts";
-import { FactoryPickup } from "./factory-pickup";
+import { FactoryPickups } from "./factory-pickups";
 
 type View = { operation: "HOME" | "COLLECT" | "RECEIVE" | "INSTALLATION_DELIVERY"; mode: "scan" | "select"; storeId: string };
 const home: View = { operation: "HOME", mode: "scan", storeId: "" };
@@ -135,7 +135,7 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       <h1 className="pt-1 text-2xl font-semibold tracking-tight text-slate-950">Choose an operation</h1>
       <button type="button" onClick={() => changeView({ operation: "COLLECT", mode: "scan", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-red-200 border-l-4 border-l-red-600 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><Factory className="h-7 w-7" aria-hidden="true" /></span>
-        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Collect from factory</h2><p className="mt-1 text-sm text-slate-600">{state?.activePickup ? "Resume the active pickup and its PO checklist." : "Create a pickup, then scan parts in any PO order."}</p></div>
+        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Collect from factory</h2><p className="mt-1 text-sm text-slate-600">View your assigned pickups and scan parts together with other assigned technicians.</p></div>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
       </button>
       <button type="button" onClick={() => changeView({ operation: "RECEIVE", mode: "select", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-slate-200 border-l-4 border-l-slate-900 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
@@ -151,12 +151,11 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
     </> : <>
       <Button variant="outline" className="min-h-11" disabled={busy} onClick={() => changeView(home)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{view.operation === "COLLECT" ? "Collect from factory" : view.operation === "INSTALLATION_DELIVERY" ? "Deliver to installation" : "Receive at warehouse"}</h1>
-      {view.operation === "COLLECT" && <FactoryPickup
+      {view.operation === "COLLECT" && <FactoryPickups
         actorId={user.id}
         offline={offline}
         blocked={!state || state.countOpen}
         onBusy={setBusy}
-        onFinished={() => { changeView(home); void refresh(); }}
       />}
       {view.operation === "RECEIVE" && <div className="space-y-4 rounded-xl border bg-white p-4">
         <div className="space-y-2"><Label htmlFor="tech-store">Destination store</Label><select id="tech-store" className="h-12 w-full rounded-md border bg-white px-3 text-base" value={view.storeId} disabled={busy} onChange={(e) => changeView({ ...view, storeId: e.target.value })}>

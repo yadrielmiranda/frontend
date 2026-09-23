@@ -14,6 +14,7 @@ export function ScanPad<Result = ScanResult>({
   scope,
   persistent = false,
   disabled,
+  retryOnly = false,
   onRead,
   onSaved,
   onPendingChange,
@@ -23,6 +24,7 @@ export function ScanPad<Result = ScanResult>({
   scope: string;
   persistent?: boolean;
   disabled?: boolean;
+  retryOnly?: boolean;
   onRead: (barcode: string, requestKey: string) => Promise<Result>;
   onSaved: (result: Result) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -96,8 +98,8 @@ export function ScanPad<Result = ScanResult>({
     onScanModeChange?.(scanMode);
   }, [scanMode, onScanModeChange]);
   useEffect(() => {
-    if (disabled) endScanMode();
-  }, [disabled]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (disabled || retryOnly) endScanMode();
+  }, [disabled, retryOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!busy && !pending && focusInput.current) {
@@ -106,7 +108,7 @@ export function ScanPad<Result = ScanResult>({
     }
   }, [busy, pending]);
   async function submit(value: string, retry?: Pending) {
-    if (lock.current || blocked.current || (!retry && pending)) return;
+    if (lock.current || blocked.current || (!retry && (pending || retryOnly))) return;
     const code = value.trim();
     if (!code) return;
     focusInput.current = document.activeElement === input.current;
@@ -163,7 +165,7 @@ export function ScanPad<Result = ScanResult>({
     }
   }
   async function startCamera() {
-    if (busy || pending || disabled) return;
+    if (busy || pending || disabled || retryOnly) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError(
         "Camera scanning needs HTTPS. Use your secure website, a barcode reader, or enter the code below.",
@@ -241,7 +243,7 @@ export function ScanPad<Result = ScanResult>({
           type="button"
           variant="outline"
           onClick={camera ? endScanMode : startCamera}
-          disabled={disabled || busy || Boolean(pending)}
+          disabled={disabled || retryOnly || busy || Boolean(pending)}
         >
           <Camera className="mr-2 h-4 w-4" />
           {camera ? "Stop camera" : paused ? "Scan next part" : "Start camera"}
@@ -283,10 +285,10 @@ export function ScanPad<Result = ScanResult>({
             placeholder="Scan I1029975 or enter the line number"
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
-            disabled={disabled || busy || Boolean(pending)}
+            disabled={disabled || retryOnly || busy || Boolean(pending)}
           />
           <Button
-            disabled={disabled || busy || Boolean(pending) || !barcode.trim()}
+            disabled={disabled || retryOnly || busy || Boolean(pending) || !barcode.trim()}
           >
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

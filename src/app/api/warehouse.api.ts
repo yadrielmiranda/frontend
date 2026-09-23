@@ -4,6 +4,9 @@ import type {
   FactoryPickupPartialReason,
   FactoryPickupPoPreview,
   FactoryPickupRun,
+  FactoryPickupPerson,
+  FactoryPickupListItem,
+  FactoryPickupListQuery,
   FactoryPickupScanResult,
 } from "./technician.api";
 
@@ -146,9 +149,17 @@ export const warehousePickupCurrent = async () =>
   parseCurrentFactoryPickup(await get<unknown>("pickups/current"));
 export const warehousePickupPo = (poNumber: string) =>
   get<FactoryPickupPoPreview>("pickups/po", { poNumber });
-export const warehouseStartPickup = (poNumbers: string[]) =>
+export const warehousePickups = (query: FactoryPickupListQuery) =>
+  get<Paged<FactoryPickupListItem>>("pickups", query);
+export const warehousePickup = (id: number) => get<FactoryPickupRun>(`pickups/${id}`);
+export const warehousePickupTechnicians = () => get<FactoryPickupPerson[]>("pickups/technicians");
+export const warehouseAssignPickup = (id: number, technicianIds: number[]) =>
+  apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${id}/technicians`, {
+    method: "PATCH", body: { technicianIds }, timeoutMs: 30000,
+  });
+export const warehouseStartPickup = (poNumbers: string[], technicianIds: number[]) =>
   apiFetch<FactoryPickupRun>("/api/warehouse/pickups", {
-    method: "POST", body: { poNumbers }, timeoutMs: 90000,
+    method: "POST", body: { poNumbers, technicianIds }, timeoutMs: 90000,
   });
 export const warehousePickupScan = (
   pickupRunId: number,
@@ -160,10 +171,15 @@ export const warehousePickupScan = (
 });
 export const warehouseFinishPickup = (
   pickupRunId: number,
-  data: { partialReason?: FactoryPickupPartialReason; note?: string },
+  data: { cycle: number; partialReason?: FactoryPickupPartialReason; note?: string },
 ) => apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${pickupRunId}/finish`, {
   method: "POST", body: data, timeoutMs: 30000,
 });
+
+export const warehouseReopenPickup = (id: number, cycle: number) =>
+  apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${id}/reopen`, {
+    method: "POST", body: { cycle }, timeoutMs: 30000,
+  });
 export const warehouseUndo = (id: number, requestKey: string) =>
   post<ScanResult>(`movements/${id}/undo`, { requestKey });
 export const warehouseParts = (

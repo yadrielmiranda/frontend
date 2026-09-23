@@ -13,6 +13,7 @@ export type TechnicianState = {
   stores: WarehouseStoreRef[];
   countOpen: boolean;
   activePickup: { id: number; startedAt: string } | null;
+  activePickupCount: number;
 };
 export type TechnicianScanResult = {
   stock: TechnicianUnit; replayed: boolean;
@@ -50,6 +51,12 @@ export type FactoryPickupOrder = {
 
 export type FactoryPickupRun = {
   id: number;
+  cycle: number;
+  events: Array<{ id: number; status: "ACTIVE" | "COMPLETED" | "PARTIAL"; cycle: number; createdAt: string; actor: FactoryPickupPerson; partialReason: FactoryPickupPartialReason | null; note: string | null }>;
+  createdBy: FactoryPickupPerson;
+  closedBy: FactoryPickupPerson | null;
+  technicians: FactoryPickupPerson[];
+  collectors: Array<FactoryPickupPerson & { parts: number; firstScanAt: string; lastScanAt: string }>;
   status: "ACTIVE" | "COMPLETED" | "PARTIAL";
   startedAt: string;
   finishedAt: string | null;
@@ -67,6 +74,10 @@ export type FactoryPickupRun = {
   orders: FactoryPickupOrder[];
   lines: FactoryPickupLine[];
 };
+
+export type FactoryPickupPerson = { id: number; name: string };
+export type FactoryPickupListItem = Omit<FactoryPickupRun, "lines">;
+export type FactoryPickupListQuery = { status: "ACTIVE" | "CLOSED"; page: number; pageSize?: number };
 
 export type FactoryPickupCandidate = FactoryPickupPoPreview & {
   lineNumber: string;
@@ -137,15 +148,10 @@ export function parseCurrentFactoryPickup(value: unknown): FactoryPickupRun | nu
 export const technicianPickupCurrent = async () =>
   parseCurrentFactoryPickup(await apiFetch<unknown>("/api/technician/pickups/current", { cache: "no-store" }));
 
-export const technicianPickupPo = (poNumber: string) =>
-  apiFetch<FactoryPickupPoPreview>("/api/technician/pickups/po", {
-    query: { poNumber }, cache: "no-store",
-  });
-
-export const technicianStartPickup = (poNumbers: string[]) =>
-  apiFetch<FactoryPickupRun>("/api/technician/pickups", {
-    method: "POST", body: { poNumbers }, timeoutMs: 90000,
-  });
+export const technicianPickups = (query: FactoryPickupListQuery) =>
+  apiFetch<Paged<FactoryPickupListItem>>("/api/technician/pickups", { query, cache: "no-store" });
+export const technicianPickup = (id: number) =>
+  apiFetch<FactoryPickupRun>(`/api/technician/pickups/${id}`, { cache: "no-store" });
 
 export const technicianPickupScan = (
   pickupRunId: number,
@@ -158,7 +164,7 @@ export const technicianPickupScan = (
 
 export const technicianFinishPickup = (
   pickupRunId: number,
-  data: { partialReason?: FactoryPickupPartialReason; note?: string },
+  data: { cycle: number; partialReason?: FactoryPickupPartialReason; note?: string },
 ) => apiFetch<FactoryPickupRun>(`/api/technician/pickups/${pickupRunId}/finish`, {
   method: "POST", body: data, timeoutMs: 30000,
 });

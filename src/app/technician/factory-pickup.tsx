@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, PackageCheck, Plus, Undo2, X } from "lucide-react";
 import {
   technicianFinishPickup,
-  technicianPickupCurrent,
-  technicianPickupPo,
+  technicianPickup,
   technicianPickupScan,
-  technicianStartPickup,
+  type FactoryPickupPerson,
   type FactoryPickupCandidate,
   type FactoryPickupLine,
   type FactoryPickupPartialReason,
@@ -17,7 +16,10 @@ import {
 } from "@/app/api/technician.api";
 import {
   warehouseFinishPickup,
-  warehousePickupCurrent,
+  warehousePickup,
+  warehousePickupTechnicians,
+  warehouseAssignPickup,
+  warehouseReopenPickup,
   warehousePickupPo,
   warehousePickupScan,
   warehouseRequestKey,
@@ -93,6 +95,8 @@ export function FactoryPickup({
   onScanModeChange,
   surface = "technician",
   finishedActionLabel,
+  pickupId,
+  onCreated,
 }: {
   actorId: number;
   offline: boolean;
@@ -102,6 +106,8 @@ export function FactoryPickup({
   onScanModeChange?: (active: boolean) => void;
   surface?: FactoryPickupSurface;
   finishedActionLabel?: string;
+  pickupId: number | null;
+  onCreated: (id: number) => void;
 }) {
   const [run, setRun] = useState<FactoryPickupRun | null>(null);
   const [finished, setFinished] = useState<FactoryPickupRun | null>(null);
@@ -119,16 +125,21 @@ export function FactoryPickup({
   const [scanBusy, setScanBusy] = useState(false);
   const [undoing, setUndoing] = useState(false);
   const [undoMessage, setUndoMessage] = useState("");
+  const [technicians, setTechnicians] = useState<FactoryPickupPerson[]>([]);
+  const [technicianIds, setTechnicianIds] = useState<number[]>([]);
+  const [editingAssignments, setEditingAssignments] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const [accessLost, setAccessLost] = useState(false);
   const mounted = useRef(true);
+  const writeRevision = useRef(0);
   const undoKey = useRef("");
-  const pickupCurrent = surface === "warehouse" ? warehousePickupCurrent : technicianPickupCurrent;
-  const pickupPo = surface === "warehouse" ? warehousePickupPo : technicianPickupPo;
-  const startPickupRequest = surface === "warehouse" ? warehouseStartPickup : technicianStartPickup;
+  const pickupDetail = surface === "warehouse" ? warehousePickup : technicianPickup;
   const pickupScan = surface === "warehouse" ? warehousePickupScan : technicianPickupScan;
   const finishPickupRequest = surface === "warehouse" ? warehouseFinishPickup : technicianFinishPickup;
 
   const busy = working || scanBusy || undoing;
-  useEffect(() => onBusy(busy), [busy, onBusy]);
+  const canScan = run?.status === "ACTIVE" && !accessLost;
+  useEffect(() => onBusy(busy || Boolean(candidate)), [busy, candidate, onBusy]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -142,7 +153,7 @@ export function FactoryPickup({
     setLoading(true);
     setError("");
     try {
-      const current = await pickupCurrent();
+      const current = pickupId ? await pickupDetail(pickupId) : null;
       if (!mounted.current) return;
       setRun(current);
       if (current) {
@@ -160,9 +171,41 @@ export function FactoryPickup({
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [actorId, pickupCurrent, surface]);
+  }, [actorId, pickupDetail, pickupId, surface]);
 
   useEffect(() => { void loadCurrent(); }, [loadCurrent]);
+
+  useEffect(() => {
+    if (surface !== "warehouse") return;
+    let canceled = false;
+    warehousePickupTechnicians().then((items) => { if (!canceled) setTechnicians(items); })
+      .catch((e) => { if (!canceled) setError(errorMessage(e)); });
+    return () => { canceled = true; };
+  }, [surface]);
+
+  // Descarta el sondeo al iniciar una escritura para no reemplazar su respuesta con progreso anterior.
+  useEffect(() => {
+    if (!run || offline || busy) return;
+    let canceled = false;
+    let pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      const revision = writeRevision.current;
+      try {
+        const current = await pickupDetail(run.id);
+        if (!canceled && revision === writeRevision.current) { setRun(current); setSyncError(""); setAccessLost(false); }
+      } catch (e) {
+        if (!canceled) {
+          setSyncError(`Progress could not be refreshed. ${errorMessage(e)}`);
+          if (typeof e === "object" && e && "status" in e && [403, 404].includes(Number(e.status))) setAccessLost(true);
+        }
+      } finally { pending = false; }
+    };
+    const timer = window.setInterval(() => void refresh(), 5000);
+    void refresh();
+    return () => { canceled = true; window.clearInterval(timer); };
+  }, [run?.id, offline, busy, pickupDetail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function addPlannedPo() {
     const value = poNumber.trim();
@@ -173,7 +216,7 @@ export function FactoryPickup({
     }
     setWorking(true); setError("");
     try {
-      const preview = await pickupPo(value);
+      const preview = await warehousePickupPo(value);
       setPlanned((items) => [...items, preview]);
       setPoNumber("");
     } catch (e) { setError(errorMessage(e)); }
@@ -181,11 +224,12 @@ export function FactoryPickup({
   }
 
   async function startPickup() {
-    if (!planned.length || working || offline || blocked) return;
+    if (surface !== "warehouse" || !planned.length || !technicianIds.length || working || offline || blocked) return;
     setWorking(true); setError("");
     try {
-      const next = await startPickupRequest(planned.map((po) => po.poNumber));
+      const next = await warehouseStartPickup(planned.map((po) => po.poNumber), technicianIds);
       setRun(next); setPlanned([]); setLast(null); setShowRemaining(false);
+      onCreated(next.id);
     } catch (e) { setError(errorMessage(e)); }
     finally { setWorking(false); }
   }
@@ -201,6 +245,7 @@ export function FactoryPickup({
 
   async function confirmAddPo() {
     if (!run || !candidate || working || offline || blocked) return;
+    writeRevision.current++;
     setWorking(true); setError("");
     try {
       const result = await pickupScan(
@@ -218,10 +263,11 @@ export function FactoryPickup({
   async function undoLastCollection() {
     if (surface !== "warehouse" || !run || !last || undoing || working || scanBusy) return;
     if (!undoKey.current) undoKey.current = warehouseRequestKey();
+    writeRevision.current++;
     setUndoing(true); setError(""); setUndoMessage("");
     try {
       await warehouseUndo(last.movement.id, undoKey.current);
-      const current = await pickupCurrent();
+      const current = await pickupDetail(run.id);
       if (!current) throw new Error("The active pickup could not be reloaded after reversing the reading.");
       setRun(current);
       setLast(null);
@@ -235,14 +281,16 @@ export function FactoryPickup({
   }
 
   async function finishPickup() {
-    if (!run || working || offline || blocked) return;
+    if (!run || !canScan || working || offline || blocked) return;
     if (run.remainingParts > 0 && !reason) {
       setError("Choose why this pickup is being finished with parts remaining.");
       return;
     }
+    writeRevision.current++;
     setWorking(true); setError("");
     try {
       const result = await finishPickupRequest(run.id, {
+        cycle: run.cycle,
         ...(run.remainingParts > 0 ? { partialReason: reason as FactoryPickupPartialReason } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
       });
@@ -251,6 +299,40 @@ export function FactoryPickup({
     } catch (e) { setError(errorMessage(e)); }
     finally { setWorking(false); }
   }
+
+  async function saveAssignments() {
+    if (!run || busy || offline || !technicianIds.length) return;
+    writeRevision.current++;
+    setWorking(true); setError("");
+    try {
+      setRun(await warehouseAssignPickup(run.id, technicianIds));
+      setEditingAssignments(false);
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setWorking(false); }
+  }
+
+  async function reopenPickup() {
+    if (surface !== "warehouse" || !run || busy || offline || blocked) return;
+    writeRevision.current++;
+    setWorking(true); setError("");
+    try {
+      setRun(await warehouseReopenPickup(run.id, run.cycle));
+      setFinishing(false); setReason(""); setNote("");
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setWorking(false); }
+  }
+
+  const technicianPicker = (
+    <fieldset className="space-y-2" disabled={busy || offline}>
+      <legend className="mb-2 font-semibold">Assigned technicians</legend>
+      <p className="text-sm text-slate-600">Select one or more. All administrators also have access.</p>
+      {!technicians.length && <p role="status" className="text-sm text-amber-800">No active technicians loaded. Check technician accounts or refresh this page.</p>}
+      {technicians.map((person) => <label key={person.id} className="flex min-h-11 items-center gap-3 rounded-lg border p-3 text-sm">
+        <input type="checkbox" checked={technicianIds.includes(person.id)} onChange={(event) => setTechnicianIds((ids) => event.target.checked ? [...ids, person.id] : ids.filter((id) => id !== person.id))} />
+        {person.name}
+      </label>)}
+    </fieldset>
+  );
 
   const remaining = useMemo(() => run?.lines.filter((line) => line.remaining > 0) ?? [], [run]);
   const plannedParts = planned.reduce((sum, po) => sum + po.parts, 0);
@@ -264,6 +346,7 @@ export function FactoryPickup({
         <div>
           <h2 className="text-xl font-semibold text-slate-950">Pickup {finished.status === "COMPLETED" ? "complete" : "finished as partial"}</h2>
           <p className="mt-1 text-sm text-slate-600">{finished.collectedParts} of {finished.expectedParts} expected physical parts were collected across {finished.poCount} PO{finished.poCount === 1 ? "" : "s"}.</p>
+          <p className="mt-1 text-sm text-slate-600">Closed by {finished.closedBy?.name ?? "—"}{finished.finishedAt ? ` · ${new Date(finished.finishedAt).toLocaleString()}` : ""}</p>
         </div>
       </div>
       {finished.remainingParts > 0 && <RemainingList lines={finished.lines} />}
@@ -273,11 +356,14 @@ export function FactoryPickup({
     </section>
   );
 
+  if (!run && (pickupId || surface !== "warehouse")) return <p role="alert" className="rounded-xl bg-red-50 p-4">{error || "Unable to load this pickup."}</p>;
+
   if (!run) return (
     <section className="space-y-5">
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">Plan this factory pickup</h2>
         <p className="mt-1 text-sm text-slate-600">Add the POs you expect to collect. The factory can hand you their parts in any order.</p>
+        <div className="mt-4">{technicianPicker}</div>
         <form className="mt-4 flex gap-2" onSubmit={(event) => { event.preventDefault(); void addPlannedPo(); }}>
           <Input value={poNumber} onChange={(event) => setPoNumber(event.target.value)} placeholder="Factory PO number" maxLength={50} disabled={working || offline || blocked} className="h-12 text-base" />
           <Button type="submit" variant="outline" className="h-12 shrink-0" disabled={working || offline || blocked || !poNumber.trim()}><Plus className="mr-2 h-4 w-4" />Add PO</Button>
@@ -290,7 +376,7 @@ export function FactoryPickup({
           <div><p className="font-semibold">PO {po.poNumber}</p><p className="text-sm text-slate-600">Order #{po.orderNumber} · {po.pieces} pieces · {po.parts} parts to collect</p></div>
           <Button type="button" size="icon" variant="ghost" aria-label={`Remove PO ${po.poNumber}`} disabled={working} onClick={() => setPlanned((items) => items.filter((item) => item.orderId !== po.orderId))}><X className="h-4 w-4" /></Button>
         </div>)}
-        <Button className="min-h-12 w-full" disabled={working || offline || blocked} onClick={() => void startPickup()}>{working ? "Starting…" : "Start pickup"}</Button>
+        <Button className="min-h-12 w-full" disabled={working || offline || blocked || !technicianIds.length} onClick={() => void startPickup()}>{working ? "Creating…" : "Create pickup"}</Button>
       </section>}
       {!planned.length && <p className="rounded-xl border border-dashed bg-white p-5 text-center text-sm text-slate-500">Add at least one PO to start the pickup.</p>}
     </section>
@@ -301,7 +387,7 @@ export function FactoryPickup({
       <div className="sticky top-2 z-10 rounded-2xl border border-slate-200 bg-white p-4 shadow-md">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Active factory pickup</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-600">{run.status === "ACTIVE" ? "Active factory pickup" : run.status === "PARTIAL" ? "Partial pickup · Closed" : "Completed pickup"}</p>
             <p className="mt-1 text-2xl font-bold text-slate-950">{run.collectedParts} / {run.expectedParts}</p>
             <p className="text-sm text-slate-600">physical parts collected · {run.remainingParts} remaining</p>
           </div>
@@ -312,6 +398,20 @@ export function FactoryPickup({
 
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {undoMessage && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{undoMessage}</p>}
+
+      <section className="space-y-2 rounded-xl border bg-white p-4 text-sm">
+        <p>Created by <b>{run.createdBy.name}</b> · {new Date(run.startedAt).toLocaleString()}</p>
+        <p>Assigned: {run.technicians.map((person) => person.name).join(", ") || "No technicians assigned"}</p>
+        {run.collectors.length ? run.collectors.map((person) => <p key={person.id}><b>{person.name}</b>: {person.parts} parts · Last scan {new Date(person.lastScanAt).toLocaleString()}</p>) : <p className="text-slate-500">No parts scanned yet.</p>}
+        {run.status !== "ACTIVE" && <p className="font-semibold text-emerald-800">Closed by {run.closedBy?.name ?? "—"}{run.finishedAt ? ` · ${new Date(run.finishedAt).toLocaleString()}` : ""}. New scans are blocked.</p>}
+        {run.partialReason && <p>Reason: {reasonOptions.find((option) => option.value === run.partialReason)?.label}</p>}
+        {run.note && <p>Note: {run.note}</p>}
+        {surface === "warehouse" && run.status !== "ACTIVE" && <Button disabled={busy || offline || blocked || Boolean(candidate)} onClick={() => void reopenPickup()}>Reopen pickup</Button>}
+        {run.events.length > 0 && <details className="rounded-lg border p-3"><summary className="cursor-pointer font-medium">Closing and reopening history</summary><ul className="mt-2 space-y-2">{run.events.map((event) => <li key={event.id}>{event.status === "ACTIVE" ? "Reopened" : event.status === "PARTIAL" ? "Closed as partial" : "Completed"} by {event.actor.name} · {new Date(event.createdAt).toLocaleString()}{event.partialReason ? ` · ${reasonOptions.find((option) => option.value === event.partialReason)?.label}` : ""}{event.note ? ` · ${event.note}` : ""}</li>)}</ul></details>}
+        {surface === "warehouse" && canScan && !editingAssignments && <Button variant="outline" disabled={busy || Boolean(candidate)} onClick={() => { setTechnicianIds(run.technicians.filter((person) => technicians.some((active) => active.id === person.id)).map((person) => person.id)); setEditingAssignments(true); }}>Edit technicians</Button>}
+        {editingAssignments && canScan && <div className="space-y-3">{technicianPicker}<div className="flex gap-2"><Button variant="outline" disabled={working} onClick={() => setEditingAssignments(false)}>Cancel</Button><Button disabled={busy || offline || !technicianIds.length} onClick={() => void saveAssignments()}>Save technicians</Button></div></div>}
+      </section>
+      {syncError && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{syncError}</p>}
 
       {candidate && <section className="space-y-4 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
         <div className="flex gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-semibold text-amber-950">PO {candidate.candidate.poNumber} is not included in this pickup.</h3><p className="mt-1 text-sm text-amber-900">This part belongs to Order #{candidate.candidate.orderNumber}. Add the entire PO to the pickup and record this same scan?</p></div></div>
@@ -325,9 +425,13 @@ export function FactoryPickup({
         persistent
         mobileFocus
         disabled={offline || blocked || working}
+        retryOnly={!canScan}
         onPendingChange={setScanBusy}
         onScanModeChange={onScanModeChange}
-        onRead={async (barcode, requestKey) => ({ ...(await pickupScan(run.id, barcode, requestKey)), barcode, requestKey } as ReadResult)}
+        onRead={async (barcode, requestKey) => {
+          writeRevision.current++;
+          return { ...(await pickupScan(run.id, barcode, requestKey)), barcode, requestKey } as ReadResult;
+        }}
         onSaved={(result) => {
           setError("");
           if (result.kind === "PO_NOT_INCLUDED") {
@@ -344,7 +448,7 @@ export function FactoryPickup({
         <p className="text-sm text-slate-600">{[last.stock.system, last.stock.configuration].filter(Boolean).join(" · ")}</p>
         <p className="mt-1 font-mono text-xs">Line {last.stock.lineNumber}</p>
         <p className="mt-2 text-sm">This line: <b>{last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.collected ?? 0} / {last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.targetParts ?? last.stock.expectedParts ?? "—"}</b> collected for this pickup.</p>
-        {surface === "warehouse" && <Button type="button" variant="outline" className="mt-3 min-h-11" disabled={busy || offline || blocked} onClick={() => void undoLastCollection()}>
+        {surface === "warehouse" && canScan && <Button type="button" variant="outline" className="mt-3 min-h-11" disabled={busy || offline || blocked} onClick={() => void undoLastCollection()}>
           <Undo2 className="mr-2 h-4 w-4" />{undoing ? "Reversing…" : "Undo last reading"}
         </Button>}
       </section>}
@@ -362,12 +466,12 @@ export function FactoryPickup({
       </Button>
       {showRemaining && (remaining.length ? <RemainingList lines={remaining} /> : <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">All expected parts in this pickup have been scanned.</p>)}
 
-      {!finishing ? <Button className="min-h-12 w-full" variant={run.remainingParts ? "outline" : "default"} disabled={busy || offline || blocked || Boolean(candidate)} onClick={() => { setFinishing(true); setShowRemaining(run.remainingParts > 0); setError(""); }}>Finish pickup</Button> : <section className="space-y-4 rounded-2xl border-2 border-slate-900 bg-white p-5">
+      {canScan && (!finishing ? <Button className="min-h-12 w-full" variant={run.remainingParts ? "outline" : "default"} disabled={busy || offline || blocked || Boolean(candidate)} onClick={() => { setFinishing(true); setShowRemaining(run.remainingParts > 0); setError(""); }}>Finish pickup</Button> : <section className="space-y-4 rounded-2xl border-2 border-slate-900 bg-white p-5">
         <h3 className="text-lg font-semibold">{run.remainingParts ? "Finish partial pickup" : "Complete pickup"}</h3>
         {run.remainingParts ? <><p className="text-sm text-slate-600"><b>{run.remainingParts} parts are still remaining.</b> Review the pieces above before leaving the factory.</p><div className="space-y-2"><Label htmlFor="pickup-reason">Reason</Label><select id="pickup-reason" value={reason} onChange={(event) => setReason(event.target.value as FactoryPickupPartialReason | "")} className="h-12 w-full rounded-md border bg-white px-3 text-base"><option value="">Choose a reason</option>{reasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div></> : <p className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">All {run.expectedParts} expected physical parts have been collected.</p>}
         <div className="space-y-2"><Label htmlFor="pickup-note">Note (optional)</Label><textarea id="pickup-note" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} rows={3} className="w-full rounded-md border bg-white p-3 text-sm" /></div>
         <div className="grid grid-cols-2 gap-2"><Button variant="outline" className="min-h-12" disabled={working} onClick={() => setFinishing(false)}>Continue scanning</Button><Button className="min-h-12" disabled={working || offline || blocked || (run.remainingParts > 0 && !reason)} onClick={() => void finishPickup()}>{working ? "Finishing…" : run.remainingParts ? "Finish partial pickup" : "Complete pickup"}</Button></div>
-      </section>}
+      </section>)}
     </section>
   );
 }
