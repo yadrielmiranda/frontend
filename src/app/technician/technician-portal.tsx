@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { InstallApp } from "./install-app";
-import { TechnicianReceipts, pendingReceiptKey } from "./technician-receipts";
+import { TechnicianReceipts, pendingReceiptKey, pendingInstallationDeliveryKey } from "./technician-receipts";
+import { FactoryPickup } from "./factory-pickup";
 
-type View = { operation: "HOME" | "COLLECT" | "RECEIVE"; mode: "scan" | "select"; storeId: string };
+type View = { operation: "HOME" | "COLLECT" | "RECEIVE" | "INSTALLATION_DELIVERY"; mode: "scan" | "select"; storeId: string };
 const home: View = { operation: "HOME", mode: "scan", storeId: "" };
 const message = (e: unknown) => e instanceof Error ? e.message : "The operation could not be completed.";
 
@@ -87,10 +88,13 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
   useEffect(() => {
     try {
       const receipt = JSON.parse(localStorage.getItem(pendingReceiptKey(user.id)) || "null");
+      const delivery = JSON.parse(localStorage.getItem(pendingInstallationDeliveryKey(user.id)) || "null");
       const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
       if (receipt && Number.isSafeInteger(receipt.storeId)) {
         setView({ operation: "RECEIVE", mode: "select", storeId: String(receipt.storeId) });
-      } else if (saved && ["HOME", "COLLECT", "RECEIVE"].includes(saved.operation) &&
+      } else if (delivery && Number.isSafeInteger(delivery.installation?.id)) {
+        setView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" });
+      } else if (saved && ["HOME", "COLLECT", "RECEIVE", "INSTALLATION_DELIVERY"].includes(saved.operation) &&
         ["scan", "select"].includes(saved.mode) && typeof saved.storeId === "string") setView(saved);
     } catch { /* No se recuperan datos de navegador inválidos. */ }
     setRestored(true);
@@ -114,7 +118,7 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
   }, [refresh]);
   const target = state?.stores.find((store) => String(store.id) === view.storeId);
   const blocked = offline || !state || state.countOpen || (view.operation === "RECEIVE" && !target);
-  const scanning = view.operation === "COLLECT" || (view.operation === "RECEIVE" && view.mode === "scan");
+  const scanning = view.operation === "RECEIVE" && view.mode === "scan";
   return <div className="space-y-5">
     <header className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="min-w-0 [overflow-wrap:anywhere]"><p className="font-semibold text-slate-950">{user.firstName} {user.lastName}</p><p className="mt-1 text-xs text-slate-500">{user.username} · Technician</p></div>
@@ -125,13 +129,13 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       }}><LogOut className="mr-2 h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
     </header>
     {offline && <p role="alert" className="flex gap-2 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><WifiOff className="h-5 w-5 shrink-0" />No connection. Reconnect before scanning or receiving. Unconfirmed operations are not shown as saved.</p>}
-    {state?.countOpen && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A physical count is in progress. Collection and receipt are paused until it is closed by authorized staff.</p>}
+    {state?.countOpen && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A physical count is in progress. Material movements are paused until it is closed by authorized staff.</p>}
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800"><p>{error}</p><Button variant="outline" className="mt-3 min-h-11" onClick={() => void refresh()}>Retry connection</Button></div>}
     {!restored ? <p role="status">Loading workspace…</p> : view.operation === "HOME" ? <>
       <h1 className="pt-1 text-2xl font-semibold tracking-tight text-slate-950">Choose an operation</h1>
       <button type="button" onClick={() => changeView({ operation: "COLLECT", mode: "scan", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-red-200 border-l-4 border-l-red-600 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><Factory className="h-7 w-7" aria-hidden="true" /></span>
-        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Collect from factory</h2><p className="mt-1 text-sm text-slate-600">Scan each collected part. It stays in transit.</p></div>
+        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Collect from factory</h2><p className="mt-1 text-sm text-slate-600">{state?.activePickup ? "Resume the active pickup and its PO checklist." : "Create a pickup, then scan parts in any PO order."}</p></div>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
       </button>
       <button type="button" onClick={() => changeView({ operation: "RECEIVE", mode: "select", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-slate-200 border-l-4 border-l-slate-900 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
@@ -139,9 +143,21 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
         <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Receive at warehouse</h2><p className="mt-1 text-sm text-slate-600">Choose the store and receive by selection or scan.</p></div>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-500 sm:block" aria-hidden="true" />
       </button>
+      <button type="button" onClick={() => changeView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-slate-200 border-l-4 border-l-slate-900 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white sm:h-14 sm:w-14"><CheckCircle2 className="h-7 w-7" aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Deliver to installation</h2><p className="mt-1 text-sm text-slate-600">Confirm factory-collected parts that have arrived at the job site.</p></div>
+        <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-500 sm:block" aria-hidden="true" />
+      </button>
     </> : <>
       <Button variant="outline" className="min-h-11" disabled={busy} onClick={() => changeView(home)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{view.operation === "COLLECT" ? "Collect from factory" : "Receive at warehouse"}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{view.operation === "COLLECT" ? "Collect from factory" : view.operation === "INSTALLATION_DELIVERY" ? "Deliver to installation" : "Receive at warehouse"}</h1>
+      {view.operation === "COLLECT" && <FactoryPickup
+        actorId={user.id}
+        offline={offline}
+        blocked={!state || state.countOpen}
+        onBusy={setBusy}
+        onFinished={() => { changeView(home); void refresh(); }}
+      />}
       {view.operation === "RECEIVE" && <div className="space-y-4 rounded-xl border bg-white p-4">
         <div className="space-y-2"><Label htmlFor="tech-store">Destination store</Label><select id="tech-store" className="h-12 w-full rounded-md border bg-white px-3 text-base" value={view.storeId} disabled={busy} onChange={(e) => changeView({ ...view, storeId: e.target.value })}>
           <option value="">Choose a store</option>
@@ -159,7 +175,7 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
         persistent
         disabled={offline || (!busy && blocked)}
         onPendingChange={setBusy}
-        onRead={(barcode, key) => technicianScan(barcode, view.operation === "COLLECT" ? "COLLECT" : "RECEIVE", key, view.operation === "RECEIVE" ? Number(view.storeId) : undefined)}
+        onRead={(barcode, key) => technicianScan(barcode, "RECEIVE", key, Number(view.storeId))}
         onSaved={(result) => { setLast(result); void refresh(); }}
       />}
       {scanning && last && <section className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4" role="status">
@@ -171,6 +187,7 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
         <p className="text-xs text-slate-600">Saved {new Date(last.movement.createdAt).toLocaleString()}</p>
       </section>}
       {view.operation === "RECEIVE" && view.mode === "select" && <TechnicianReceipts actorId={user.id} storeId={target?.id ?? null} storeName={target?.name ?? ""} blocked={blocked} offline={offline} onBusy={setBusy} onSaved={() => void refresh()} />}
+      {view.operation === "INSTALLATION_DELIVERY" && <TechnicianReceipts delivering actorId={user.id} storeId={null} storeName="" blocked={blocked} offline={offline} onBusy={setBusy} onSaved={() => void refresh()} />}
     </>}
   </div>;
 }

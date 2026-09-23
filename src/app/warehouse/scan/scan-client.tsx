@@ -15,6 +15,7 @@ import {
   type ScanResult,
 } from "@/app/api/warehouse.api";
 import { ScanPad } from "../scan-pad";
+import { FactoryPickup } from "@/app/technician/factory-pickup";
 import {
   CountNotice,
   UnitSummary,
@@ -32,7 +33,7 @@ const actions: {
     value: "COLLECT",
     label: "Collect from factory",
     description:
-      "Scan each part as it is collected. It stays in transit without a store until you receive it at the warehouse.",
+      "Plan the POs for this factory visit, then scan their parts in any order. Confirm arrival at a store or directly at the installation in Pending receipt.",
   },
   {
     value: "RECEIVE",
@@ -48,9 +49,11 @@ const actions: {
   },
 ];
 export function ScanClient({
+  actorId,
   activeCountId,
   initialStores,
 }: {
+  actorId: number;
   activeCountId: number | null;
   initialStores: WarehouseStore[];
 }) {
@@ -63,6 +66,7 @@ export function ScanClient({
     [error, setError] = useState("");
   const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState("");
   const [scanFocus, setScanFocus] = useState(false), [scannerRevision, setScannerRevision] = useState(0);
+  const [offline, setOffline] = useState(false), [pickupRevision, setPickupRevision] = useState(0);
   const undoKey = useRef(""), focusRoot = useRef<HTMLDivElement>(null);
   const locationValid = action === "COLLECT" ||
     (action === "RELEASE" && storeId === "unassigned") ||
@@ -80,6 +84,16 @@ export function ScanClient({
     };
   }, [scanFocus]);
   useEffect(() => {
+    const updateConnection = () => setOffline(!navigator.onLine);
+    updateConnection();
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    return () => {
+      window.removeEventListener("online", updateConnection);
+      window.removeEventListener("offline", updateConnection);
+    };
+  }, []);
+  useEffect(() => {
     const refresh = () =>
       Promise.all([warehouseInventory({ pageSize: 1 }), warehouseStores()])
         .then(([r, nextStores]) => { setCountId(r.activeCountId); setStores(nextStores); })
@@ -93,7 +107,8 @@ export function ScanClient({
   }, []);
   function leaveScanFocus() {
     setScanFocus(false);
-    setScannerRevision((value) => value + 1);
+    if (action === "COLLECT") setPickupRevision((value) => value + 1);
+    else setScannerRevision((value) => value + 1);
   }
   async function undo() {
     if (!last) return;
@@ -150,6 +165,7 @@ export function ScanClient({
             aria-pressed={action === option.value}
             disabled={pending || undoing}
             onClick={() => {
+              setScanFocus(false);
               setAction(option.value);
               setStoreId("");
               setLast(null);
@@ -174,12 +190,32 @@ export function ScanClient({
         </div>
       )}
       {action === "RECEIVE" && <Link href="/warehouse/receipts" className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>Receive selected or all pending units without rescanning</Link>}
-      {(locationValid || pending) && <ScanPad
-        key={`${action === "COLLECT" ? action : `${action}:${storeId}`}:${scannerRevision}`}
-        scope={action === "COLLECT" ? action : `${action}:${storeId}`}
+      {action === "COLLECT" && (
+        <FactoryPickup
+          key={`${actorId}:warehouse-pickup:${pickupRevision}`}
+          actorId={actorId}
+          surface="warehouse"
+          offline={offline}
+          blocked={Boolean(countId)}
+          onBusy={setPending}
+          onScanModeChange={setScanFocus}
+          onFinished={() => {
+            setScanFocus(false);
+            setPickupRevision((value) => value + 1);
+          }}
+          finishedActionLabel="Start another pickup"
+        />
+      )}
+      {action !== "COLLECT" && (locationValid || pending) && <ScanPad
+        key={`${action}:${storeId}:${scannerRevision}`}
+        scope={`${action}:${storeId}`}
         disabled={Boolean(countId) || undoing}
-        onRead={(barcode, key) => warehouseScan(barcode, action, key,
-          action === "COLLECT" ? undefined : storeId === "unassigned" ? null : Number(storeId))}
+        onRead={(barcode, key) => warehouseScan(
+          barcode,
+          action,
+          key,
+          storeId === "unassigned" ? null : Number(storeId),
+        )}
         onPendingChange={setPending}
         mobileFocus
         onScanModeChange={setScanFocus}

@@ -10,6 +10,8 @@ export const movementLabels: Record<string, string> = {
   RECEIVE: "Warehouse receipt",
   TRANSFER: "Store transfer / assignment",
   RELEASE: "Warehouse release",
+  FACTORY_RELEASE: "Customer pickup at factory",
+  INSTALLATION_DELIVERY: "Delivered to installation",
   UNDO: "Reading reversed",
   PARTS: "Expected parts updated",
   ADJUST: "Inventory adjustment",
@@ -23,6 +25,12 @@ export const storeBreakdown = (unit: WarehouseUnit) => [
   ...(unit.unassigned > 0 ? [`Unassigned: ${unit.unassigned}`] : []),
 ].join(" · ");
 export function MovementLocation({ movement: m }: { movement: WarehouseMovement }) {
+  if (m.installation) return <div className="space-y-1 text-sm text-muted-foreground">
+    <p>{m.quantity} {m.quantity === 1 ? "part" : "parts"} · {m.type === "UNDO" ? "Reversed movement for " : m.onHandDelta < 0 ? `From ${m.fromStore?.name ?? "Unassigned"} to ` : "Delivered directly to "}
+      <Link className="underline" href={`/installations/${m.installation.id}`}>installation #{m.installation.id}</Link>
+    </p>
+    {m.installation.address && <p>{m.installation.address}</p>}
+  </div>;
   if (!m.fromStore && !m.toStore && !["RECEIVE", "RELEASE", "TRANSFER"].includes(m.type)) return null;
   let text: string;
   if (m.type === "TRANSFER" || (m.type === "UNDO" && m.onHandDelta === 0))

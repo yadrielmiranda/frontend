@@ -659,16 +659,20 @@ export function InventoryClient({
 
   const currentData = mode === "po" ? poData : pieceData,
     summaryData = currentData ?? (mode === "po" ? pieceData : poData) ?? initial;
+  const summaryCards: [string, number][] = storeId === "all" ? [
+    ["In warehouse", summaryData.summary.onHand],
+    ["In transit", summaryData.summary.inTransit ?? 0],
+    ["Released", summaryData.summary.released ?? 0],
+    ["Unassigned (included in warehouse)", summaryData.summary.unassigned],
+  ] : [[
+    storeId === "unassigned" ? "Unassigned" : `In ${stores.find(store => String(store.id) === storeId)?.name ?? "selected store"}`,
+    summaryData.summary.onHand,
+  ]];
   return (
     <div className="space-y-5">
       <CountNotice id={summaryData.activeCountId} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          ["In warehouse", summaryData.summary.onHand],
-          ["In transit", summaryData.summary.inTransit],
-          ["Released", summaryData.summary.released],
-          ["Unassigned (included in warehouse)", summaryData.summary.unassigned],
-        ].map(([label, value]) => (
+        {summaryCards.map(([label, value]) => (
           <div
             key={label}
             className="rounded-xl border bg-white p-3 shadow-sm sm:p-5"
@@ -682,7 +686,9 @@ export function InventoryClient({
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Totals across all stores. Location filters below apply to the inventory list.
+        {storeId === "all"
+          ? "Totals for the matching inventory across all stores."
+          : "Totals for the selected location and current filters. In-transit and released parts have no current store location."}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">

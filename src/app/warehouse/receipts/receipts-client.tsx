@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  warehouseInventory, warehouseReceive, warehouseStores, warehouseRequestKey,
+  warehouseInventory, warehouseReceive, warehouseStores, warehouseRequestKey, warehouseDeliverToInstallation,
   type Inventory, type WarehouseStore, type WarehouseUnit, type ReceiptItem,
 } from "@/app/api/warehouse.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
@@ -21,13 +21,19 @@ export function ReceiptsClient({ initial, initialStores }: {
   const [data, setData] = useState(initial), [stores, setStores] = useState(initialStores);
   const [search, setSearch] = useState(""), [page, setPage] = useState(1);
   const [selection, setSelection] = useState<Selection>({}), [storeId, setStoreId] = useState("");
+  const [destination, setDestination] = useState<"warehouse" | "installation">("warehouse");
+  const delivering = destination === "installation";
   const [loading, setLoading] = useState(false), [saving, setSaving] = useState(false), [selecting, setSelecting] = useState(false);
   const [error, setError] = useState(""), [success, setSuccess] = useState(""), [confirm, setConfirm] = useState(false);
   const serial = useRef(0), request = useRef<{ signature: string; key: string } | null>(null), saveLock = useRef(false);
   const chosen = Object.values(selection), busy = loading || saving || selecting;
   const target = stores.find((s) => String(s.id) === storeId && s.isActive);
+  const installation = chosen[0]?.unit.installation;
+  const invalidInstallation = !installation?.address || chosen.some(({ unit }) =>
+    unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
+  const targetValid = delivering ? !invalidInstallation : Boolean(target);
   const totalParts = chosen.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
-  const invalid = chosen.some(({ unit, quantity }) => !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || Number(quantity) > unit.inTransit);
+  const invalid = chosen.some(({ unit, quantity }) => !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || Number(quantity) > unit.inTransit || Number(quantity) > 200);
   const refresh = useCallback(async () => {
     const seq = ++serial.current;
     setLoading(true);
@@ -68,6 +74,7 @@ export function ReceiptsClient({ initial, initialStores }: {
     setSelection((prev) => {
       const next = { ...prev };
       for (const unit of data.items) {
+        if (delivering && !unit.installation?.address) continue;
         if (!checked) delete next[unit.lineNumber];
         else if (!next[unit.lineNumber] && Object.keys(next).length < LIMIT)
           next[unit.lineNumber] = { unit, quantity: String(unit.inTransit) };
@@ -82,7 +89,7 @@ export function ReceiptsClient({ initial, initialStores }: {
       let total: number | undefined;
       for (let current = 1; ; current++) {
         const result = await warehouseInventory({ view: "in_transit", search, page: current, pageSize: 100 });
-        if (result.total > LIMIT) throw new Error(`Receive at most ${LIMIT} units at a time. Filter by order or select individual pages.`);
+        if (result.total > LIMIT) throw new Error(`Select at most ${LIMIT} units at a time. Filter by order or select individual pages.`);
         if (total !== undefined && total !== result.total)
           throw new Error("Pending units changed while selecting. Refresh and try again.");
         total = result.total;
@@ -90,21 +97,26 @@ export function ReceiptsClient({ initial, initialStores }: {
         if (current * 100 >= result.total) break;
       }
       if (Object.keys(next).length !== total) throw new Error("Pending units changed while selecting. Refresh and try again.");
-      setSelection(next);
+      setSelection(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.installation?.address)) : next);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSelecting(false); }
   }
   async function receive() {
-    if (saveLock.current || !target || invalid || !chosen.length || chosen.length > LIMIT) return;
+    if (saveLock.current || !targetValid || invalid || !chosen.length || chosen.length > LIMIT) return;
     saveLock.current = true; setSaving(true); setError(""); setSuccess("");
     const items: ReceiptItem[] = chosen.map(({ unit, quantity }) => ({
       barcode: unit.barcode, version: unit.version, quantity: Number(quantity),
     })).sort((a, b) => a.barcode.localeCompare(b.barcode));
-    const signature = JSON.stringify([target.id, items]);
+    const signature = JSON.stringify([destination, delivering ? installation : target!.id, items]);
     if (request.current?.signature !== signature) request.current = { signature, key: warehouseRequestKey() };
     try {
-      const result = await warehouseReceive(target.id, items, request.current!.key);
-      setSuccess(`${result.parts} parts across ${result.units} units received into ${result.storeName}.${result.replayed ? " This receipt was already recorded; no duplicate was added." : ""}`);
+      if (delivering) {
+        const result = await warehouseDeliverToInstallation({ installationJobId: installation!.id, installationAddress: installation!.address, items, requestKey: request.current!.key });
+        setSuccess(`${result.parts} parts delivered to installation #${result.installation.id} at ${result.installation.address}.${result.replayed ? " Already recorded; no duplicate was added." : ""}`);
+      } else {
+        const result = await warehouseReceive(target!.id, items, request.current!.key);
+        setSuccess(`${result.parts} parts across ${result.units} units received into ${result.storeName}.${result.replayed ? " This receipt was already recorded; no duplicate was added." : ""}`);
+      }
       setSelection({}); setConfirm(false); request.current = null;
       await refresh();
     } catch (e) {
@@ -112,7 +124,8 @@ export function ReceiptsClient({ initial, initialStores }: {
       // Conservar la misma clave y selección permite verificar una respuesta perdida.
     } finally { setSaving(false); saveLock.current = false; }
   }
-  const allPage = data.items.length > 0 && data.items.every((u) => Boolean(selection[u.lineNumber]));
+  const pageUnits = delivering ? data.items.filter((unit) => unit.installation?.address) : data.items;
+  const allPage = pageUnits.length > 0 && pageUnits.every((u) => Boolean(selection[u.lineNumber]));
   return (
     <div className="space-y-5">
       <CountNotice id={data.activeCountId} />
@@ -135,43 +148,50 @@ export function ReceiptsClient({ initial, initialStores }: {
         </Button>
       </div>
       <section className="space-y-3 rounded-xl border bg-white p-4">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Material destination">
+          {(["warehouse", "installation"] as const).map((value) => <Button key={value} variant={destination === value ? "default" : "outline"} aria-pressed={destination === value} disabled={busy || confirm} onClick={() => { setDestination(value); setSelection({}); setError(""); setSuccess(""); }}>
+            {value === "warehouse" ? "Receive at warehouse" : "Deliver to installation"}
+          </Button>)}
+        </div>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-full space-y-2 sm:max-w-xs">
+          {!delivering && <div className="w-full space-y-2 sm:max-w-xs">
             <p className="text-sm font-medium">Destination store</p>
             <StoreSelect stores={stores} value={storeId} onChange={setStoreId} disabled={saving || confirm} label="Receipt destination store" />
-          </div>
+          </div>}
           <div className="flex-1 text-sm"><b>{chosen.length}</b> units selected · <b>{totalParts}</b> physical parts</div>
-          <Button disabled={busy || Boolean(data.activeCountId) || !target || !chosen.length || invalid || chosen.length > LIMIT} onClick={() => { setError(""); setConfirm(true); }}>
-            <PackageCheck className="mr-2 h-4 w-4" />Receive selected
+          <Button disabled={busy || Boolean(data.activeCountId) || !targetValid || !chosen.length || invalid || chosen.length > LIMIT} onClick={() => { setError(""); setConfirm(true); }}>
+            <PackageCheck className="mr-2 h-4 w-4" />{delivering ? "Deliver selected" : "Receive selected"}
           </Button>
         </div>
-        {!stores.some((s) => s.isActive) && <p className="text-sm text-amber-800">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> first.</p>}
-        {chosen.length > 0 && <p className="text-xs text-muted-foreground">Each selected row receives its entered quantity. To split stock between stores, receive only the quantity for this store and then receive the remaining parts into another store.</p>}
+        {!delivering && !stores.some((s) => s.isActive) && <p className="text-sm text-amber-800">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> first.</p>}
+        {delivering && <p className="text-sm text-muted-foreground">Select parts for one installation. Confirm only the quantities that have physically arrived at the job site.</p>}
+        {delivering && chosen.length > 0 && (invalidInstallation ? <p role="alert" className="text-sm text-amber-800">Select parts for one installation with a confirmed address. Filter by order or PO.</p> : <p className="text-sm">Order #{chosen[0].unit.orderNumber} · <Link href={`/installations/${installation!.id}`} className="underline">Installation #{installation!.id}</Link><br />{installation!.address}</p>)}
+        {!delivering && chosen.length > 0 && <p className="text-xs text-muted-foreground">Each selected row receives its entered quantity. To split stock between stores, receive only the quantity for this store and then receive the remaining parts into another store.</p>}
       </section>
       {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{success}</p>}
       {error && !confirm && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={allPage} disabled={busy || confirm || !data.items.length} onChange={(e) => selectPage(e.target.checked)} />Select this page</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={allPage} disabled={busy || confirm || !pageUnits.length} onChange={(e) => selectPage(e.target.checked)} />Select this page</label>
         <Button variant="outline" size="sm" disabled={busy || confirm || data.total === 0 || data.total > LIMIT} onClick={selectAll}>
           {selecting ? "Selecting…" : `Select all ${data.total} matching units`}
         </Button>
-        {data.total > LIMIT && <span className="text-xs text-muted-foreground">Maximum {LIMIT} units per receipt. Narrow the search to select all.</span>}
+        {data.total > LIMIT && <span className="text-xs text-muted-foreground">Maximum {LIMIT} units per operation. Narrow the search to select all.</span>}
       </div>
       <div className="overflow-x-auto rounded-xl border bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>
-            {["Select", "Order / customer", "Piece / barcode", "In transit", "Receive now"].map((h) => <th className="px-4 py-3 font-medium" key={h}>{h}</th>)}
+            {["Select", "Order / customer", "Piece / barcode", "In transit", delivering ? "Deliver now" : "Receive now"].map((h) => <th className="px-4 py-3 font-medium" key={h}>{h}</th>)}
           </tr></thead>
           <tbody className="divide-y">
             {data.items.map((unit) => {
               const entry = selection[unit.lineNumber];
               const stale = entry && entry.unit.version !== unit.version;
               return <tr key={unit.lineNumber} className={entry ? "bg-slate-50" : ""}>
-                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} /></td>
+                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && !unit.installation?.address) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} /></td>
                 <td className="px-4 py-4"><Link href={`/orders/${unit.orderId}`} className="font-medium underline">#{unit.orderNumber}</Link><p className="text-xs text-muted-foreground">{unit.customer}</p>{unit.poNumber && <p className="text-xs text-muted-foreground">PO {unit.poNumber}</p>}</td>
                 <td className="px-4 py-4"><p className="font-medium">{unit.mark || "—"} · {unit.product}</p><p className="text-xs text-muted-foreground">{unit.system} · {unit.configuration}</p><p className="font-mono text-xs">{unit.barcode}</p>{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</td>
                 <td className="px-4 py-4 font-semibold">{unit.inTransit}</td>
-                <td className="px-4 py-4"><Input type="number" min={1} max={unit.inTransit} step={1} className="w-24" aria-label={`Quantity to receive for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
+                <td className="px-4 py-4"><Input type="number" min={1} max={unit.inTransit} step={1} className="w-24" aria-label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
                   onChange={(e) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: e.target.value } }))} /></td>
               </tr>;
             })}
@@ -182,10 +202,10 @@ export function ReceiptsClient({ initial, initialStores }: {
       <Pagination {...data} onPage={(next) => { serial.current++; setLoading(true); setPage(next); }} disabled={busy || confirm} />
       <Dialog open={confirm} onOpenChange={(open) => { if (!saving) setConfirm(open); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Confirm warehouse receipt</DialogTitle><DialogDescription>Only confirm parts that are physically present at the selected store.</DialogDescription></DialogHeader>
-          <p className="text-sm">Receive <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> into <b>{target?.name ?? "the selected store"}</b>. These quantities will leave transit and enter that store.</p>
+          <DialogHeader><DialogTitle>{delivering ? "Confirm delivery to installation" : "Confirm warehouse receipt"}</DialogTitle><DialogDescription>{delivering ? "Only confirm parts that are physically present at this installation address." : "Only confirm parts that are physically present at the selected store."}</DialogDescription></DialogHeader>
+          {delivering ? <div className="space-y-2 text-sm"><p>Deliver <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> for <b>Order #{chosen[0]?.unit.orderNumber}</b>.</p><p className="font-semibold">Installation #{installation?.id} · {installation?.address}</p></div> : <p className="text-sm">Receive <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> into <b>{target?.name ?? "the selected store"}</b>. These quantities will leave transit and enter that store.</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button><Button disabled={saving || !target || invalid || !chosen.length} onClick={receive}>{saving ? "Receiving…" : "Confirm receipt"}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button><Button disabled={saving || !targetValid || invalid || !chosen.length} onClick={receive}>{saving ? "Saving…" : delivering ? "Confirm delivery" : "Confirm receipt"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

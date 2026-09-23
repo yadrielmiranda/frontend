@@ -1,6 +1,14 @@
 import { apiFetch } from "./_base";
+import { parseCurrentFactoryPickup } from "./technician.api";
+import type {
+  FactoryPickupPartialReason,
+  FactoryPickupPoPreview,
+  FactoryPickupRun,
+  FactoryPickupScanResult,
+} from "./technician.api";
 
 export type WarehouseStoreRef = { id: number; name: string; isActive: boolean };
+export type InstallationDestination = { id: number; address: string };
 export type WarehouseStore = WarehouseStoreRef & {
   version: number;
   onHand: number;
@@ -19,6 +27,7 @@ export type WarehouseUnit = {
   poNumber: string;
   customer: string;
   project: string;
+  installation: InstallationDestination | null;
   expectedParts: number | null;
   inTransit: number;
   onHand: number;
@@ -37,6 +46,7 @@ export type WarehouseMovement = {
   quantity: number;
   fromStore: WarehouseStoreRef | null;
   toStore: WarehouseStoreRef | null;
+  installation: InstallationDestination | null;
   transitDelta: number;
   onHandDelta: number;
   releasedDelta: number;
@@ -68,7 +78,7 @@ export type Paged<T> = {
   pageSize: number;
 };
 export type Inventory = Paged<WarehouseUnit> & {
-  summary: { onHand: number; unassigned: number; inTransit: number; released: number };
+  summary: { onHand: number; unassigned: number; inTransit: number | null; released: number | null };
   activeCountId: number | null;
 };
 export type WarehousePoGroup = {
@@ -132,6 +142,28 @@ export const warehouseScan = (
   requestKey: string,
   storeId?: number | null,
 ) => post<ScanResult>("scan", { barcode, action, requestKey, storeId });
+export const warehousePickupCurrent = async () =>
+  parseCurrentFactoryPickup(await get<unknown>("pickups/current"));
+export const warehousePickupPo = (poNumber: string) =>
+  get<FactoryPickupPoPreview>("pickups/po", { poNumber });
+export const warehouseStartPickup = (poNumbers: string[]) =>
+  apiFetch<FactoryPickupRun>("/api/warehouse/pickups", {
+    method: "POST", body: { poNumbers }, timeoutMs: 90000,
+  });
+export const warehousePickupScan = (
+  pickupRunId: number,
+  barcode: string,
+  requestKey: string,
+  addPo = false,
+) => apiFetch<FactoryPickupScanResult>(`/api/warehouse/pickups/${pickupRunId}/scan`, {
+  method: "POST", body: { barcode, requestKey, ...(addPo ? { addPo: true } : {}) }, timeoutMs: 30000,
+});
+export const warehouseFinishPickup = (
+  pickupRunId: number,
+  data: { partialReason?: FactoryPickupPartialReason; note?: string },
+) => apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${pickupRunId}/finish`, {
+  method: "POST", body: data, timeoutMs: 30000,
+});
 export const warehouseUndo = (id: number, requestKey: string) =>
   post<ScanResult>(`movements/${id}/undo`, { requestKey });
 export const warehouseParts = (
@@ -182,6 +214,17 @@ export type ReceiptItem = { barcode: string; quantity: number; version: number }
 export type ReceiptResult = {
   units: number; parts: number; storeId: number; storeName: string; replayed: boolean;
 };
+export type InstallationDeliveryRequest = {
+  installationJobId: number; installationAddress: string;
+  items: ReceiptItem[]; requestKey: string;
+};
+export type InstallationDeliveryResult = {
+  units: number; parts: number; installation: InstallationDestination; replayed: boolean;
+};
+export const warehouseDeliverToInstallation = (body: InstallationDeliveryRequest) =>
+  apiFetch<InstallationDeliveryResult>("/api/warehouse/installation-deliveries", {
+    method: "POST", body, timeoutMs: 90000,
+  });
 export const warehouseReceive = (storeId: number, items: ReceiptItem[], requestKey: string) =>
   apiFetch<ReceiptResult>("/api/warehouse/receipts", {
     method: "POST", body: { storeId, items, requestKey }, timeoutMs: 90000,
