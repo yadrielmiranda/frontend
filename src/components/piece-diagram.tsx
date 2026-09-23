@@ -314,6 +314,7 @@ export function PieceDiagram({
       ? resolveSharedFrenchDoor({
           systemName,
           configuration,
+          dimensionMode,
           piece: normalizedPiece,
           activeOptionName,
           preparationOptionName,

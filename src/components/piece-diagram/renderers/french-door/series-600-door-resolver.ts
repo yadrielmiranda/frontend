@@ -1,3 +1,4 @@
+import type { DimensionMode } from "@/lib/types";
 import type { PieceDiagramData } from "../../legacy-piece-diagram";
 import type {
   PieceDiagramActiveLeaf,
@@ -136,10 +137,12 @@ function xxBoreCount(
   preparationOptionName?: string | null,
 ): PieceDiagramBoreCount | null {
   const normalized = normalizeWords(preparationOptionName);
-  // XX defaults to the standard two-bore preparation while the form finishes
-  // resolving its associated option. This avoids dropping to the legacy
-  // generic diagram during an Active-option change.
+  // Conserva la preparación estándar mientras el formulario carga la opción.
   if (!normalized) return 2;
+
+  // Eco Novo indica los orificios en el nombre abreviado de la preparación.
+  const explicitBores = normalized.match(/\b([23]) (?:HOLES?|BORES?)\b/);
+  if (explicitBores) return Number(explicitBores[1]) as PieceDiagramBoreCount;
 
   if (
     normalized.includes("INACT HANDLE PREP") ||
@@ -306,27 +309,64 @@ function resolveSideliteWidths({
 
 function mixedResolution({
   configuration,
+  dimensionMode,
   piece,
   activeOptionName,
   preparationOptionName,
 }: {
   configuration: PieceDiagramSeries600MixedConfiguration;
+  dimensionMode: DimensionMode;
   piece?: PieceDiagramData;
   activeOptionName?: string | null;
   preparationOptionName?: string | null;
 }): MixedResolution | null {
-  const totalWidth = positiveDimension(piece?.width);
+  let totalWidth = positiveDimension(piece?.width);
   const doorWidth = positiveDimension(piece?.doorWidth);
   const height =
     positiveDimension(piece?.height) ?? positiveDimension(piece?.doorHeight);
 
-  if (totalWidth === null || doorWidth === null || height === null) return null;
+  if (doorWidth === null || height === null) return null;
 
-  const pattern = MIXED_PATTERNS[configuration];
-  const doorIndex = pattern.findIndex((pieceKind) => pieceKind !== "O");
-  const leftSideliteCount = doorIndex;
-  const rightSideliteCount = pattern.length - doorIndex - 1;
+  let pattern = MIXED_PATTERNS[configuration];
+  let doorIndex = pattern.findIndex((pieceKind) => pieceKind !== "O");
+  let leftSideliteCount = doorIndex;
+  let rightSideliteCount = pattern.length - doorIndex - 1;
   const doorKind = pattern.includes("XX") ? "XX" : "X";
+
+  if (dimensionMode === "ECO_NOVO_DOOR") {
+    // Eco Novo recibe el ancho de cada sección y su cantidad de paneles.
+    // El ancho total guardado puede faltar o pertenecer al cálculo anterior.
+    leftSideliteCount = leftSideliteCount > 0 ? Number(piece?.leftPanels) : 0;
+    rightSideliteCount = rightSideliteCount > 0 ? Number(piece?.rightPanels) : 0;
+    if (
+      !Number.isInteger(leftSideliteCount) ||
+      !Number.isInteger(rightSideliteCount) ||
+      (doorIndex > 0 && leftSideliteCount < 1) ||
+      (doorIndex < pattern.length - 1 && rightSideliteCount < 1) ||
+      leftSideliteCount > 2 ||
+      rightSideliteCount > 2
+    ) {
+      return null;
+    }
+
+    const leftWidth =
+      leftSideliteCount > 0 ? positiveDimension(piece?.leftSideliteWidth) : 0;
+    const rightWidth =
+      rightSideliteCount > 0 ? positiveDimension(piece?.rightSideliteWidth) : 0;
+    if (leftWidth === null || rightWidth === null) return null;
+
+    // Selecciona la plantilla existente que coincide con los paneles reales.
+    configuration = `${"O".repeat(leftSideliteCount)}${doorKind}${"O".repeat(rightSideliteCount)}` as PieceDiagramSeries600MixedConfiguration;
+    pattern = MIXED_PATTERNS[configuration];
+    doorIndex = leftSideliteCount;
+    totalWidth =
+      doorWidth +
+      leftWidth * leftSideliteCount +
+      rightWidth * rightSideliteCount;
+  }
+
+  if (totalWidth === null) return null;
+
   const identity = resolveDoorIdentity({
     doorKind,
     activeOptionName,
@@ -380,12 +420,14 @@ function mixedResolution({
 export function resolveSharedFrenchDoor({
   systemName,
   configuration,
+  dimensionMode = "STANDARD",
   piece,
   activeOptionName,
   preparationOptionName,
 }: {
   systemName?: string | null;
   configuration?: string | null;
+  dimensionMode?: DimensionMode;
   piece?: PieceDiagramData;
   activeOptionName?: string | null;
   preparationOptionName?: string | null;
@@ -416,6 +458,7 @@ export function resolveSharedFrenchDoor({
     return mixedResolution({
       configuration:
         normalizedConfiguration as PieceDiagramSeries600MixedConfiguration,
+      dimensionMode,
       piece,
       activeOptionName,
       preparationOptionName,
