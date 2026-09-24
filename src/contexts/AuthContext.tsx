@@ -14,11 +14,14 @@ import { toast } from "sonner";
 
 import { Notification } from "@/lib/types";
 import { getNotifications } from "@/app/api/notifications.api";
-import { getProfileSilent } from "@/app/api/auth/me/auth.api";
+import { getProfileSilent, loginUser, type LoginData } from "@/app/api/auth/me/auth.api";
+import { getPlatformTermsStatus, type PlatformTermsStatus } from "@/app/api/platform-terms.api";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
+import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import type { AuthUser } from "@/app/types/auth";
 import {
   navigateAfterSessionChange,
+  notifySessionChange,
   SESSION_CHANGE_STORAGE_KEY,
   SESSION_RESET_EVENT,
 } from "@/lib/auth-session";
@@ -30,6 +33,8 @@ type AuthContextType = {
   error: string | null;
   setUser: (user: AuthUser | null) => void;
   revalidate: () => Promise<AuthUser | null>;
+  signIn: (credentials: LoginData) => Promise<AuthUser | null>;
+  loginTerms: { userId: number; status: PlatformTermsStatus } | null;
 
   notifications: Notification[];
   unreadCount: number;
@@ -50,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginTerms, setLoginTerms] = useState<AuthContextType["loginTerms"]>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -59,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const transitionRef = useRef(false);
   const authRequestRef = useRef(0);
   const authInFlightRef = useRef(false);
+  const loginInFlightRef = useRef(false);
   const notificationRequestRef = useRef(0);
   const notificationsInFlightRef = useRef(false);
   const probeInFlightRef = useRef(false);
@@ -77,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       transitionRef.current = true;
       authRequestRef.current++;
       clearUser();
+      setLoginTerms(null);
       setIsLoading(true);
       setIsTransitioning(true);
       closeLoginDialog();
@@ -122,8 +130,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signIn = useCallback(async (credentials: LoginData): Promise<AuthUser | null> => {
+    if (transitionRef.current || loginInFlightRef.current) return null;
+    loginInFlightRef.current = true;
+    const request = ++authRequestRef.current;
+    authInFlightRef.current = true;
+    setError(null);
+    try {
+      const result = await loginUser(credentials);
+      if (request !== authRequestRef.current || transitionRef.current) return null;
+
+      // Solo se entra sin recargar desde un documento que no haya mostrado otra cuenta.
+      // El cierre explícito ya descarta los datos y la caché privada de la sesión anterior.
+      const cleanLoginPage = lastIdentityRef.current === null &&
+        (window.location.pathname === "/" || window.location.pathname === "/login");
+      if (!cleanLoginPage || result.role === "technician") {
+        navigateAfterSessionChange(result.role === "technician" ? "/technician" : "/");
+        return null;
+      }
+
+      // Las demás pestañas descartan su cuenta anterior en cuanto cambian las cookies.
+      notifySessionChange();
+      const account = (await getProfileSilent()) as AuthUser;
+      if (request !== authRequestRef.current || transitionRef.current) return null;
+      if (account.role?.name === "technician") {
+        navigateAfterSessionChange("/technician", false);
+        return null;
+      }
+      const terms = await getPlatformTermsStatus(true);
+      if (request !== authRequestRef.current || transitionRef.current) return null;
+
+      // Publicar cuenta y términos juntos evita desmontar el login para mostrar una espera.
+      lastIdentityRef.current = identity(account);
+      currentUserRef.current = account;
+      setLoginTerms({ userId: account.id, status: terms });
+      setUserState(account);
+      setIsAuthenticated(true);
+      closeLoginDialog();
+      void refreshNotifications();
+      return account;
+    } catch (err: unknown) {
+      if (request !== authRequestRef.current || transitionRef.current) return null;
+      setError(err instanceof Error ? err.message : "Could not sign in.");
+      throw err;
+    } finally {
+      loginInFlightRef.current = false;
+      if (request === authRequestRef.current) {
+        authInFlightRef.current = false;
+        if (!transitionRef.current) setIsLoading(false);
+      }
+    }
+  }, [closeLoginDialog, refreshNotifications]);
+
   const fetchUser = useCallback(async (silent: boolean): Promise<AuthUser | null> => {
-    if (transitionRef.current) return null;
+    if (transitionRef.current || loginInFlightRef.current) return null;
     const request = ++authRequestRef.current;
     authInFlightRef.current = true;
     setError(null);
@@ -263,13 +323,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, user?.id, user?.role?.name, revalidate]);
 
   const value: AuthContextType = {
-    isAuthenticated, user, isLoading, error, setUser, revalidate,
+    isAuthenticated, user, isLoading, error, setUser, revalidate, signIn, loginTerms,
     notifications, unreadCount, setNotifications, refreshNotifications,
   };
 
   return <AuthContext.Provider value={value}>
     {isTransitioning
-      ? <main className="flex min-h-dvh items-center justify-center" role="status">Updating session…</main>
+      ? <AuthLoadingScreen />
       : children}
   </AuthContext.Provider>;
 }

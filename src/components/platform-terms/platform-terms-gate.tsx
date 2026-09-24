@@ -10,9 +10,10 @@ import { navigateAfterSessionChange } from '@/lib/auth-session';
 import { acceptPlatformTerms, getMyPlatformTermsHistory, getPlatformTermsDocument, getPlatformTermsStatus,
   platformTermsPageUrl, type PlatformTermsStatus } from '@/app/api/platform-terms.api';
 import { Button } from '@/components/ui/button';
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen';
 
 export function PlatformTermsGate({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, loginTerms } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const userId = isAuthenticated ? user?.id : undefined;
@@ -66,7 +67,8 @@ export function PlatformTermsGate({ children }: { children: ReactNode }) {
     };
   }, [refresh]);
 
-  const status = state && state.userId === userId ? state.status : null;
+  const status = state && state.userId === userId ? state.status :
+    loginTerms && loginTerms.userId === userId ? loginTerms.status : null;
   const current = status?.current;
   const pendingVersionId = status?.required ? current?.id : undefined;
   const review = documentState?.userId === userId && documentState?.versionId === pendingVersionId ? documentState : null;
@@ -125,7 +127,7 @@ export function PlatformTermsGate({ children }: { children: ReactNode }) {
 
   if (publicPage || (!isLoading && !isAuthenticated)) return <>{children}</>;
   // Esperar la comprobación antes de mostrar una solicitud de aceptación.
-  if (isLoading || (!status && !error)) return <p role="status" className="p-8 text-center text-sm text-slate-500">Loading account...</p>;
+  if (isLoading || (!status && !error)) return <AuthLoadingScreen />;
   if (!status) return (
     <main className="flex min-h-dvh items-center justify-center bg-white px-4 py-8">
       <section className="w-full max-w-sm space-y-4 text-center">

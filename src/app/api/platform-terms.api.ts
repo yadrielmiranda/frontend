@@ -30,8 +30,8 @@ export type PlatformTermsAdministration = {
 
 export const getCurrentPlatformTerms = () =>
   apiFetch<PlatformTermsVersion | null>('/api/platform-terms/current', { cache: 'no-store', suppressAuthEvent: true });
-export const getPlatformTermsStatus = () =>
-  apiFetch<PlatformTermsStatus>('/api/platform-terms/status', { cache: 'no-store' });
+export const getPlatformTermsStatus = (suppressAuthEvent = false) =>
+  apiFetch<PlatformTermsStatus>('/api/platform-terms/status', { cache: 'no-store', suppressAuthEvent });
 export const getMyPlatformTermsHistory = () =>
   apiFetch<PlatformTermsHistory[]>('/api/platform-terms/my-history', { cache: 'no-store' });
 export const acceptPlatformTerms = (versionId: number) =>

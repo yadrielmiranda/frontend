@@ -15,7 +15,7 @@ export function GlobalLoginDialog() {
   const isExpired = reason === "expired";
 
   const handleLoginSuccess = () => {
-    // CardLogin solo conserva la pantalla cuando restaura la misma cuenta.
+    // CardLogin gestiona la navegación y la comprobación de identidad.
     closeLoginDialog();
   };
 

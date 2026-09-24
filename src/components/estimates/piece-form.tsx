@@ -2531,7 +2531,7 @@ export function PieceForm({
                           <SelectTrigger className={selectTriggerClass}>
                             <SelectValue placeholder="Select configuration" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" align="start">
                             {!groupedConfigs.hasCategories ? (
                               availableConfigs.map((config) => (
                                 <SelectItem

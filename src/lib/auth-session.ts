@@ -12,17 +12,21 @@ function clearAccountFilters() {
   }
 }
 
+/** Avisa a otras pestañas sin recargar una pantalla de acceso ya limpia. */
+export function notifySessionChange() {
+  clearAccountFilters();
+  try {
+    // Solo se comparte una señal, nunca datos de la cuenta ni credenciales.
+    window.localStorage.setItem(SESSION_CHANGE_STORAGE_KEY, crypto.randomUUID());
+  } catch {
+    // Los probes de sesión siguen detectando cambios si storage no está disponible.
+  }
+}
+
 /** Descarta el árbol de React y la caché de rutas al cambiar de sesión. */
 export function navigateAfterSessionChange(path: string, notifyOtherTabs = true) {
   window.dispatchEvent(new Event(SESSION_RESET_EVENT));
-  clearAccountFilters();
-  if (notifyOtherTabs) {
-    try {
-      // Solo se comparte una señal, nunca datos de la cuenta ni credenciales.
-      window.localStorage.setItem(SESSION_CHANGE_STORAGE_KEY, crypto.randomUUID());
-    } catch {
-      // Los probes de sesión siguen detectando cambios si storage no está disponible.
-    }
-  }
+  if (notifyOtherTabs) notifySessionChange();
+  else clearAccountFilters();
   window.location.replace(path);
 }

@@ -55,7 +55,7 @@ export function CardLogin({
   defaultIdentifier,
 }: CardLoginProps) {
   const router = useRouter();
-  const { revalidate } = useAuth();
+  const { revalidate, signIn } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -78,9 +78,18 @@ export function CardLogin({
 
   const handleLogin = async (data: LoginFormData) => {
     try {
+      if (!isUnlock) {
+        const account = await signIn(data);
+        if (!account) return;
+        onLoginSuccess?.();
+        router.replace("/");
+        router.refresh();
+        return;
+      }
+
       const result = await loginUser(data);
-      if (!isUnlock || result.role === "technician") {
-        navigateAfterSessionChange(result.role === "technician" ? "/technician" : "/");
+      if (result.role === "technician") {
+        navigateAfterSessionChange("/technician");
         return;
       }
 
