@@ -4071,7 +4071,7 @@ export function PieceForm({
                             <Input
                               id={`dealerMarkup-${index}`}
                               type="number"
-                              step="1"
+                              step="any"
                               className="w-24"
                               {...dealerMarkupField}
                               onChange={(e) => {
