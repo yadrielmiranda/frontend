@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { navigateAfterSessionChange } from "@/lib/auth-session";
 import { UserForm } from "@/app/settings/(write)/users/new/user-form";
 import { getProfile } from "@/app/api/auth/me/auth.api";
 import { deleteMyAccount } from "@/app/api/users.api";
@@ -145,11 +146,8 @@ export function ProfileClient({
     try {
       await deleteMyAccount();
 
-      setUser(null as any);
       toast.success("Your account has been deleted.");
-
-      router.replace("/login");
-      router.refresh();
+      navigateAfterSessionChange("/login");
     } catch (error) {
       console.error("Error deleting account:", error);
       toast.error("Could not delete your account.");

@@ -23,6 +23,7 @@ import {
 
 import { loginUser } from "@/app/api/auth/me/auth.api";
 import { useAuth } from "@/contexts/AuthContext";
+import { navigateAfterSessionChange } from "@/lib/auth-session";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, { message: "Username or email is required." }),
@@ -78,18 +79,17 @@ export function CardLogin({
   const handleLogin = async (data: LoginFormData) => {
     try {
       const result = await loginUser(data);
-      await revalidate();
-
-      toast.success(isUnlock ? "Session restored." : "Signed in successfully.");
-
-      if (result.role === "technician") {
-        onClose?.();
-        router.replace("/technician");
-      } else if (onLoginSuccess) {
-        onLoginSuccess();
-      } else {
-        router.push("/");
+      if (!isUnlock || result.role === "technician") {
+        navigateAfterSessionChange(result.role === "technician" ? "/technician" : "/");
+        return;
       }
+
+      // Solo la misma identidad puede recuperar la pantalla de una sesión vencida.
+      // AuthContext recarga el documento si detecta otra cuenta o un cambio de rol.
+      const account = await revalidate();
+      if (!account) return;
+      toast.success("Session restored.");
+      onLoginSuccess?.();
     } catch (err: any) {
       toast.error("Sign in failed", {
         description: err?.message || "Invalid credentials or server error.",

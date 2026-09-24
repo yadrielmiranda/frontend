@@ -57,11 +57,10 @@ export function InlinePieceMarkInput({
       if (wasSaved) {
         setDraft(normalizedMark);
         setSavedValue(normalizedMark);
-      } else {
-        setDraft(savedValue);
       }
     } catch {
-      setDraft(savedValue);
+      // Conservar lo escrito si el bloqueo de sesión impide guardar al perder foco.
+      // El usuario puede reintentar con Enter o al salir de nuevo del campo.
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);

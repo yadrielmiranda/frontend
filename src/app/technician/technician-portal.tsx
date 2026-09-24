@@ -7,6 +7,7 @@ import brandLogo from "../../../public/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import type { AuthUser } from "@/app/types/auth";
 import { logoutUser } from "@/app/api/auth/me/auth.api";
+import { navigateAfterSessionChange } from "@/lib/auth-session";
 import { technicianLogin, technicianScan, technicianState, type TechnicianState, type TechnicianScanResult } from "@/app/api/technician.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,7 +63,7 @@ function TechnicianLogin() {
       try {
         await technicianLogin(String(form.get("username") ?? "").trim(), String(form.get("password") ?? ""));
         // Recarga completa: elimina el estado en memoria de cualquier cuenta anterior.
-        window.location.replace("/technician");
+        navigateAfterSessionChange("/technician");
       } catch (e) { setError(message(e)); setBusy(false); }
     }}>
       <div className="space-y-2"><Label htmlFor="staff-username">Username</Label><Input id="staff-username" name="username" className="h-12 text-base" required autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={busy} /></div>
@@ -124,7 +125,11 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       <div className="min-w-0 [overflow-wrap:anywhere]"><p className="font-semibold text-slate-950">{user.firstName} {user.lastName}</p><p className="mt-1 text-xs text-slate-500">{user.username} · Technician</p></div>
       <Button variant="outline" className="min-h-11 shrink-0 rounded-xl border-slate-200 text-slate-700" disabled={busy || signingOut} onClick={async () => {
         setSigningOut(true); setError("");
-        try { await logoutUser(); window.location.replace("/technician"); }
+        try {
+          window.dispatchEvent(new Event("auth:manual-logout"));
+          await logoutUser();
+          navigateAfterSessionChange("/technician");
+        }
         catch (e) { setError(message(e)); setSigningOut(false); }
       }}><LogOut className="mr-2 h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
     </header>

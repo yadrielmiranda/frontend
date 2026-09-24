@@ -235,7 +235,8 @@ export async function apiFetch<T = unknown>(
         ...(extraHeaders as Record<string, string>),
       },
       body,
-      cache: init.cache,
+      // Las respuestas autenticadas no se reutilizan entre sesiones.
+      cache: init.cache ?? "no-store",
       next: init.next,
       ...(isServer ? {} : { credentials: "include" as const }),
       signal: controller?.signal,

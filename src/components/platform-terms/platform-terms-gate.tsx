@@ -6,12 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { logoutUser } from '@/app/api/auth/me/auth.api';
+import { navigateAfterSessionChange } from '@/lib/auth-session';
 import { acceptPlatformTerms, getMyPlatformTermsHistory, getPlatformTermsDocument, getPlatformTermsStatus,
   platformTermsPageUrl, type PlatformTermsStatus } from '@/app/api/platform-terms.api';
 import { Button } from '@/components/ui/button';
 
 export function PlatformTermsGate({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, isLoading, revalidate } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const userId = isAuthenticated ? user?.id : undefined;
@@ -38,13 +39,16 @@ export function PlatformTermsGate({ children }: { children: ReactNode }) {
       setError(null);
     } catch (err: unknown) {
       if (request !== requestId.current) return;
-      setState(null);
+      // Una sesión vencida o un fallo temporal no desmonta el editor ya autorizado.
+      // Los permisos de cada operación siguen siendo comprobados por el backend.
       setError(err instanceof Error ? err.message : 'Could not load the Terms and Conditions.');
     }
   }, [userId, publicPage]);
 
   useEffect(() => {
-    setState(null);
+    // Conservar la comprobación anterior al bloquear y restaurar la misma cuenta.
+    // Una identidad diferente nunca puede reutilizarla.
+    setState(previous => !userId || previous?.userId === userId ? previous : null);
     setAcceptedVersion(null);
     setError(null);
     void refresh();
@@ -111,10 +115,9 @@ export function PlatformTermsGate({ children }: { children: ReactNode }) {
     if (busy) return;
     setBusy(true);
     try {
+      window.dispatchEvent(new Event('auth:manual-logout'));
       await logoutUser();
-      revalidate();
-      router.replace('/');
-      router.refresh();
+      navigateAfterSessionChange('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not sign out.');
     } finally { setBusy(false); }

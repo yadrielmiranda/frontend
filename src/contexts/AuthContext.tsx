@@ -9,15 +9,19 @@ import React, {
   ReactNode,
   useRef,
 } from "react";
-import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 
 import { Notification } from "@/lib/types";
 import { getNotifications } from "@/app/api/notifications.api";
-import { getProfile, getProfileSilent } from "@/app/api/auth/me/auth.api";
+import { getProfileSilent } from "@/app/api/auth/me/auth.api";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
 import type { AuthUser } from "@/app/types/auth";
+import {
+  navigateAfterSessionChange,
+  SESSION_CHANGE_STORAGE_KEY,
+  SESSION_RESET_EVENT,
+} from "@/lib/auth-session";
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -25,7 +29,7 @@ type AuthContextType = {
   isLoading: boolean;
   error: string | null;
   setUser: (user: AuthUser | null) => void;
-  revalidate: () => void;
+  revalidate: () => Promise<AuthUser | null>;
 
   notifications: Notification[];
   unreadCount: number;
@@ -34,332 +38,244 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-// ✅ Idle “UI”: SOLO define cuándo hacemos probe al backend (NO desloguea local)
-const IDLE_MINUTES = Number(process.env.NEXT_PUBLIC_SESSION_IDLE_MINUTES ?? 10);
-const IDLE_MS = IDLE_MINUTES * 60 * 1000;
-
-// ✅ Probe periódico: detecta expiración del backend aunque idle UI no se haya cumplido todavía
-const PROBE_EVERY_MS = 30 * 1000; // 30s (recomendado 20–30s)
+const IDLE_MS = Number(process.env.NEXT_PUBLIC_SESSION_IDLE_MINUTES ?? 10) * 60 * 1000;
+const PROBE_EVERY_MS = 30 * 1000;
+const identity = (user: AuthUser) => `${user.id}:${user.role?.name ?? ""}`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const { openLoginDialog, closeLoginDialog } = useLoginDialog();
-
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUserState] = useState<AuthUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetchCount, setFetchCount] = useState(0);
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  const currentUserRef = useRef<AuthUser | null>(null);
+  // Se conserva tras expirar: otra cuenta nunca puede reutilizar esta pantalla.
+  const lastIdentityRef = useRef<string | null>(null);
+  const transitionRef = useRef(false);
+  const authRequestRef = useRef(0);
+  const authInFlightRef = useRef(false);
+  const notificationRequestRef = useRef(0);
   const notificationsInFlightRef = useRef(false);
-  const currentRoleRef = useRef<string | undefined>(undefined);
-  currentRoleRef.current = user?.role?.name;
-  const refreshNotifications = useCallback(async () => {
-    if (currentRoleRef.current === "technician" || notificationsInFlightRef.current) return;
-    notificationsInFlightRef.current = true;
+  const probeInFlightRef = useRef(false);
+  const idleProbeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const clearUser = useCallback(() => {
+    currentUserRef.current = null;
+    notificationRequestRef.current++;
+    setUserState(null);
+    setIsAuthenticated(false);
+    setNotifications([]);
+  }, []);
+
+  useEffect(() => {
+    const onReset = () => {
+      transitionRef.current = true;
+      authRequestRef.current++;
+      clearUser();
+      setIsLoading(true);
+      setIsTransitioning(true);
+      closeLoginDialog();
+      toast.dismiss();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== SESSION_CHANGE_STORAGE_KEY || !event.newValue) return;
+      navigateAfterSessionChange("/", false);
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      // El historial del navegador también puede restaurar un documento de otra sesión.
+      if (event.persisted) {
+        navigateAfterSessionChange(window.location.pathname + window.location.search, false);
+      }
+    };
+    window.addEventListener(SESSION_RESET_EVENT, onReset);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      authRequestRef.current++;
+      notificationRequestRef.current++;
+      window.removeEventListener(SESSION_RESET_EVENT, onReset);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [clearUser, closeLoginDialog]);
+
+  const refreshNotifications = useCallback(async () => {
+    const account = currentUserRef.current;
+    if (!account || account.role?.name === "technician" || transitionRef.current || notificationsInFlightRef.current) return;
+    notificationsInFlightRef.current = true;
+    const request = ++notificationRequestRef.current;
     try {
       const latest = await getNotifications();
-      setNotifications(latest);
+      if (!transitionRef.current && request === notificationRequestRef.current &&
+          currentUserRef.current && identity(currentUserRef.current) === identity(account)) {
+        setNotifications(latest);
+      }
     } catch {
-      // Session probing owns authentication errors. Notification refresh is silent.
+      // La validación de sesión se encarga de los errores de autenticación.
     } finally {
       notificationsInFlightRef.current = false;
     }
   }, []);
 
-  // ---------------------------------------
-  // ✅ Refs de control
-  // ---------------------------------------
-
-  // Última interacción del usuario (mouse/tecla/click/etc)
-  const lastInteractionRef = useRef<number>(Date.now());
-
-  // Timer que dispara el probe al cumplirse el idle (sin depender de requests)
-  const idleProbeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Evita probes concurrentes
-  const probeInFlightRef = useRef(false);
-
-  // Usuario anterior para detectar “login con usuario diferente”
-  const lastUserIdRef = useRef<number | null>(null);
-
-  // Interval probe periódico
-  const periodicProbeRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ---------------------------------------
-  // ✅ Probe real al backend (autoridad)
-  // ---------------------------------------
-  const probeBackendSession = useCallback(async () => {
-    if (probeInFlightRef.current) return;
-    probeInFlightRef.current = true;
-
+  const fetchUser = useCallback(async (silent: boolean): Promise<AuthUser | null> => {
+    if (transitionRef.current) return null;
+    const request = ++authRequestRef.current;
+    authInFlightRef.current = true;
+    setError(null);
     try {
-      // ✅ getProfile usa apiFetch -> refresh-on-401 (1 vez) incluido
-      const u = (await getProfile()) as AuthUser;
+      // El error se procesa aquí solo si esta solicitud sigue vigente.
+      const account = (await getProfileSilent()) as AuthUser;
+      if (request !== authRequestRef.current || transitionRef.current) return null;
 
-      const newId = u?.id ?? null;
-      const oldId = lastUserIdRef.current;
-
-      // ✅ Sesión OK (backend dice que sí)
-      setUser(u);
-      setIsAuthenticated(true);
-      setError(null);
-
-      // ✅ Si modal estaba abierto, cerrarlo
-      closeLoginDialog();
-
-      // ✅ Si cambió el usuario, mandar a "/"
-      if (oldId !== null && newId !== null && oldId !== newId) {
-        router.push(u.role?.name === "technician" ? "/technician" : "/");
-        router.refresh();
+      const nextIdentity = identity(account);
+      if (lastIdentityRef.current !== null && lastIdentityRef.current !== nextIdentity) {
+        // No publicar la cuenta nueva dentro del árbol ni las rutas de la anterior.
+        navigateAfterSessionChange(account.role?.name === "technician" ? "/technician" : "/");
+        return null;
       }
 
-      // Guardar usuario actual
-      lastUserIdRef.current = newId;
-
-      // ✅ Consideramos esto como “confirmación” → reinicia el reloj de interacción
-      lastInteractionRef.current = Date.now();
-    } catch (err: any) {
-      // Backend no autoriza (sesión expirada real o inválida)
-      setUser(null);
-      setIsAuthenticated(false);
-      setNotifications([]);
-      setError(err?.message || "Unauthorized");
-
-      // ✅ Abrir modal (sin esperar a que el usuario haga requests)
-      openLoginDialog("expired");
-
-      // IMPORTANTE:
-      // - NO tocamos lastUserIdRef aquí.
-      //   Así, cuando se loguee otro usuario, detectamos el cambio y lo mandamos a "/".
+      lastIdentityRef.current = nextIdentity;
+      currentUserRef.current = account;
+      setUserState(account);
+      setIsAuthenticated(true);
+      closeLoginDialog();
+      void refreshNotifications();
+      return account;
+    } catch (err: unknown) {
+      if (request !== authRequestRef.current || transitionRef.current) return null;
+      clearUser();
+      setError(err instanceof Error ? err.message : "Unauthorized");
+      if (!silent) openLoginDialog("expired");
+      return null;
     } finally {
-      probeInFlightRef.current = false;
+      if (request === authRequestRef.current) {
+        authInFlightRef.current = false;
+        if (!transitionRef.current) setIsLoading(false);
+      }
     }
-  }, [closeLoginDialog, openLoginDialog, router]);
+  }, [clearUser, closeLoginDialog, openLoginDialog, refreshNotifications]);
 
-  // ---------------------------------------
-  // ✅ Programar probe EXACTO al cumplirse el idle
-  // ---------------------------------------
-  const scheduleIdleProbe = useCallback(() => {
-    // ✅ Si no hay sesión, no programes probes por idle (evita molestar en landing)
-    if (!isAuthenticated) return;
-
-    if (idleProbeTimerRef.current) {
-      clearTimeout(idleProbeTimerRef.current);
-      idleProbeTimerRef.current = null;
+  // Ahora await revalidate() espera la respuesta y la comprobación de identidad.
+  const revalidate = useCallback(async () => {
+    const account = await fetchUser(true);
+    if (!account && !transitionRef.current) {
+      throw new Error("Could not verify your session. Please sign in again.");
     }
+    return account;
+  }, [fetchUser]);
 
-    idleProbeTimerRef.current = setTimeout(() => {
-      // ✅ Se cumplió el idle -> preguntamos al backend
-      probeBackendSession();
-    }, IDLE_MS);
-  }, [IDLE_MS, isAuthenticated, probeBackendSession]);
-
-  // ---------------------------------------
-  // ✅ Listener global de interacción
-  // ---------------------------------------
   useEffect(() => {
+    void fetchUser(true);
+  }, [fetchUser]);
+
+  const probeBackendSession = useCallback(async () => {
+    if (probeInFlightRef.current || authInFlightRef.current || transitionRef.current || !currentUserRef.current) return;
+    probeInFlightRef.current = true;
+    try { await fetchUser(false); }
+    finally { probeInFlightRef.current = false; }
+  }, [fetchUser]);
+
+  const scheduleIdleProbe = useCallback(() => {
+    if (idleProbeTimerRef.current) clearTimeout(idleProbeTimerRef.current);
+    if (!currentUserRef.current || transitionRef.current) return;
+    idleProbeTimerRef.current = setTimeout(() => void probeBackendSession(), IDLE_MS);
+  }, [probeBackendSession]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
     const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
-    let ticking = false;
-
-    const onAny = () => {
-      if (ticking) return;
-      ticking = true;
-
-      requestAnimationFrame(() => {
-        ticking = false;
-
-        // ✅ Actualiza interacción
-        lastInteractionRef.current = Date.now();
-
-        // ✅ Reprograma el probe “idle”
+    let frame: number | null = null;
+    const onInteraction = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
         scheduleIdleProbe();
       });
     };
-
-    events.forEach((e) => window.addEventListener(e, onAny, { passive: true }));
-
+    scheduleIdleProbe();
+    events.forEach((event) => window.addEventListener(event, onInteraction, { passive: true }));
     return () => {
-      events.forEach((e) => window.removeEventListener(e, onAny as any));
+      events.forEach((event) => window.removeEventListener(event, onInteraction));
+      if (frame !== null) cancelAnimationFrame(frame);
       if (idleProbeTimerRef.current) clearTimeout(idleProbeTimerRef.current);
     };
-  }, [scheduleIdleProbe]);
+  }, [isAuthenticated, scheduleIdleProbe]);
 
-  // ---------------------------------------
-  // ✅ Probe al volver a foco / volver a la pestaña
-  // ---------------------------------------
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const onFocus = () => {
-      probeBackendSession();
-      refreshNotifications();
-    };
+    const onFocus = () => void probeBackendSession();
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        probeBackendSession();
-        refreshNotifications();
-      }
+      if (document.visibilityState === "visible") void probeBackendSession();
     };
-
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-
+    const timer = setInterval(onVisibility, PROBE_EVERY_MS);
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(timer);
     };
-  }, [isAuthenticated, probeBackendSession, refreshNotifications]);
+  }, [isAuthenticated, probeBackendSession]);
 
-  // ---------------------------------------
-  // ✅ Probe periódico: detecta expiración del backend sin esperar idle UI
-  // ---------------------------------------
-  useEffect(() => {
-    if (periodicProbeRef.current) {
-      clearInterval(periodicProbeRef.current);
-      periodicProbeRef.current = null;
+  // Los cambios de perfil solo pueden actualizar la identidad ya validada.
+  const setUser = useCallback((account: AuthUser | null) => {
+    if (transitionRef.current) return;
+    if (!account) {
+      authRequestRef.current++;
+      clearUser();
+    } else if (currentUserRef.current && identity(account) === identity(currentUserRef.current)) {
+      currentUserRef.current = account;
+      setUserState(account);
     }
-
-    if (!isAuthenticated) return;
-
-    periodicProbeRef.current = setInterval(() => {
-      // ✅ Solo si tab visible (reduce ruido)
-      if (document.visibilityState !== "visible") return;
-      // ✅ Evita probes concurrentes
-      if (probeInFlightRef.current) return;
-
-      probeBackendSession();
-      refreshNotifications();
-    }, PROBE_EVERY_MS);
-
-    return () => {
-      if (periodicProbeRef.current) clearInterval(periodicProbeRef.current);
-      periodicProbeRef.current = null;
-    };
-  }, [isAuthenticated, probeBackendSession, refreshNotifications]);
-
-  // ---------------------------------------
-  // ✅ Fetch inicial (al montar / revalidate)
-  // ---------------------------------------
-  const fetchUser = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      /**
-       * ✅ CLAVE: load inicial “silencioso”
-       * - Si estás en "/" sin sesión, NO queremos que se abra el modal.
-       * - Esto evita que apiFetch dispare auth:login-required en el primer render.
-       */
-      const u = (await getProfileSilent()) as AuthUser;
-
-      const newId = u?.id ?? null;
-      const oldId = lastUserIdRef.current;
-
-      setUser(u);
-      setIsAuthenticated(true);
-
-      // ✅ Si cambió el usuario, mandar a "/"
-      if (oldId !== null && newId !== null && oldId !== newId) {
-        router.push(u.role?.name === "technician" ? "/technician" : "/");
-        router.refresh();
-      }
-
-      lastUserIdRef.current = newId;
-
-      // Una condición pendiente no invalida la sesión autenticada.
-      const initialNotifications = u.role?.name === "technician" ? [] : await getNotifications().catch(() => []);
-      setNotifications(initialNotifications);
-
-      // ✅ Programar idle probe desde ahora
-      lastInteractionRef.current = Date.now();
-      scheduleIdleProbe();
-
-      // ✅ Si estaba abierto, cerrar modal
-      closeLoginDialog();
-    } catch (err: any) {
-      setUser(null);
-      setIsAuthenticated(false);
-      setNotifications([]);
-      setError(err?.message || "Unauthorized");
-      // ✅ Aquí NO abrimos modal: landing debe poder verse sin sesión.
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchCount, closeLoginDialog, router, scheduleIdleProbe]);
+  }, [clearUser]);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
-
-  // ---------------------------------------
-  // ✅ Socket notifications
-  // ---------------------------------------
-  useEffect(() => {
-    // comentario en espanol: desactivado temporalmente en producción hasta configurar websocket estable
     const socketsEnabled = process.env.NEXT_PUBLIC_ENABLE_SOCKET === "true";
+    if (!socketsEnabled || !isAuthenticated || !user?.id || user.role?.name === "technician") return;
 
-    if (!socketsEnabled) return;
-    if (!isAuthenticated || !user?.id || user.role?.name === "technician") return;
-
-    const socket: Socket = io(API_URL, {
-      withCredentials: true,
-      transports: ["websocket"],
-    });
+    const accountIdentity = identity(user);
+    const socket: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
     let disposed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     socket.on("disconnect", (reason) => {
       if (reason !== "io server disconnect" || disposed) return;
-      // Renueva las cookies mediante HTTP antes de volver a autenticar el socket.
       reconnectTimer = setTimeout(() => {
-        void getProfileSilent().then(() => {
-          if (!disposed) socket.connect();
+        void revalidate().then((account) => {
+          if (!disposed && !transitionRef.current && account && identity(account) === accountIdentity) socket.connect();
         }).catch(() => undefined);
       }, 1000);
     });
-
-    socket.on("new_notification", (newNotification: Notification) => {
-      toast.info(newNotification.message);
-      setNotifications((prev) => [
-        newNotification,
-        ...prev.filter((item) => item.id !== newNotification.id),
-      ]);
+    socket.on("new_notification", (notification: Notification) => {
+      if (disposed || transitionRef.current || !currentUserRef.current || identity(currentUserRef.current) !== accountIdentity) return;
+      toast.info(notification.message);
+      setNotifications((previous) => [notification, ...previous.filter((item) => item.id !== notification.id)]);
     });
-
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       socket.disconnect();
     };
-  }, [isAuthenticated, user?.id, user?.role?.name]);
-
-  const revalidate = () => setFetchCount((p) => p + 1);
+  }, [isAuthenticated, user?.id, user?.role?.name, revalidate]);
 
   const value: AuthContextType = {
-    isAuthenticated,
-    user,
-    isLoading,
-    error,
-    setUser,
-    revalidate,
-    notifications,
-    unreadCount,
-    setNotifications,
-    refreshNotifications,
+    isAuthenticated, user, isLoading, error, setUser, revalidate,
+    notifications, unreadCount, setNotifications, refreshNotifications,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>
+    {isTransitioning
+      ? <main className="flex min-h-dvh items-center justify-center" role="status">Updating session…</main>
+      : children}
+  </AuthContext.Provider>;
 }
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
 };

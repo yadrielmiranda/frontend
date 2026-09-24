@@ -4,10 +4,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 import { CardLogin } from "@/components/card-login";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function GlobalLoginDialog() {
-  const router = useRouter();
   const pathname = usePathname();
 
   const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, reason } =
@@ -16,15 +15,8 @@ export function GlobalLoginDialog() {
   const isExpired = reason === "expired";
 
   const handleLoginSuccess = () => {
-    // Siempre cerramos el modal
+    // CardLogin solo conserva la pantalla cuando restaura la misma cuenta.
     closeLoginDialog();
-
-    // Solo en login "manual" mandamos a "/"
-    if (!isExpired) {
-      router.push("/");
-    }
-
-    // En expired: NO hacemos nada más (sin refresh, sin navegación)
   };
 
   const handleClose = () => {

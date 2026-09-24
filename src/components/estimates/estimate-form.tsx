@@ -213,7 +213,10 @@ export function EstimateForm({
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
   const { user } = useAuth();
-  const role = user?.role?.name ?? null;
+  // El bloqueo temporal no cambia los campos ni las condiciones del borrador.
+  // AuthContext descarta este editor si se autentica una identidad diferente.
+  const [initialRole] = useState(user?.role?.name ?? null);
+  const role = user?.role?.name ?? initialRole;
 
   const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
   // Los campos de reventa dependen del dueño del estimado, además del permiso del editor.

@@ -71,9 +71,10 @@ export default function HomePage() {
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setEstimates([]);
-      setOrders([]);
+    setEstimates([]);
+    setOrders([]);
+    if (!isAuthenticated || !user?.id) {
+      setIsDashboardLoading(false);
       return;
     }
 
@@ -111,7 +112,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id, user?.role?.name]);
 
   const dashboardSummary = useMemo(() => {
     const activeEstimates = estimates.filter(isActiveEstimate);
