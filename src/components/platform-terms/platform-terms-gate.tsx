@@ -124,8 +124,20 @@ export function PlatformTermsGate({ children }: { children: ReactNode }) {
   }
 
   if (publicPage || (!isLoading && !isAuthenticated)) return <>{children}</>;
-  if (isLoading) return <p role="status" className="p-8 text-center text-sm text-slate-500">Loading account...</p>;
-  if (status && !status.required) return <>{children}</>;
+  // Esperar la comprobación antes de mostrar una solicitud de aceptación.
+  if (isLoading || (!status && !error)) return <p role="status" className="p-8 text-center text-sm text-slate-500">Loading account...</p>;
+  if (!status) return (
+    <main className="flex min-h-dvh items-center justify-center bg-white px-4 py-8">
+      <section className="w-full max-w-sm space-y-4 text-center">
+        <p role="alert" className="text-sm text-slate-700">Could not load your account. Please try again.</p>
+        <div className="flex justify-center gap-3">
+          <Button disabled={busy} onClick={() => { setError(null); void refresh(); }}>Try again</Button>
+          <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>Sign out</Button>
+        </div>
+      </section>
+    </main>
+  );
+  if (!status.required) return <>{children}</>;
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-red-50/40 px-4 py-8 sm:px-6">
