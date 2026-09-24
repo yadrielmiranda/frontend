@@ -48,7 +48,7 @@ import {
   USERNAME_VALIDATION_MESSAGE,
 } from "@/lib/username-policy";
 
-// El registro público queda habilitado una vez validada la cobertura de delivery.
+// El registro público queda habilitado si es true. Si es false, se oculta el formulario y se muestra un mensaje de que el registro no está disponible.
 const REGISTRATION_ENABLED = false;
 
 const registerSchema = z.object({

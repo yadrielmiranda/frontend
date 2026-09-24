@@ -35,6 +35,10 @@ export function GlobalLoginDialog() {
   // El portal técnico tiene su propio acceso, sin registro público ni área comercial.
   if (pathname === "/technician" || pathname.startsWith("/technician/")) return null;
 
+  // La información comercial y sus políticas siguen accesibles con una sesión vencida.
+  if (pathname === "/company" || pathname === "/sms" || pathname.startsWith("/sms/") ||
+      pathname === "/terms" || pathname.startsWith("/terms/")) return null;
+
   return (
     <Dialog
       open={isLoginDialogOpen}
