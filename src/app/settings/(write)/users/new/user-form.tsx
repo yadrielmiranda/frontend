@@ -1,5 +1,7 @@
 "use client";
 import type { PaymentPlan } from "@/lib/payment-plan";
+import { earningsBasisLabels, type DealerEarningsPlan } from "@/lib/dealer-earnings";
+import Link from "next/link";
 
 
 import { useForm, Controller, useWatch } from "react-hook-form";
@@ -44,6 +46,7 @@ interface UserFormProps {
   roles: Role[];
   profiles?: InstallationPriceProfile[];
   paymentPlans?: PaymentPlan[];
+  earningsPlans?: DealerEarningsPlan[];
   onProfileUpdate?: (updatedUser: User) => void;
 }
 
@@ -127,6 +130,7 @@ export function UserForm({
   roles,
   profiles = [],
   paymentPlans = [],
+  earningsPlans = [],
   onProfileUpdate,
 }: UserFormProps) {
   const router = useRouter();
@@ -168,6 +172,7 @@ export function UserForm({
       markupOverride: storedMarkupToPercent(user?.markupOverride),
       isTaxExempt: user?.isTaxExempt ?? false,
       dealerMode: user?.dealerMode ?? "EXTERNAL",
+      dealerEarningsPlanId: user?.dealerEarningsPlanId ?? null,
       noInstallationDeposit: user?.noInstallationDeposit ?? false,
     },
   });
@@ -193,6 +198,8 @@ export function UserForm({
     (role) => role.id === Number(selectedRoleId),
   )?.name;
   const isDealerAccount = selectedRoleName === "dealer";
+  const isInternalDealer = isDealerAccount && watch("dealerMode") === "INTERNAL";
+  const selectedEarningsPlan = earningsPlans.find(plan => plan.id === Number(watch("dealerEarningsPlanId")));
   const defaultMarkup =
     roles.find((r) => r.id === Number(selectedRoleId))?.markup || 0;
 
@@ -205,6 +212,10 @@ export function UserForm({
       if (!normalizedPhone) {
         throw new Error("Invalid US phone number.");
       }
+
+      if (!isProfilePage && isInternalDealer && !selectedEarningsPlan?.isActive)
+        throw new Error("Select an active earnings plan for this internal dealer.");
+      const earningsConfig = isInternalDealer ? { dealerEarningsPlanId: Number(data.dealerEarningsPlanId) } : {};
 
       if (isEditMode) {
         if (isProfilePage) {
@@ -262,6 +273,7 @@ export function UserForm({
           }
 
           const updateData: UpdateUserDto = {
+            ...earningsConfig,
             idRole: Number(data.idRole),
             markupOverride: markupValue,
             isTaxExempt: data.isTaxExempt ?? false,
@@ -288,6 +300,7 @@ export function UserForm({
         }
 
         const payload: CreateUserDto = {
+          ...earningsConfig,
           username: data.username,
           firstName: data.firstName,
           lastName: data.lastName,
@@ -561,6 +574,24 @@ export function UserForm({
                 </Select>
               )}
             />
+          </div>
+        )}
+
+        {!isProfilePage && isInternalDealer && (
+          <div className="md:col-span-2 space-y-3 rounded-lg border bg-slate-50 p-4">
+            <Label htmlFor="dealerEarningsPlanId">Material earnings plan</Label>
+            <Controller name="dealerEarningsPlanId" control={control} render={({ field }) => (
+              <Select value={field.value == null ? "" : String(field.value)} onValueChange={value => field.onChange(Number(value))}>
+                <SelectTrigger id="dealerEarningsPlanId"><SelectValue placeholder="Select an earnings plan" /></SelectTrigger>
+                <SelectContent>
+                  {earningsPlans.filter(plan => plan.isActive).map(plan => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )} />
+            {selectedEarningsPlan && <p className="text-sm text-muted-foreground">{Number(selectedEarningsPlan.percent)}% of {earningsBasisLabels[selectedEarningsPlan.basis].toLowerCase()}. Material only, after discounts and before sales tax.</p>}
+            <p className="text-sm"><Link className="underline" href="/settings/earnings-plans">Manage earnings plans</Link></p>
+            {!earningsPlans.some(plan => plan.isActive) && <p className="text-sm text-amber-800">Create an active earnings plan before saving this internal dealer.</p>}
+            <p className="text-xs text-muted-foreground">Active estimates update to the assigned plan until the first checkout, payment, or order. After that, they keep their saved earnings plan.</p>
           </div>
         )}
 

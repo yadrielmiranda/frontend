@@ -307,6 +307,7 @@ export function getEstimateDiscount(id: number) {
   return apiFetch<{
     config: import('@/lib/estimate-discount').EstimateDiscountConfig | null;
     summary: import('@/lib/estimate-discount').EstimateDiscountSummary | null;
+    dealerEarnings: import('@/lib/dealer-earnings').DealerEarningsSummary | null;
     paymentSchedule: import('@/lib/payment-plan').PaymentSchedule | null;
   }>(`/api/estimates/${id}/discount`, { cache: 'no-store' });
 }

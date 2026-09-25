@@ -5,6 +5,7 @@ import { PaymentScheduleView } from "@/components/payments/payment-schedule";
 import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { DealerProfitSummary } from "../../dealer-profit-summary";
+import { DealerEarningsSummaryCard } from "../../dealer-earnings-summary";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
@@ -561,11 +562,11 @@ function AdminProfitability({
 }) {
   const internalDealer =
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
-  const factoryRate = numberValue(estimate.rateT);
+  const factoryRate = numberValue(internalDealer ? estimate.order?.rate ?? estimate.rateT : estimate.rateT);
   const manual = estimate.manualDiscountSummary;
   const internalMaterialSubtotal = manual?.payer === "ACCOUNT_OWNER" ? Number(manual.material.subtotal) : numberValue(estimate.priceT);
   const materialSaleSubtotal = internalDealer
-    ? manual?.payer === "CUSTOMER" ? Number(manual.material.subtotal) : numberValue(estimate.customerPriceT)
+    ? estimate.order?.saleSubtotal ?? (manual?.payer === "CUSTOMER" ? Number(manual.material.subtotal) : numberValue(estimate.customerPriceT))
     : internalMaterialSubtotal;
   const estimatedCompanyProfit = roundMoney(materialSaleSubtotal - factoryRate);
   const saleChannel = ownerIsDealer
@@ -592,15 +593,31 @@ function AdminProfitability({
           <div className="font-medium">{formatMoney(materialSaleSubtotal)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Estimated factory cost</div>
+          <div className="text-muted-foreground">{internalDealer ? "App base price (before markups)" : "Estimated factory cost"}</div>
           <div className="font-medium">{formatMoney(factoryRate)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Estimated material profit</div>
+          <div className="text-muted-foreground">{internalDealer ? "Expected material profit" : "Estimated material profit"}</div>
           <div className="font-medium">
-            {formatMoney(estimatedCompanyProfit)}
+            {formatMoney(internalDealer && estimate.materialProfits ? Number(estimate.materialProfits.expectedProfit) : estimatedCompanyProfit)}
           </div>
         </div>
+        {internalDealer && estimate.materialProfits && (
+          <>
+            <div>
+              <div className="text-muted-foreground">Real material profit</div>
+              <div className="font-medium">{estimate.materialProfits.realProfit == null ? "Pending real factory cost" : formatMoney(Number(estimate.materialProfits.realProfit))}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Company expected profit after dealer earnings</div>
+              <div className="font-medium">{estimate.materialProfits.authenticExpectedProfit == null ? "Pending dealer earnings" : formatMoney(Number(estimate.materialProfits.authenticExpectedProfit))}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Company real profit after dealer earnings</div>
+              <div className="font-medium">{estimate.materialProfits.authenticRealProfit == null ? "Pending real factory cost" : formatMoney(Number(estimate.materialProfits.authenticRealProfit))}</div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -814,7 +831,9 @@ export function ReportFinancialSummary({
         )}
       </div>
 
-      {comparisonView && (
+      {comparisonView && estimate.dealerModeSnapshot === "INTERNAL" ? (
+        <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} />
+      ) : comparisonView && (
         <DealerProfitSummary
           materialProfit={dealerMaterialProfit}
           serviceProfit={dealerServiceProfit}

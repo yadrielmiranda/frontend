@@ -200,6 +200,15 @@ export function SettingsMenuItems({
 
       {isAdmin && (
         <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/earnings-plans">
+            <BadgeDollarSign className={iconClass} />
+            Internal Dealer Earnings Plans
+          </Link>
+        </DropdownMenuItem>
+      )}
+
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
           <Link href="/settings/payment-plans">
             <BadgeDollarSign className={iconClass} />
             Payment Plans

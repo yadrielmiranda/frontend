@@ -11,6 +11,7 @@ import { OrderInstallationPanel } from "@/components/orders/order-installation-p
 import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-panel";
 import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
 import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
+import { DealerEarningsSummaryCard } from "@/components/estimates/dealer-earnings-summary";
 
 export function OrderDetails({
   order,
@@ -162,6 +163,10 @@ export function OrderDetails({
         />
       )}
 
+      {(isOwner || isPrivileged) && order.dealerModeSnapshot === "INTERNAL" && order.dealerEarnings && (
+        <DealerEarningsSummaryCard earnings={order.dealerEarnings} />
+      )}
+
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (
         <div className="rounded-xl border bg-white shadow-sm p-5 space-y-4">
@@ -195,14 +200,14 @@ export function OrderDetails({
 
             <div>
               <div className="text-muted-foreground">
-                Estimated factory cost
+                {order.dealerModeSnapshot === "INTERNAL" ? "App base price (before markups)" : "Estimated factory cost"}
               </div>
               <div className="font-medium">{formatMoney(order.rate)}</div>
             </div>
 
             <div>
               <div className="text-muted-foreground">
-                Estimated material profit
+                {order.dealerModeSnapshot === "INTERNAL" ? "Expected material profit" : "Estimated material profit"}
               </div>
               <div className="font-medium">{formatMoney(order.netProfit)}</div>
             </div>
@@ -230,6 +235,18 @@ export function OrderDetails({
                   : formatMoney(order.netProfitReal)}
               </div>
             </div>
+            {order.materialProfits && (
+              <>
+                <div>
+                  <div className="text-muted-foreground">Company expected profit after dealer earnings</div>
+                  <div className="font-medium">{order.materialProfits.authenticExpectedProfit == null ? "Pending dealer earnings" : formatMoney(Number(order.materialProfits.authenticExpectedProfit))}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Company real profit after dealer earnings</div>
+                  <div className="font-medium">{order.materialProfits.authenticRealProfit == null ? "Pending real factory cost" : formatMoney(Number(order.materialProfits.authenticRealProfit))}</div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="border-t pt-3 text-xs text-muted-foreground">

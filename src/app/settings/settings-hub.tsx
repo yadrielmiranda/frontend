@@ -219,6 +219,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
 
   const pricingItems: SettingsItem[] = [
     {
+      title: "Internal Dealer Earnings Plans",
+      description: "Create earnings plans and assign them to internal dealers.",
+      href: "/settings/earnings-plans",
+      icon: BadgeDollarSign,
+      show: isAdmin,
+      color: "bg-emerald-50 text-emerald-600",
+    },
+    {
       title: "Payment Plans",
       description: "Configure installments and assign plans by role or user.",
       href: "/settings/payment-plans",

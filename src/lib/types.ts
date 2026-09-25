@@ -28,6 +28,8 @@ export interface User {
   markupOverride?: number | null;
   isTaxExempt: boolean;
   dealerMode?: DealerMode | null;
+  dealerEarningsPlanId?: number | null;
+  dealerEarningsPlan?: import("./dealer-earnings").DealerEarningsPlan | null;
   noInstallationDeposit?: boolean;
 
   isActive: boolean;
@@ -403,6 +405,8 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
+  materialProfits?: import("./dealer-earnings").MaterialProfitsSummary | null;
   paymentPlanSnapshot?: unknown;
   paymentSchedule?: import("./payment-plan").PaymentSchedule | null;
   manualDiscount?: import("./estimate-discount").EstimateDiscountConfig | null;
@@ -973,6 +977,8 @@ export interface OrderStatus {
 }
 
 export interface Order {
+  dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
+  materialProfits?: import("./dealer-earnings").MaterialProfitsSummary | null;
   id: number;
   number: string;
   date: string;
@@ -1546,6 +1552,7 @@ export interface CreateUserDto {
   paymentPlanId?: number | null;
   installationPriceProfileId?: number | null;
   dealerMode?: DealerMode;
+  dealerEarningsPlanId?: number | null;
   noInstallationDeposit?: boolean;
 }
 

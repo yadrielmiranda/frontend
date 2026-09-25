@@ -204,6 +204,7 @@ export function EstimateForm({
   const [discountData, setDiscountData] = useState<Awaited<ReturnType<typeof getEstimateDiscount>>>({
     config: estimate?.manualDiscount ?? null,
     summary: estimate?.manualDiscountSummary ?? null,
+    dealerEarnings: estimate?.dealerEarnings ?? null,
     paymentSchedule: initialInstallation?.paymentSchedule ?? estimate?.paymentSchedule ?? null,
   });
   const [discountDirty, setDiscountDirty] = useState(false);
@@ -562,6 +563,7 @@ export function EstimateForm({
     setDiscountData({
       config: updated.manualDiscount ?? null,
       summary: updated.manualDiscountSummary ?? null,
+      dealerEarnings: updated.dealerEarnings ?? null,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
   };
@@ -924,6 +926,7 @@ export function EstimateForm({
     setDiscountData({
       config: updated.manualDiscount ?? null,
       summary: updated.manualDiscountSummary ?? null,
+      dealerEarnings: updated.dealerEarnings ?? null,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
     setPromotionEstimate(updated);
@@ -1695,6 +1698,8 @@ export function EstimateForm({
           /> : undefined}
           ownerRole={ownerRole}
           dealerMode={dealerMode}
+          dealerEarnings={discountData.dealerEarnings}
+          earningsPending={needsRecalculation || discountDirty || discountLoading || discountError}
           ownerIsTaxExempt={isTaxExempt}
           taxRate={taxRate}
           customerTaxRatePercent={Number(customerTaxRatePercent) || 0}

@@ -18,6 +18,8 @@ import { paidBaseFor, paidInstallationCredit } from "@/lib/installation-flow";
 import { additionalServiceTotals } from "@/lib/installation-service-totals";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
 import { DealerProfitSummary } from "./dealer-profit-summary";
+import { DealerEarningsSummaryCard } from "./dealer-earnings-summary";
+import type { DealerEarningsSummary } from "@/lib/dealer-earnings";
 import {
   Card,
   CardContent,
@@ -186,6 +188,8 @@ function ExternalDealerServiceSummary({
 export function EstimateFinancialSummary({
   ownerRole,
   dealerMode,
+  dealerEarnings,
+  earningsPending = false,
   ownerIsTaxExempt,
   taxRate,
   customerTaxRatePercent,
@@ -199,6 +203,8 @@ export function EstimateFinancialSummary({
   discountEditor?: ReactNode;
   ownerRole: string;
   dealerMode: DealerMode | null;
+  dealerEarnings?: DealerEarningsSummary | null;
+  earningsPending?: boolean;
   ownerIsTaxExempt: boolean;
   taxRate: number;
   customerTaxRatePercent: number;
@@ -699,7 +705,9 @@ export function EstimateFinancialSummary({
           )}
         </div>
 
-        {isDealerEstimate && (
+        {isDealerEstimate && dealerMode === "INTERNAL" ? (
+          <DealerEarningsSummaryCard earnings={dealerEarnings} pendingChanges={earningsPending || Boolean(revisionTotals)} />
+        ) : isDealerEstimate && (
           <DealerProfitSummary
             materialProfit={dealerProfit}
             serviceProfit={dealerServiceProfit}

@@ -1,4 +1,5 @@
 import { getPaymentPlans } from "@/app/api/payment-plans.api";
+import { getEarningsPlans } from "@/app/api/earnings-plans.api";
 // src/app/settings/(write)/users/new/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/navigation/back-link";
@@ -7,10 +8,11 @@ import { UserForm } from "./user-form";
 import { getInstallationProfiles } from "@/app/api/installations.api";
 
 export default async function NewUserPage() {
-  const [roles, profiles, paymentPlans] = await Promise.all([
+  const [roles, profiles, paymentPlans, earningsPlans] = await Promise.all([
     getRoles(),
     getInstallationProfiles(false),
     getPaymentPlans(),
+    getEarningsPlans(),
   ]);
 
   return (
@@ -27,7 +29,7 @@ export default async function NewUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UserForm roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} />
+          <UserForm roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} earningsPlans={earningsPlans} />
         </CardContent>
       </Card>
     </div>

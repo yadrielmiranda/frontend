@@ -1,4 +1,5 @@
 import { getPaymentPlans } from "@/app/api/payment-plans.api";
+import { getEarningsPlans } from "@/app/api/earnings-plans.api";
 // src/app/settings/(write)/users/[id]/edit/page.tsx
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,11 +20,12 @@ export default async function EditUserPage({
 
   if (isNaN(userId)) notFound();
 
-  const [user, roles, profiles, paymentPlans] = await Promise.all([
+  const [user, roles, profiles, paymentPlans, earningsPlans] = await Promise.all([
     getUser(userId),
     getRoles(),
     getInstallationProfiles(false),
     getPaymentPlans(),
+    getEarningsPlans(),
   ]);
   if (!user) notFound();
 
@@ -42,7 +44,7 @@ export default async function EditUserPage({
         </CardHeader>
         <CardContent>
           {user.role.name === "technician" ? <TechnicianAccountForm user={user} /> :
-            <UserForm user={user} roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} /> }
+            <UserForm user={user} roles={roles.filter((role) => role.name !== "technician")} profiles={profiles} paymentPlans={paymentPlans} earningsPlans={earningsPlans} /> }
         </CardContent>
       </Card>
     </div>
