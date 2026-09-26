@@ -1,5 +1,7 @@
 "use client";
 
+import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
+
 import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
 
@@ -358,6 +360,7 @@ export function EstimateDetails({
         </DialogContent>
       </Dialog>
       <div className="mx-auto max-w-6xl">
+        {(!ownerIsDealer || reportMode !== "customer") && <MaterialRevisionAccess estimateId={estimate.id} />}
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
             <BackLink

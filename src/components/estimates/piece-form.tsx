@@ -284,6 +284,8 @@ export interface PieceFormProps {
   estimateId?: number;
   onCalculate?: (data: CalculatePiecePayload) => Promise<CalculatedPiece>;
   startUnlocked?: boolean;
+  lockQuantity?: boolean;
+  lockDealerMarkup?: boolean;
 }
 
 export function PieceForm({
@@ -2798,6 +2800,7 @@ export function PieceForm({
                         className={inputClass}
                         type="number"
                         disabled={isLocked}
+                        readOnly={props.lockQuantity}
                         {...register("qty", {
                           required: "Qty is required",
                           valueAsNumber: true,
@@ -4078,6 +4081,7 @@ export function PieceForm({
                             </Label>
                             <Input
                               id={`dealerMarkup-${index}`}
+                              readOnly={props.lockDealerMarkup}
                               type="number"
                               step="any"
                               className="w-24"

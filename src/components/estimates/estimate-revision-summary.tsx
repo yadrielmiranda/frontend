@@ -309,7 +309,7 @@ export function EstimateRevisionSummary({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <strong>
-                      {item.originalSnapshot.mark ||
+                      {item.action === "ADD" ? item.proposedPieceInput?.mark || "New piece" : item.originalSnapshot.mark ||
                         `Piece #${item.originalPieceId}`}{" "}
                       · Unit {item.sourceUnitIndex}
                     </strong>
@@ -327,10 +327,10 @@ export function EstimateRevisionSummary({
                         Original
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {originalName || "—"}
+                        {item.action === "ADD" ? "Not included in the original estimate" : originalName || "—"}
                       </p>
                       <p className="mt-1 font-medium">
-                        {dimensions(item.originalSnapshot)}
+                        {item.action === "ADD" ? "—" : dimensions(item.originalSnapshot)}
                       </p>
                     </div>
                     <div className="min-w-0 rounded-md bg-blue-50 p-3">

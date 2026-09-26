@@ -1,5 +1,7 @@
 "use client";
 
+import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,6 +41,9 @@ import {
   addInstallationLine,
   addInstallationMeasurement,
   calculateInstallationMeasurementPiece,
+  calculateInstallationAddedPiece,
+  saveInstallationAddedPiece,
+  removeInstallationAddedPiece,
   cancelInstallation,
   completeInstallation,
   decideInstallationQuoteAsAdmin,
@@ -80,6 +85,7 @@ import { paidBaseFor } from "@/lib/installation-flow";
 import { PieceModal } from "@/components/estimates/piece-modal";
 import type { PieceFormValues } from "@/components/estimates/types";
 import { EstimateRevisionSummary } from "@/components/estimates/estimate-revision-summary";
+import { revisionPieceForm, revisionPieceInput } from "@/components/estimates/material-revisions/piece-values";
 import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
 import {
@@ -853,6 +859,12 @@ export function InstallationDetailClient({
     note?: string;
   } | null>(null);
 
+  const [addedPieceEditor, setAddedPieceEditor] = useState<{
+    measurementId?: number;
+    input?: CreatePieceData;
+    key: string;
+  } | null>(null);
+
   const privileged = userRole === "admin" || userRole === "operator";
   const admin = userRole === "admin";
   const owner = job.estimate.idUser === userId;
@@ -865,6 +877,9 @@ export function InstallationDetailClient({
   const revisionItemByMeasurement = new Map(
     (latestRevision?.items ?? []).map((item) => [item.measurementId, item]),
   );
+  const combinedRevisionSubmitted = Boolean(latest &&
+    ["PENDING_ADMIN_APPROVAL", "PENDING_CUSTOMER_APPROVAL"].includes(latest.status) &&
+    latestRevision?.items.some((item) => item.action === "ADD"));
   const pieceById = new Map(
     (job.estimate.pieces ?? []).map((piece) => [piece.id, piece]),
   );
@@ -930,6 +945,9 @@ export function InstallationDetailClient({
       "ADMIN_APPROVAL_PENDING",
       "CUSTOMER_APPROVAL_PENDING",
     ].includes(job.status);
+  const canEditRemeasurementRevision = privileged && canRecordMeasurements && !job.estimate.order &&
+    !["COMPLETED", "CANCELED"].includes(job.status) &&
+    Boolean(latest && !["PENDING_ADMIN_APPROVAL", "PENDING_CUSTOMER_APPROVAL"].includes(latest.status));
   const showRemeasurementNotReady =
     !canRecordMeasurements &&
     ["REQUESTED", "DEPOSIT_PAYMENT_PENDING", "MEASUREMENT_SCHEDULING"].includes(
@@ -1099,6 +1117,7 @@ export function InstallationDetailClient({
         </div>
       </div>
 
+      <MaterialRevisionAccess estimateId={job.estimateId} />
       {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
@@ -1165,16 +1184,26 @@ export function InstallationDetailClient({
           )}
 
           {privileged && canRecordMeasurements && (
-            <Card>
+            <Card id="material-revision">
               <CardHeader>
-                <CardTitle>{job.dealerMeasurementsAcceptedAt ? "Accepted measurements" : "Field Measurements"}</CardTitle>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>{job.dealerMeasurementsAcceptedAt ? "Accepted measurements" : "Field Measurements"}</CardTitle>
+                  {canEditRemeasurementRevision && <Button disabled={busy} onClick={() =>
+                    setAddedPieceEditor({ key: `new-${Date.now()}` })}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Piece
+                  </Button>}
+                </div>
                 <CardDescription>
                   Each physical unit is identified from its Estimate Piece. Only
                   the dimensions required by that System configuration are
-                  shown.
+                  shown. Added pieces and measurement changes stay in this same revision;
+                  submit the quote once all units have been confirmed.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                {combinedRevisionSubmitted && <p className="text-sm text-muted-foreground">
+                  This revision is awaiting approval. Return it for changes before editing its material or measurements.
+                </p>}
                 {job.measurements
                   .filter((measurement) => !measurement.isManual)
                   .map((measurement) => {
@@ -1182,7 +1211,43 @@ export function InstallationDetailClient({
                       measurement.pieceId == null
                         ? undefined
                         : pieceById.get(measurement.pieceId);
-                    if (!piece) return null;
+                    if (!piece) {
+                      const addition = revisionItemByMeasurement.get(measurement.id);
+                      const input = addition?.proposedPieceInput;
+                      if (addition?.action !== "ADD" || !input) return null;
+                      const display = addition.calculatedSnapshot?.display;
+                      const dimensions = [
+                        ["Width", input.width], ["Height", input.height], ["Left height", input.heightLeft],
+                        ["Right height", input.heightRight], ["Leg height", input.legHeight],
+                        ["Sash height", input.sashHeight], ["Window height", input.windowHeight],
+                        ["Door width", input.doorWidth], ["Door height", input.doorHeight],
+                        ["Left sidelite", input.leftSideliteWidth], ["Right sidelite", input.rightSideliteWidth],
+                      ].filter(([, value]) => value != null && value !== "");
+                      return <div key={`${measurement.id}-${measurement.updatedAt}`} className="space-y-3 rounded-lg border p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="font-semibold">{input.mark || "New piece"} · Unit {addition.sourceUnitIndex}</h3>
+                          <div className="flex gap-2"><Badge variant="outline">Added piece</Badge><Badge variant="outline">{title(measurement.status)}</Badge></div>
+                        </div>
+                        <p className="text-sm">{[display?.productName, display?.systemName, display?.configName].filter(Boolean).join(" · ")}</p>
+                        <p className="text-sm">{dimensions.map(([name, value]) => `${name}: ${Number(value)} in`).join(" · ")}</p>
+                        {input.horizontalHeights?.length ? <p className="text-sm">Horizontal heights: {input.horizontalHeights.join(" / ")} in</p> : null}
+                        {input.panelCount != null && <p className="text-sm">Panels: {input.panelCount}</p>}
+                        <p className="text-xs text-muted-foreground">Pending material addition. It is not part of the original estimate until approval. Use Edit Piece to review all specifications.</p>
+                        {canEditRemeasurementRevision && <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" disabled={busy} onClick={() => setAddedPieceEditor({
+                            measurementId: measurement.id, input, key: `added-${measurement.id}-${measurement.updatedAt}`,
+                          })}>Edit Piece</Button>
+                          <Button disabled={busy || measurement.status === "COMPLETED"} onClick={() => void run(
+                            () => updateInstallationMeasurement(job.id, measurement.id, { label: measurement.label }),
+                            "Added unit measurement confirmed. Continue preparing the same revision.",
+                          )}>{measurement.status === "COMPLETED" ? "Measurement confirmed" : "Confirm measurement"}</Button>
+                          <Button variant="outline" disabled={busy} onClick={() => {
+                            if (window.confirm("Remove this added unit from the pending revision? Original material will not change."))
+                              void run(() => removeInstallationAddedPiece(job.id, measurement.id), "Pending added unit removed.");
+                          }}>Remove added unit</Button>
+                        </div>}
+                      </div>;
+                    }
                     const system = systemsWithConfigs.find(
                       (candidate) => candidate.id === piece.idSyst,
                     );
@@ -1199,7 +1264,7 @@ export function InstallationDetailClient({
                         revisionItem={revisionItemByMeasurement.get(
                           measurement.id,
                         )}
-                        busy={busy}
+                        busy={busy || combinedRevisionSubmitted}
                         onSave={(draft) =>
                           run(
                             () =>
@@ -2059,6 +2124,44 @@ export function InstallationDetailClient({
         description={`The ${money(depositPaid)} paid deposit will remain non-refundable. The estimate or order will continue with material only.`}
         confirmText="Cancel installation"
       />
+
+      {addedPieceEditor && (
+        <PieceModal
+          open
+          onOpenChange={(open) => { if (!open && !busy) setAddedPieceEditor(null); }}
+          title={addedPieceEditor.measurementId ? "Edit added Piece" : "Add Piece to this revision"}
+          pieceKey={addedPieceEditor.key}
+          initialData={revisionPieceForm(addedPieceEditor.input,
+            job.estimate.user.role.name === "dealer" ? Number(job.estimate.pieces?.[0]?.dealerMarkup ?? 0) * 100 : 0)}
+          index={0}
+          startUnlocked
+          lockQuantity={Boolean(addedPieceEditor.measurementId)}
+          estimateId={job.estimateId}
+          onCalculate={(piece) => calculateInstallationAddedPiece(job.id, {
+            measurementId: addedPieceEditor.measurementId, quoteId: latest?.id,
+            piece: revisionPieceInput(piece, productsWithBrands),
+          })}
+          onSave={async (piece) => {
+            setBusy(true);
+            try {
+              const updated = await saveInstallationAddedPiece(job.id, {
+                measurementId: addedPieceEditor.measurementId, quoteId: latest?.id,
+                piece: revisionPieceInput(piece, productsWithBrands),
+              });
+              setJob(updated);
+              setAddedPieceEditor(null);
+              toast.success("Piece saved in the same remeasurement revision. Confirm all units before submitting the quote.");
+            } catch (error) {
+              toast.error((error as Error).message);
+            } finally { setBusy(false); }
+          }}
+          onCancel={() => { if (!busy) setAddedPieceEditor(null); }}
+          productsWithBrands={productsWithBrands} systemsWithConfigs={systemsWithConfigs}
+          frameColors={frameColors} crystals={crystals} tints={tints} coatings={coatings}
+          privacies={privacies} muntinPatterns={muntinPatterns} muntinTypes={muntinTypes}
+          canUseCustomerPricing={job.estimate.user.role.name === "dealer"}
+        />
+      )}
 
       {replacement && (
         <PieceModal

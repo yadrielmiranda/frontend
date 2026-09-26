@@ -1,3 +1,4 @@
+import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 import { OrderReviewPanel } from "@/components/estimates/order-review-panel";
 import { notFound } from "next/navigation";
 import {
@@ -125,11 +126,12 @@ export default async function EditEstimatePage({
                 ? "Update the details for this estimate."
                 : installation?.dealerMeasurementsAcceptedAt
                   ? "Installation uses the current measurements and price."
-                : "Material details are locked. Remeasurement changes must be submitted through the pending Estimate revision."}
+                : "Material details are locked. Use the appropriate material revision to add pieces or request changes."}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="min-w-0 px-4 sm:px-6">
+            <MaterialRevisionAccess estimateId={estimateId} />
             {pendingOrderReview && <OrderReviewPanel estimateId={estimateId} isAdmin={isAdminRole(user.role.name)} blockedReason={estimate.paymentSchedule?.orderReviewBlockedReason} />}
             <EstimateForm
               estimate={estimate}

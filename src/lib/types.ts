@@ -609,6 +609,7 @@ export type EstimateRevisionStatus =
   | "SUPERSEDED";
 
 export type EstimateRevisionItemAction =
+  | "ADD"
   | "UNCHANGED"
   | "UPDATE"
   | "REPLACE"

@@ -1,3 +1,4 @@
+import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 // src/app/orders/[id]/page.tsx
 import { notFound } from "next/navigation";
 import { getOrder } from "@/app/api/orders.api";
@@ -47,6 +48,7 @@ export default async function OrderDetailsPage({
 
   return (
     <div className="container mx-auto py-10 max-w-5xl">
+      <MaterialRevisionAccess estimateId={order.idEst} />
       <OrderDetails
         order={order}
         installation={installation}

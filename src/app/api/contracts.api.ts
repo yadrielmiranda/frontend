@@ -9,6 +9,7 @@ export type ContractInfo = {
   createdAt: string;
 };
 export type AgreementInfo = {
+  materialRevisionId?: number | null;
   id: string;
   revision: number;
   kind: "AGREEMENT" | "CHANGE_ORDER";
@@ -30,6 +31,7 @@ export type AgreementInfo = {
     | "REQUIRES_NEW_SIGNATURE";
 };
 export type AgreementStatus = {
+  pendingMaterialRevisionId?: number | null;
   current: AgreementInfo | null;
   history: AgreementInfo[];
   defaultContract?: ContractInfo | null;

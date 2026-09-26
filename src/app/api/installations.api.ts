@@ -446,3 +446,18 @@ export const startInstallation = (jobId: number) =>
   apiFetch<InstallationJob>(`/api/installations/${jobId}/start`, {
     method: "POST",
   });
+
+// Se agrega o edita una unidad en la misma revisión de la remedición.
+export type InstallationRevisionPieceInput = { piece: CreatePieceData; measurementId?: number; quoteId?: number };
+export const calculateInstallationAddedPiece = (jobId: number, data: InstallationRevisionPieceInput) =>
+  apiFetch<CalculatedPiece>(`/api/installations/${jobId}/revision-pieces/calculate`, {
+    method: "POST", body: data, timeoutMs: 120000,
+  });
+export const saveInstallationAddedPiece = (jobId: number, data: InstallationRevisionPieceInput) =>
+  apiFetch<InstallationJob>(`/api/installations/${jobId}/revision-pieces`, {
+    method: "POST", body: data, timeoutMs: 120000,
+  });
+export const removeInstallationAddedPiece = (jobId: number, measurementId: number) =>
+  apiFetch<InstallationJob>(`/api/installations/${jobId}/revision-pieces/${measurementId}`, {
+    method: "DELETE", timeoutMs: 120000,
+  });

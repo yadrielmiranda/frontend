@@ -44,12 +44,15 @@ export function DealerAgreementPanel({
     return () => clearInterval(timer);
   }, [refresh, refreshKey]);
   const current = status?.current;
-  if (!current && !error) return null;
+  if (!current && !error && !status?.pendingMaterialRevisionId) return null;
   return (
     <section
       className="mt-8 space-y-3 border-t pt-5 print:hidden"
       aria-label="Customer agreement"
     >
+      {status?.pendingMaterialRevisionId && (
+        <p className="rounded-md border bg-slate-50 p-3 text-sm">A material revision is awaiting the customer signature. Select <strong>Include contract</strong> and share again. The original material stays unchanged until the new agreement is signed.</p>
+      )}
       {current && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">

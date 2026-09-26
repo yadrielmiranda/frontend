@@ -50,6 +50,8 @@ interface PieceModalProps {
   estimateId?: number;
   onCalculate?: PieceFormProps["onCalculate"];
   startUnlocked?: boolean;
+  lockQuantity?: boolean;
+  lockDealerMarkup?: boolean;
 }
 
 export function PieceModal({
@@ -74,6 +76,8 @@ export function PieceModal({
   estimateId,
   onCalculate,
   startUnlocked = false,
+  lockQuantity = false,
+  lockDealerMarkup = false,
 }: PieceModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,6 +109,8 @@ export function PieceModal({
             estimateId={estimateId}
             onCalculate={onCalculate}
             startUnlocked={startUnlocked}
+            lockQuantity={lockQuantity}
+            lockDealerMarkup={lockDealerMarkup}
           />
         </div>
       </DialogContent>
