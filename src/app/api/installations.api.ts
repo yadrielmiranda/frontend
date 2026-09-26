@@ -1,4 +1,5 @@
 import { apiFetch } from "./_base";
+import type { CalculatedPiece } from "./estimates.api";
 import type {
   CreatePieceData,
   EstimateRevisionChangeReason,
@@ -326,6 +327,17 @@ export const updateInstallationMeasurement = (
   apiFetch<InstallationJob>(
     `/api/installations/${jobId}/measurements/${measurementId}`,
     { method: "PATCH", body: data },
+  );
+
+// Vista previa de una unidad, sin modificar el Estimate ni crear revisiones.
+export const calculateInstallationMeasurementPiece = (
+  jobId: number,
+  measurementId: number,
+  data: CreatePieceData,
+) =>
+  apiFetch<CalculatedPiece>(
+    `/api/installations/${jobId}/measurements/${measurementId}/calculate-piece`,
+    { method: "POST", body: data },
   );
 
 export const proposeInstallationMeasurementPiece = (

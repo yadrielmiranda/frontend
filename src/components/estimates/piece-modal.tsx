@@ -21,7 +21,7 @@ import type {
 } from "@/lib/types";
 
 import type { PieceFormValues } from "./types";
-import { PieceForm } from "./piece-form";
+import { PieceForm, type PieceFormProps } from "./piece-form";
 
 interface PieceModalProps {
   open: boolean;
@@ -48,6 +48,7 @@ interface PieceModalProps {
   muntinTypes: MuntinType[];
   canUseCustomerPricing: boolean;
   estimateId?: number;
+  onCalculate?: PieceFormProps["onCalculate"];
   startUnlocked?: boolean;
 }
 
@@ -71,6 +72,7 @@ export function PieceModal({
   muntinTypes,
   canUseCustomerPricing,
   estimateId,
+  onCalculate,
   startUnlocked = false,
 }: PieceModalProps) {
   return (
@@ -101,6 +103,7 @@ export function PieceModal({
             muntinTypes={muntinTypes}
             canUseCustomerPricing={canUseCustomerPricing}
             estimateId={estimateId}
+            onCalculate={onCalculate}
             startUnlocked={startUnlocked}
           />
         </div>

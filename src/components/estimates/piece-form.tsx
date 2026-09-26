@@ -5,7 +5,11 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Pencil, Calculator } from "lucide-react";
 
-import { calculatePiece, validatePiece } from "@/app/api/estimates.api";
+import {
+  calculatePiece,
+  validatePiece,
+  type CalculatedPiece,
+} from "@/app/api/estimates.api";
 import {
   getPolicies,
   type PolicyListItem,
@@ -278,6 +282,7 @@ export interface PieceFormProps {
 
   canUseCustomerPricing: boolean;
   estimateId?: number;
+  onCalculate?: (data: CalculatePiecePayload) => Promise<CalculatedPiece>;
   startUnlocked?: boolean;
 }
 
@@ -2178,11 +2183,14 @@ export function PieceForm({
         }
       }
 
-      const calculated = await calculatePiece(
-        pieceDtoToSend,
-        props.estimateId,
-        initialData.id,
-      );
+      // Las revisiones calculan en su propio flujo, sin desbloquear el Estimate.
+      const calculated = props.onCalculate
+        ? await props.onCalculate(pieceDtoToSend)
+        : await calculatePiece(
+            pieceDtoToSend,
+            props.estimateId,
+            initialData.id,
+          );
 
       const unitPrice = roundMoney(Number(calculated.price) || 0);
       const lineSubtotal = roundMoney(Number(calculated.subtotal) || 0);

@@ -38,6 +38,7 @@ import {
   acceptDealerMeasurements,
   addInstallationLine,
   addInstallationMeasurement,
+  calculateInstallationMeasurementPiece,
   cancelInstallation,
   completeInstallation,
   decideInstallationQuoteAsAdmin,
@@ -2076,6 +2077,13 @@ export function InstallationDetailClient({
             qty: 1,
           }}
           index={replacement.measurement.unitIndex - 1}
+          onCalculate={(piece) =>
+            calculateInstallationMeasurementPiece(
+              job.id,
+              replacement.measurement.id,
+              piece,
+            )
+          }
           startUnlocked
           onSave={async (piece) => {
             setBusy(true);
