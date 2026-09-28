@@ -6,6 +6,11 @@ import { MoreHorizontal, Edit, CreditCard, FileJson } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,7 +38,32 @@ export function getOrderColumns({
   currentUserRole: string | null;
 }): ColumnDef<OrderWithRelations>[] {
   const columns: ColumnDef<OrderWithRelations>[] = [
-    { accessorKey: "number", header: "Order #", filterFn: "includesString" },
+    {
+      accessorKey: "number",
+      header: "Order #",
+      filterFn: "includesString",
+      cell: ({ row }) => (
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/orders/${row.original.id}`}
+              prefetch={false}
+              aria-label={`View Details: ${row.original.number}`}
+              className="inline-block cursor-pointer rounded-sm underline-offset-4 transition-colors duration-150 hover:text-teal-700 hover:underline focus-visible:text-teal-700 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-teal-400 dark:focus-visible:text-teal-400 motion-reduce:transition-none"
+            >
+              {row.original.number}
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            sideOffset={8}
+            className="rounded-lg px-3 py-2 font-medium shadow-lg"
+          >
+            View Details
+          </TooltipContent>
+        </Tooltip>
+      ),
+    },
     { accessorKey: "estimate.number", header: "Estimate #", filterFn: "includesString" },
     {
       accessorKey: "date",
