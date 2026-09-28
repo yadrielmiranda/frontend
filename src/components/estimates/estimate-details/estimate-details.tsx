@@ -4,6 +4,7 @@ import { MaterialRevisionAccess } from "@/components/estimates/material-revision
 
 import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
+import { EstimateLifecycleButton } from '../estimate-lifecycle-actions';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EstimateWithRelations } from "@/lib/types";
@@ -49,12 +50,14 @@ const REPORT_LABELS: Record<ReportMode, string> = {
 export function EstimateDetails({
   estimate,
   userRole,
+  currentUserId,
   initialPublicView = false,
   initialCustomerPricingMode = "detailed",
   returnToEdit = false,
 }: {
   estimate: EstimateWithRelations;
   userRole: string;
+  currentUserId: number;
   initialPublicView?: boolean;
   initialCustomerPricingMode?: CustomerPricingMode;
   returnToEdit?: boolean;
@@ -67,7 +70,8 @@ export function EstimateDetails({
   const [agreementRefresh, setAgreementRefresh] = useState(0);
   const [includeContract, setIncludeContract] = useState(false);
   const [agreementStatus, setAgreementStatus] = useState<AgreementStatus | null>(null);
-  useEffect(() => { setIncludeContract(false); setAgreementStatus(null); }, [estimate.id]);
+  const isCanceled = estimate.status?.name === "Canceled";
+  useEffect(() => { setIncludeContract(false); setAgreementStatus(null); }, [estimate.id, isCanceled]);
   useEffect(() => { if (agreementStatus && !agreementStatus.defaultContract) setIncludeContract(false); }, [agreementStatus]);
   const ownerRole = estimate.user?.role?.name ?? null;
   const ownerIsDealer = isDealerRole(ownerRole);
@@ -360,23 +364,26 @@ export function EstimateDetails({
         </DialogContent>
       </Dialog>
       <div className="mx-auto max-w-6xl">
-        {(!ownerIsDealer || reportMode !== "customer") && <MaterialRevisionAccess estimateId={estimate.id} />}
+        {!isCanceled && (!ownerIsDealer || reportMode !== "customer") && <MaterialRevisionAccess estimateId={estimate.id} />}
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
             <BackLink
               href={
-                returnToEdit ? `/estimates/${estimate.id}/edit` : "/estimates"
+                returnToEdit && !isCanceled ? `/estimates/${estimate.id}/edit` : "/estimates"
               }
               label={
-                returnToEdit ? "Back to Edit Estimate" : "Back to Estimates"
+                returnToEdit && !isCanceled ? "Back to Edit Estimate" : "Back to Estimates"
               }
             />
 
+            <div className="flex flex-wrap justify-end gap-2">
+            <EstimateLifecycleButton estimate={estimate} actor={{ id: currentUserId, role: { name: userRole } }} />
             <Button asChild>
               <a href={pdfHref} target="_blank" rel="noopener noreferrer">
                 <Printer className="mr-2 h-4 w-4" /> Print / PDF
               </a>
             </Button>
+            </div>
           </div>
 
           {reportOptions.length > 1 && (
@@ -413,7 +420,7 @@ export function EstimateDetails({
                   <label className="mr-1 flex items-center gap-2 text-sm">
                     <input type="checkbox" aria-label="Include contract" checked={includeContract}
                       onChange={(event) => setIncludeContract(event.target.checked)}
-                      disabled={sharing || !agreementStatus?.defaultContract} className="h-4 w-4" />
+                      disabled={isCanceled || sharing || !agreementStatus?.defaultContract} className="h-4 w-4" />
                     Include contract
                   </label>
                   {agreementStatus && !agreementStatus.defaultContract && <a href="/profile/branding" className="mr-2 text-xs underline">Upload contract</a>}

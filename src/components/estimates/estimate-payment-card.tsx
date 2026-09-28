@@ -62,6 +62,7 @@ export function resolveEstimatePaymentAction({
   manualDiscount?: EstimateDiscountSummary | null;
   paymentSchedule?: PaymentSchedule | null;
 }): PaymentAction | null {
+  if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
   manualDiscount = manualDiscount ?? installationJob?.manualDiscountSummary;
   materialAmount = Number(manualDiscount?.material.total ?? materialAmount);
   const activeJob =
@@ -210,6 +211,7 @@ function EstimatePaymentCardContent({
   const [materialAccepted, setMaterialAccepted] = useState(false);
   const [acceptedCityKey, setAcceptedCityKey] = useState("");
   const installments = useInstallmentSelection(paymentSchedule, installationJob?.status !== "DEPOSIT_PAYMENT_PENDING");
+  if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
 
   const isOwner = currentUserId === estimateOwnerId;
   const isInternalDealer = dealerMode === "INTERNAL";

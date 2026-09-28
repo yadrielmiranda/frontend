@@ -195,6 +195,13 @@ for (const type of ['DELIVERY', 'EXTRA', 'INSTALLATION_DEPOSIT']) {
     assert.deepEqual(f.checkout()[6], { items: [{ type, sequence: 1 }], expectedBalance: 20 });
   });
 }
+test('removes all payment controls when a previously payable estimate is canceled', () => {
+  const f = fixture(); f.button('Pay full balance').props.onClick();
+  f.update({ ...f.context, status: 'canceled', payment: null });
+  assert.ok(f.text(f.render()).includes('This estimate has been canceled'));
+  assert.equal(f.all(f.render(), n => n.type === 'Button' || n.type === 'Checkbox').length, 0);
+  assert.equal(f.checkout(), null);
+});
 (async () => {
   global.window = { location: { href: '' } };
   let failures = 0;

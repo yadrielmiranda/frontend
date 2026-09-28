@@ -30,6 +30,7 @@ export type PaymentScheduleRow = {
   status: "PAID" | "DUE" | "UPCOMING" | "CREDIT" | "REVIEW";
 };
 export type PaymentSchedule = {
+  estimateCanceled?: boolean;
   materialRevisionPending?: boolean;
   refundReviewPending?: boolean;
   refunded?: string;

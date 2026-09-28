@@ -44,6 +44,7 @@ export type MaterialChangeSummary = {
   paymentPreview: ChangePaymentPreview | null;
 };
 export type AgreementStatus = {
+  estimateCanceled?: boolean;
   changeOrderPaymentPreview?: ChangePaymentPreview | null;
   materialChange?: MaterialChangeSummary | null;
   pendingMaterialRevisionId?: number | null;

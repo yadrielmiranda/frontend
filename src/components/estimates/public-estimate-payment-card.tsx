@@ -96,6 +96,7 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
     }
   };
 
+  if (context.status === "canceled") return <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm print:hidden">This estimate has been canceled.</p>;
   if (context.status === "expired" || expired) return (
     <section className="mt-6 rounded-xl border p-5">
       This promotion has expired. Contact your dealer to recalculate the estimate before payment.

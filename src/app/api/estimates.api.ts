@@ -224,6 +224,14 @@ export function recalculateEstimate(id: number) {
   });
 }
 
+export function cancelEstimate(id: number) {
+  return apiFetch<{ id: number; status: { id: number; name: string } }>(`/api/estimates/${id}/cancel`, { method: "POST", timeoutMs: 60000 });
+}
+
+export function reactivateEstimate(id: number) {
+  return apiFetch<EstimateWithRelations>(`/api/estimates/${id}/reactivate`, { method: "POST", timeoutMs: 60000 });
+}
+
 export type EstimatePublicTokenResponse = {
   token: string;
   enabled: boolean;

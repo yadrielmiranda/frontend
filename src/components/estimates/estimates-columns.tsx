@@ -42,6 +42,7 @@ import {
 import type { DataTableDateRangeValue } from "@/components/data-table";
 import { getEstimateCostColumns } from "./estimate-cost-columns";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
+import { estimateLifecycleAction, EstimateLifecycleDialog, type EstimateLifecycleAction } from "./estimate-lifecycle-actions";
 
 // =============================
 // Helpers
@@ -356,6 +357,8 @@ export const getEstimateColumns = (
         const estimate = row.original;
 
         const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+        const [lifecycle, setLifecycle] = useState<EstimateLifecycleAction | null>(null);
+        const lifecycleAction = estimateLifecycleAction(estimate, currentUser);
         const [isPaying, setIsPaying] = useState(false);
         const [isRecalculating, setIsRecalculating] = useState(false);
         const router = useRouter();
@@ -376,6 +379,7 @@ export const getEstimateColumns = (
 
         const isActive = statusLower === "active";
         const isExpired = statusLower === "expired";
+        const isCanceled = statusLower === "canceled";
         const isOrdered = statusLower === "ordered" || !!estimate.order;
 
         const materialPayment = estimate.payments?.find(
@@ -422,7 +426,7 @@ export const getEstimateColumns = (
               paymentInstallation.status === "PERMIT_PROCESSING")
           : isActive && !estimate.order && !isPaid && hasPayableMaterial;
         const canCopyPaymentLink =
-          isInternalDealer && isOwner && internalPaymentDue;
+          !isCanceled && isInternalDealer && isOwner && internalPaymentDue;
 
         const canRecalculate =
           isExpired && !estimate.order && isOwner && !isPaymentLocked;
@@ -554,7 +558,11 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {showOwnerActions &&
+                {lifecycleAction && <DropdownMenuItem onSelect={() => setLifecycle(lifecycleAction)}>
+                  {lifecycleAction === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
+                </DropdownMenuItem>}
+
+                {showOwnerActions && !isCanceled &&
                   !isOrdered &&
                   !isPaymentLocked &&
                   !hasActiveInstallation && (
@@ -576,6 +584,7 @@ export const getEstimateColumns = (
               onClose={() => setShowDeleteConfirm(false)}
               onConfirm={handleDelete}
             />
+            <EstimateLifecycleDialog estimate={estimate} action={lifecycle} onClose={() => setLifecycle(null)} />
           </div>
         );
       },

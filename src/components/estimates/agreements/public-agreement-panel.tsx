@@ -63,8 +63,8 @@ export function PublicAgreementPanel({
     ]);
     setStatus(next);
     setPaymentContext(payments);
-    if (next.current?.state !== initialStatus.current?.state) router.refresh();
-  }, [token, agreementId, initialStatus.current?.state, initialStatus.paymentsEnabled, router]);
+    if (next.current?.state !== initialStatus.current?.state || next.estimateCanceled !== initialStatus.estimateCanceled) router.refresh();
+  }, [token, agreementId, initialStatus.current?.state, initialStatus.paymentsEnabled, initialStatus.estimateCanceled, router]);
   useEffect(() => {
     const timer = setInterval(() => {
       void refresh().catch(() => undefined);
@@ -72,8 +72,9 @@ export function PublicAgreementPanel({
     return () => clearInterval(timer);
   }, [refresh]);
   const agreement = status.current;
+  const estimateCanceled = status.estimateCanceled ?? estimate.status?.name === "Canceled";
   const canShowPayments = Boolean(
-    agreement && !agreement.invalidatedAt &&
+    !estimateCanceled && agreement && !agreement.invalidatedAt &&
     status.paymentsEnabled && paymentContext,
   );
   const acceptedInAnotherView = Boolean(
@@ -81,7 +82,7 @@ export function PublicAgreementPanel({
     paymentContext?.agreement?.required && paymentContext.agreement.satisfied,
   );
   const pendingChangeSignature = Boolean(
-    agreement && (agreement.materialRevisionId || agreement.kind === "CHANGE_ORDER") &&
+    !estimateCanceled && agreement && (agreement.materialRevisionId || agreement.kind === "CHANGE_ORDER") &&
     !agreement.signedAt && !acceptedInAnotherView,
   );
   const showPaymentStatus = Boolean(
@@ -101,7 +102,7 @@ export function PublicAgreementPanel({
   const isChangeOrder = agreement.kind === "CHANGE_ORDER";
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!agreement || busy) return;
+    if (!agreement || busy || estimateCanceled) return;
     setBusy(true);
     setError("");
     try {
@@ -127,6 +128,7 @@ export function PublicAgreementPanel({
       className="mt-8 space-y-5 border-t pt-6 print:hidden"
       aria-label="Contract and signature"
     >
+      {estimateCanceled && <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm">This estimate has been canceled. Signed documents remain available below.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">
           {isChangeOrder
@@ -181,7 +183,7 @@ export function PublicAgreementPanel({
             </ul>
           </details>
         )}
-      {agreement.invalidatedAt && (
+      {!estimateCanceled && agreement.invalidatedAt && (
         <p
           role="status"
           className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
@@ -190,7 +192,7 @@ export function PublicAgreementPanel({
           before signing.
         </p>
       )}
-      {agreement.state === "PREPARING" && (
+      {!estimateCanceled && agreement.state === "PREPARING" && (
         <p role="status" className="text-sm">
           Your agreement is being prepared. Please try again shortly.
         </p>
@@ -224,7 +226,7 @@ export function PublicAgreementPanel({
           </Button>
         </div>
       )}
-      {agreement.state === "AWAITING_SIGNATURE" && (
+      {!estimateCanceled && agreement.state === "AWAITING_SIGNATURE" && (
         <>
           {!isChangeOrder && (
             <ContractPages

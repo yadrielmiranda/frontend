@@ -59,6 +59,7 @@ export default async function EstimateDetailPage({
     <EstimateDetails
       estimate={estimate}
       userRole={user.role.name}
+      currentUserId={user.id}
       initialPublicView={initialPublicView}
       initialCustomerPricingMode={
         resolvedSearchParams.pricing === "total" ? "total" : "detailed"

@@ -57,7 +57,7 @@ export function DealerAgreementPanel({
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-medium">
-              {status?.nextSignatureKind === "CHANGE_ORDER"
+              {status?.estimateCanceled ? (current.signedAt ? "Contract · Signed before cancellation" : "Contract · Estimate canceled") : status?.nextSignatureKind === "CHANGE_ORDER"
                 ? "Contract signed · Change pending approval"
                 : `${current.kind === "CHANGE_ORDER" ? `Change Order #${current.changeOrderNumber}` : "Contract"} · ${labels[current.state]}`}
             </p>
@@ -81,7 +81,7 @@ export function DealerAgreementPanel({
               {current.signedAtLabel}
             </p>
           )}
-          {current.invalidatedAt && (
+          {!status?.estimateCanceled && current.invalidatedAt && (
             <p className="text-sm text-muted-foreground">
               {status?.nextSignatureKind === "CHANGE_ORDER"
                 ? "Select Include contract and share again to request acceptance of the updated charges."

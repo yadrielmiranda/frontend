@@ -32,7 +32,7 @@ const change = { number: 1, previousTotal: '1200.00', newTotal: '1400.00', diffe
   previousIncomplete: false, newIncomplete: false, changedCharges: ['Installation'], items: [] };
 const preview = { dueAfterSigning: '100.00', remainingScheduled: '200.00', paid: '1100.00', balance: '300.00' };
 const { ChangeOrderDetails } = load('change-order-details.tsx', {});
-function panel({ signed = false, external = false, acceptedElsewhere = false, material = false, invalidated = false } = {}) {
+function panel({ signed = false, external = false, acceptedElsewhere = false, material = false, invalidated = false, canceled = false } = {}) {
   const mocks = {
     react: { useState: v => [v, () => {}], useCallback: fn => fn, useEffect() {}, useMemo: fn => fn() },
     'next/navigation': { useRouter: () => ({ refresh() {} }) },
@@ -52,7 +52,7 @@ function panel({ signed = false, external = false, acceptedElsewhere = false, ma
     initialStatus: { current: { id: 'agreement', kind: material ? 'AGREEMENT' : 'CHANGE_ORDER',
       changeOrderNumber: 1, materialRevisionId: material ? 10 : null, state: signed ? 'SIGNED' : 'AWAITING_SIGNATURE',
       signedAt: signed ? '2026-09-26T12:00:00Z' : null, invalidatedAt: invalidated ? '2026-09-26' : null },
-      history: [], paymentsEnabled: !external, changeOrder: material ? null : change,
+      estimateCanceled: canceled, history: [], paymentsEnabled: !external, changeOrder: material ? null : change,
       changeOrderPaymentPreview: external ? null : preview,
       materialChange: material ? { ...change, paymentPreview: preview } : null,
     },
@@ -100,6 +100,16 @@ test('keeps the material-revision pre-signature behavior', () => {
 });
 test('does not show payment controls for an invalidated signed document', () => {
   assert.ok(!nodes(panel({ signed: true, invalidated: true })).some(n => n.type === 'PaymentCard'));
+});
+test('hides signature and payment actions for a canceled unsigned agreement', () => {
+  const output = nodes(panel({ canceled: true }));
+  assert.ok(!output.some(n => ['PaymentCard', 'SignaturePad', 'form'].includes(n.type)));
+  assert.equal(output.find(n => n.type === 'ChangeOrderDetails').props.paymentPreview, null);
+});
+test('retains the signed PDF download on canceled agreements while payments stay hidden', () => {
+  const output = panel({ signed: true, canceled: true });
+  assert.ok(text(output).includes('Download signed Change Order'));
+  assert.ok(!nodes(output).some(n => n.type === 'PaymentCard'));
 });
 let failures = 0;
 for (const { name, run } of tests) {

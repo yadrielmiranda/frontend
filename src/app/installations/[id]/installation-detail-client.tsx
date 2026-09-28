@@ -865,9 +865,10 @@ export function InstallationDetailClient({
     key: string;
   } | null>(null);
 
-  const privileged = userRole === "admin" || userRole === "operator";
-  const admin = userRole === "admin";
-  const owner = job.estimate.idUser === userId;
+  const estimateCanceled = job.estimate.status?.name === "Canceled";
+  const privileged = !estimateCanceled && (userRole === "admin" || userRole === "operator");
+  const admin = !estimateCanceled && userRole === "admin";
+  const owner = !estimateCanceled && job.estimate.idUser === userId;
   const latest = job.quotes[0];
   const pendingMeasurements = job.measurements.filter((measurement) => measurement.status === "PENDING");
   const quoteHistory = job.quotes.filter((quote) => quote.status !== "DRAFT");
@@ -893,6 +894,7 @@ export function InstallationDetailClient({
     serviceChoices.find((service) => service.id === Number(serviceId)) ?? null;
   const depositPaid = paidBaseFor(job, "INSTALLATION_DEPOSIT");
   const canManageAdditionalServices =
+    !estimateCanceled &&
     !["COMPLETED", "CANCELED"].includes(job.status) &&
     (privileged ||
       (userRole === "dealer" && job.status === "DEPOSIT_PAYMENT_PENDING"));
@@ -1108,7 +1110,7 @@ export function InstallationDetailClient({
               href={
                 job.estimate.order
                   ? `/orders/${job.estimate.order.id}`
-                  : `/estimates/${job.estimateId}/edit`
+                  : `/estimates/${job.estimateId}${estimateCanceled ? "" : "/edit"}`
               }
             >
               {job.estimate.order ? "Open order" : "Open estimate"}
@@ -1117,7 +1119,8 @@ export function InstallationDetailClient({
         </div>
       </div>
 
-      <MaterialRevisionAccess estimateId={job.estimateId} />
+      {estimateCanceled && <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm">This estimate is canceled. Reactivate it from the estimate to resume this project.</p>}
+      {!estimateCanceled && <MaterialRevisionAccess estimateId={job.estimateId} />}
       {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
