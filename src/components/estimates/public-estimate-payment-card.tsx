@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -27,18 +27,38 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [selectedKeys, setSelectedKeys] = useState<string[] | null>(null);
+  const [selection, setSelection] = useState<{ contextKey: string; keys: string[] } | null>(null);
   const [selectedFullKey, setSelectedFullKey] = useState("");
   const [acceptedTermsKey, setAcceptedTermsKey] = useState("");
   const [acceptedCityKey, setAcceptedCityKey] = useState("");
   const expired = usePromotionExpired(context);
+  const materialRevisionPending = Boolean(context.materialRevisionPending || context.schedule?.materialRevisionPending);
+  useEffect(() => {
+    if (!materialRevisionPending) return;
+    // Una selección anterior no debe reaparecer después de aprobar otra versión.
+    setSelection(null);
+    setSelectedFullKey("");
+    setAcceptedTermsKey("");
+    setAcceptedCityKey("");
+  }, [materialRevisionPending]);
   const options: PublicPaymentOption[] = context.payments ?? (context.payment ? [context.payment] : []);
+  const isPaymentPaused = (item: PublicPaymentOption) => materialRevisionPending &&
+    ["MATERIAL", "INSTALLMENT", "INSTALLATION", "PERMIT"].includes(item.type);
   const due = options.filter(item => !item.advanceOnly);
+  const availableOptions = options.filter(item => !isPaymentPaused(item));
+  const selectionContextKey = JSON.stringify(options.map(item => [itemKey(item), item.baseAmount, item.advanceOnly]));
+  const setSelectedKeys = (keys: string[]) => setSelection({ contextKey: selectionContextKey, keys: [...new Set(keys)] });
+  const selectedKeys = selection?.contextKey === selectionContextKey ? selection.keys : null;
   const full = context.fullBalance;
   const fullKey = full ? `${full.amount}|${full.items.map(itemKey).sort().join(",")}` : "";
-  const isFullBalance = Boolean(fullKey && selectedFullKey === fullKey);
-  const keys = isFullBalance ? full!.items.map(itemKey) : selectedKeys ?? due.slice(0, 1).map(itemKey);
-  const selected = (isFullBalance ? options : due).filter(item => keys.includes(itemKey(item)));
+  const isFullBalance = !materialRevisionPending && Boolean(fullKey && selectedFullKey === fullKey);
+  // Los cargos independientes siguen disponibles; si todos están bloqueados,
+  // se conserva el importe inicial para mostrar el mismo pago deshabilitado.
+  const requestedKeys = isFullBalance ? full!.items.map(itemKey) : selectedKeys ??
+    (availableOptions.length ? due.filter(item => !isPaymentPaused(item)) : due).slice(0, 1).map(itemKey);
+  const keys = availableOptions.length ? requestedKeys.filter(key => availableOptions.some(item => itemKey(item) === key)) : requestedKeys;
+  const selected = options.filter(item => keys.includes(itemKey(item)));
+  const paymentPaused = selected.some(isPaymentPaused);
   const baseCents = selected.reduce((total, item) => total + amountCents(item.baseAmount), 0);
   const baseAmount = baseCents / 100;
   const cityItems = selected.filter(item => item.requiresCityFeeAcceptance);
@@ -60,7 +80,7 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
   const surchargeAmount = existingCheckout ? Number(existingCheckout.surchargeAmount) : breakdown.surchargeAmount;
 
   const pay = async () => {
-    if (!selected.length || busy || signatureRequired || !citySatisfied || !termsSatisfied) return;
+    if (!selected.length || busy || paymentPaused || signatureRequired || !citySatisfied || !termsSatisfied) return;
     setBusy(true);
     try {
       const { url } = await createPublicCheckoutSession(
@@ -105,7 +125,7 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
     </div>
   );
 
-  const rows = isFullBalance ? selected : due;
+  const rows = options;
   return (
     <div className="mt-6 space-y-5 print:hidden">
       <PaymentScheduleView schedule={context.schedule} />
@@ -114,10 +134,10 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"><CreditCard className="h-5 w-5" /></span>
             <div>
-              <h2 className="font-semibold text-slate-950">{isFullBalance ? "Full outstanding balance" : due.length === 1 ? due[0].title : "Choose payments"}</h2>
+              <h2 className="font-semibold text-slate-950">{isFullBalance ? "Full outstanding balance" : options.length === 1 ? options[0].title : "Choose payments"}</h2>
               <p className="mt-1 text-sm text-slate-600">{isFullBalance
                 ? "Includes remaining installments, delivery and separate extra charges shown below."
-                : due.length ? "Select the items you want to pay now." : "You can pay the remaining balance in advance."}</p>
+                : "Select any available payment separately, or select several to pay together. Upcoming payments are optional advances."}</p>
             </div>
           </div>
           <div className="text-right">
@@ -131,10 +151,12 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
           <fieldset className="mt-4 divide-y rounded-lg border" disabled={busy}>
             <legend className="sr-only">Payments available</legend>
             {rows.map(item => (
-              <label key={itemKey(item)} className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm">
+              <label key={itemKey(item)} className={`flex items-center gap-3 px-4 py-3 text-sm ${isPaymentPaused(item) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
                 <Checkbox aria-label={`Pay ${item.title}`} checked={keys.includes(itemKey(item))}
-                  disabled={busy || isFullBalance}
+                  disabled={busy || isPaymentPaused(item)}
                   onCheckedChange={checked => {
+                    if (isPaymentPaused(item)) return;
+                    setSelectedFullKey("");
                     setSelectedKeys(checked === true ? [...keys, itemKey(item)] : keys.filter(key => key !== itemKey(item)));
                     setAcceptedCityKey(""); setAcceptedTermsKey("");
                   }} />
@@ -147,7 +169,9 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
         {isFullBalance && context.schedule?.cityFeePending && <p className="mt-3 text-sm text-amber-800">City Fee is not yet known and will be added separately.</p>}
         {termsKey && (
           <label className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-            <Checkbox checked={termsSatisfied} disabled={busy} onCheckedChange={value => setAcceptedTermsKey(value === true ? termsKey : "")} />
+            <Checkbox checked={termsSatisfied} disabled={busy || paymentPaused} onCheckedChange={value => {
+              if (!paymentPaused) setAcceptedTermsKey(value === true ? termsKey : "");
+            }} />
             <span><strong className="block">I accept the non-refundable installation deposit terms</strong>
               <span className="mt-1 block text-xs leading-relaxed">{termsItems.map(item => item.terms).join(" ")}</span>
             </span>
@@ -155,7 +179,9 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
         )}
         {cityKey && (
           <label className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
-            <Checkbox checked={citySatisfied} disabled={busy} onCheckedChange={value => setAcceptedCityKey(value === true ? cityKey : "")} />
+            <Checkbox checked={citySatisfied} disabled={busy || paymentPaused} onCheckedChange={value => {
+              if (!paymentPaused) setAcceptedCityKey(value === true ? cityKey : "");
+            }} />
             <span>I accept the City Fee adjustment of {formatMoney(cityAmount)}.</span>
           </label>
         )}
@@ -169,11 +195,15 @@ export function PublicEstimatePaymentCard({ token, context, agreementId }: {
           </div>
         )}
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-          {full && <Button type="button" variant="outline" disabled={busy} onClick={() => {
+          {full && <Button type="button" variant="outline" disabled={busy || materialRevisionPending} onClick={() => {
+            if (materialRevisionPending) return;
+            // Al salir de liquidación total se conserva la selección para
+            // poder desmarcar cualquier cuota, incluidas las futuras.
+            if (isFullBalance) setSelectedKeys(keys);
             setSelectedFullKey(isFullBalance ? "" : fullKey); setAcceptedCityKey(""); setAcceptedTermsKey("");
           }}>{isFullBalance ? "Choose payments" : "Pay full balance"}</Button>}
           <span className="flex items-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5" />Secure checkout</span>
-          <Button disabled={!selected.length || busy || signatureRequired || !citySatisfied || !termsSatisfied} onClick={() => void pay()}>
+          <Button disabled={!selected.length || busy || paymentPaused || signatureRequired || !citySatisfied || !termsSatisfied} onClick={() => void pay()}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
             {busy ? "Opening checkout..." : !selected.length ? "Select a payment" : existingCheckout ? "Resume payment"
               : baseAmount > 0 ? "Pay now" : cityKey ? "Confirm City Fee"

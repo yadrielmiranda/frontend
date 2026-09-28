@@ -1,4 +1,4 @@
-import type { ChangeOrderSummary } from "@/app/api/contracts.api";
+import type { ChangeOrderSummary, ChangePaymentPreview } from "@/app/api/contracts.api";
 import { formatMoney } from "@/lib/formatters";
 
 const chargeAmount = (line: { amount: string | null } | null) =>
@@ -8,7 +8,10 @@ const chargeAmount = (line: { amount: string | null } | null) =>
       ? "Pending"
       : formatMoney(Number(line.amount));
 
-export function ChangeOrderDetails({ change }: { change: ChangeOrderSummary }) {
+export function ChangeOrderDetails({ change, paymentPreview }: {
+  change: ChangeOrderSummary;
+  paymentPreview?: ChangePaymentPreview | null;
+}) {
   return (
     <div className="space-y-4" aria-label="Change Order details">
       <p className="text-sm text-muted-foreground">
@@ -75,6 +78,18 @@ export function ChangeOrderDetails({ change }: { change: ChangeOrderSummary }) {
           <dd>{formatMoney(Number(change.newTotal))}</dd>
         </div>
       </dl>
+      {paymentPreview && (
+        <div className="space-y-3 rounded-lg border border-slate-300 bg-slate-50 p-4" aria-label="Change Order payment summary">
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between gap-4"><dt>Payments already made</dt><dd>{formatMoney(Number(paymentPreview.paid))}</dd></div>
+            <div className="flex justify-between gap-4 border-t pt-2 text-base font-semibold"><dt>Amount payable after signing</dt><dd>{formatMoney(Number(paymentPreview.dueAfterSigning))}</dd></div>
+            <div className="flex justify-between gap-4"><dt>Remaining scheduled balance</dt><dd>{formatMoney(Number(paymentPreview.remainingScheduled))}</dd></div>
+          </dl>
+          <p className="text-sm text-muted-foreground">Review this change before signing. Signing does not charge your payment method.</p>
+          {Number(paymentPreview.dueAfterSigning) === 0 && <p className="text-sm text-muted-foreground">No payment becomes due immediately after signing. Any remaining balance follows the agreed payment schedule.</p>}
+          <p className="text-xs text-muted-foreground">Payment processing fees, if applicable, are shown before checkout.</p>
+        </div>
+      )}
       {change.newIncomplete && (
         <p className="text-sm text-muted-foreground">
           Charges marked Pending remain to be determined and are excluded from
@@ -82,8 +97,8 @@ export function ChangeOrderDetails({ change }: { change: ChangeOrderSummary }) {
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        Payments already made remain credited. This updated project total does
-        not change when payments are due.
+        Payments already made remain credited. Each adjustment follows the
+        agreed payment plan.
       </p>
     </div>
   );

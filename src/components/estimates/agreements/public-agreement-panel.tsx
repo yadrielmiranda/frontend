@@ -15,6 +15,7 @@ import {
 import { SignaturePad } from "./signature-pad";
 import { ContractPages } from "./contract-pages";
 import { ChangeOrderDetails } from "./change-order-details";
+import { MaterialChangeDetails } from "./material-change-details";
 import { PublicEstimatePaymentCard } from "@/components/estimates/public-estimate-payment-card";
 import { getPublicPaymentContext, type PublicPaymentContext } from "@/app/api/payments.api";
 import type { EstimateWithRelations } from "@/lib/types";
@@ -79,8 +80,12 @@ export function PublicAgreementPanel({
     canShowPayments && !agreement?.signedAt &&
     paymentContext?.agreement?.required && paymentContext.agreement.satisfied,
   );
+  const pendingChangeSignature = Boolean(
+    agreement && (agreement.materialRevisionId || agreement.kind === "CHANGE_ORDER") &&
+    !agreement.signedAt && !acceptedInAnotherView,
+  );
   const showPaymentStatus = Boolean(
-    canShowPayments && paymentContext?.enabled && paymentContext.schedule &&
+    canShowPayments && !pendingChangeSignature && paymentContext?.enabled && paymentContext.schedule &&
     paymentContext.status !== "expired" && !paymentExpired,
   );
   // La firma y el informe comparten estado para cambiar de tabla sin esperar una recarga.
@@ -89,9 +94,9 @@ export function PublicAgreementPanel({
     <EstimateViewDealerPublic
       estimate={estimate}
       pricingMode={estimate.publicPricingMode ?? "detailed"}
-      showPaymentSchedule={!showPaymentStatus}
+      showPaymentSchedule={!showPaymentStatus && !pendingChangeSignature}
     />
-  ), [estimate, showPaymentStatus]);
+  ), [estimate, showPaymentStatus, pendingChangeSignature]);
   if (!agreement) return report;
   const isChangeOrder = agreement.kind === "CHANGE_ORDER";
   async function submit(event: React.FormEvent) {
@@ -143,7 +148,10 @@ export function PublicAgreementPanel({
           </a>
         )}
       </div>
-      {status.changeOrder && <ChangeOrderDetails change={status.changeOrder} />}
+      {status.changeOrder && <ChangeOrderDetails change={status.changeOrder} paymentPreview={pendingChangeSignature ? status.changeOrderPaymentPreview : null} />}
+      {status.materialChange && !agreement.invalidatedAt && (
+        <MaterialChangeDetails change={status.materialChange} awaitingSignature={pendingChangeSignature} />
+      )}
       {isChangeOrder &&
         status.history.some((item) => item.id !== agreement.id) && (
           <details className="text-sm">
@@ -284,7 +292,7 @@ export function PublicAgreementPanel({
           {error}
         </p>
       )}
-      {canShowPayments && paymentContext && (
+      {canShowPayments && !pendingChangeSignature && paymentContext && (
         <PublicEstimatePaymentCard
           token={token}
           context={paymentContext}

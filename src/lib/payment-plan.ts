@@ -30,6 +30,7 @@ export type PaymentScheduleRow = {
   status: "PAID" | "DUE" | "UPCOMING" | "CREDIT" | "REVIEW";
 };
 export type PaymentSchedule = {
+  materialRevisionPending?: boolean;
   refundReviewPending?: boolean;
   refunded?: string;
   approvedRefundCredit?: string;

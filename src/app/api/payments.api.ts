@@ -21,6 +21,7 @@ export type PublicPaymentSelection = { type: PaymentType; sequence: number };
 export type PublicPaymentOption = NonNullable<PublicPaymentContext["payment"]> & { advanceOnly?: boolean };
 
 export type PublicPaymentContext = {
+  materialRevisionPending?: boolean;
   payments?: PublicPaymentOption[];
   fullBalance?: { amount: string; items: PublicPaymentSelection[] } | null;
   checkouts?: Array<{

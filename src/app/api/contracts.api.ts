@@ -30,7 +30,22 @@ export type AgreementInfo = {
     | "SIGNED"
     | "REQUIRES_NEW_SIGNATURE";
 };
+export type ChangePaymentPreview = {
+  dueAfterSigning: string;
+  remainingScheduled: string;
+  balance: string;
+  paid: string;
+};
+export type MaterialChangeSummary = {
+  previousTotal: string;
+  newTotal: string;
+  difference: string;
+  incomplete: boolean;
+  paymentPreview: ChangePaymentPreview | null;
+};
 export type AgreementStatus = {
+  changeOrderPaymentPreview?: ChangePaymentPreview | null;
+  materialChange?: MaterialChangeSummary | null;
   pendingMaterialRevisionId?: number | null;
   current: AgreementInfo | null;
   history: AgreementInfo[];
