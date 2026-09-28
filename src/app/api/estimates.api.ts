@@ -98,6 +98,12 @@ export function initializeEstimate(data: CreateEstimateHeaderData) {
   });
 }
 
+export function duplicateEstimate(estimateId: number, data: { name: string; includeInstallation: boolean }) {
+  return apiFetch<{ id: number; number: string }>(`/api/estimates/${estimateId}/duplicate`, {
+    method: "POST", body: data, timeoutMs: 120000,
+  });
+}
+
 // actualiza solamente el encabezado.
 // Este endpoint no modifica las piezas guardadas.
 export function updateEstimateHeader(

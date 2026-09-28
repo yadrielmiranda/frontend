@@ -117,7 +117,7 @@ export default async function EditEstimatePage({
         </div>
 
         <Card className="relative min-w-0 max-w-full shadow-lg">
-          <CardHeader className="min-w-0 px-4 sm:px-6 sm:pr-72">
+          <CardHeader className="min-w-0 px-4 sm:px-6 sm:pr-96">
             <CardTitle className="break-words text-xl sm:text-2xl">
               Estimate #{estimate.number}
             </CardTitle>

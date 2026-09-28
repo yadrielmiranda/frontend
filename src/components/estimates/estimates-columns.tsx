@@ -43,6 +43,7 @@ import type { DataTableDateRangeValue } from "@/components/data-table";
 import { getEstimateCostColumns } from "./estimate-cost-columns";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import { estimateLifecycleAction, EstimateLifecycleDialog, type EstimateLifecycleAction } from "./estimate-lifecycle-actions";
+import { DuplicateEstimateButton } from "./duplicate-estimate-dialog";
 
 // =============================
 // Helpers
@@ -499,6 +500,8 @@ export const getEstimateColumns = (
                 size="sm"
               />
             )}
+
+            <DuplicateEstimateButton estimate={estimate} actor={currentUser} iconOnly />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

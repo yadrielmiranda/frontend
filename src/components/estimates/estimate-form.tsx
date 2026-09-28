@@ -60,6 +60,7 @@ import {
   isDealerRole,
 } from "@/lib/rbac";
 import { InstallationEstimatePanel } from "./installation-estimate-panel";
+import { DuplicateEstimateButton } from "./duplicate-estimate-dialog";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
@@ -566,6 +567,16 @@ export function EstimateForm({
       dealerEarnings: updated.dealerEarnings ?? null,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
+  };
+
+  const prepareEstimateDuplication = async () => {
+    if (isApplyingGeneralMarkupRef.current || isDeletingPieceRef.current || isApplyingBulkAttributeRef.current) return false;
+    // Espera el autoguardado del editor antes de preparar una copia de los datos actuales.
+    if (headerAutosaveTimeoutRef.current) {
+      clearTimeout(headerAutosaveTimeoutRef.current);
+      headerAutosaveTimeoutRef.current = null;
+    }
+    return saveEstimateHeader();
   };
 
   const handleViewDetails = async () => {
@@ -1478,11 +1489,11 @@ export function EstimateForm({
     <>
       <div className="min-w-0 space-y-6 sm:space-y-8">
         {isEditMode && estimate && (
-          <div className="grid grid-cols-2 gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10 sm:flex">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10">
             <Button
               type="button"
               variant="outline"
-              className="group w-full gap-2 border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900 sm:w-auto"
+              className="group gap-2 border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900"
               onClick={() => void handleViewDetails()}
               disabled={isOpeningDetails || isRecalculating || isExiting}
             >
@@ -1499,7 +1510,6 @@ export function EstimateForm({
             <Button
               type="button"
               variant="blue"
-              className="w-full sm:w-auto"
               onClick={() => void handleRecalculateEstimate()}
               disabled={
                 readOnly || isRecalculating || isOpeningDetails || isExiting
@@ -1517,6 +1527,18 @@ export function EstimateForm({
               )}
               {isRecalculating ? "Recalculating..." : "Recalculate"}
             </Button>
+            <DuplicateEstimateButton
+              estimate={{
+                ...(promotionEstimate ?? estimate),
+                installationJob: financialInstallation
+                  ? { id: financialInstallation.id, status: financialInstallation.status }
+                  : null,
+              }}
+              actor={user}
+              iconOnly
+              beforeOpen={prepareEstimateDuplication}
+              disabled={isOpeningDetails || isRecalculating || isExiting || isApplyingBulkAttribute || isInstallationRequestEditing || discountDirty || discountLoading}
+            />
           </div>
         )}
 
