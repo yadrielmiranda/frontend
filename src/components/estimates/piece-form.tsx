@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Pencil, Calculator } from "lucide-react";
@@ -308,6 +308,7 @@ export function PieceForm({
     setValue,
     getValues,
     trigger,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<PieceFormValues>({
     defaultValues: {
@@ -345,6 +346,43 @@ export function PieceForm({
       highBottomPercent: initialData.highBottomPercent ?? null,
     },
   });
+
+  const latestCalculationRef = useRef(0);
+  const calculationValuesVersionRef = useRef(0);
+
+  useLayoutEffect(() => {
+    // Observe real value changes, including nested setValue edits and changes
+    // reverted before a render. Blur/validation notifications alone do not count.
+    let snapshot = JSON.stringify(getValues());
+    const subscription = watch(() => {
+      const next = JSON.stringify(getValues());
+      if (next !== snapshot) {
+        snapshot = next;
+        calculationValuesVersionRef.current++;
+      }
+    });
+    return () => {
+      // A different piece, calculation context or unmount invalidates pending work.
+      latestCalculationRef.current++;
+      subscription.unsubscribe();
+    };
+  }, [
+    getValues,
+    watch,
+    initialData.id,
+    props.estimateId,
+    props.onCalculate,
+    props.canUseCustomerPricing,
+    props.productsWithBrands,
+    props.systemsWithConfigs,
+    props.frameColors,
+    props.crystals,
+    props.tints,
+    props.coatings,
+    props.privacies,
+    props.muntinPatterns,
+    props.muntinTypes,
+  ]);
 
   const [isLocked, setIsLocked] = useState(
     startUnlocked ? false : hasInitialResults,
@@ -1684,6 +1722,12 @@ export function PieceForm({
   };
 
   const handleCalculate = async () => {
+    const calculationId = ++latestCalculationRef.current;
+    let valuesVersion = calculationValuesVersionRef.current;
+    const isCurrentCalculation = () =>
+      calculationId === latestCalculationRef.current &&
+      valuesVersion === calculationValuesVersionRef.current;
+
     try {
       if (selectedConfigUnavailable) {
         toast.error(
@@ -1745,6 +1789,7 @@ export function PieceForm({
       if (requiresManualPanelCount) fieldsToValidate.push("panelCount");
 
       const isValid = await trigger(fieldsToValidate);
+      if (!isCurrentCalculation()) return;
 
       if (!isValid) {
         toast.error("Please complete the required fields before calculating.");
@@ -2108,6 +2153,10 @@ export function PieceForm({
           : undefined,
       };
 
+      // Accept this attempt's own synchronous dimension normalization. There is
+      // no await since the previous guard, so user edits cannot interleave here.
+      valuesVersion = calculationValuesVersionRef.current;
+
       if (!isLinearMaterial) {
         const idCrystForPreview = Number(pieceDtoToSend.idCryst);
 
@@ -2138,6 +2187,7 @@ export function PieceForm({
           panelCount: pieceDtoToSend.panelCount ?? undefined,
           horizontalHeights: horizontalHeightsNorm ?? undefined,
         });
+        if (!isCurrentCalculation()) return;
 
         if (!precheck.ok) {
           if (precheck.reason === "NOT_RATED") {
@@ -2193,6 +2243,7 @@ export function PieceForm({
             props.estimateId,
             initialData.id,
           );
+      if (!isCurrentCalculation()) return;
 
       const unitPrice = roundMoney(Number(calculated.price) || 0);
       const lineSubtotal = roundMoney(Number(calculated.subtotal) || 0);
@@ -2255,6 +2306,7 @@ export function PieceForm({
       setHasPendingDealerMarkup(false);
       toast.success("Piece calculated successfully.");
     } catch (error) {
+      if (!isCurrentCalculation()) return;
       toast.error((error as Error).message ?? "Error during calculation");
     }
   };
