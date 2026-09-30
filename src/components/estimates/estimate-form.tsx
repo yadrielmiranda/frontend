@@ -315,6 +315,7 @@ export function EstimateForm({
     control,
     setValue,
     getValues,
+    watch,
     trigger,
     formState: { errors },
   } = useForm<EstimateFormValues>({
@@ -403,14 +404,36 @@ export function EstimateForm({
     const zip5 = normalizeUSZip(zip);
     if (!isValidUSZip(zip5)) return;
 
+    let active = true;
+    // Invalida al editar, sin esperar al siguiente render ni perder ediciones revertidas.
+    const subscription = watch((_values, { name, type }) => {
+      if (
+        type === "change" &&
+        (name === "customerPostalCode" ||
+          name === "customerCity" ||
+          name === "customerState")
+      ) {
+        active = false;
+      }
+    });
+
     lookupZip(zip5)
       .then((res) => {
-        if (!res) return;
+        if (
+          !res ||
+          !active ||
+          normalizeUSZip(getValues("customerPostalCode")) !== zip5
+        ) return;
         setValue("customerCity", res.city, { shouldDirty: true });
         setValue("customerState", res.state, { shouldDirty: true });
       })
       .catch(() => {});
-  }, [zip, setValue]);
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [zip, setValue, getValues, watch]);
 
   const buildEstimateHeaderPayload =
     useCallback((): UpdateEstimateHeaderData => {
