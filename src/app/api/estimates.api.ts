@@ -212,10 +212,7 @@ export function getEstimate(id: number) {
 }
 
 export function getEstimates() {
-  return apiFetch<EstimateWithRelations[]>(`/api/estimates`).catch((err) => {
-    console.error("Error in getEstimates:", err);
-    return [] as EstimateWithRelations[];
-  });
+  return apiFetch<EstimateWithRelations[]>(`/api/estimates`);
 }
 
 export function deleteEstimate(id: number) {

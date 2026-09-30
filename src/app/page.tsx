@@ -30,6 +30,7 @@ import {
   isOperatorRole,
 } from "@/lib/rbac";
 import { getEstimates } from "@/app/api/estimates.api";
+import { EstimatesLoadError } from "@/components/estimates/estimates-load-error";
 import { getOrders } from "@/app/api/orders.api";
 import type { EstimateWithRelations, OrderWithRelations } from "@/lib/types";
 import { formatMoney } from "@/lib/formatters";
@@ -69,10 +70,13 @@ export default function HomePage() {
   const [estimates, setEstimates] = useState<EstimateWithRelations[]>([]);
   const [orders, setOrders] = useState<OrderWithRelations[]>([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState(false);
+  const [dashboardReload, setDashboardReload] = useState(0);
 
   useEffect(() => {
     setEstimates([]);
     setOrders([]);
+    setDashboardError(false);
     if (!isAuthenticated || !user?.id) {
       setIsDashboardLoading(false);
       return;
@@ -97,8 +101,7 @@ export default function HomePage() {
         console.error("Error loading dashboard data:", error);
 
         if (!cancelled) {
-          setEstimates([]);
-          setOrders([]);
+          setDashboardError(true);
         }
       } finally {
         if (!cancelled) {
@@ -112,7 +115,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, user?.id, user?.role?.name]);
+  }, [isAuthenticated, user?.id, user?.role?.name, dashboardReload]);
 
   const dashboardSummary = useMemo(() => {
     const activeEstimates = estimates.filter(isActiveEstimate);
@@ -351,7 +354,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section
+        {dashboardError ? (
+          <EstimatesLoadError
+            message="Could not load dashboard data. Please try again."
+            onRetry={() => setDashboardReload((value) => value + 1)}
+          />
+        ) : <section
           className={
             metricCards.length === 2
               ? "grid gap-4 md:grid-cols-2"
@@ -392,7 +400,7 @@ export default function HomePage() {
               <div key={card.title} className={className}>{content}</div>
             );
           })}
-        </section>
+        </section>}
 
         <section className="space-y-4">
           <div className="flex items-end justify-between gap-4">
