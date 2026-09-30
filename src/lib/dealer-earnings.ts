@@ -20,7 +20,7 @@ export const earningsBasisLabels: Record<DealerEarningsBasis, string> = {
 export const earningsBasisDescriptions: Record<DealerEarningsBasis, string> = {
   DEALER_MARKUP: "The dealer's own resale markup: customer price minus Dealer Price / Your Cost. Use 100% for the full markup.",
   EXPECTED_PROFIT: "Customer price minus the app base price before any markup. Dealer Price / Your Cost already includes the company's markup.",
-  REAL_PROFIT: "Customer price minus the real factory cost. Earnings remain pending until that cost is recorded.",
+  REAL_PROFIT: "Customer price minus real factory cost and material processing costs. Earnings remain pending until the required costs are confirmed.",
 };
 
 // Importes calculados por el backend; la interfaz solo los presenta.
@@ -30,13 +30,16 @@ export interface DealerEarningsSummary {
   basis: DealerEarningsBasis | "AVAILABLE_PROFIT";
   percent: string;
   label: string;
-  status: "CALCULATED" | "PENDING_REAL_COST";
+  status: "CALCULATED" | "PENDING_REAL_COST" | "PENDING_COST";
   amount: string | null;
 }
 
 export interface MaterialProfitsSummary {
   expectedProfit: string;
   realProfit: string | null;
+  processingCost?: string | null;
+  processingCostStatus?: "PENDING" | "CONFIRMED";
+  netRealProfit?: string | null;
   netProfitD: string;
   authenticExpectedProfit: string | null;
   authenticRealProfit: string | null;

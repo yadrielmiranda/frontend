@@ -13,9 +13,11 @@ export function DealerEarningsSummaryCard({
   const amount = pendingChanges ? null : earnings?.amount;
   const pendingMessage = pendingChanges
     ? "Earnings update after changes are saved and approved."
-    : earnings?.status === "PENDING_REAL_COST"
-      ? "Pending real factory cost"
-      : "Earnings unavailable. Refresh the estimate to try again.";
+    : earnings?.status === "PENDING_COST"
+      ? "Earnings pending confirmation"
+      : earnings?.status === "PENDING_REAL_COST"
+        ? "Pending real factory cost"
+        : "Earnings unavailable. Refresh the estimate to try again.";
 
   return (
     <section aria-label={label} className="break-inside-avoid rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4">

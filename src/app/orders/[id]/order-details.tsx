@@ -12,6 +12,7 @@ import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-
 import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
 import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
 import { DealerEarningsSummaryCard } from "@/components/estimates/dealer-earnings-summary";
+import { MaterialProfitAdjustments } from "@/components/estimates/material-profit-adjustments";
 
 export function OrderDetails({
   order,
@@ -231,7 +232,7 @@ export function OrderDetails({
             </div>
 
             <div>
-              <div className="text-muted-foreground">Real material profit</div>
+              <div className="text-muted-foreground">{order.materialProfits?.processingCostStatus ? "Gross real material profit" : "Real material profit"}</div>
               <div className="font-medium">
                 {order.netProfitReal === null ||
                 order.netProfitReal === undefined
@@ -240,16 +241,10 @@ export function OrderDetails({
               </div>
             </div>
             {order.materialProfits && (
-              <>
-                <div>
-                  <div className="text-muted-foreground">Company expected profit after dealer earnings</div>
-                  <div className="font-medium">{order.materialProfits.authenticExpectedProfit == null ? "Pending dealer earnings" : formatMoney(Number(order.materialProfits.authenticExpectedProfit))}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Company real profit after dealer earnings</div>
-                  <div className="font-medium">{order.materialProfits.authenticRealProfit == null ? "Pending real factory cost" : formatMoney(Number(order.materialProfits.authenticRealProfit))}</div>
-                </div>
-              </>
+              <MaterialProfitAdjustments
+                profits={order.materialProfits}
+                showDealerEarnings={order.dealerModeSnapshot === "INTERNAL" || Boolean(order.dealerEarnings || order.subdealerEarnings)}
+              />
             )}
           </div>
 

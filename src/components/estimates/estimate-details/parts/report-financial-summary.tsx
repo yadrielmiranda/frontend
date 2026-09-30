@@ -6,6 +6,7 @@ import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { DealerProfitSummary } from "../../dealer-profit-summary";
 import { DealerEarningsSummaryCard } from "../../dealer-earnings-summary";
+import { MaterialProfitAdjustments } from "../../material-profit-adjustments";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { isDealerRole } from "@/lib/rbac";
@@ -602,20 +603,16 @@ function AdminProfitability({
             {formatMoney((internalDealer || estimate.dealerNetwork) && estimate.materialProfits ? Number(estimate.materialProfits.expectedProfit) : estimatedCompanyProfit)}
           </div>
         </div>
-        {(internalDealer || estimate.dealerNetwork) && estimate.materialProfits && (
+        {estimate.materialProfits && (
           <>
             <div>
-              <div className="text-muted-foreground">Real material profit</div>
+              <div className="text-muted-foreground">{estimate.materialProfits.processingCostStatus ? "Gross real material profit" : "Real material profit"}</div>
               <div className="font-medium">{estimate.materialProfits.realProfit == null ? "Pending real factory cost" : formatMoney(Number(estimate.materialProfits.realProfit))}</div>
             </div>
-            <div>
-              <div className="text-muted-foreground">Company expected profit after dealer earnings</div>
-              <div className="font-medium">{estimate.materialProfits.authenticExpectedProfit == null ? "Pending dealer earnings" : formatMoney(Number(estimate.materialProfits.authenticExpectedProfit))}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Company real profit after dealer earnings</div>
-              <div className="font-medium">{estimate.materialProfits.authenticRealProfit == null ? "Pending real factory cost" : formatMoney(Number(estimate.materialProfits.authenticRealProfit))}</div>
-            </div>
+            <MaterialProfitAdjustments
+              profits={estimate.materialProfits}
+              showDealerEarnings={internalDealer || Boolean(estimate.dealerEarnings || estimate.subdealerEarnings)}
+            />
           </>
         )}
       </div>
