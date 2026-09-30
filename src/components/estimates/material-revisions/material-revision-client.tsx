@@ -37,9 +37,9 @@ function Totals({ before, after, dealerPricing }: { before: MaterialRevisionSumm
   ];
   return <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="mb-3 text-left text-lg font-semibold">Revised project totals</caption>
     <thead><tr className="border-b"><th className="pb-2 text-left">Amount</th><th className="pb-2 text-right">Current</th><th className="pb-2 text-right">Revised</th></tr></thead>
-    <tbody>{rows.map(([label, key]) => <tr key={key} className={`border-b ${key === "projectTotal" || key === "balance" ? "font-semibold" : ""}`}><td className="py-3 pr-3">{label}</td>
+    <tbody>{rows.filter(([, key]) => before[key] != null && after[key] != null).map(([label, key]) => <tr key={key} className={`border-b ${key === "projectTotal" || key === "balance" ? "font-semibold" : ""}`}><td className="py-3 pr-3">{label}</td>
       <td className="py-3 pl-3 text-right">{money(before[key] as string)}</td><td className="py-3 pl-3 text-right">{money(after[key] as string)}</td></tr>)}</tbody></table>
-    <p className="mt-4 font-medium">Change in total payable: {money(Number(after.projectTotal) - Number(before.projectTotal))}</p>
+    <p className="mt-4 font-medium">{after.paymentsVisible === false ? "Change in customer project total" : "Change in total payable"}: {money(after.paymentsVisible === false ? Number(after.customerProjectTotal) - Number(before.customerProjectTotal) : Number(after.projectTotal) - Number(before.projectTotal))}</p>
     {Number(after.creditBalance) > 0 && <p className="mt-2 text-sm">Credit balance: {money(after.creditBalance)}. No refund is issued automatically.</p>}
     {after.provisionalInstallation && <p className="mt-2 text-sm text-muted-foreground">Installation is provisional until measurement and installation quote approval are complete. New units remain pending measurement.</p>}
     {after.customerTotalIncomplete && <p className="mt-2 text-sm text-muted-foreground">The customer total includes only charges currently available in the project.</p>}

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Menu, FileText, ShoppingBag, Settings, Hammer, Warehouse } from "lucide-react";
+import { Menu, FileText, ShoppingBag, Settings, Hammer, Warehouse, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import brandLogo from "../../public/logo.png";
@@ -38,6 +38,9 @@ function TopBar() {
   const isWarehouseActive = pathname.startsWith("/warehouse");
   const isOrdersActive = pathname.startsWith("/orders");
   const isInstallationsActive = pathname.startsWith("/installations");
+  const canAccessDealers = ["dealer", "admin", "operator"].includes(user?.role?.name ?? "");
+  const dealerNetworkLabel = user?.role?.name === "dealer" ? "My dealers" : "Dealer network";
+  const isDealersActive = pathname.startsWith("/dealers");
   const isSettingsActive = pathname.startsWith("/settings");
 
   const navButtonClass = (active: boolean) =>
@@ -149,6 +152,10 @@ function TopBar() {
               </Link>
             </Button>
 
+            {canAccessDealers && <Button variant="ghost" className={navButtonClass(isDealersActive)} asChild>
+              <Link href="/dealers"><Users className="mr-2 h-4 w-4" />{dealerNetworkLabel}</Link>
+            </Button>}
+
             {canAccessWarehouse(user?.role?.name) && (
               <Button variant="ghost" className={navButtonClass(isWarehouseActive)} asChild>
                 <Link href="/warehouse"><Warehouse className="mr-2 h-4 w-4" />Warehouse</Link>
@@ -228,6 +235,10 @@ function TopBar() {
                         Orders
                       </Link>
                     </Button>
+
+                    {canAccessDealers && <Button variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(isDealersActive)}`} asChild>
+                      <Link href="/dealers"><Users className="mr-2 h-4 w-4" />{dealerNetworkLabel}</Link>
+                    </Button>}
 
                     {canAccessWarehouse(user?.role?.name) && (
                       <Button variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(isWarehouseActive)}`} asChild>

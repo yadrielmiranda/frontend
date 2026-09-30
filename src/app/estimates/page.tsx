@@ -8,7 +8,8 @@ import { EstimatesClient } from "@/components/estimates/estimates-client";
 import { canCreateEstimate } from "@/lib/rbac";
 import { notFound } from "next/navigation";
 
-export default async function EstimatesPage() {
+export default async function EstimatesPage({ searchParams }: { searchParams: Promise<{ owner?: string }> }) {
+  const ownerId = Number((await searchParams).owner) || undefined;
   const user = await getCurrentUser();
   if (!user) notFound();
   const estimates = await getEstimates();
@@ -18,6 +19,7 @@ export default async function EstimatesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold">Estimates</h1>
         {canCreateEstimate(user.role?.name) && (
+          user.networkSalesBlocked ? <Button variant="green" disabled>+ New Estimate</Button> :
           <Button variant="green" asChild>
             <Link href="/estimates/new">+ New Estimate</Link>
           </Button>
@@ -25,7 +27,7 @@ export default async function EstimatesPage() {
       </div>
 
       <PromotionBanner />
-      <EstimatesClient initialEstimates={estimates} currentUser={user} />
+      <EstimatesClient initialEstimates={estimates} currentUser={user} ownerId={ownerId} />
     </div>
   );
 }

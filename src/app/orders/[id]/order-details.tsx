@@ -17,6 +17,7 @@ export function OrderDetails({
   order,
   installation,
   isOwner,
+  currentUserId,
   isPrivileged,
   isAdmin,
   canEdit,
@@ -27,6 +28,7 @@ export function OrderDetails({
   order: OrderWithRelations;
   installation: InstallationJob | null;
   isOwner: boolean;
+  currentUserId: number;
   isPrivileged: boolean;
   isAdmin: boolean;
   canEdit: boolean;
@@ -163,9 +165,11 @@ export function OrderDetails({
         />
       )}
 
-      {(isOwner || isPrivileged) && order.dealerModeSnapshot === "INTERNAL" && order.dealerEarnings && (
+      {order.dealerEarnings && (
         <DealerEarningsSummaryCard earnings={order.dealerEarnings} />
       )}
+
+      {isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={order.subdealerEarnings} />}
 
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (
@@ -266,7 +270,7 @@ export function OrderDetails({
       {<EstimatePaymentCard
         estimateId={order.idEst} estimateOwnerId={order.userId} ownerRole={order.user.role.name}
         estimateStatus="Ordered" order={order} materialPayments={order.estimate.payments ?? []}
-        installationJob={installation} currentUserId={isOwner ? order.userId : 0}
+        installationJob={installation} currentUserId={currentUserId} dealerNetwork={order.estimate.dealerNetwork}
         materialAmount={0} dealerMode={order.dealerModeSnapshot} paymentSchedule={order.paymentSchedule}
         cardSurchargeFraction={cardSurchargeFraction} canRecordManualPayment={canRecordManualPayment}
       />}

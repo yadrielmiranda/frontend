@@ -125,7 +125,7 @@ function canEditEstimateFromList(
   }
 
   const canManage =
-    currentUser.id === estimate.idUser ||
+    currentUser.id === estimate.idUser || estimate.dealerNetwork?.canAssist === true ||
     isAdminRole(currentUser.role?.name) ||
     isOperatorRole(currentUser.role?.name);
   const materialLocked = estimate.payments?.some(
@@ -180,7 +180,7 @@ function getEstimateListAction(
     materialPayment?.status === "PAID" ||
     Boolean(materialPayment?.stripeSessionId);
   const canManage =
-    currentUser?.id === estimate.idUser ||
+    currentUser?.id === estimate.idUser || estimate.dealerNetwork?.canAssist === true ||
     isAdminRole(currentUser?.role?.name) ||
     isOperatorRole(currentUser?.role?.name);
 
@@ -289,7 +289,7 @@ export const getEstimateColumns = (
             header: () => <div className="text-center">Net Profit ($)</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {formatMoney(Number(row.original.netProfit) -
+                {formatMoney(row.original.dealerNetwork && row.original.materialProfits ? Number(row.original.materialProfits.expectedProfit) : Number(row.original.netProfit) -
                   (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
               </div>
             ),
@@ -304,7 +304,7 @@ export const getEstimateColumns = (
             header: () => <div className="text-center">Net Profit D ($)</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {formatMoney(Number(row.original.netProfitD) +
+                {row.original.dealerNetwork && row.original.dealerEarnings ? (row.original.dealerEarnings.amount == null ? 'Pending' : formatMoney(Number(row.original.dealerEarnings.amount))) : formatMoney(row.original.dealerNetwork?.materialProfit != null ? Number(row.original.dealerNetwork.materialProfit) : Number(row.original.netProfitD) +
                   Number(row.original.manualDiscountSummary?.material.netDiscount ?? 0) *
                   (row.original.manualDiscountSummary?.payer === "CUSTOMER" ? -1 : 1))}
               </div>
@@ -325,16 +325,16 @@ export const getEstimateColumns = (
           } satisfies ColumnDef<EstimateWithRelations>,
         ]
       : []),
-    ...(showInternalProfit
+    ...(role !== "client"
       ? [
           {
             id: "createdByRole",
-            accessorFn: (estimate) => estimate.user?.role?.name ?? "",
+            accessorFn: (estimate) => (estimate.dealerNetwork?.level ?? estimate.user?.role?.name ?? "").toLowerCase(),
             header: () => <div className="text-center">Role</div>,
             filterFn: "equalsString",
             cell: ({ row }) => (
               <div className="text-center capitalize">
-                {row.original.user?.role?.name ?? "—"}
+                {(row.original.dealerNetwork?.level ?? row.original.user?.role?.name ?? "—").toLowerCase()}
               </div>
             ),
           } satisfies ColumnDef<EstimateWithRelations>,
@@ -371,7 +371,7 @@ export const getEstimateColumns = (
         const isOwner = currentUser?.id === estimate.idUser;
         const showOwnerActions = isOwner;
         const isDealer = currentUser?.role?.name === "dealer";
-        const effectiveDealerMode = isOwner
+        const effectiveDealerMode = estimate.dealerNetwork ? estimate.dealerModeSnapshot : isOwner
           ? (estimate.user?.dealerMode ??
             currentUser?.dealerMode ??
             estimate.dealerModeSnapshot)
@@ -401,8 +401,7 @@ export const getEstimateColumns = (
         const canPay =
           isActive &&
           !estimate.order &&
-          isOwner &&
-          !isInternalDealer &&
+          (estimate.dealerNetwork ? estimate.dealerNetwork.canPay : isOwner && !isInternalDealer) &&
           !isPaid &&
           hasPayableMaterial &&
           (!estimate.installationJob ||
@@ -430,7 +429,7 @@ export const getEstimateColumns = (
           !isCanceled && isInternalDealer && isOwner && internalPaymentDue;
 
         const canRecalculate =
-          isExpired && !estimate.order && isOwner && !isPaymentLocked;
+          isExpired && !estimate.order && (isOwner || estimate.dealerNetwork?.canAssist) && !isPaymentLocked;
 
         const handleDelete = async () => {
           try {
@@ -480,7 +479,7 @@ export const getEstimateColumns = (
                 size="sm"
                 className="h-8 px-3 shadow-sm"
                 onClick={() => void handlePay()}
-                disabled={isPaying}
+                disabled={isPaying || estimate.networkPaymentBlocked}
                 title="Open estimate payment"
                 aria-label={`Open payment for estimate #${estimate.number}`}
               >
@@ -495,6 +494,7 @@ export const getEstimateColumns = (
 
             {canCopyPaymentLink && (
               <EstimatePaymentLinkActions
+                disabled={estimate.networkPaymentBlocked}
                 estimateId={estimate.id}
                 estimateNumber={estimate.number}
                 size="sm"
@@ -551,7 +551,7 @@ export const getEstimateColumns = (
                 {showOwnerActions && canRecalculate && (
                   <DropdownMenuItem
                     onSelect={handleRecalculate}
-                    disabled={isRecalculating}
+                    disabled={isRecalculating || estimate.user?.networkSalesBlocked}
                     className="text-blue-700 focus:bg-blue-50 focus:text-blue-800"
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -561,7 +561,7 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {lifecycleAction && <DropdownMenuItem onSelect={() => setLifecycle(lifecycleAction)}>
+                {lifecycleAction && <DropdownMenuItem disabled={lifecycleAction === "reactivate" && estimate.user?.networkSalesBlocked} onSelect={() => setLifecycle(lifecycleAction)}>
                   {lifecycleAction === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
                 </DropdownMenuItem>}
 

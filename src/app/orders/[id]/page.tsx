@@ -52,6 +52,7 @@ export default async function OrderDetailsPage({
       <OrderDetails
         order={order}
         installation={installation}
+        currentUserId={user.id}
         isOwner={user.id === order.userId}
         isPrivileged={canEdit}
         isAdmin={isAdminRole(role)}
@@ -59,7 +60,7 @@ export default async function OrderDetailsPage({
         canViewFinancials={canViewFinancials}
         cardSurchargeFraction={cardSurchargeFraction}
         canRecordManualPayment={
-          isAdminRole(role) ||
+          order.estimate.dealerNetwork?.canRecordManualPayment || isAdminRole(role) ||
           (role === "dealer" &&
             user.id === order.userId &&
             order.dealerModeSnapshot === "INTERNAL")

@@ -169,6 +169,7 @@ export function resolveEstimatePaymentAction({
 function EstimatePaymentCardContent({
   estimateId,
   estimateOwnerId,
+  dealerNetwork,
   ownerRole,
   estimateStatus,
   order,
@@ -183,11 +184,13 @@ function EstimatePaymentCardContent({
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
   paymentBlockedReason,
+  networkPaymentBlocked = false,
   beforePayment,
   className = "",
 }: {
   estimateId: number;
   estimateOwnerId: number;
+  dealerNetwork?: import("@/lib/types").EstimateDealerNetwork | null;
   ownerRole: string;
   estimateStatus: string;
   order: Order | null;
@@ -202,6 +205,7 @@ function EstimatePaymentCardContent({
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
   paymentBlockedReason?: string;
+  networkPaymentBlocked?: boolean;
   beforePayment?: () => Promise<boolean>;
   className?: string;
 }) {
@@ -214,9 +218,10 @@ function EstimatePaymentCardContent({
   if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
 
   const isOwner = currentUserId === estimateOwnerId;
-  const isInternalDealer = dealerMode === "INTERNAL";
+  const isInternalDealer = dealerNetwork ? dealerNetwork.payerType === "CUSTOMER" : dealerMode === "INTERNAL";
+  const canPay = dealerNetwork ? dealerNetwork.canPay : isOwner && !isInternalDealer;
 
-  if (!isOwner && !canRecordManualPayment) return <PaymentScheduleView schedule={paymentSchedule} />;
+  if (!canPay && !(isOwner && isInternalDealer) && !canRecordManualPayment) return <PaymentScheduleView schedule={paymentSchedule} />;
 
   const defaultAction = resolveEstimatePaymentAction({
     estimateStatus,
@@ -268,7 +273,7 @@ function EstimatePaymentCardContent({
     : paymentPool.find(payment => payment.type === action.type &&
         (action.sequence == null || payment.sequence === action.sequence) && payment.status === "PENDING" && payment.stripeSessionId);
   const checkoutStarted = Boolean(activeCheckoutPayment);
-  const showCardCheckoutAmounts = isOwner && !isInternalDealer;
+  const showCardCheckoutAmounts = canPay;
   const cardBreakdown = getCardPaymentBreakdown({
     baseAmount: action.amount,
     surchargeFraction: cardSurchargeFraction,
@@ -276,7 +281,7 @@ function EstimatePaymentCardContent({
   });
 
   const handlePayment = async () => {
-    if (busy || !hasSelection) return;
+    if (busy || !hasSelection || networkPaymentBlocked) return;
     if (paymentBlockedReason) {
       toast.error(paymentBlockedReason);
       return;
@@ -363,7 +368,7 @@ function EstimatePaymentCardContent({
       {installments.isFullBalance ? <FullBalanceReview rows={installments.rows} cityFeePending={paymentSchedule?.cityFeePending} /> : selectingInstallments && <InstallmentSelection rows={installments.rows} sequences={installments.sequences}
         onChange={values => { installments.setSequences(values); setAcceptedCityKey(""); }} disabled={busy} />}
 
-      {requiresDepositTerms && isOwner && !isInternalDealer && (
+      {requiresDepositTerms && canPay && (
         <label
           htmlFor="installation-deposit-terms"
           className={`mt-4 flex items-start gap-3 rounded-lg border-2 p-4 text-sm transition-colors ${
@@ -408,7 +413,7 @@ function EstimatePaymentCardContent({
         </label>
       )}
 
-      {requiresMaterialAcceptance && isOwner && (
+      {requiresMaterialAcceptance && (canPay || isOwner && isInternalDealer) && (
         <label
           htmlFor="material-acceptance"
           className={`mt-4 flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 text-sm transition-colors ${
@@ -442,7 +447,7 @@ function EstimatePaymentCardContent({
         </label>
       )}
 
-      {action.requiresCityFeeAcceptance && isOwner && !isInternalDealer && (
+      {action.requiresCityFeeAcceptance && canPay && (
         <label className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
           <Checkbox checked={cityFeeAccepted} disabled={busy} onCheckedChange={value => setAcceptedCityKey(value === true ? cityKey : "")} />
           <span>I accept the City Fee adjustment of {formatMoney(action.cityFeeAmount ?? action.amount)}.</span>
@@ -461,7 +466,7 @@ function EstimatePaymentCardContent({
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         {(installments.offerFullBalance || installments.isFullBalance) && <FullBalanceToggle selected={installments.isFullBalance}
           disabled={busy} onChange={() => { installments.setFullBalance(!installments.isFullBalance); setAcceptedCityKey(""); }} />}
-        {isOwner && !isInternalDealer ? (
+        {canPay ? (
           <>
             <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
               <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
@@ -470,7 +475,7 @@ function EstimatePaymentCardContent({
               type="button"
               className="w-full sm:w-auto"
               disabled={
-                busy || !hasSelection ||
+                busy || !hasSelection || networkPaymentBlocked ||
                 Boolean(paymentBlockedReason) ||
                 (requiresDepositTerms && !depositTermsSatisfied) ||
                 (requiresMaterialAcceptance && !materialAccepted) ||
@@ -498,12 +503,13 @@ function EstimatePaymentCardContent({
             <p className="text-sm text-slate-600">
               Send this payment link to the final customer.
             </p>
-            <EstimatePaymentLinkActions estimateId={estimateId} showShare beforeAction={beforePayment} />
+            <EstimatePaymentLinkActions estimateId={estimateId} showShare beforeAction={beforePayment} disabled={networkPaymentBlocked} />
           </div>
         ) : null}
 
         {canRecordManualPayment && hasSelection && action.amount > 0 && !paymentBlockedReason && (
           <ManualPaymentDialog
+            disabled={networkPaymentBlocked}
             estimateId={estimateId}
             type={action.type}
             key={`${installments.sequences.join(",")}:${action.amount}:${cityKey}`}

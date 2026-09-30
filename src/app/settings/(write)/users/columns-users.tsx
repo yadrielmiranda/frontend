@@ -35,7 +35,13 @@ const getUserStatus = (user: User): string => {
     return "Deleted";
   }
 
-  return user.isActive ? "Active" : "Inactive";
+  return !user.isActive || user.networkAccessBlocked ? "Inactive" : user.networkSalesBlocked ? "Business paused" : "Active";
+};
+
+const getDealerMode = (user: User): string => {
+  if (user.role.name !== "dealer" || user.dealerLevel === "DISTRIBUTOR") return "—";
+  if (user.parentDealerId && user.parentDealer?.dealerMode !== "INTERNAL") return "—";
+  return user.dealerMode ?? "EXTERNAL";
 };
 
 export const columns: ColumnDef<User>[] = [
@@ -75,7 +81,7 @@ export const columns: ColumnDef<User>[] = [
               : "bg-gray-100 text-gray-800"
           }`}
         >
-          {roleName}
+          {roleName === "dealer" ? (row.original.dealerLevel ?? "Dealer").toLowerCase() : roleName}
         </span>
       );
     },
@@ -102,16 +108,16 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     id: "dealerMode",
-    accessorFn: (user) =>
-      user.role.name === "dealer" ? (user.dealerMode ?? "EXTERNAL") : "—",
+    accessorFn: getDealerMode,
     header: "Dealer Mode",
     cell: ({ row }) => {
       const user = row.original;
-      if (user.role.name !== "dealer") return "—";
+      const mode = getDealerMode(user);
+      if (mode === "—") return mode;
 
       return (
         <span className="text-xs font-semibold capitalize">
-          {(user.dealerMode ?? "EXTERNAL").toLowerCase()}
+          {mode.toLowerCase()}
         </span>
       );
     },
@@ -135,12 +141,12 @@ export const columns: ColumnDef<User>[] = [
       return (
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            user.isActive
+            user.isActive && !user.networkAccessBlocked && !user.networkSalesBlocked
               ? "bg-green-100 text-green-800"
               : "bg-yellow-100 text-yellow-800"
           }`}
         >
-          {user.isActive ? "Active" : "Inactive"}
+          {getUserStatus(user)}
         </span>
       );
     },

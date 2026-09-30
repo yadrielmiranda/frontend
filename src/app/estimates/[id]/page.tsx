@@ -43,7 +43,7 @@ export default async function EstimateDetailPage({
   const isPrivileged = isAdminRole(role) || isOperatorRole(role);
   const isOwner = user.id === estimate.idUser;
 
-  if (!isPrivileged && !isOwner) {
+  if (!isPrivileged && !isOwner && !estimate.dealerNetwork?.canAssist) {
     return notFound();
   }
 

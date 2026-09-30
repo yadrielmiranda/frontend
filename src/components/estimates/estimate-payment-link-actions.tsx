@@ -32,12 +32,14 @@ export function EstimatePaymentLinkActions({
   showShare = false,
   size = "default",
   beforeAction,
+  disabled = false,
 }: {
   estimateId: number;
   estimateNumber?: string;
   showShare?: boolean;
   size?: "default" | "sm";
   beforeAction?: () => Promise<boolean>;
+  disabled?: boolean;
 }) {
   const [busyAction, setBusyAction] = useState<"copy" | "share" | null>(null);
 
@@ -52,6 +54,7 @@ export function EstimatePaymentLinkActions({
   };
 
   const copyPaymentLink = async () => {
+    if (disabled) return;
     setBusyAction("copy");
     try {
       if (beforeAction && !(await beforeAction())) return;
@@ -65,6 +68,7 @@ export function EstimatePaymentLinkActions({
   };
 
   const sharePaymentLink = async () => {
+    if (disabled) return;
     setBusyAction("share");
     try {
       if (beforeAction && !(await beforeAction())) return;
@@ -96,7 +100,7 @@ export function EstimatePaymentLinkActions({
         type="button"
         size={size}
         variant="outline"
-        disabled={busyAction !== null}
+        disabled={disabled || busyAction !== null}
         onClick={() => void copyPaymentLink()}
       >
         {busyAction === "copy" ? (
@@ -111,7 +115,7 @@ export function EstimatePaymentLinkActions({
         <Button
           type="button"
           size={size}
-          disabled={busyAction !== null}
+          disabled={disabled || busyAction !== null}
           onClick={() => void sharePaymentLink()}
         >
           {busyAction === "share" ? (

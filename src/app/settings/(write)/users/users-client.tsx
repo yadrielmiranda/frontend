@@ -59,6 +59,10 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
             value: "Inactive",
           },
           {
+            label: "Business paused",
+            value: "Business paused",
+          },
+          {
             label: "Deleted",
             value: "Deleted",
           },

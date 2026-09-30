@@ -69,7 +69,7 @@ export default async function EditEstimatePage({
     (payment.status === "PAID" || payment.status === "REFUNDED" ||
       Boolean(payment.paidAt) || Boolean(payment.stripeSessionId)));
 
-  const canAccess = (isOwner || isPrivileged) && (isActive || pendingOrderReview || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
+  const canAccess = (isOwner || isPrivileged || estimate.dealerNetwork?.canAssist) && (isActive || pendingOrderReview || (estimate.status?.name === "Expired" && !!estimate.promotionExpiresAt)) && !estimate.order;
 
   if (!canAccess) notFound();
 

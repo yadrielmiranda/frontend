@@ -319,9 +319,11 @@ export function deleteEstimateCustomerCharge(
 
 export function getEstimateDiscount(id: number) {
   return apiFetch<{
+    dealerNetwork?: import('@/lib/types').EstimateDealerNetwork | null;
     config: import('@/lib/estimate-discount').EstimateDiscountConfig | null;
     summary: import('@/lib/estimate-discount').EstimateDiscountSummary | null;
     dealerEarnings: import('@/lib/dealer-earnings').DealerEarningsSummary | null;
+    subdealerEarnings?: import('@/lib/dealer-earnings').DealerEarningsSummary | null;
     paymentSchedule: import('@/lib/payment-plan').PaymentSchedule | null;
   }>(`/api/estimates/${id}/discount`, { cache: 'no-store' });
 }

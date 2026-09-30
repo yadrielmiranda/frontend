@@ -4,6 +4,7 @@ import type { CalculatedPiece } from "./estimates.api";
 
 export type MaterialRevisionStatus = "DRAFT" | "PENDING_APPROVAL" | "AWAITING_SIGNATURE" | "APPLIED" | "REJECTED" | "CANCELED";
 export type MaterialRevisionSummary = {
+  paymentsVisible?: boolean;
   material: string; installation: string; servicesAndFees: string; projectTotal: string;
   customerProjectTotal?: string; customerTotalIncomplete?: boolean;
   paid: string; approvedCredit: string; balance: string; creditBalance: string;

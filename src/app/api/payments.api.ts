@@ -48,7 +48,7 @@ export type PublicPaymentContext = {
   expiresAt?: string | null;
   promotionLockedAt?: string | null;
   enabled: boolean;
-  status: "not_applicable" | "complete" | "due" | "available" | "expired" | "review" | "canceled";
+  status: "not_applicable" | "complete" | "due" | "available" | "expired" | "review" | "canceled" | "unavailable";
   payment: null | {
     type: PaymentType;
     sequence: number;

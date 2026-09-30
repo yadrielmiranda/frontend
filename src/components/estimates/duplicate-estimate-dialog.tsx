@@ -17,7 +17,7 @@ type Actor = { id: number; role: { name: string } };
 
 export function canDuplicateEstimate(estimate: EstimateWithRelations, actor: Actor | null) {
   if (!actor || !["dealer", "client"].includes(estimate.user?.role?.name ?? "")) return false;
-  return ["admin", "operator"].includes(actor.role.name) ||
+  return estimate.dealerNetwork?.canAssist === true || ["admin", "operator"].includes(actor.role.name) ||
     (["dealer", "client"].includes(actor.role.name) && actor.id === estimate.idUser);
 }
 
@@ -113,10 +113,11 @@ export function DuplicateEstimateButton({ estimate, actor, iconOnly = false, dis
   const [open, setOpen] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const preparingRef = useRef(false);
+  const unavailable = disabled || Boolean(estimate.user?.networkSalesBlocked);
   if (!canDuplicateEstimate(estimate, actor)) return null;
 
   async function openDialog() {
-    if (disabled || preparingRef.current) return;
+    if (unavailable || preparingRef.current) return;
     preparingRef.current = true;
     setPreparing(true);
     try {
@@ -138,7 +139,7 @@ export function DuplicateEstimateButton({ estimate, actor, iconOnly = false, dis
       className={iconOnly ? "h-8 w-8 p-0" : undefined}
       title="Duplicate estimate"
       aria-label={`Duplicate estimate #${estimate.number}`}
-      disabled={disabled || preparing}
+      disabled={unavailable || preparing}
       onClick={() => void openDialog()}
     >
       {preparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}

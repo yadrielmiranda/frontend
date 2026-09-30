@@ -189,6 +189,8 @@ export function EstimateFinancialSummary({
   ownerRole,
   dealerMode,
   dealerEarnings,
+  subdealerEarnings,
+  dealerNetwork,
   earningsPending = false,
   ownerIsTaxExempt,
   taxRate,
@@ -204,6 +206,8 @@ export function EstimateFinancialSummary({
   ownerRole: string;
   dealerMode: DealerMode | null;
   dealerEarnings?: DealerEarningsSummary | null;
+  subdealerEarnings?: DealerEarningsSummary | null;
+  dealerNetwork?: import("@/lib/types").EstimateDealerNetwork | null;
   earningsPending?: boolean;
   ownerIsTaxExempt: boolean;
   taxRate: number;
@@ -705,14 +709,16 @@ export function EstimateFinancialSummary({
           )}
         </div>
 
-        {isDealerEstimate && dealerMode === "INTERNAL" ? (
+        {isDealerEstimate && (dealerMode === "INTERNAL" || dealerEarnings) ? (
           <DealerEarningsSummaryCard earnings={dealerEarnings} pendingChanges={earningsPending || Boolean(revisionTotals)} />
         ) : isDealerEstimate && (
           <DealerProfitSummary
-            materialProfit={dealerProfit}
-            serviceProfit={dealerServiceProfit}
+            materialProfit={dealerNetwork?.materialProfit != null ? Number(dealerNetwork.materialProfit) : dealerProfit}
+            serviceProfit={dealerNetwork && !dealerNetwork.viewerIsOwner ? 0 : dealerServiceProfit}
           />
         )}
+
+        {subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={subdealerEarnings} pendingChanges={earningsPending} />}
 
         {activeJob && !activeJob.paymentSchedule && (
           <div className="rounded-lg border px-4 py-3">

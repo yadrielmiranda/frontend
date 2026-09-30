@@ -63,7 +63,7 @@ export function EstimateLifecycleDialog({
   const [busy, setBusy] = useState(false);
   const reactivating = action === "reactivate";
   async function confirm() {
-    if (!action || busy) return;
+    if (!action || busy || reactivating && estimate.user?.networkSalesBlocked) return;
     setBusy(true);
     try {
       if (reactivating) await reactivateEstimate(estimate.id);
@@ -107,7 +107,7 @@ export function EstimateLifecycleDialog({
           </Button>
           <Button
             variant={reactivating ? "default" : "destructive"}
-            disabled={busy}
+            disabled={busy || Boolean(reactivating && estimate.user?.networkSalesBlocked)}
             onClick={() => void confirm()}
           >
             {busy
@@ -136,7 +136,7 @@ export function EstimateLifecycleButton({
   if (!action) return null;
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="outline" disabled={action === "reactivate" && estimate.user?.networkSalesBlocked} onClick={() => setOpen(true)}>
         {action === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
       </Button>
       <EstimateLifecycleDialog

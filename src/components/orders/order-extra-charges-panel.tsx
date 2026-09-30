@@ -54,6 +54,7 @@ export function OrderExtraChargesPanel({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
+  const canPay = order.estimate.dealerNetwork ? order.estimate.dealerNetwork.canPay : isOwner;
   const router = useRouter();
   const [charges, setCharges] = useState(order.extraCharges ?? []);
   const [showForm, setShowForm] = useState(false);
@@ -257,14 +258,14 @@ export function OrderExtraChargesPanel({
                 </div>
               )}
 
-              {charge.status === "PAYMENT_DUE" && (isOwner || canRecordManualPayment) && (
+              {charge.status === "PAYMENT_DUE" && (canPay || canRecordManualPayment) && (
                 <OrderPaymentSection
                   target={paymentTarget}
                   title={`Extra charge #${charge.sequence}`}
                   description={charge.lines.map((line) => line.description).join(" · ")}
                   amount={Number(charge.total)}
                 >
-                  {isOwner &&
+                  {canPay &&
                     order.dealerModeSnapshot !== "INTERNAL" &&
                     charge.status === "PAYMENT_DUE" && (
                       <div className="mt-4 space-y-2">
@@ -289,7 +290,7 @@ export function OrderExtraChargesPanel({
                       </div>
                     )}
 
-                  {isOwner &&
+                  {canPay &&
                     order.dealerModeSnapshot === "INTERNAL" &&
                     charge.status === "PAYMENT_DUE" && (
                       <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">

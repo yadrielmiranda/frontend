@@ -1,4 +1,7 @@
 export interface AuthUser {
+  networkSalesBlocked?: boolean;
+  parentDealerId?: number | null;
+  dealerLevel?: "DEALER" | "SUBDEALER" | "DISTRIBUTOR";
   id: number;
   username: string;
   firstName: string;

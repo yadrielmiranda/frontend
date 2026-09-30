@@ -48,6 +48,7 @@ export function ManualPaymentDialog({
   payFullBalance = false,
   amount,
   label = "Record manual payment",
+  disabled = false,
   requiresDepositTerms = false,
   requiresCityFeeAcceptance = false,
   cityFeeAmount,
@@ -62,6 +63,7 @@ export function ManualPaymentDialog({
   payFullBalance?: boolean;
   amount: number;
   label?: string;
+  disabled?: boolean;
   requiresDepositTerms?: boolean;
   requiresCityFeeAcceptance?: boolean;
   cityFeeAmount?: number;
@@ -80,6 +82,7 @@ export function ManualPaymentDialog({
   const [cityFeeAccepted, setCityFeeAccepted] = useState(false);
 
   const submit = async () => {
+    if (disabled || busy) return;
     if (!reference.trim()) {
       toast.error("Enter the check, transfer, or receipt reference.");
       return;
@@ -130,7 +133,7 @@ export function ManualPaymentDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button type="button" variant="outline" disabled={disabled}>
           <Banknote className="h-4 w-4" /> {label}
         </Button>
       </DialogTrigger>

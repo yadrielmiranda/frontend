@@ -79,6 +79,7 @@ export function OrderDeliveryPanel({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
+  const canPay = order.estimate.dealerNetwork ? order.estimate.dealerNetwork.canPay : isOwner;
   const router = useRouter();
   const installationActive = Boolean(
     installation && installation.status !== "CANCELED",
@@ -745,14 +746,14 @@ export function OrderDeliveryPanel({
                 </p>
               )}
 
-              {delivery.status === "PAYMENT_DUE" && (isOwner || canRecordManualPayment) && (
+              {delivery.status === "PAYMENT_DUE" && (canPay || canRecordManualPayment) && (
                 <OrderPaymentSection
                   target={paymentTarget}
                   title={`${deliveryName(delivery.type)} #${delivery.sequence}`}
                   description={`${delivery.destinationStreet}, ${delivery.destinationCity}, ${delivery.destinationState} ${delivery.destinationPostalCode}`}
                   amount={Number(delivery.total)}
                 >
-                  {isOwner &&
+                  {canPay &&
                     order.dealerModeSnapshot !== "INTERNAL" &&
                     delivery.status === "PAYMENT_DUE" && (
                       <div className="mt-4 space-y-2">
@@ -781,7 +782,7 @@ export function OrderDeliveryPanel({
                       </div>
                     )}
 
-                  {isOwner &&
+                  {canPay &&
                     order.dealerModeSnapshot === "INTERNAL" &&
                     delivery.status === "PAYMENT_DUE" && (
                       <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">

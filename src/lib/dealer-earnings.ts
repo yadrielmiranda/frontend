@@ -27,7 +27,7 @@ export const earningsBasisDescriptions: Record<DealerEarningsBasis, string> = {
 export interface DealerEarningsSummary {
   planId: number | null;
   planName: string | null;
-  basis: DealerEarningsBasis;
+  basis: DealerEarningsBasis | "AVAILABLE_PROFIT";
   percent: string;
   label: string;
   status: "CALCULATED" | "PENDING_REAL_COST";

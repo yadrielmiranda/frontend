@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 import {
   DataTable,
@@ -37,14 +38,21 @@ function capitalize(value: string): string {
 interface EstimatesClientProps {
   initialEstimates: EstimateWithRelations[];
   currentUser: AuthUser | null;
+  ownerId?: number;
 }
 
 export function EstimatesClient({
   initialEstimates,
   currentUser,
+  ownerId,
 }: EstimatesClientProps) {
   const role = currentUser?.role?.name ?? null;
   const isAdmin = isAdminRole(role);
+  const [scope, setScope] = useState<'all' | 'mine' | 'network'>('all');
+  const [selectedOwner, setSelectedOwner] = useState(ownerId);
+  const hasNetwork = role === 'dealer' && initialEstimates.some(estimate => estimate.idUser !== currentUser?.id);
+  const visibleEstimates = initialEstimates.filter(estimate => (!selectedOwner || estimate.idUser === selectedOwner) &&
+    (scope === 'all' || (scope === 'mine' ? estimate.idUser === currentUser?.id : estimate.idUser !== currentUser?.id)));
 
   const columns = useMemo(() => getEstimateColumns(currentUser), [currentUser]);
 
@@ -67,7 +75,7 @@ export function EstimatesClient({
       },
     ];
 
-    if (isAdmin) {
+    if (isAdmin || role === "operator" || hasNetwork) {
       result.push(
         {
           columnId: "createdBy",
@@ -84,7 +92,7 @@ export function EstimatesClient({
           faceted: true,
           allLabel: "All roles",
           options: createOptions(
-            initialEstimates.map((estimate) => estimate.user?.role?.name),
+            initialEstimates.map((estimate) => (estimate.dealerNetwork?.level ?? estimate.user?.role?.name)?.toLowerCase()),
           ).map((option) => ({
             ...option,
             label: capitalize(option.label),
@@ -104,12 +112,17 @@ export function EstimatesClient({
     });
 
     return result;
-  }, [initialEstimates, isAdmin]);
+  }, [initialEstimates, isAdmin, role, hasNetwork]);
 
   return (
+    <>
+    {(hasNetwork || selectedOwner) && <div className="mb-4 flex flex-wrap items-center gap-2">
+      {hasNetwork && (['all', 'mine', 'network'] as const).map(value => <Button key={value} size="sm" variant={scope === value ? 'default' : 'outline'} onClick={() => { setScope(value); setSelectedOwner(undefined); }}>{value === 'all' ? 'All estimates' : value === 'mine' ? 'My estimates' : 'My network'}</Button>)}
+      {selectedOwner && <Button size="sm" variant="outline" onClick={() => setSelectedOwner(undefined)}>Clear account filter</Button>}
+    </div>}
     <DataTable
       columns={columns}
-      data={initialEstimates}
+      data={visibleEstimates}
       filters={filters}
       filterPlacement="header"
       collapsibleFilters
@@ -117,5 +130,6 @@ export function EstimatesClient({
       pagination
       scrollMode="page"
     />
+    </>
   );
 }

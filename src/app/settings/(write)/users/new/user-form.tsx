@@ -198,7 +198,7 @@ export function UserForm({
     (role) => role.id === Number(selectedRoleId),
   )?.name;
   const isDealerAccount = selectedRoleName === "dealer";
-  const isInternalDealer = isDealerAccount && watch("dealerMode") === "INTERNAL";
+  const isInternalDealer = !user?.parentDealerId && isDealerAccount && watch("dealerMode") === "INTERNAL";
   const selectedEarningsPlan = earningsPlans.find(plan => plan.id === Number(watch("dealerEarningsPlanId")));
   const defaultMarkup =
     roles.find((r) => r.id === Number(selectedRoleId))?.markup || 0;
@@ -549,7 +549,7 @@ export function UserForm({
           </div>
         )}
 
-        {!isProfilePage && isDealerAccount && (
+        {!isProfilePage && !user?.parentDealerId && isDealerAccount && (
           <div>
             <Label htmlFor="dealerMode">Dealer Mode</Label>
             <Controller
@@ -661,7 +661,7 @@ export function UserForm({
         )}
       </div>
 
-      {isAdminEditMode && (
+      {isAdminEditMode && !user?.parentDealerId && (
         <div className="space-y-4">
           <div className="space-y-4 rounded-lg border p-4 bg-slate-50">
             <div className="flex items-center justify-between">

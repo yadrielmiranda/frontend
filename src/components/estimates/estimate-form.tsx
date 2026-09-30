@@ -189,7 +189,7 @@ export function EstimateForm({
   currentUserId,
   isPrivileged = false,
   readOnly: initialReadOnly = false,
-  taxRate,
+  taxRate: defaultTaxRate,
   cardSurchargeFraction = 0,
   productsWithBrands,
   systemsWithConfigs,
@@ -206,6 +206,8 @@ export function EstimateForm({
     config: estimate?.manualDiscount ?? null,
     summary: estimate?.manualDiscountSummary ?? null,
     dealerEarnings: estimate?.dealerEarnings ?? null,
+    subdealerEarnings: estimate?.subdealerEarnings,
+    dealerNetwork: estimate?.dealerNetwork,
     paymentSchedule: initialInstallation?.paymentSchedule ?? estimate?.paymentSchedule ?? null,
   });
   const [discountDirty, setDiscountDirty] = useState(false);
@@ -214,6 +216,10 @@ export function EstimateForm({
   const router = useRouter();
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
+  // En la red se muestra la tasa acordada, también después de un recálculo explícito.
+  const taxRate = estimate?.dealerNetwork
+    ? Number(promotionEstimate?.taxRate ?? estimate.taxRate)
+    : defaultTaxRate;
   const { user } = useAuth();
   // El bloqueo temporal no cambia los campos ni las condiciones del borrador.
   // AuthContext descarta este editor si se autentica una identidad diferente.
@@ -227,13 +233,13 @@ export function EstimateForm({
   const useCurrentDealerClassification = Boolean(
     estimate && estimate.status?.name === "Active" && !estimate.order,
   );
-  const dealerMode = useCurrentDealerClassification
+  const dealerMode = estimate?.dealerNetwork ? estimate.dealerModeSnapshot ?? null : useCurrentDealerClassification
     ? (estimate?.user?.dealerMode ?? estimate?.dealerModeSnapshot ?? null)
     : (estimate?.dealerModeSnapshot ??
       estimate?.user?.dealerMode ??
       user?.dealerMode ??
       null);
-  const isTaxExempt = estimate
+  const isTaxExempt = estimate?.dealerNetwork ? false : estimate
     ? Boolean(estimate.user.isTaxExempt)
     : Boolean(user?.isTaxExempt);
   const isEditMode = !!estimate;
@@ -565,6 +571,8 @@ export function EstimateForm({
       config: updated.manualDiscount ?? null,
       summary: updated.manualDiscountSummary ?? null,
       dealerEarnings: updated.dealerEarnings ?? null,
+      subdealerEarnings: updated.subdealerEarnings,
+      dealerNetwork: updated.dealerNetwork,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
   };
@@ -608,7 +616,7 @@ export function EstimateForm({
   };
 
   const handleRecalculateEstimate = async () => {
-    if (!estimate?.id || readOnly || isRecalculating || isOpeningDetails) {
+    if (!estimate?.id || readOnly || isRecalculating || isOpeningDetails || estimate.user?.networkSalesBlocked) {
       return;
     }
 
@@ -938,6 +946,8 @@ export function EstimateForm({
       config: updated.manualDiscount ?? null,
       summary: updated.manualDiscountSummary ?? null,
       dealerEarnings: updated.dealerEarnings ?? null,
+      subdealerEarnings: updated.subdealerEarnings,
+      dealerNetwork: updated.dealerNetwork,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
     setPromotionEstimate(updated);
@@ -1512,7 +1522,7 @@ export function EstimateForm({
               variant="blue"
               onClick={() => void handleRecalculateEstimate()}
               disabled={
-                readOnly || isRecalculating || isOpeningDetails || isExiting
+                readOnly || isRecalculating || isOpeningDetails || isExiting || estimate?.user?.networkSalesBlocked
               }
               title={
                 readOnly
@@ -1656,6 +1666,7 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <InstallationEstimatePanel
+            networkPaymentBlocked={estimate.networkPaymentBlocked}
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
             suggestedAddress={isDealerRole(ownerRole) ? {
@@ -1673,6 +1684,7 @@ export function EstimateForm({
             initialJob={initialInstallation ?? null}
             currentUserId={currentUserId}
             isPrivileged={isPrivileged}
+            canAssist={estimate.dealerNetwork?.canAssist}
             allowAdditionalServiceNotes={isDealerRole(ownerRole)}
             companyName={estimate.companyBranding?.name?.trim() || "Company"}
             refreshKey={installationRefreshKey}
@@ -1721,6 +1733,8 @@ export function EstimateForm({
           ownerRole={ownerRole}
           dealerMode={dealerMode}
           dealerEarnings={discountData.dealerEarnings}
+          subdealerEarnings={discountData.subdealerEarnings}
+          dealerNetwork={discountData.dealerNetwork}
           earningsPending={needsRecalculation || discountDirty || discountLoading || discountError}
           ownerIsTaxExempt={isTaxExempt}
           taxRate={taxRate}
@@ -1732,7 +1746,9 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <EstimatePaymentCard
+            networkPaymentBlocked={estimate.networkPaymentBlocked}
             paymentSchedule={discountData.paymentSchedule}
+            dealerNetwork={discountData.dealerNetwork ?? estimate.dealerNetwork}
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
             ownerRole={ownerRole}
@@ -1757,7 +1773,7 @@ export function EstimateForm({
                 : undefined
             }
             canRecordManualPayment={
-              isAdminRole(role) ||
+              estimate.dealerNetwork?.canRecordManualPayment || isAdminRole(role) ||
               (role === "dealer" &&
                 dealerMode === "INTERNAL" &&
                 currentUserId === estimate.idUser)

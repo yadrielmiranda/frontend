@@ -4,9 +4,11 @@ import { formatMoney } from "@/lib/formatters";
 export function DealerEarningsSummaryCard({
   earnings,
   pendingChanges = false,
+  label = "Dealer material earnings",
 }: {
   earnings?: DealerEarningsSummary | null;
   pendingChanges?: boolean;
+  label?: string;
 }) {
   const amount = pendingChanges ? null : earnings?.amount;
   const pendingMessage = pendingChanges
@@ -16,9 +18,9 @@ export function DealerEarningsSummaryCard({
       : "Earnings unavailable. Refresh the estimate to try again.";
 
   return (
-    <section aria-label="Dealer material earnings" className="break-inside-avoid rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4">
+    <section aria-label={label} className="break-inside-avoid rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h4 className="text-sm font-semibold text-emerald-900">Dealer material earnings</h4>
+        <h4 className="text-sm font-semibold text-emerald-900">{label}</h4>
         {amount != null ? (
           <span className={`text-xl font-bold tabular-nums ${Number(amount) < 0 ? "text-red-700" : "text-emerald-800"}`}>
             {formatMoney(Number(amount))}

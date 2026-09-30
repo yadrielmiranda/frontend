@@ -565,7 +565,7 @@ function AdminProfitability({
   const factoryRate = numberValue(internalDealer ? estimate.order?.rate ?? estimate.rateT : estimate.rateT);
   const manual = estimate.manualDiscountSummary;
   const internalMaterialSubtotal = manual?.payer === "ACCOUNT_OWNER" ? Number(manual.material.subtotal) : numberValue(estimate.priceT);
-  const materialSaleSubtotal = internalDealer
+  const materialSaleSubtotal = estimate.dealerNetwork ? Number(estimate.order?.saleSubtotal ?? manual?.material.subtotal ?? estimate.networkBillingPriceT ?? 0) : internalDealer
     ? estimate.order?.saleSubtotal ?? (manual?.payer === "CUSTOMER" ? Number(manual.material.subtotal) : numberValue(estimate.customerPriceT))
     : internalMaterialSubtotal;
   const estimatedCompanyProfit = roundMoney(materialSaleSubtotal - factoryRate);
@@ -599,10 +599,10 @@ function AdminProfitability({
         <div>
           <div className="text-muted-foreground">{internalDealer ? "Expected material profit" : "Estimated material profit"}</div>
           <div className="font-medium">
-            {formatMoney(internalDealer && estimate.materialProfits ? Number(estimate.materialProfits.expectedProfit) : estimatedCompanyProfit)}
+            {formatMoney((internalDealer || estimate.dealerNetwork) && estimate.materialProfits ? Number(estimate.materialProfits.expectedProfit) : estimatedCompanyProfit)}
           </div>
         </div>
-        {internalDealer && estimate.materialProfits && (
+        {(internalDealer || estimate.dealerNetwork) && estimate.materialProfits && (
           <>
             <div>
               <div className="text-muted-foreground">Real material profit</div>
@@ -831,14 +831,16 @@ export function ReportFinancialSummary({
         )}
       </div>
 
-      {comparisonView && estimate.dealerModeSnapshot === "INTERNAL" ? (
+      {comparisonView && (estimate.dealerModeSnapshot === "INTERNAL" || estimate.dealerEarnings) ? (
         <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} />
       ) : comparisonView && (
         <DealerProfitSummary
-          materialProfit={dealerMaterialProfit}
-          serviceProfit={dealerServiceProfit}
+          materialProfit={estimate.dealerNetwork?.materialProfit != null ? Number(estimate.dealerNetwork.materialProfit) : dealerMaterialProfit}
+          serviceProfit={estimate.dealerNetwork && !estimate.dealerNetwork.viewerIsOwner ? 0 : dealerServiceProfit}
         />
       )}
+
+      {reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={estimate.subdealerEarnings} />}
 
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />

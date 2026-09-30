@@ -12,7 +12,21 @@ export interface Role {
 
 export type DealerMode = "EXTERNAL" | "INTERNAL";
 
+export type DealerLevel = 'DEALER' | 'SUBDEALER' | 'DISTRIBUTOR';
+export type EstimateDealerNetwork = {
+  level: DealerLevel; parentDealerId: number; rootDealerId: number;
+  rootMode: DealerMode; billingAccountId: number; billingAccountName: string;
+  payerType: 'ACCOUNT_OWNER' | 'CUSTOMER'; canPay: boolean; canAssist: boolean;
+  canRecordManualPayment: boolean; viewerIsOwner: boolean; materialProfit: string | null;
+};
+
 export interface User {
+  parentDealerId?: number | null;
+  parentDealer?: { parentDealerId: number | null; dealerMode: DealerMode | null } | null;
+  dealerLevel?: DealerLevel;
+  networkSuspended?: boolean;
+  networkAccessBlocked?: boolean;
+  networkSalesBlocked?: boolean;
   id: number;
   username: string;
   firstName: string;
@@ -405,6 +419,10 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  networkPaymentBlocked?: boolean;
+  dealerNetwork?: EstimateDealerNetwork | null;
+  networkBillingPriceT?: string | number | null;
+  subdealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   materialProfits?: import("./dealer-earnings").MaterialProfitsSummary | null;
   paymentPlanSnapshot?: unknown;
@@ -978,6 +996,7 @@ export interface OrderStatus {
 }
 
 export interface Order {
+  subdealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   materialProfits?: import("./dealer-earnings").MaterialProfitsSummary | null;
   id: number;

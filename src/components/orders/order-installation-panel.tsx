@@ -37,6 +37,7 @@ export function OrderInstallationPanel({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
+  const canPay = order.estimate.dealerNetwork ? order.estimate.dealerNetwork.canPay : isOwner;
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
   const [busy, setBusy] = useState(false);
@@ -168,13 +169,13 @@ export function OrderInstallationPanel({
       )}
 
       {!job.paymentSchedule && job.status === "INSTALLATION_PAYMENT_PENDING" &&
-        (isOwner || (canRecordManualPayment && installationBalance > 0)) && (
+        (canPay || (canRecordManualPayment && installationBalance > 0)) && (
           <OrderPaymentSection
             target={paymentTarget}
             title="Installation balance"
             amount={installationBalance}
           >
-            {isOwner &&
+            {canPay &&
               order.dealerModeSnapshot !== "INTERNAL" &&
               !job.paymentSchedule && job.status === "INSTALLATION_PAYMENT_PENDING" && (
                 <div className="mt-4 space-y-2">
@@ -201,7 +202,7 @@ export function OrderInstallationPanel({
                 </div>
               )}
 
-            {isOwner &&
+            {canPay &&
               order.dealerModeSnapshot === "INTERNAL" &&
               !job.paymentSchedule && job.status === "INSTALLATION_PAYMENT_PENDING" && (
                 <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">

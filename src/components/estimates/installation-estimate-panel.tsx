@@ -91,6 +91,8 @@ export function InstallationEstimatePanel({
   initialJob,
   currentUserId,
   isPrivileged,
+  canAssist = false,
+  networkPaymentBlocked = false,
   allowAdditionalServiceNotes,
   companyName,
   refreshKey,
@@ -109,6 +111,8 @@ export function InstallationEstimatePanel({
   initialJob: InstallationJob | null;
   currentUserId: number;
   isPrivileged: boolean;
+  canAssist?: boolean;
+  networkPaymentBlocked?: boolean;
   allowAdditionalServiceNotes: boolean;
   companyName: string;
   refreshKey: string;
@@ -168,7 +172,7 @@ export function InstallationEstimatePanel({
   const depositPaid = job ? paidBaseFor(job, "INSTALLATION_DEPOSIT") : 0;
   const canEditBeforePayment =
     Boolean(job) &&
-    isOwner &&
+    (isOwner || canAssist) &&
     !order &&
     estimateStatus === "Active" &&
     job?.status !== "CANCELED" &&
@@ -365,7 +369,7 @@ export function InstallationEstimatePanel({
         </CardHeader>
         <CardContent className="space-y-4">
           {!showRequest ? (
-            <Button type="button" onClick={beginNewRequest}>
+            <Button type="button" onClick={beginNewRequest} disabled={networkPaymentBlocked}>
               Request installation price
             </Button>
           ) : (
@@ -656,7 +660,7 @@ export function InstallationEstimatePanel({
                 >
                   Cancel
                 </Button>
-                <Button type="button" disabled={busy} onClick={submitRequest}>
+                <Button type="button" disabled={busy || networkPaymentBlocked} onClick={submitRequest}>
                   {busy
                     ? job
                       ? "Saving…"
@@ -831,7 +835,7 @@ export function InstallationEstimatePanel({
                 type="button"
                 variant="outline"
                 className="border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800"
-                disabled={busy}
+                disabled={busy || !isOwner}
                 onClick={() => setRemoveDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />

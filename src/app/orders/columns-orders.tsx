@@ -133,7 +133,7 @@ export function getOrderColumns({
     header: () => <div className="text-right">Actions</div>,
     cell: ({ row }) => {
       const order = row.original;
-      const canPay = order.userId === currentUserId && order.dealerModeSnapshot !== "INTERNAL" && order.paymentAnchor;
+      const canPay = (order.estimate.dealerNetwork ? order.estimate.dealerNetwork.canPay : order.userId === currentUserId && order.dealerModeSnapshot !== "INTERNAL") && order.paymentAnchor;
 
       return (
         <div className="flex items-center justify-end gap-2 whitespace-nowrap">

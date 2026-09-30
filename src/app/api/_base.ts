@@ -34,7 +34,7 @@ const isServer = typeof window === "undefined";
  * Tipos de error para NO usar `any` y poder hacer notFound() por status, etc.
  */
 export type ApiErrorData =
-  | { message?: string; error?: string }
+  | { message?: string | string[]; error?: string }
   | string
   | unknown;
 
@@ -180,6 +180,14 @@ function extractErrorMessage(payload: unknown): string {
       typeof (payload as { message?: unknown }).message === "string"
     ) {
       return (payload as { message: string }).message;
+    }
+
+    // Las validaciones de Nest devuelven una lista con los errores de cada campo.
+    if ("message" in payload && Array.isArray(payload.message)) {
+      const messages = payload.message.filter(
+        (message): message is string => typeof message === "string" && message.trim().length > 0
+      );
+      if (messages.length) return messages.join(" ");
     }
 
     if (
