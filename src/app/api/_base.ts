@@ -267,7 +267,8 @@ export async function apiFetch<T = unknown>(
     if (refreshRes.ok) {
       res = await doFetch();
     } else {
-      // ✅ no disparamos aquí; caerá al handler final y disparará 1 sola vez (si no está suprimido)
+      // A failed renewal must report its own status, not the original 401.
+      res = refreshRes;
     }
   }
 
@@ -310,8 +311,9 @@ export async function apiFetch<T = unknown>(
       res = await doFetch(
         retryCookieHeader ? { Cookie: retryCookieHeader } : undefined
       );
+    } else {
+      res = refreshRes;
     }
-    // si refresh falla, dejamos caer al handler de error
   }
 
   // Manejo de errores
@@ -326,7 +328,8 @@ export async function apiFetch<T = unknown>(
       window.dispatchEvent(new CustomEvent("auth:login-required"));
     }
 
-    const payload = await parseResponse(res);
+    // An unreadable error body must not hide the HTTP status (especially 401).
+    const payload = await parseResponse(res).catch(() => undefined);
     if (res.status === 403 && payload && typeof payload === 'object' &&
         (payload as { code?: string }).code === 'PLATFORM_TERMS_REQUIRED') {
       if (isServer) {

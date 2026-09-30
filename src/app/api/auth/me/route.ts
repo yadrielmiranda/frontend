@@ -50,67 +50,69 @@ export async function GET() {
     );
   }
 
-  // ✅ 1) Intentamos profile con lo que tengamos
-  let cookieHeader = buildCookieHeader(accessToken, refreshToken);
-
-  let profileRes = await fetch(`${API_URL}/api/auth/profile`, {
-    method: "GET",
-    headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
-    cache: "no-store",
-  });
-
-  // ✅ Aquí guardaremos cualquier set-cookie que venga del refresh
+  // Keep refreshed/deleted cookies even if a later profile request fails.
   let setCookies: string[] = [];
+  let res: NextResponse;
 
-  // ✅ 2) Si access expiró y hay refresh, refrescamos y reintentamos
-  if (profileRes.status === 401 && refreshToken) {
-    const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
-      method: "POST",
+  try {
+    let cookieHeader = buildCookieHeader(accessToken, refreshToken);
+    let profileRes = await fetch(`${API_URL}/api/auth/profile`, {
+      method: "GET",
       headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
       cache: "no-store",
     });
 
-    // ✅ Importante: capturar set-cookie aunque refresh falle (puede venir limpieza)
-    setCookies = getSetCookies(refreshRes);
-
-    if (refreshRes.ok) {
-      const newAccess =
-        pickCookieValue(setCookies, "access_token") ?? accessToken;
-      const newRefresh =
-        pickCookieValue(setCookies, "refresh_token") ?? refreshToken;
-
-      cookieHeader = buildCookieHeader(newAccess, newRefresh);
-
-      profileRes = await fetch(`${API_URL}/api/auth/profile`, {
-        method: "GET",
+    if (profileRes.status === 401 && refreshToken) {
+      const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
         headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
         cache: "no-store",
       });
+
+      setCookies = getSetCookies(refreshRes);
+      if (refreshRes.ok) {
+        const newAccess =
+          pickCookieValue(setCookies, "access_token") ?? accessToken;
+        const newRefresh =
+          pickCookieValue(setCookies, "refresh_token") ?? refreshToken;
+        cookieHeader = buildCookieHeader(newAccess, newRefresh);
+
+        profileRes = await fetch(`${API_URL}/api/auth/profile`, {
+          method: "GET",
+          headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+          cache: "no-store",
+        });
+      } else {
+        // The failed refresh, not the original 401, determines the outcome.
+        profileRes = refreshRes;
+      }
     }
-  }
 
-  // ✅ Si todavía falla, no hay sesión válida
-  if (!profileRes.ok) {
-    const res = NextResponse.json(
-      { isAuthenticated: false, user: null },
-      { status: 401 }
+    if (profileRes.status === 401) {
+      res = NextResponse.json(
+        { isAuthenticated: false, user: null },
+        { status: 401 }
+      );
+    } else if (!profileRes.ok) {
+      res = NextResponse.json(
+        { message: "Could not verify your session. Please try again." },
+        { status: profileRes.status }
+      );
+    } else {
+      const user = await profileRes.json();
+      res = NextResponse.json(
+        { isAuthenticated: true, user },
+        { status: 200 }
+      );
+    }
+  } catch {
+    // A transport or decoding failure does not establish an invalid session.
+    res = NextResponse.json(
+      { message: "Could not verify your session. Please try again." },
+      { status: 503 }
     );
-
-    // ✅ Si el backend mandó set-cookie (por ejemplo para limpiar), lo propagamos
-    for (const c of setCookies) res.headers.append("set-cookie", c);
-
-    return res;
   }
 
-  const user = await profileRes.json();
-
-  const res = NextResponse.json(
-    { isAuthenticated: true, user },
-    { status: 200 }
-  );
-
-  // ✅ Propagar cookies nuevas si refresh las rotó
   for (const c of setCookies) res.headers.append("set-cookie", c);
-
   return res;
 }

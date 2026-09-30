@@ -18,6 +18,8 @@ import { getProfileSilent, loginUser, type LoginData } from "@/app/api/auth/me/a
 import { getPlatformTermsStatus, type PlatformTermsStatus } from "@/app/api/platform-terms.api";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
 import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
+import { SessionVerificationNotice } from "@/components/auth/session-verification-notice";
+import { isApiError } from "@/app/api/_base";
 import type { AuthUser } from "@/app/types/auth";
 import {
   navigateAfterSessionChange,
@@ -46,6 +48,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const IDLE_MS = Number(process.env.NEXT_PUBLIC_SESSION_IDLE_MINUTES ?? 10) * 60 * 1000;
 const PROBE_EVERY_MS = 30 * 1000;
+const SESSION_VERIFICATION_MESSAGE = "Could not verify your session. Please try again.";
 const identity = (user: AuthUser) => `${user.id}:${user.role?.name ?? ""}`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -55,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [loginTerms, setLoginTerms] = useState<AuthContextType["loginTerms"]>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(null);
     setIsAuthenticated(false);
     setNotifications([]);
+    setSessionUnavailable(false);
   }, []);
 
   useEffect(() => {
@@ -166,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginTerms({ userId: account.id, status: terms });
       setUserState(account);
       setIsAuthenticated(true);
+      setSessionUnavailable(false);
       closeLoginDialog();
       void refreshNotifications();
       return account;
@@ -203,15 +209,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentUserRef.current = account;
       setUserState(account);
       setIsAuthenticated(true);
+      setSessionUnavailable(false);
       closeLoginDialog();
       void refreshNotifications();
       return account;
     } catch (err: unknown) {
       if (request !== authRequestRef.current || transitionRef.current) return null;
-      clearUser();
-      setError(err instanceof Error ? err.message : "Unauthorized");
-      if (!silent) openLoginDialog("expired");
-      return null;
+      if (isApiError(err) && err.status === 401) {
+        clearUser();
+        setError(err.message);
+        if (!silent) openLoginDialog("expired");
+        return null;
+      }
+      // Keep the previously verified account/editor, but never return it as a
+      // successful revalidation. Server authorization still guards each request.
+      setSessionUnavailable(true);
+      setError(SESSION_VERIFICATION_MESSAGE);
+      throw new Error(SESSION_VERIFICATION_MESSAGE);
     } finally {
       if (request === authRequestRef.current) {
         authInFlightRef.current = false;
@@ -230,13 +244,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   useEffect(() => {
-    void fetchUser(true);
+    void fetchUser(true).catch(() => { /* The verification notice offers retry. */ });
   }, [fetchUser]);
 
   const probeBackendSession = useCallback(async () => {
     if (probeInFlightRef.current || authInFlightRef.current || transitionRef.current || !currentUserRef.current) return;
     probeInFlightRef.current = true;
     try { await fetchUser(false); }
+    catch { /* The verification notice offers retry without expiring the session. */ }
     finally { probeInFlightRef.current = false; }
   }, [fetchUser]);
 
@@ -328,6 +343,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return <AuthContext.Provider value={value}>
+    {sessionUnavailable && !isTransitioning && <SessionVerificationNotice
+      onRetry={() => fetchUser(currentUserRef.current === null)}
+    />}
     {isTransitioning
       ? <AuthLoadingScreen />
       : children}
