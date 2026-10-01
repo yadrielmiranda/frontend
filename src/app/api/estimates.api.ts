@@ -254,6 +254,17 @@ export function getOrCreateEstimatePublicToken(
   );
 }
 
+export function emailEstimateShare(
+  id: number,
+  data: { to: string; pricingMode: "detailed" | "total"; includeContract: boolean },
+) {
+  return apiFetch<{ sent: true }>(`/api/estimates/${id}/share-email`, {
+    method: "POST",
+    body: data,
+    timeoutMs: 120000,
+  });
+}
+
 export function getPublicEstimate(token: string) {
   return apiFetch<EstimateWithRelations>(`/api/public/estimates/${token}`, {
     cache: "no-store",

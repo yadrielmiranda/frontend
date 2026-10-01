@@ -6,11 +6,12 @@ import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contra
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
 import { EstimateLifecycleButton } from '../estimate-lifecycle-actions';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { EstimateWithRelations } from "@/lib/types";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import type { DealerMode, EstimateWithRelations } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Printer, Copy, Share2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Printer, Copy, Share2, Mail } from "lucide-react";
 import { BackLink } from "@/components/navigation/back-link";
 
 import { EstimateReportShell } from "./parts/estimate-report-shell";
@@ -20,7 +21,7 @@ import { EstimateViewAdmin } from "./views/estimate-view-admin";
 import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
 import { isAdminRole, isDealerRole, isOperatorRole } from "@/lib/rbac";
 import { toast } from "sonner";
-import { getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
+import { emailEstimateShare, getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
 
 // =============================
 // ESTIMATE DETAILS
@@ -51,6 +52,7 @@ export function EstimateDetails({
   estimate,
   userRole,
   currentUserId,
+  currentUserDealerMode,
   initialPublicView = false,
   initialCustomerPricingMode = "detailed",
   returnToEdit = false,
@@ -58,6 +60,7 @@ export function EstimateDetails({
   estimate: EstimateWithRelations;
   userRole: string;
   currentUserId: number;
+  currentUserDealerMode?: DealerMode | null;
   initialPublicView?: boolean;
   initialCustomerPricingMode?: CustomerPricingMode;
   returnToEdit?: boolean;
@@ -67,15 +70,22 @@ export function EstimateDetails({
   const [manualCopy, setManualCopy] = useState(false);
   const copyField = useRef<HTMLTextAreaElement>(null);
   const [sharing, setSharing] = useState(false);
+  const sharingBusy = useRef(false);
+  const [emailDraft, setEmailDraft] = useState<{ context: string; recipient: string } | null>(null);
+  const [emailError, setEmailError] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
   const [agreementRefresh, setAgreementRefresh] = useState(0);
   const [includeContract, setIncludeContract] = useState(false);
   const [agreementStatus, setAgreementStatus] = useState<AgreementStatus | null>(null);
   const isCanceled = estimate.status?.name === "Canceled";
   useEffect(() => { setIncludeContract(false); setAgreementStatus(null); }, [estimate.id, isCanceled]);
-  useEffect(() => { if (agreementStatus && !agreementStatus.defaultContract) setIncludeContract(false); }, [agreementStatus]);
+  useEffect(() => {
+    if (agreementStatus && !agreementStatus.defaultContract && !emailDraft && !sharingBusy.current) setIncludeContract(false);
+  }, [agreementStatus, emailDraft, sharing]);
   const ownerRole = estimate.user?.role?.name ?? null;
   const ownerIsDealer = isDealerRole(ownerRole);
   const currentUserIsDealer = isDealerRole(userRole);
+  const currentUserIsOwner = currentUserId === estimate.idUser;
   const currentUserIsPrivileged =
     isAdminRole(userRole) || isOperatorRole(userRole);
 
@@ -169,7 +179,61 @@ export function EstimateDetails({
       : reportMode;
 
   const canShareCustomerReport =
-    currentUserIsDealer && ownerIsDealer && reportMode === "customer";
+    !isCanceled && ownerIsDealer && reportMode === "customer" &&
+    (isAdminRole(userRole) || (currentUserIsDealer && (currentUserIsOwner || estimate.dealerNetwork?.canAssist === true)));
+  const canEmailCustomerReport = canShareCustomerReport &&
+    (isAdminRole(userRole) || currentUserDealerMode === "INTERNAL");
+  const shareContext = JSON.stringify([
+    estimate.id, estimate.customerEmail, estimate.idUser, currentUserId,
+    userRole, currentUserDealerMode, canShareCustomerReport, reportMode,
+    customerPricingMode, includeContract,
+  ]);
+  const activeShareContext = useRef(shareContext);
+  activeShareContext.current = shareContext;
+  const emailOpen = canEmailCustomerReport && emailDraft?.context === shareContext;
+  const emailRecipient = emailOpen ? emailDraft.recipient : "";
+  const validEmailRecipient = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRecipient.trim()) && emailRecipient.trim().length <= 254;
+
+  useEffect(() => {
+    setEmailDraft(null);
+    setEmailError("");
+    setReadyCopy(null);
+    setReadyShare(null);
+  }, [shareContext]);
+  useEffect(() => () => { activeShareContext.current = ""; }, []);
+
+  const handleEmailEstimate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (sharingBusy.current || !emailOpen || activeShareContext.current !== shareContext) return;
+    if (!validEmailRecipient) {
+      setEmailError("Enter a valid customer email address.");
+      return;
+    }
+    sharingBusy.current = true;
+    setSharing(true);
+    setEmailSending(true);
+    setEmailError("");
+    try {
+      await emailEstimateShare(estimate.id, {
+        to: emailRecipient.trim(),
+        pricingMode: customerPricingMode,
+        includeContract,
+      });
+      if (activeShareContext.current !== shareContext) return;
+      toast.success("Estimate email sent.");
+      setEmailDraft(null);
+      if (includeContract) setAgreementRefresh((value) => value + 1);
+    } catch (error) {
+      if (activeShareContext.current !== shareContext) return;
+      setEmailError((error as Error).name === "AbortError"
+        ? "Sending timed out. Check whether the email arrived before trying again."
+        : (error as Error).message || "Could not send the estimate. Please try again.");
+    } finally {
+      sharingBusy.current = false;
+      setSharing(false);
+      setEmailSending(false);
+    }
+  };
 
   const copyTextToClipboard = async (text: string, field?: HTMLTextAreaElement | null) => {
     try {
@@ -214,16 +278,20 @@ export function EstimateDetails({
     // El enlace sin contrato conserva la cotización habitual y no modifica ninguna aceptación.
     if (!includeContract) return url;
     const prepared = await prepareEstimateAgreement(estimate.id, customerPricingMode, true);
-    if (!prepared.current) throw new Error("Upload a contract in My Branding before including it.");
-    setAgreementRefresh((value) => value + 1);
+    if (!prepared.current) throw new Error(currentUserIsOwner
+      ? "Upload a contract in My Branding before including it."
+      : "The estimate owner has no contract available. Ask them to upload one in My Branding.");
+    if (activeShareContext.current === shareContext) setAgreementRefresh((value) => value + 1);
     return `${url}/agreements/${prepared.current.id}`;
   };
 
   const handleCopyPublicLink = async () => {
-    if (sharing) return;
+    if (sharingBusy.current || !canShareCustomerReport) return;
+    sharingBusy.current = true;
     setSharing(true);
     try {
       const url = await createCustomerLink();
+      if (activeShareContext.current !== shareContext) return;
 
       if (await copyTextToClipboard(url)) {
         toast.success("Customer link copied.");
@@ -235,11 +303,12 @@ export function EstimateDetails({
       }
     } catch (error) {
       toast.error((error as Error).message);
-    } finally { setSharing(false); }
+    } finally { sharingBusy.current = false; setSharing(false); }
   };
 
   const handleCopyReadyLink = async () => {
-    if (!readyCopy || sharing) return;
+    if (!readyCopy || sharingBusy.current || !canShareCustomerReport) return;
+    sharingBusy.current = true;
     setSharing(true);
     try {
       if (await copyTextToClipboard(readyCopy, copyField.current)) {
@@ -248,14 +317,16 @@ export function EstimateDetails({
       } else {
         setManualCopy(true);
       }
-    } finally { setSharing(false); }
+    } finally { sharingBusy.current = false; setSharing(false); }
   };
 
   const handleSharePublicLink = async () => {
-    if (sharing) return;
+    if (sharingBusy.current || !canShareCustomerReport) return;
+    sharingBusy.current = true;
     setSharing(true);
     try {
       const url = await createCustomerLink();
+      if (activeShareContext.current !== shareContext) return;
 
       const shareData = {
         title: `Estimate #${estimate.number}`,
@@ -294,7 +365,7 @@ export function EstimateDetails({
       if ((error as Error).name === "AbortError") return;
 
       toast.error((error as Error).message);
-    } finally { setSharing(false); }
+    } finally { sharingBusy.current = false; setSharing(false); }
   };
 
   // ================
@@ -332,7 +403,33 @@ export function EstimateDetails({
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
-      <Dialog open={Boolean(readyCopy)} onOpenChange={(open) => { if (!open) setReadyCopy(null); }}>
+      <Dialog open={emailOpen} onOpenChange={(open) => { if (!open && !sharingBusy.current) setEmailDraft(null); }}>
+        <DialogContent showCloseButton={!emailSending}>
+          <DialogHeader>
+            <DialogTitle>Email estimate</DialogTitle>
+            <DialogDescription>
+              Send estimate #{estimate.number} with {customerPricingMode === "total" ? "the project total" : "detailed prices"}{includeContract ? " and the owner's contract" : " without a contract"}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEmailEstimate} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="estimate-email-recipient" className="text-sm font-medium">Customer email</label>
+              <Input id="estimate-email-recipient" type="email" required maxLength={254} autoComplete="email"
+                value={emailRecipient} disabled={emailSending}
+                onChange={(event) => {
+                  setEmailDraft({ context: shareContext, recipient: event.target.value });
+                  setEmailError("");
+                }} />
+            </div>
+            {emailError && <p role="alert" className="text-sm text-destructive">{emailError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={emailSending} onClick={() => { if (!sharingBusy.current) setEmailDraft(null); }}>Cancel</Button>
+              <Button type="submit" disabled={sharing || !validEmailRecipient}>{emailSending ? "Sending…" : "Send"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={canShareCustomerReport && Boolean(readyCopy)} onOpenChange={(open) => { if (!open) setReadyCopy(null); }}>
         <DialogContent onOpenAutoFocus={(event) => {
           event.preventDefault();
           copyField.current?.focus();
@@ -358,7 +455,7 @@ export function EstimateDetails({
           </Button>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(readyShare)} onOpenChange={(open) => { if (!open) setReadyShare(null); }}>
+      <Dialog open={canShareCustomerReport && Boolean(readyShare)} onOpenChange={(open) => { if (!open) setReadyShare(null); }}>
         <DialogContent><DialogHeader><DialogTitle>Estimate ready to share</DialogTitle><DialogDescription>Your customer link is ready.</DialogDescription></DialogHeader>
           <Button onClick={() => { if (readyShare && navigator.share) void navigator.share(readyShare).then(() => setReadyShare(null)).catch((error: Error) => { if (error.name !== "AbortError") toast.error(error.message); }); }}><Share2 className="mr-2 h-4 w-4" />Share estimate</Button>
         </DialogContent>
@@ -423,7 +520,9 @@ export function EstimateDetails({
                       disabled={isCanceled || sharing || !agreementStatus?.defaultContract} className="h-4 w-4" />
                     Include contract
                   </label>
-                  {agreementStatus && !agreementStatus.defaultContract && <a href="/profile/branding" className="mr-2 text-xs underline">Upload contract</a>}
+                  {agreementStatus && !agreementStatus.defaultContract && (currentUserIsOwner
+                    ? <a href="/profile/branding" className="mr-2 text-xs underline">Upload contract</a>
+                    : <span className="mr-2 text-xs text-muted-foreground">The estimate owner has no contract uploaded.</span>)}
                   <Button
                     type="button"
                     variant="outline"
@@ -444,6 +543,16 @@ export function EstimateDetails({
                     <Share2 className="mr-2 h-4 w-4" />
                     Share
                   </Button>
+                  {canEmailCustomerReport && (
+                    <Button type="button" variant="outline" size="sm" disabled={sharing}
+                      onClick={() => {
+                        if (sharingBusy.current) return;
+                        setEmailError("");
+                        setEmailDraft({ context: shareContext, recipient: estimate.customerEmail ?? "" });
+                      }}>
+                      <Mail className="mr-2 h-4 w-4" />Email
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -456,7 +565,7 @@ export function EstimateDetails({
           internal={reportMode !== "customer"}
         >
           {viewContent}
-          {ownerIsDealer && reportMode === "customer" && <DealerAgreementPanel estimateId={estimate.id} pricingMode={customerPricingMode} refreshKey={agreementRefresh} onStatusChange={setAgreementStatus} />}
+          {ownerIsDealer && reportMode === "customer" && <DealerAgreementPanel estimateId={estimate.id} pricingMode={customerPricingMode} refreshKey={agreementRefresh} onStatusChange={setAgreementStatus} canShare={canShareCustomerReport} />}
         </EstimateReportShell>
       </div>
     </div>

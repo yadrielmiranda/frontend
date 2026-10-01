@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   getEstimateAgreement,
@@ -20,29 +20,35 @@ export function DealerAgreementPanel({
   pricingMode,
   refreshKey,
   onStatusChange,
+  canShare = false,
 }: {
   estimateId: number;
   pricingMode: "detailed" | "total";
   refreshKey: number;
   onStatusChange: (status: AgreementStatus) => void;
+  canShare?: boolean;
 }) {
   const [status, setStatus] = useState<AgreementStatus | null>(null);
   const [error, setError] = useState("");
-  const refresh = useCallback(async () => {
-    try {
-      const next = await getEstimateAgreement(estimateId, pricingMode);
-      setStatus(next);
-      onStatusChange(next);
-      setError("");
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, [estimateId, pricingMode, onStatusChange]);
   useEffect(() => {
+    let active = true;
+    setStatus(null);
+    setError("");
+    const refresh = async () => {
+      try {
+        const next = await getEstimateAgreement(estimateId, pricingMode);
+        if (!active) return;
+        setStatus(next);
+        onStatusChange(next);
+        setError("");
+      } catch (e) {
+        if (active) setError((e as Error).message);
+      }
+    };
     void refresh();
     const timer = setInterval(() => void refresh(), 30000);
-    return () => clearInterval(timer);
-  }, [refresh, refreshKey]);
+    return () => { active = false; clearInterval(timer); };
+  }, [estimateId, pricingMode, onStatusChange, refreshKey]);
   const current = status?.current;
   if (!current && !error && !status?.pendingMaterialRevisionId) return null;
   return (
@@ -51,7 +57,7 @@ export function DealerAgreementPanel({
       aria-label="Customer agreement"
     >
       {status?.pendingMaterialRevisionId && (
-        <p className="rounded-md border bg-slate-50 p-3 text-sm">A material revision is awaiting the customer signature. Select <strong>Include contract</strong> and share again. The original material stays unchanged until the new agreement is signed.</p>
+        <p className="rounded-md border bg-slate-50 p-3 text-sm">A material revision is awaiting the customer signature. {status.estimateCanceled ? "This estimate is canceled; a new signature cannot be requested. " : canShare ? <>Select <strong>Include contract</strong> and share again. </> : "An authorized dealer or administrator can share the updated agreement. "}The original material stays unchanged until the new agreement is signed.</p>
       )}
       {current && (
         <>
@@ -83,7 +89,9 @@ export function DealerAgreementPanel({
           )}
           {!status?.estimateCanceled && current.invalidatedAt && (
             <p className="text-sm text-muted-foreground">
-              {status?.nextSignatureKind === "CHANGE_ORDER"
+              {!canShare
+                ? "An authorized dealer or administrator can share the updated agreement to request a new signature."
+                : status?.nextSignatureKind === "CHANGE_ORDER"
                 ? "Select Include contract and share again to request acceptance of the updated charges."
                 : "Select Include contract and share the estimate again to request a new signature."}
             </p>
