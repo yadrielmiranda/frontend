@@ -536,6 +536,7 @@ export function EstimateDetails({
 
                   <Button
                     type="button"
+                    variant={canEmailCustomerReport ? "outline" : "default"}
                     size="sm"
                     disabled={sharing}
                     onClick={handleSharePublicLink}
@@ -544,7 +545,7 @@ export function EstimateDetails({
                     Share
                   </Button>
                   {canEmailCustomerReport && (
-                    <Button type="button" variant="outline" size="sm" disabled={sharing}
+                    <Button type="button" variant="default" size="sm" disabled={sharing}
                       onClick={() => {
                         if (sharingBusy.current) return;
                         setEmailError("");
