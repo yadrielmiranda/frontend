@@ -49,10 +49,12 @@ import type {
   PieceMuntin,
   MuntinPattern,
   MuntinType,
+  MuntinAvailability,
   ConfigMuntinLayoutItem,
 } from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
+import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { PromotionPrice } from "@/components/promotions/promotion-price";
 import {
   normalizeInchesToEighthStep,
@@ -63,6 +65,7 @@ import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
+import { getMuntinOptions, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
 
 type NamedOption = {
   id: number;
@@ -73,6 +76,8 @@ type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  muntinAvailability?: MuntinAvailability;
+  allowedMuntinTypeIds?: number[];
   isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;
@@ -232,16 +237,19 @@ function syncMuntinWithConfigLayout(
   existing: PieceMuntin | null | undefined,
   config: Config | null | undefined,
   fallbackPatternId: number,
+  options: MuntinOptions,
 ): PieceMuntin | null {
   if (!config || !fallbackPatternId) return null;
 
-  const hasLayout =
-    Array.isArray(config.muntinLayout) && config.muntinLayout.length > 0;
+  const selection = normalizeMuntinSelection(existing ?? {
+    idPattern: fallbackPatternId, idType: null, panels: [],
+  }, options);
+  if (!selection) return null;
+  const requiresLites = options.patterns.find((pattern) => pattern.id === selection.idPattern)?.requiresLites;
 
   return {
-    idPattern: existing?.idPattern || fallbackPatternId,
-    idType: hasLayout ? (existing?.idType ?? null) : null,
-    panels: buildDefaultPanelsFromLayout(config.muntinLayout, existing?.panels),
+    ...selection,
+    panels: requiresLites ? buildDefaultPanelsFromLayout(config.muntinLayout, selection.panels) : [],
   };
 }
 
@@ -921,6 +929,13 @@ export function PieceForm({
     return availableConfigs.find((c) => c.id === Number(idConf)) ?? null;
   }, [idConf, availableConfigs]);
 
+  const selectedSysConf = useMemo(() => {
+    if (!idConf) return null;
+    return (
+      availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
+    );
+  }, [idConf, availableSysConfs]);
+
   const hasMuntinLayout = useMemo(() => {
     return (
       Array.isArray(selectedConfig?.muntinLayout) &&
@@ -928,48 +943,20 @@ export function PieceForm({
     );
   }, [selectedConfig]);
 
-  const activeMuntinPatterns = useMemo(() => {
-    const active = props.muntinPatterns.filter((p) => p.isActive);
-
-    if (hasMuntinLayout) return active;
-
-    return active.filter((p) => !p.requiresLites);
-  }, [props.muntinPatterns, hasMuntinLayout]);
-
-  const activeMuntinTypes = useMemo(
-    () => props.muntinTypes.filter((t) => t.isActive),
-    [props.muntinTypes],
+  const muntinOptions = useMemo(
+    () => getMuntinOptions(selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout),
+    [selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout],
   );
-
-  const defaultMuntinType = useMemo(
-    () =>
-      activeMuntinTypes.find((t) => t.isDefault) ??
-      activeMuntinTypes[0] ??
-      null,
-    [activeMuntinTypes],
-  );
+  const activeMuntinPatterns = muntinOptions.patterns;
+  const activeMuntinTypes = muntinOptions.types;
+  const defaultMuntinType = muntinOptions.defaultType;
 
   const defaultMuntinPattern = useMemo(
     () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
     [activeMuntinPatterns],
   );
 
-  const defaultFullViewPattern = useMemo(
-    () =>
-      props.muntinPatterns.find(
-        (p) => p.isActive && !p.requiresLites && p.isDefault,
-      ) ??
-      props.muntinPatterns.find((p) => p.isActive && !p.requiresLites) ??
-      null,
-    [props.muntinPatterns],
-  );
-
-  const selectedSysConf = useMemo(() => {
-    if (!idConf) return null;
-    return (
-      availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
-    );
-  }, [idConf, availableSysConfs]);
+  const defaultFullViewPattern = muntinOptions.fullViewPattern;
 
   const selectedConfigUnavailable =
     selectedSysConf?.isSelectableInEstimate === false;
@@ -1409,70 +1396,23 @@ export function PieceForm({
   }, [pieceValues.muntin?.idPattern, activeMuntinPatterns]);
 
   const patternRequiresLites = selectedPattern?.requiresLites ?? false;
+  const initialMuntinAdjustedRef = useRef(false);
 
-  useEffect(() => {
-    if (!currentMuntin) return;
-    if (!patternRequiresLites) return;
-    if (!hasMuntinLayout) return;
-    if (currentMuntin.idType) return;
-    if (!defaultMuntinType?.id) return;
-
-    setValue(
-      "muntin",
-      {
-        idPattern: Number(currentMuntin.idPattern),
-        idType: defaultMuntinType.id,
-        panels: buildDefaultPanelsFromLayout(
-          selectedConfig?.muntinLayout,
-          currentMuntin.panels?.map((panel, index) => ({
-            panelIndex: Number(panel.panelIndex ?? index + 1),
-            panelLabel:
-              panel.panelLabel ??
-              `Panel ${Number(panel.panelIndex ?? index + 1)}`,
-            panelCode: panel.panelCode,
-            horizontalLites: Math.max(1, Number(panel.horizontalLites ?? 1)),
-            verticalLites: Math.max(1, Number(panel.verticalLites ?? 1)),
-          })) ?? [],
-        ),
-      },
-      { shouldDirty: true },
-    );
-  }, [
-    currentMuntin,
-    patternRequiresLites,
-    hasMuntinLayout,
-    defaultMuntinType?.id,
-    selectedConfig?.muntinLayout,
-    setValue,
-  ]);
-
-  useEffect(() => {
-    if (!currentMuntin) return;
-    if (hasMuntinLayout) return;
-    if (!defaultFullViewPattern) return;
-
-    const currentPattern = props.muntinPatterns.find(
-      (p) => p.id === Number(currentMuntin.idPattern),
-    );
-
-    if (currentPattern?.requiresLites) {
-      setValue(
-        "muntin",
-        {
-          idPattern: defaultFullViewPattern.id,
-          idType: null,
-          panels: [],
-        },
-        { shouldDirty: true },
-      );
-    }
-  }, [
-    currentMuntin,
-    hasMuntinLayout,
-    defaultFullViewPattern,
-    props.muntinPatterns,
-    setValue,
-  ]);
+  useLayoutEffect(() => {
+    if (!selectedConfig || !selectedSysConf || isLinearMaterial) return;
+    const current = getValues("muntin");
+    const supported = normalizeMuntinSelection(current, muntinOptions);
+    if (supported === (current ?? null)) return;
+    initialMuntinAdjustedRef.current = true;
+    const next = supported && muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)?.requiresLites
+      ? { ...supported, panels: buildDefaultPanelsFromLayout(selectedConfig.muntinLayout, supported.panels) }
+      : supported;
+    setValue("muntin", next, { shouldDirty: true });
+    // A permitted replacement can carry a different price. Require Calculate
+    // before submitting it; the existing value watcher invalidates pending work.
+    setIsLocked(false);
+    setActiveAccordionItems((items) => items.filter((item) => item !== "item-results"));
+  }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, muntinOptions, getValues, setValue]);
 
   const dealerMarkupField = register("dealerMarkup", {
     valueAsNumber: true,
@@ -1494,7 +1434,7 @@ export function PieceForm({
 
     setActiveAccordionItems((prev) => {
       const hadResultsOpen = prev.includes("item-results");
-      if (hadResultsOpen || hasInitialResults) {
+      if (hadResultsOpen || (hasInitialResults && !initialMuntinAdjustedRef.current)) {
         return [...defaultItems, "item-results"];
       }
       return defaultItems;
@@ -1594,6 +1534,7 @@ export function PieceForm({
         getValues("muntin"),
         selectedConfig,
         fallbackPatternId,
+        muntinOptions,
       );
 
       setValue("muntin", syncedMuntin, { shouldDirty: false });
@@ -1636,6 +1577,7 @@ export function PieceForm({
     hasMuntinLayout,
     defaultMuntinPattern?.id,
     defaultFullViewPattern?.id,
+    muntinOptions,
     availableActiveOptions,
     availablePreparationOptions,
     availableSillOptions,
@@ -1668,7 +1610,7 @@ export function PieceForm({
         idPattern: pattern.id,
         idType:
           pattern.requiresLites && hasMuntinLayout
-            ? (current?.idType ?? defaultMuntinType?.id ?? null)
+            ? (activeMuntinTypes.find((type) => type.id === Number(current?.idType))?.id ?? defaultMuntinType?.id ?? null)
             : null,
         panels: nextPanels,
       },
@@ -1680,7 +1622,7 @@ export function PieceForm({
     const typeId = Number(typeIdValue);
     const current = getValues("muntin");
 
-    if (!current) return;
+    if (!current || !activeMuntinTypes.some((type) => type.id === typeId)) return;
 
     setValue(
       "muntin",
@@ -4210,6 +4152,7 @@ export function PieceForm({
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
+                muntin={resolveFormMuntinForDiagram(pieceValues.muntin, props.muntinPatterns, props.muntinTypes)}
                 frameColorHex={selectedFrameColorHex}
                 glassTintHex={selectedTintHex}
                 hasCoating={hasCoating}

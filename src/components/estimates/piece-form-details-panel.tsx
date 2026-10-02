@@ -15,6 +15,7 @@ import type {
 import type { PieceFormValues } from "./types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { PieceDiagram } from "@/components/piece-diagram";
+import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 
 interface PieceFormDetailsPanelProps {
   piece: PieceFormValues;
@@ -394,6 +395,7 @@ export function PieceFormDetailsPanel({
               diagramSpec={selectedSysConf?.config?.diagramSpec}
               dimensionMode={selectedSysConf?.dimensionMode}
               piece={piece}
+              muntin={resolveFormMuntinForDiagram(piece.muntin, muntinPatterns, muntinTypes)}
               frameColorHex={frameColorHex}
               glassTintHex={glassTintHex}
               hasCoating={hasCoating}

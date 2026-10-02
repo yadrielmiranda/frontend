@@ -56,6 +56,11 @@ import type {
   AvailableConfig,
 } from "./columns-system-configs";
 import { groupConfigsByCategory } from "@/lib/config-groups";
+import type { MuntinType } from "@/lib/types";
+import {
+  MuntinAvailabilityDialog,
+  type MuntinAvailabilitySettings,
+} from "./muntin-availability-dialog";
 
 function AvailableConfigsGroupedList({
   configs,
@@ -155,14 +160,17 @@ function AssociatedConfigRow({
   systemId,
   isLinearMaterial,
   config,
+  muntinTypes,
   onRemove,
   onToggleAllowScreen,
   onUpdateSortOrder,
   onUpdateDefault,
+  onUpdateMuntin,
 }: {
   systemId: number;
   isLinearMaterial: boolean;
   config: AssociatedConfig;
+  muntinTypes: readonly MuntinType[];
   onRemove: (configId: number) => Promise<void>;
   onToggleAllowScreen: (
     configId: number,
@@ -170,6 +178,7 @@ function AssociatedConfigRow({
   ) => Promise<void>;
   onUpdateSortOrder: (configId: number, sortOrder: number) => Promise<boolean>;
   onUpdateDefault: (configId: number, isDefault: boolean) => Promise<boolean>;
+  onUpdateMuntin: (configId: number, settings: MuntinAvailabilitySettings) => Promise<boolean>;
 }) {
   const [checked, setChecked] = useState(config.allowScreen);
   const [orderValue, setOrderValue] = useState(String(config.sortOrder));
@@ -267,7 +276,16 @@ function AssociatedConfigRow({
 
   return (
     <div className="grid grid-cols-[minmax(180px,1fr)_90px_130px_220px_120px] items-center border-b px-3 py-3 last:border-b-0">
-      <div className="text-sm">{config.conf}</div>
+      <div className="min-w-0 space-y-1 pr-2 text-sm">
+        <div>{config.conf}</div>
+        {!isLinearMaterial && <MuntinAvailabilityDialog
+          configName={config.conf}
+          availability={config.muntinAvailability ?? "ALL"}
+          allowedTypeIds={config.allowedMuntinTypeIds ?? []}
+          types={muntinTypes}
+          onSave={(settings) => onUpdateMuntin(config.id, settings)}
+        />}
+      </div>
 
       <div>
         <Input
@@ -429,14 +447,17 @@ function AssociatedConfigsGroupedList({
   systemId,
   isLinearMaterial,
   configs,
+  muntinTypes,
   onRemove,
   onToggleAllowScreen,
   onUpdateSortOrder,
   onUpdateDefault,
+  onUpdateMuntin,
 }: {
   systemId: number;
   isLinearMaterial: boolean;
   configs: AssociatedConfig[];
+  muntinTypes: readonly MuntinType[];
   onRemove: (configId: number) => Promise<void>;
   onToggleAllowScreen: (
     configId: number,
@@ -444,6 +465,7 @@ function AssociatedConfigsGroupedList({
   ) => Promise<void>;
   onUpdateSortOrder: (configId: number, sortOrder: number) => Promise<boolean>;
   onUpdateDefault: (configId: number, isDefault: boolean) => Promise<boolean>;
+  onUpdateMuntin: (configId: number, settings: MuntinAvailabilitySettings) => Promise<boolean>;
 }) {
   const [search, setSearch] = useState("");
 
@@ -470,10 +492,12 @@ function AssociatedConfigsGroupedList({
       systemId={systemId}
       isLinearMaterial={isLinearMaterial}
       config={config}
+      muntinTypes={muntinTypes}
       onRemove={onRemove}
       onToggleAllowScreen={onToggleAllowScreen}
       onUpdateSortOrder={onUpdateSortOrder}
       onUpdateDefault={onUpdateDefault}
+      onUpdateMuntin={onUpdateMuntin}
     />
   );
 
@@ -527,6 +551,7 @@ interface SystemConfigsClientProps {
   isLinearMaterial?: boolean;
   initialAssociatedConfigs: AssociatedConfig[];
   initialAvailableConfigs: AvailableConfig[];
+  muntinTypes: MuntinType[];
 }
 
 export function SystemConfigsClient({
@@ -535,6 +560,7 @@ export function SystemConfigsClient({
   isLinearMaterial = false,
   initialAssociatedConfigs,
   initialAvailableConfigs,
+  muntinTypes,
 }: SystemConfigsClientProps) {
   const router = useRouter();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -647,6 +673,19 @@ export function SystemConfigsClient({
     return ok;
   };
 
+  const handleUpdateMuntin = async (configId: number, settings: MuntinAvailabilitySettings) => {
+    const ok = await runAction(
+      () => updateSystemConfig(systemId, configId, settings),
+      "Muntin availability updated successfully.",
+      "Error updating muntin availability.",
+    );
+    if (ok) {
+      setAssociatedConfigs((current) => current.map((config) =>
+        config.id === configId ? { ...config, ...settings } : config));
+    }
+    return ok;
+  };
+
   const availableConfigs = useMemo(
     () => initialAvailableConfigs,
     [initialAvailableConfigs],
@@ -741,10 +780,12 @@ export function SystemConfigsClient({
               systemId={systemId}
               isLinearMaterial={isLinearMaterial}
               configs={associatedConfigs}
+              muntinTypes={muntinTypes}
               onRemove={handleRemove}
               onToggleAllowScreen={handleToggleAllowScreen}
               onUpdateSortOrder={handleUpdateSortOrder}
               onUpdateDefault={handleUpdateDefault}
+              onUpdateMuntin={handleUpdateMuntin}
             />
           </div>
         )}

@@ -1327,10 +1327,14 @@ export interface SysConfOptionLink<T> {
   option: T;
 }
 
+export type MuntinAvailability = "NONE" | "ALL" | "SELECTED";
+
 export interface SysConf {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
+  muntinAvailability?: MuntinAvailability;
+  allowedMuntinTypeIds?: number[];
   isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;

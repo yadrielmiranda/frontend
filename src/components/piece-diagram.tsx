@@ -27,6 +27,7 @@ import { MullionDiagram } from "./piece-diagram/renderers/mullion/mullion-diagra
 import { resolveMullionSpec } from "./piece-diagram/renderers/mullion/mullion-spec";
 import { WindowWallDiagram } from "./piece-diagram/renderers/window-wall/window-wall-diagram";
 import { resolveAuthenticWindowSpec } from "./piece-diagram/window-renderer-spec";
+import type { ResolvedMuntin } from "./piece-diagram/muntin-data";
 
 export type { PieceDiagramData, PieceDiagramVariant };
 
@@ -43,6 +44,7 @@ export interface PieceDiagramProps {
   hasCoating?: boolean;
   hasPrivacy?: boolean;
   screenEnabled?: boolean;
+  muntin?: ResolvedMuntin | null;
   activeOptionName?: string | null;
   preparationOptionName?: string | null;
   showDimensions?: boolean;
@@ -271,6 +273,7 @@ export function PieceDiagram({
   hasCoating = false,
   hasPrivacy = false,
   screenEnabled = false,
+  muntin,
   activeOptionName,
   preparationOptionName,
   showDimensions = true,
@@ -535,6 +538,7 @@ export function PieceDiagram({
     width,
     height,
     screenEnabled: Boolean(screenEnabled),
+    muntin,
     frameColorHex: frameColor,
     glassTintHex,
     hasCoating,

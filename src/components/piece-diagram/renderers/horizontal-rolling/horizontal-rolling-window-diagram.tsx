@@ -17,6 +17,11 @@ import {
 } from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
+  MuntinLayer,
+  type MuntinGlassPanel,
+  type ResolvedMuntin,
+} from "../muntin-layer";
+import {
   DEFAULT_MOVEMENT_INDICATOR_COLOR,
   HorizontalRollerMovementIndicators,
   normalizeMovementIndicatorColor,
@@ -52,6 +57,7 @@ interface HorizontalRollingWindowCommonProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -440,6 +446,7 @@ export function HorizontalRollingWindowDiagram(
     glassTintHex,
     hasCoating = false,
     hasPrivacy = false,
+    muntin,
     showDimensions = true,
     assetBasePath = DEFAULT_ASSET_BASE_PATH,
     idNamespace,
@@ -506,6 +513,26 @@ export function HorizontalRollingWindowDiagram(
     );
   const glassAppearanceRects = indicatorProfile.panels.map((panel) =>
     mapRect(panel.dlo),
+  );
+  // Indices describe the exterior view. OX keeps source coordinates and uses
+  // the existing product mirror exactly once, including its muntin layer.
+  const muntinGlassPanels: MuntinGlassPanel[] = indicatorProfile.panels.map(
+    (panel, sourceIndex) => {
+      const visualIndex = layout.mirrorProduct
+        ? indicatorProfile.panels.length - 1 - sourceIndex
+        : sourceIndex;
+      return {
+        panelIndex: visualIndex + 1,
+        panelCode: panel.kind,
+        panelLabel:
+          visualIndex === 0
+            ? "Left"
+            : visualIndex === indicatorProfile.panels.length - 1
+              ? "Right"
+              : "Center",
+        rect: mapRect(panel.dlo),
+      };
+    },
   );
   const sourceScaleX = productWidth / indicatorProfile.width;
   const sourceScaleY = productHeight / indicatorProfile.height;
@@ -574,7 +601,7 @@ export function HorizontalRollingWindowDiagram(
   const productLayers = (
     <g
       data-part="c148-product-layers"
-      data-screen-composition-order="C148_BASE__GLASS_APPEARANCE__FRAME_TINT__INDICATORS__PROCEDURAL_SCREEN"
+      data-screen-composition-order="C148_BASE__GLASS_APPEARANCE__FRAME_TINT__MUNTIN__INDICATORS__PROCEDURAL_SCREEN"
     >
       <image
         href={assetHref}
@@ -604,6 +631,13 @@ export function HorizontalRollingWindowDiagram(
           data-frame-color-target="WINDOW_FRAME"
         />
       ) : null}
+      <MuntinLayer
+        muntin={muntin}
+        glassPanels={muntinGlassPanels}
+        frameColorHex={normalizedFrameColor}
+        unitsPerInch={scale}
+        idNamespace={`${namespace}-muntin`}
+      />
       <HorizontalRollerMovementIndicators
         panels={movementPanels}
         centerY={movementCenterY}

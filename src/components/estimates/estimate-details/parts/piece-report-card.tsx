@@ -1,6 +1,7 @@
 "use client";
 
 import { PieceDiagram } from "@/components/piece-diagram";
+import { resolveMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { PromotionPrice } from "@/components/promotions/promotion-price";
 import type { ReactNode } from "react";
 import type { EstimateWithRelations } from "@/lib/types";
@@ -51,6 +52,7 @@ function PieceReportDiagram({
           diagramSpec={piece.conf?.diagramSpec}
           dimensionMode={diagramMetadata?.dimensionMode ?? "STANDARD"}
           piece={piece}
+          muntin={resolveMuntinForDiagram(piece.pieceMuntin)}
           frameColorHex={piece.fColor?.hexCode}
           glassTintHex={piece.tin?.hexCode}
           hasCoating={diagramMetadata?.hasCoating ?? false}

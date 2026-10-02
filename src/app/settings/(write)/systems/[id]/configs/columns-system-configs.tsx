@@ -28,7 +28,7 @@ import {
 
 import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
-import type { Config } from "@/lib/types";
+import type { Config, MuntinAvailability } from "@/lib/types";
 
 export type AvailableConfig = Pick<
   Config,
@@ -39,6 +39,8 @@ export type AssociatedConfig = AvailableConfig & {
   allowScreen: boolean;
   sortOrder: number;
   isDefault: boolean;
+  muntinAvailability?: MuntinAvailability;
+  allowedMuntinTypeIds?: number[];
 };
 
 export const getAssociatedConfigsColumns = (

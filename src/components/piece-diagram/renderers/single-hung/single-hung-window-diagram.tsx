@@ -14,6 +14,11 @@ import {
   DimensionText,
 } from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
+import {
+  MuntinLayer,
+  type MuntinGlassPanel,
+  type ResolvedMuntin,
+} from "../muntin-layer";
 
 export type SingleHungConfiguration =
   | "EQUAL_LITES"
@@ -32,6 +37,7 @@ interface SingleHungCommonProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -887,6 +893,40 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
         targetGeometry.fixedGlass,
       ]
     : [targetGeometry.upperGlass, targetGeometry.lowerGlass];
+  // SH/FIX names its three lights Top / Center / Bottom. Some older layouts
+  // name the lower SH sash Bottom and the extra light simply Fixed instead.
+  // Keep that explicit convention without treating "Top Fixed" as the extra light.
+  const muntinPanels = props.muntin?.panels ?? [];
+  const usesLegacyFixedLabels = Boolean(targetGeometry.fixedGlass) &&
+    !muntinPanels.some((panel) => /\b(?:CENTER|CENTRE|MIDDLE|CENTRAL|C)\b/i.test(
+      `${panel.panelLabel} ${panel.panelCode ?? ""}`,
+    )) &&
+    muntinPanels.some((panel) => /\b(?:FIXED|FIX|FIJO)\b/i.test(panel.panelLabel) &&
+      !/\b(?:TOP|UPPER|SUPERIOR|T|BOTTOM|LOWER|INFERIOR|B)\b/i.test(
+        `${panel.panelLabel} ${panel.panelCode ?? ""}`,
+      ));
+  const muntinGlassPanels: MuntinGlassPanel[] = [
+    {
+      panelIndex: 1,
+      panelCode: "O",
+      panelLabel: "Top",
+      rect: targetGeometry.upperGlass,
+    },
+    {
+      panelIndex: 2,
+      panelCode: "X",
+      panelLabel: targetGeometry.fixedGlass && !usesLegacyFixedLabels ? "Center" : "Bottom",
+      rect: targetGeometry.lowerGlass,
+    },
+  ];
+  if (targetGeometry.fixedGlass) {
+    muntinGlassPanels.push({
+      panelIndex: 3,
+      panelCode: "O",
+      panelLabel: usesLegacyFixedLabels ? "Fixed" : "Bottom",
+      rect: targetGeometry.fixedGlass,
+    });
+  }
   const showDimensions = props.showDimensions ?? true;
   const viewportPadding = DIMENSIONS.fontSize * 0.3;
   const viewBox = expandedViewBox(
@@ -965,6 +1005,13 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
+      <MuntinLayer
+        muntin={props.muntin}
+        glassPanels={muntinGlassPanels}
+        frameColorHex={frameColor}
+        unitsPerInch={productScale}
+        idNamespace={`${idPrefix}-muntin`}
+      />
       {showDimensions ? (
         <Dimensions frame={targetFrame} width={width} height={height} />
       ) : null}

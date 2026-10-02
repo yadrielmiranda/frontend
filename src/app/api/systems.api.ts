@@ -8,6 +8,7 @@ import type {
   DimensionMode,
   PricingComponentType,
   PricingSourceConfig,
+  MuntinAvailability,
 } from "../../lib/types";
 
 export type SystemData = {
@@ -26,6 +27,8 @@ export type UpdateSystemConfigData = {
   allowScreen?: boolean;
   sortOrder?: number;
   isDefault?: boolean;
+  muntinAvailability?: MuntinAvailability;
+  allowedMuntinTypeIds?: number[];
 };
 
 export type UpdateSystemConfigOptionsData = {

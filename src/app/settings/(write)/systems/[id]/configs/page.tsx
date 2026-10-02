@@ -5,6 +5,7 @@ import {
   getAvailableConfigs,
 } from "@/app/api/systems.api";
 import { SystemConfigsClient } from "./system-configs-client";
+import { getMuntinTypes } from "@/app/api/muntin-types.api";
 
 import { BackLink } from "@/components/navigation/back-link";
 import {
@@ -23,9 +24,10 @@ export default async function ManageSystemConfigsPage({
   const { id } = await params;
   const systemId = Number(id);
 
-  const [systemData, availableConfigs] = await Promise.all([
+  const [systemData, availableConfigs, muntinTypes] = await Promise.all([
     getSystemWithConfigs(systemId),
     getAvailableConfigs(systemId),
+    getMuntinTypes({ active: true }),
   ]);
 
   const associatedConfigs = systemData.sysconfs.map((sc) => ({
@@ -36,6 +38,8 @@ export default async function ManageSystemConfigsPage({
     allowScreen: sc.allowScreen,
     sortOrder: sc.sortOrder,
     isDefault: systemData.defaultConfigId === sc.idConfig,
+    muntinAvailability: sc.muntinAvailability ?? "ALL",
+    allowedMuntinTypeIds: sc.allowedMuntinTypeIds ?? [],
   }));
 
   const isLinearMaterial =
@@ -77,6 +81,7 @@ export default async function ManageSystemConfigsPage({
             isLinearMaterial={isLinearMaterial}
             initialAssociatedConfigs={associatedConfigs}
             initialAvailableConfigs={availableConfigs}
+            muntinTypes={muntinTypes}
           />
         </CardContent>
       </Card>
