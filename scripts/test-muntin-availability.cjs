@@ -18,6 +18,9 @@ for (const name of ['node:http', 'node:https']) {
 function evaluate(code, scope) { return new Function(...Object.keys(scope), code)(...Object.values(scope)); }
 const helper = { exports: {} };
 evaluate(compile(fs.readFileSync(path.join(root, 'components/estimates/muntin-availability.ts'), 'utf8')), { exports: helper.exports });
+evaluate(compile(fs.readFileSync(path.join(root, 'components/estimates/window-wall-muntin.ts'), 'utf8')), {
+  exports: helper.exports,
+});
 const { getMuntinOptions, normalizeMuntinSelection } = helper.exports;
 const filename = path.join(root, 'components/estimates/piece-form.tsx');
 const source = ts.createSourceFile(filename, fs.readFileSync(filename, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -54,15 +57,19 @@ const fixtureCode = compile([
   declaration('syncMuntinWithConfigLayout', source.statements),
   declaration('latestCalculationRef'), declaration('calculationValuesVersionRef'),
   effect('useLayoutEffect', 'calculationValuesVersionRef'),
-  declaration('selectedSysConf'), declaration('hasMuntinLayout'), declaration('muntinOptions'),
+  declaration('selectedSysConf'), declaration('isWindowWall'), declaration('windowWallMuntinLayout'),
+  declaration('hasMuntinLayout'), declaration('muntinOptions'),
   declaration('activeMuntinPatterns'), declaration('activeMuntinTypes'), declaration('defaultMuntinType'),
   declaration('defaultMuntinPattern'), declaration('defaultFullViewPattern'),
+  declaration('selectedPattern'), declaration('patternRequiresLites'), declaration('hasAmbiguousWindowWallMuntin'),
   declaration('initialMuntinAdjustedRef'),
   effect('useLayoutEffect', 'normalizeMuntinSelection'), declaration('previousSysConfKeyRef'),
   effect('useEffect', 'hasInitialResults'),
   effect('useEffect', 'syncMuntinWithConfigLayout'),
   declaration('handleMuntinPatternChange'), declaration('handleMuntinTypeChange'),
-  'return { patterns: activeMuntinPatterns, types: activeMuntinTypes, pattern: handleMuntinPatternChange, type: handleMuntinTypeChange, latestCalculationRef, calculationValuesVersionRef };',
+  declaration('handleMuntinPanelChange'), declaration('handleReconfigureWindowWallMuntin'),
+  declaration('currentMuntinPanels'),
+  'return { patterns: activeMuntinPatterns, types: activeMuntinTypes, pattern: handleMuntinPatternChange, type: handleMuntinTypeChange, panel: handleMuntinPanelChange, reconfigure: handleReconfigureWindowWallMuntin, ambiguous: hasAmbiguousWindowWallMuntin, layout: windowWallMuntinLayout, panels: currentMuntinPanels, isWindowWall, patternRequiresLites, hasMuntinLayout, latestCalculationRef, calculationValuesVersionRef };',
 ].join('\n'));
 const patterns = [
   { id: 10, name: 'Full View', requiresLites: false, isActive: true, isDefault: true },
@@ -85,7 +92,7 @@ const ids = items => items.map(item => item.id);
 const options = settings => getMuntinOptions(settings, patterns, types, true);
 function fixture(settings = {}, selection = colonial(), overrides = {}) {
   const initialData = { id: 17, idSyst: 1, idConf: 2 };
-  const form = createFormControl({ defaultValues: { ...initialData, muntin: structuredClone(selection), price: 125, screen: false } });
+  const form = createFormControl({ defaultValues: { ...initialData, muntin: structuredClone(selection), price: 125, screen: false, ...overrides.formValues } });
   const stop = form.subscribe({ formState: { values: true }, callback() {} });
   Object.keys(form.getValues()).forEach(name => form.register(name));
   const writes = [], refs = [], hooks = [];
@@ -118,7 +125,7 @@ function fixture(settings = {}, selection = colonial(), overrides = {}) {
   }
   function render() {
     refIndex = 0; hookIndex = 0;
-    values = evaluate(fixtureCode, { ...scope, systemId: form.getValues('idSyst'), idConf: form.getValues('idConf'), currentMuntin: form.getValues('muntin') });
+    values = evaluate(fixtureCode, { ...scope, pieceValues: form.getValues(), systemId: form.getValues('idSyst'), idConf: form.getValues('idConf'), currentMuntin: form.getValues('muntin') });
   }
   setPolicy(settings); render();
   return {
@@ -253,10 +260,13 @@ test('Linear material and unresolved configs are not rewritten by the availabili
   assert.deepEqual(missing.form.getValues('muntin'), colonial()); missing.close();
 });
 
-let failed = 0;
-for (const { name, run } of tests) {
-  try { run(); console.log(`PASS ${name}`); }
-  catch (error) { failed++; console.error(`FAIL ${name}\n${error.stack}`); }
+module.exports = { fixture, patterns, types, fullView, helper: helper.exports };
+if (require.main === module) {
+  let failed = 0;
+  for (const { name, run } of tests) {
+    try { run(); console.log(`PASS ${name}`); }
+    catch (error) { failed++; console.error(`FAIL ${name}\n${error.stack}`); }
+  }
+  console.log(`${tests.length - failed}/${tests.length} muntin availability tests passed`);
+  if (failed) process.exitCode = 1;
 }
-console.log(`${tests.length - failed}/${tests.length} muntin availability tests passed`);
-if (failed) process.exitCode = 1;

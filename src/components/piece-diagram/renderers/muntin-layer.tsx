@@ -29,6 +29,15 @@ function positionOf(panel: { panelCode?: string | null; panelLabel: string }): s
 // is the complete configuration layout in exterior order, never array order.
 export function matchMuntinPanels(muntin: ResolvedMuntin, glassPanels: readonly MuntinGlassPanel[]) {
   if (muntin.panels.length !== glassPanels.length) return [];
+  // A single glass light has one possible destination. Catalog labels may
+  // describe its hinge side instead of its location within the assembly.
+  if (muntin.panels.length === 1) {
+    const panel = muntin.panels[0];
+    const glass = glassPanels[0];
+    const code = panel.panelCode?.trim().toUpperCase();
+    if ((code === "X" || code === "O") && glass.panelCode !== code) return [];
+    return [{ panel, glass }];
+  }
   const completeIndices = muntin.panels.every((panel) =>
     glassPanels.some((glass) => glass.panelIndex === panel.panelIndex));
   const used = new Set<number>();

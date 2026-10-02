@@ -332,6 +332,7 @@ export function PieceDiagram({
       glassTintHex,
       hasCoating,
       hasPrivacy,
+      muntin,
       showDimensions,
       variant: "report" as const,
       className: rendererClasses,
@@ -419,6 +420,7 @@ export function PieceDiagram({
           height={windowWallHeight}
           panelCount={windowWallPanelCount}
           horizontalHeights={normalizedPiece?.horizontalHeights}
+          muntin={muntin}
           activeOptionName={activeOptionName}
           frameColorHex={safeFrameColor(frameColorHex)}
           glassTintHex={glassTintHex}
@@ -465,6 +467,7 @@ export function PieceDiagram({
           width={slidingWidth}
           height={slidingHeight}
           screenEnabled={Boolean(screenEnabled)}
+          muntin={muntin}
           frameColorHex={safeFrameColor(frameColorHex)}
           glassTintHex={glassTintHex}
           hasCoating={hasCoating}
@@ -558,6 +561,7 @@ export function PieceDiagram({
       glassTintHex,
       hasCoating,
       hasPrivacy,
+      muntin,
       showDimensions,
       className: rendererClasses,
     } as const;
@@ -633,6 +637,7 @@ export function PieceDiagram({
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
+        muntin={muntin}
         showDimensions={showDimensions}
         className={rendererClasses}
       />

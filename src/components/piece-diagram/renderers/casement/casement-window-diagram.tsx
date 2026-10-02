@@ -16,6 +16,7 @@ import {
   DIMENSION_LABEL_OUTWARD_GAP_PX,
   DimensionText,
 } from "../dimension-text";
+import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
 
 export const CASEMENT_WINDOW_CONFIGURATIONS = ["XL", "XR"] as const;
 export type CasementWindowConfiguration =
@@ -34,6 +35,7 @@ export interface CasementWindowDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -50,6 +52,7 @@ export interface CasementFixedWindowDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -507,6 +510,13 @@ export function CasementWindowDiagram(
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
+      <MuntinLayer
+        muntin={props.muntin}
+        glassPanels={[{ panelIndex: 1, panelCode: "X", panelLabel: "Center", rect: glass }]}
+        frameColorHex={frameColor}
+        unitsPerInch={scale}
+        idNamespace={idPrefix}
+      />
       <MovementIndicator
         configuration={props.configuration}
         glass={glass}
@@ -610,6 +620,13 @@ export function CasementFixedWindowDiagram(
           data-layer="WINDOW_FRAME_FINISH"
         />
       ) : null}
+      <MuntinLayer
+        muntin={props.muntin}
+        glassPanels={[{ panelIndex: 1, panelCode: "O", panelLabel: "Center", rect: glass }]}
+        frameColorHex={frameColor}
+        unitsPerInch={scale}
+        idNamespace={idPrefix}
+      />
       {showDimensions ? (
         <Dimensions frame={frame} width={widthLabel} height={heightLabel} />
       ) : null}

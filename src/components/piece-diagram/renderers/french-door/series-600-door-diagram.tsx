@@ -17,6 +17,11 @@ import {
   type GlassOverlayRect,
 } from "../glass-appearance";
 import {
+  MuntinLayer,
+  type MuntinGlassPanel,
+  type ResolvedMuntin,
+} from "../muntin-layer";
+import {
   DEFAULT_MOVEMENT_INDICATOR_COLOR,
   Serie600MovementIndicators,
   normalizeMovementIndicatorColor,
@@ -85,6 +90,7 @@ interface SharedMaterialProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
 }
 
 export interface PieceDiagramSeries600MixedAssemblyProps
@@ -295,6 +301,23 @@ function mirroredRect(rect: Rect, width: number): Rect {
   return { ...rect, x: width - rect.x - rect.width };
 }
 
+function frenchDoorMuntinPanels(
+  panels: readonly { kind: "O" | "X"; glass: Rect }[],
+): MuntinGlassPanel[] {
+  // Physical glass lights in exterior left-to-right order. A double door
+  // contributes two lights; its surrounding sidelites keep their own indices.
+  return panels.map((panel, index) => ({
+    panelIndex: index + 1,
+    panelCode: panel.kind,
+    panelLabel: panels.length === 1 ? "Glass"
+      : index === 0 ? "Left"
+        : index === panels.length - 1 ? "Right"
+          : index === (panels.length - 1) / 2 ? "Center"
+            : `Panel ${index + 1}`,
+    rect: panel.glass,
+  }));
+}
+
 function resolveXXStructureId(
   explicitId?: PieceDiagramSeries600XXStructureId,
   activeLeaf: PieceDiagramActiveLeaf = "left",
@@ -345,6 +368,7 @@ function XStructure({
   glassTintHex,
   hasCoating,
   hasPrivacy,
+  muntin,
   movementIndicatorColor,
   movementIndicatorId,
 }: StructureMaterialProps & {
@@ -399,6 +423,13 @@ function XStructure({
           color={frameColor}
         />
       </g>
+      <MuntinLayer
+        muntin={muntin}
+        glassPanels={frenchDoorMuntinPanels([{ kind: "X", glass: indicatorGlass }])}
+        frameColorHex={frameColor}
+        unitsPerInch={1}
+        idNamespace={`${clipId}-glass`}
+      />
       {movementIndicatorColor ? (
         <Serie600MovementIndicators
           panels={[
@@ -425,6 +456,7 @@ function OStructure({
   glassTintHex,
   hasCoating,
   hasPrivacy,
+  muntin,
   movementIndicatorColor,
   movementIndicatorId,
 }: StructureMaterialProps & { mirror?: boolean }) {
@@ -466,6 +498,13 @@ function OStructure({
           color={frameColor}
         />
       </g>
+      <MuntinLayer
+        muntin={muntin}
+        glassPanels={frenchDoorMuntinPanels([{ kind: "O", glass: indicatorGlass }])}
+        frameColorHex={frameColor}
+        unitsPerInch={1}
+        idNamespace={`${movementIndicatorId ?? "o"}-glass`}
+      />
       {movementIndicatorColor ? (
         <Serie600MovementIndicators
           panels={[{ kind: "O", role: "FIXED", glass: indicatorGlass }]}
@@ -485,6 +524,7 @@ function XXStructure({
   glassTintHex,
   hasCoating,
   hasPrivacy,
+  muntin,
   movementIndicatorColor,
   movementIndicatorId,
 }: StructureMaterialProps & {
@@ -525,6 +565,16 @@ function XXStructure({
         height={height}
         glass={[leftGlass, rightGlass]}
         color={frameColor}
+      />
+      <MuntinLayer
+        muntin={muntin}
+        glassPanels={frenchDoorMuntinPanels([
+          { kind: "X", glass: leftGlass },
+          { kind: "X", glass: rightGlass },
+        ])}
+        frameColorHex={frameColor}
+        unitsPerInch={1}
+        idNamespace={`${movementIndicatorId ?? "xx"}-glass`}
       />
       {movementIndicatorColor ? (
         <Serie600MovementIndicators
@@ -868,6 +918,7 @@ export function Series600MixedAssemblyDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  muntin,
   movementIndicatorColor = DEFAULT_MOVEMENT_INDICATOR_COLOR,
   showDimensions = true,
   idNamespace,
@@ -879,6 +930,7 @@ export function Series600MixedAssemblyDiagram({
   const layout = resolveMixedLayout(configuration, pieces);
   const frameColor = normalizeFrameColor(frameColorHex);
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
+  const movementPanels = mixedMovementPanels(layout);
   const top = showDimensions ? layout.height * 0.12 : 0;
   const bottom = showDimensions ? layout.height * 0.14 : 0;
   const left = showDimensions ? layout.height * 0.02 : 0;
@@ -945,8 +997,15 @@ export function Series600MixedAssemblyDiagram({
             </g>
           );
         })}
+        <MuntinLayer
+          muntin={muntin}
+          glassPanels={frenchDoorMuntinPanels(movementPanels)}
+          frameColorHex={frameColor}
+          unitsPerInch={1}
+          idNamespace={`${namespace}-glass`}
+        />
         <Serie600MovementIndicators
-          panels={mixedMovementPanels(layout)}
+          panels={movementPanels}
           movementIndicatorColor={movementColor}
           idNamespace={`${namespace}-movement`}
         />
@@ -965,6 +1024,7 @@ export function PieceDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  muntin,
   movementIndicatorColor = DEFAULT_MOVEMENT_INDICATOR_COLOR,
   visualTemplate,
   exteriorHingeSide = "right",
@@ -992,6 +1052,7 @@ export function PieceDiagram({
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
+        muntin={muntin}
         movementIndicatorColor={movementIndicatorColor}
         showDimensions={showDimensions}
         idNamespace={idNamespace}
@@ -1023,6 +1084,7 @@ export function PieceDiagram({
     glassTintHex,
     hasCoating,
     hasPrivacy,
+    muntin,
     movementIndicatorColor: movementColor,
   } as const;
 

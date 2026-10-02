@@ -16,6 +16,7 @@ import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
 } from "../glass-appearance";
+import { MuntinLayer, type MuntinGlassPanel, type ResolvedMuntin } from "../muntin-layer";
 import {
   HorizontalRollingScreenLayer as ProceduralScreenLayer,
   type HorizontalRollingScreenPanelGeometry as ProceduralScreenPanelGeometry,
@@ -38,6 +39,7 @@ export interface SlidingGlassDoorDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -169,6 +171,7 @@ export function SlidingGlassDoorDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  muntin,
   showDimensions = true,
   assetBasePath = DEFAULT_ASSET_BASE_PATH,
   idNamespace,
@@ -230,6 +233,17 @@ export function SlidingGlassDoorDiagram({
   });
   const assetRect = mapRect(assetSource);
   const glassRects = spec.glassDlos.map(mapRect);
+  const muntinGlassPanels: MuntinGlassPanel[] = spec.glassDlos.map((glass) => ({
+    // Catalog DLO indices are zero-based and already follow the exterior view.
+    panelIndex: glass.panelIndex + 1,
+    panelCode: glass.kind,
+    panelLabel: spec.panelCount === 1 ? "Panel 1"
+      : glass.panelIndex === 0 ? "Left"
+        : glass.panelIndex === spec.panelCount - 1 ? "Right"
+          : spec.panelCount % 2 === 1 && glass.panelIndex === Math.floor(spec.panelCount / 2) ? "Center"
+            : `Panel ${glass.panelIndex + 1}`,
+    rect: mapRect(glass),
+  }));
   const sourceScaleX = productRect.width / dimensionSource.width;
   const sourceScaleY = productRect.height / dimensionSource.height;
   const screenPanels: ProceduralScreenPanelGeometry[] = spec.screenPanels.map(
@@ -302,6 +316,15 @@ export function SlidingGlassDoorDiagram({
     >
       <title id={titleId}>{title}</title>
       <defs>
+        {muntin ? <>
+          <clipPath id={`${namespace}-indicator-glass`}>
+            {glassRects.map((rect, index) => <rect key={index} {...rect} />)}
+          </clipPath>
+          <filter id={`${namespace}-source-indicators`} colorInterpolationFilters="sRGB">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2 -1 -1 0 -0.25" result="redIndicators" />
+            <feComposite in="SourceGraphic" in2="redIndicators" operator="in" />
+          </filter>
+        </> : null}
         <marker
           id={arrowStartId}
           markerWidth={DIMENSIONS.terminalLength}
@@ -356,6 +379,26 @@ export function SlidingGlassDoorDiagram({
           style={{ mixBlendMode: "multiply" }}
           data-layer="SLIDING_DOOR_FRAME_FINISH"
         />
+      ) : null}
+      <MuntinLayer
+        muntin={muntin}
+        glassPanels={muntinGlassPanels}
+        frameColorHex={frameColor}
+        unitsPerInch={scale}
+        idNamespace={`${namespace}-muntin`}
+      />
+      {muntin ? (
+        <g clipPath={`url(#${namespace}-indicator-glass)`} data-layer="SLIDING_DOOR_SOURCE_INDICATORS">
+          <image
+            href={assetHref}
+            x={assetRect.x}
+            y={assetRect.y}
+            width={assetRect.width}
+            height={assetRect.height}
+            preserveAspectRatio="none"
+            filter={`url(#${namespace}-source-indicators)`}
+          />
+        </g>
       ) : null}
       {screenVisible ? (
         <ProceduralScreenLayer

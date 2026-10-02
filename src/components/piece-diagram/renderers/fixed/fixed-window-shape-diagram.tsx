@@ -12,6 +12,7 @@ import {
   DIMENSION_LABEL_OUTWARD_GAP_PX,
   DimensionText,
 } from "../dimension-text";
+import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
 export const FIXED_WINDOW_SHAPE_KEYS = [
@@ -91,6 +92,7 @@ interface CommonProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -116,6 +118,45 @@ export const DEFAULT_FIXED_FRAME_COLOR = "#FFFFFF";
 const VIEWBOX_SIZE = 1254;
 const DIMENSIONS = dimensionMetrics(VIEWBOX_SIZE);
 const DEFAULT_ASSET_BASE_PATH = "/product-visuals/fixed-window-shapes/c073";
+
+type AssetBounds = readonly [left: number, top: number, right: number, bottom: number];
+
+// Bounds measured from the existing 2048px C157 glass masks and red O glyphs.
+// The mask, not these bounds, defines the curved or angled glass perimeter.
+const GLASS_AND_INDICATOR_BOUNDS: Record<FixedWindowShape, {
+  glass: AssetBounds;
+  indicator: AssetBounds;
+}> = {
+  CIRCLE: { glass: [417, 327, 1566, 1504], indicator: [964, 885, 1021, 948] },
+  EYEBROW: { glass: [353, 541, 1656, 1434], indicator: [976, 979, 1032, 1043] },
+  FAN: { glass: [208, 771, 1570, 1298], indicator: [863, 1046, 920, 1110] },
+  HALF_CIRCLE: { glass: [234, 536, 1811, 1362], indicator: [993, 978, 1050, 1041] },
+  HALF_EYEBROW_LEFT: { glass: [495, 348, 1486, 1558], indicator: [925, 997, 982, 1061] },
+  HALF_EYEBROW_RIGHT: { glass: [544, 351, 1529, 1563], indicator: [1047, 1002, 1104, 1065] },
+  HALF_FAN_LEFT: { glass: [333, 267, 1484, 1569], indicator: [791, 999, 848, 1062] },
+  HALF_FAN_RIGHT: { glass: [554, 268, 1677, 1574], indicator: [1178, 1002, 1235, 1065] },
+  HALF_TOMBSTONE_LEFT: { glass: [395, 204, 1306, 1622], indicator: [791, 955, 848, 1018] },
+  HALF_TOMBSTONE_RIGHT: { glass: [715, 208, 1605, 1623], indicator: [1165, 958, 1222, 1021] },
+  HEXAGON_SYMMETRIC: { glass: [373, 359, 1670, 1501], indicator: [995, 901, 1052, 964] },
+  OCTAGON_SYMMETRIC: { glass: [361, 270, 1669, 1548], indicator: [987, 880, 1044, 943] },
+  PICTURE_WINDOW: { glass: [341, 209, 1337, 1579], indicator: [812, 867, 869, 930] },
+  QUARTER_CIRCLE: { glass: [379, 322, 1506, 1568], indicator: [829, 1015, 885, 1078] },
+  TOMBSTONE: { glass: [423, 188, 1396, 1672], indicator: [882, 947, 939, 1010] },
+  TRAPEZOID_LEFT: { glass: [484, 416, 1564, 1600], indicator: [961, 1051, 1018, 1114] },
+  TRAPEZOID_RIGHT: { glass: [482, 418, 1542, 1599], indicator: [1018, 1053, 1075, 1116] },
+  TRIANGLE_90_LEFT: { glass: [467, 325, 1665, 1690], indicator: [851, 1180, 908, 1243] },
+  TRIANGLE_90_RIGHT: { glass: [383, 325, 1581, 1690], indicator: [1140, 1180, 1197, 1243] },
+};
+
+function assetBoundsRect(bounds: AssetBounds, padding = 0) {
+  const scale = VIEWBOX_SIZE / 2048;
+  return {
+    x: (bounds[0] - padding) * scale,
+    y: (bounds[1] - padding) * scale,
+    width: (bounds[2] - bounds[0] + padding * 2) * scale,
+    height: (bounds[3] - bounds[1] + padding * 2) * scale,
+  };
+}
 
 function normalizedGlassTint(value?: string | null): string | null {
   const tint = value?.trim();
@@ -459,7 +500,21 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   const titleId = `${idPrefix}-title`;
   const glassMaskId = `${idPrefix}-glass-mask`;
   const frameMaskId = `${idPrefix}-frame-mask`;
+  const indicatorClipId = `${idPrefix}-indicator-clip`;
   const masksBasePath = `${assetBasePath}/masks/${maskStem(spec)}`;
+  const bounds = GLASS_AND_INDICATOR_BOUNDS[spec.shapeKey];
+  const glass = assetBoundsRect(bounds.glass);
+  const [frameLeft, frameTop, frameRight, frameBottom] = spec.frameBBox;
+  // Fixed-shape artwork keeps its approved proportions. Render the grid in
+  // inches, then map each axis to that artwork so both bar widths remain 1in.
+  const scaleX = (frameRight - frameLeft) / width;
+  const scaleY = (frameBottom - frameTop) / height;
+  const glassInches = {
+    x: (glass.x - frameLeft) / scaleX,
+    y: (glass.y - frameTop) / scaleY,
+    width: glass.width / scaleX,
+    height: glass.height / scaleY,
+  };
   const label = `Fixed Window ${spec.displayName}, width ${formatDimension(width)}, height ${formatDimension(height)}${
     secondaryHeight === null ? "" : `, secondary height ${formatDimension(secondaryHeight)}`
   }`;
@@ -484,6 +539,11 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
     >
       <title id={titleId}>{label}</title>
       <defs>
+        {props.muntin ? (
+          <clipPath id={indicatorClipId}>
+            <rect {...assetBoundsRect(bounds.indicator, 2)} />
+          </clipPath>
+        ) : null}
         <mask
           id={glassMaskId}
           x={0}
@@ -548,6 +608,39 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
           pointerEvents="none"
           data-layer="WINDOW_FRAME_FINISH"
         />
+      ) : null}
+      {props.muntin ? (
+        <>
+          <g mask={`url(#${glassMaskId})`} data-layer="MUNTIN_GLASS_MASK">
+            <g transform={`translate(${frameLeft} ${frameTop}) scale(${scaleX} ${scaleY})`}>
+              <MuntinLayer
+                muntin={props.muntin}
+                glassPanels={[{ panelIndex: 1, panelCode: "O", panelLabel: "Center", rect: glassInches }]}
+                frameColorHex={frameColor}
+                unitsPerInch={1}
+                idNamespace={idPrefix}
+              />
+            </g>
+          </g>
+          {/* The original indicator is baked into the PNG. Restore only its
+              small label area above the grid instead of repainting the glass. */}
+          <g clipPath={`url(#${indicatorClipId})`} pointerEvents="none" data-layer="FIXED_INDICATOR">
+            <image
+              href={`${assetBasePath}/${spec.structuralAsset}`}
+              x={0}
+              y={0}
+              width={VIEWBOX_SIZE}
+              height={VIEWBOX_SIZE}
+              preserveAspectRatio="none"
+            />
+            <GlassAppearance
+              maskId={glassMaskId}
+              glassTintHex={props.glassTintHex}
+              hasCoating={props.hasCoating}
+              hasPrivacy={props.hasPrivacy}
+            />
+          </g>
+        </>
       ) : null}
       {showDimensions
         ? spec.dimensionGeometry.map((geometry) => {

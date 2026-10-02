@@ -16,6 +16,7 @@ import {
   GlassAppearanceLayer,
   type GlassOverlayRect,
 } from "../glass-appearance";
+import { MuntinLayer, type MuntinGlassPanel, type ResolvedMuntin } from "../muntin-layer";
 
 export type WindowWallDimension = number | string;
 export type WindowWallAttachment = "NONE" | "LEFT" | "RIGHT";
@@ -30,6 +31,7 @@ export interface WindowWallDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  muntin?: ResolvedMuntin | null;
   showDimensions?: boolean;
   assetBasePath?: string;
   idNamespace?: string;
@@ -274,6 +276,37 @@ function resolvePanelCells({
   }
 
   return cells;
+}
+
+function windowWallMuntinCells(
+  muntin: ResolvedMuntin | null | undefined,
+  panels: readonly PanelGeometry[],
+  horizontalJointHeight: number,
+): { muntin: ResolvedMuntin; glassPanels: MuntinGlassPanel[] } | null {
+  if (!muntin || !panels.length || !muntin.panels.length) return null;
+  const selection = muntin.panels[0];
+  // A single H/V setting repeats inside every physical glass section. Older
+  // expanded data is compatible only when all entries describe the same grid.
+  if (muntin.panels.some((panel) => panel.horizontalLites !== selection.horizontalLites
+    || panel.verticalLites !== selection.verticalLites)) return null;
+  const columns = panels.map((panel) => [...panel.cells].sort((left, right) => left.y - right.y));
+  const rows = columns[0].length;
+  const glassPanels: MuntinGlassPanel[] = [];
+  const mappedPanels: ResolvedMuntin["panels"] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns.length; column++) {
+      const cell = columns[column][row];
+      const insetTop = row > 0 ? horizontalJointHeight / 2 : 0;
+      const insetBottom = row < rows - 1 ? horizontalJointHeight / 2 : 0;
+      const panelLabel = `Cell ${row + 1}:${column + 1}`;
+      const panelIndex = row * columns.length + column + 1;
+      mappedPanels.push({ ...selection, panelIndex, panelLabel, panelCode: "O" });
+      glassPanels.push({ panelIndex, panelCode: "O", panelLabel,
+        rect: { ...cell, y: cell.y + insetTop, height: cell.height - insetTop - insetBottom },
+      });
+    }
+  }
+  return { muntin: { ...muntin, panels: mappedPanels }, glassPanels };
 }
 
 function frameRingPath(frame: Rect, glass: Rect): string {
@@ -764,6 +797,7 @@ export function WindowWallDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  muntin,
   showDimensions = true,
   assetBasePath = DEFAULT_ASSET_BASE_PATH,
   idNamespace,
@@ -866,6 +900,7 @@ export function WindowWallDiagram({
       minimumRowHeight * 0.4,
     ),
   );
+  const resolvedMuntin = windowWallMuntinCells(muntin, panels, horizontalJointHeight);
   const gasketStrokeWidth = Math.max(
     1.25,
     frame.height * GASKET_STROKE_WIDTH_RATIO,
@@ -1158,6 +1193,14 @@ export function WindowWallDiagram({
           )}
         </g>
       ) : null}
+
+      {resolvedMuntin ? <MuntinLayer
+        muntin={resolvedMuntin.muntin}
+        glassPanels={resolvedMuntin.glassPanels}
+        frameColorHex={frameColor}
+        unitsPerInch={productScale}
+        idNamespace={`${namespace}-muntin`}
+      /> : null}
 
       <g
         fill="#E20D18"

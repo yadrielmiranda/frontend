@@ -66,6 +66,7 @@ import { roundMoney } from "@/lib/formatters";
 import type { PieceFormValues } from "./types";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { getMuntinOptions, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
+import { buildWindowWallMuntinLayout, hasAmbiguousWindowWallMuntinPanels, syncWindowWallMuntinPanels } from "./window-wall-muntin";
 
 type NamedOption = {
   id: number;
@@ -198,7 +199,9 @@ function PieceSectionHeader({ title }: { title: string }) {
 function buildDefaultPanelsFromLayout(
   layout: ConfigMuntinLayoutItem[] | null | undefined,
   existingPanels?: PieceMuntin["panels"] | null,
+  isWindowWall = false,
 ): PieceMuntin["panels"] {
+  if (isWindowWall) return syncWindowWallMuntinPanels(layout, existingPanels);
   if (!Array.isArray(layout) || layout.length === 0) return [];
 
   return layout.map((layoutPanel) => {
@@ -238,6 +241,7 @@ function syncMuntinWithConfigLayout(
   config: Config | null | undefined,
   fallbackPatternId: number,
   options: MuntinOptions,
+  windowWallLayout?: ConfigMuntinLayoutItem[] | null,
 ): PieceMuntin | null {
   if (!config || !fallbackPatternId) return null;
 
@@ -249,7 +253,11 @@ function syncMuntinWithConfigLayout(
 
   return {
     ...selection,
-    panels: requiresLites ? buildDefaultPanelsFromLayout(config.muntinLayout, selection.panels) : [],
+    panels: requiresLites ? buildDefaultPanelsFromLayout(
+      windowWallLayout === undefined ? config.muntinLayout : windowWallLayout,
+      selection.panels,
+      windowWallLayout !== undefined,
+    ) : [],
   };
 }
 
@@ -936,12 +944,22 @@ export function PieceForm({
     );
   }, [idConf, availableSysConfs]);
 
+  const isWindowWall = selectedSysConf?.dimensionMode === "WINDOW_WALL";
+
+  const windowWallMuntinLayout = useMemo(() => {
+    if (!isWindowWall) return undefined;
+    return buildWindowWallMuntinLayout();
+  }, [isWindowWall]);
+
   const hasMuntinLayout = useMemo(() => {
+    // Window Wall repeats one grid across all glass panels, independently of
+    // its dimensions and the static configuration layout.
+    if (isWindowWall) return true;
     return (
       Array.isArray(selectedConfig?.muntinLayout) &&
       selectedConfig.muntinLayout.length > 0
     );
-  }, [selectedConfig]);
+  }, [selectedConfig, isWindowWall]);
 
   const muntinOptions = useMemo(
     () => getMuntinOptions(selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout),
@@ -1396,23 +1414,35 @@ export function PieceForm({
   }, [pieceValues.muntin?.idPattern, activeMuntinPatterns]);
 
   const patternRequiresLites = selectedPattern?.requiresLites ?? false;
+  const hasAmbiguousWindowWallMuntin = isWindowWall && patternRequiresLites
+    && hasAmbiguousWindowWallMuntinPanels(windowWallMuntinLayout, currentMuntin?.panels);
   const initialMuntinAdjustedRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!selectedConfig || !selectedSysConf || isLinearMaterial) return;
     const current = getValues("muntin");
     const supported = normalizeMuntinSelection(current, muntinOptions);
-    if (supported === (current ?? null)) return;
-    initialMuntinAdjustedRef.current = true;
+    if (supported === (current ?? null) && !isWindowWall) return;
     const next = supported && muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)?.requiresLites
-      ? { ...supported, panels: buildDefaultPanelsFromLayout(selectedConfig.muntinLayout, supported.panels) }
+      ? { ...supported, panels: buildDefaultPanelsFromLayout(
+          isWindowWall ? windowWallMuntinLayout : selectedConfig.muntinLayout,
+          supported.panels, isWindowWall,
+        ) }
       : supported;
-    setValue("muntin", next, { shouldDirty: true });
+    const unchanged = JSON.stringify(next) === JSON.stringify(current ?? null);
+    const requiresReconfiguration = isWindowWall && supported
+      && muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)?.requiresLites
+      && hasAmbiguousWindowWallMuntinPanels(windowWallMuntinLayout, supported.panels);
+    if (unchanged && !requiresReconfiguration) return;
+    initialMuntinAdjustedRef.current = true;
+    if (!unchanged) setValue("muntin", next, { shouldDirty: true });
     // A permitted replacement can carry a different price. Require Calculate
     // before submitting it; the existing value watcher invalidates pending work.
     setIsLocked(false);
-    setActiveAccordionItems((items) => items.filter((item) => item !== "item-results"));
-  }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, muntinOptions, getValues, setValue]);
+    setActiveAccordionItems((items) => items.includes("item-results")
+      ? items.filter((item) => item !== "item-results") : items);
+  }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, isWindowWall,
+    windowWallMuntinLayout, muntinOptions, getValues, setValue]);
 
   const dealerMarkupField = register("dealerMarkup", {
     valueAsNumber: true,
@@ -1535,6 +1565,7 @@ export function PieceForm({
         selectedConfig,
         fallbackPatternId,
         muntinOptions,
+        windowWallMuntinLayout,
       );
 
       setValue("muntin", syncedMuntin, { shouldDirty: false });
@@ -1578,6 +1609,7 @@ export function PieceForm({
     defaultMuntinPattern?.id,
     defaultFullViewPattern?.id,
     muntinOptions,
+    windowWallMuntinLayout,
     availableActiveOptions,
     availablePreparationOptions,
     availableSillOptions,
@@ -1599,8 +1631,9 @@ export function PieceForm({
     const nextPanels =
       pattern.requiresLites && hasMuntinLayout
         ? buildDefaultPanelsFromLayout(
-            selectedConfig?.muntinLayout,
+            isWindowWall ? windowWallMuntinLayout : selectedConfig?.muntinLayout,
             current?.panels,
+            isWindowWall,
           )
         : [];
 
@@ -1632,6 +1665,15 @@ export function PieceForm({
       },
       { shouldDirty: true },
     );
+  };
+
+  const handleReconfigureWindowWallMuntin = () => {
+    if (!isWindowWall || !windowWallMuntinLayout || !patternRequiresLites) return;
+    const current = getValues("muntin");
+    if (!current) return;
+    setValue("muntin", { ...current, panels: syncWindowWallMuntinPanels(windowWallMuntinLayout, []) }, { shouldDirty: true });
+    setIsLocked(false);
+    setActiveAccordionItems((items) => items.filter((item) => item !== "item-results"));
   };
 
   const handleMuntinPanelChange = (
@@ -3937,14 +3979,21 @@ export function PieceForm({
                               )}
                             </div>
 
-                            {!patternRequiresLites ? null : !hasMuntinLayout ? (
+                            {hasAmbiguousWindowWallMuntin && (
+                              <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                <p>Window Wall uses the same grid in every glass panel. Reconfigure the saved grids to choose one Horizontal and Vertical setting for all panels.</p>
+                                <Button type="button" variant="outline" size="sm" className="mt-2" onClick={handleReconfigureWindowWallMuntin}>
+                                  Reconfigure grid
+                                </Button>
+                              </div>
+                            )}
+                            {!patternRequiresLites || hasAmbiguousWindowWallMuntin ? null : !hasMuntinLayout ? (
                               <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
                                 This configuration supports Full View only.
                               </div>
                             ) : currentMuntinPanels.length === 0 ? (
                               <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                This configuration does not define a muntin
-                                panel layout.
+                                This configuration does not define a muntin panel layout.
                               </div>
                             ) : (
                               <div className="rounded-md border border-slate-200 overflow-hidden">
