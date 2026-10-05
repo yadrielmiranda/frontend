@@ -25,8 +25,11 @@ import {
   SLIDING_GLASS_DOOR_RELEASE,
   slidingGlassDoorSupportsScreen,
   type SlidingGlassDoorCatalogEntry,
-  type SlidingGlassDoorRect,
 } from "./sliding-glass-door-spec";
+import {
+  resolveSlidingGlassDoorLayout,
+  type SlidingGlassDoorSlice,
+} from "./sliding-glass-door-layout";
 
 export type SlidingGlassDoorDimension = number | string;
 
@@ -162,6 +165,27 @@ function frameTintPath(frame: Rect, glass: readonly Rect[]): string {
   ].join(" ");
 }
 
+function SourceSlices({
+  slices,
+  sourceId,
+}: {
+  slices: readonly SlidingGlassDoorSlice[];
+  sourceId: string;
+}) {
+  return <>{slices.map(({ source, target }, index) => (
+    <svg
+      key={index}
+      {...target}
+      viewBox={[source.x, source.y, source.width, source.height].join(" ")}
+      preserveAspectRatio="none"
+      overflow="hidden"
+      data-source-slice={index}
+    >
+      <use href={`#${sourceId}`} />
+    </svg>
+  ))}</>;
+}
+
 export function SlidingGlassDoorDiagram({
   spec,
   width,
@@ -219,18 +243,13 @@ export function SlidingGlassDoorDiagram({
     height: productHeight,
   };
 
-  const mapRect = (rect: SlidingGlassDoorRect): Rect => ({
-    x:
-      productRect.x +
-      ((rect.x - dimensionSource.x) / dimensionSource.width) *
-        productRect.width,
-    y:
-      productRect.y +
-      ((rect.y - dimensionSource.y) / dimensionSource.height) *
-        productRect.height,
-    width: (rect.width / dimensionSource.width) * productRect.width,
-    height: (rect.height / dimensionSource.height) * productRect.height,
+  const layout = resolveSlidingGlassDoorLayout({
+    dimension: dimensionSource,
+    asset: assetSource,
+    product: productRect,
+    glass: spec.glassDlos,
   });
+  const { mapRect, slices } = layout;
   const assetRect = mapRect(assetSource);
   const glassRects = spec.glassDlos.map(mapRect);
   const muntinGlassPanels: MuntinGlassPanel[] = spec.glassDlos.map((glass) => ({
@@ -244,14 +263,12 @@ export function SlidingGlassDoorDiagram({
             : `Panel ${glass.panelIndex + 1}`,
     rect: mapRect(glass),
   }));
-  const sourceScaleX = productRect.width / dimensionSource.width;
-  const sourceScaleY = productRect.height / dimensionSource.height;
   const screenPanels: ProceduralScreenPanelGeometry[] = spec.screenPanels.map(
     (panel) => ({
       outer: mapRect(panel.outer),
       mesh: mapRect(panel.mesh),
-      scaleX: sourceScaleX,
-      scaleY: sourceScaleY,
+      scaleX: mapRect(panel.outer).width / panel.outer.width,
+      scaleY: mapRect(panel.outer).height / panel.outer.height,
     }),
   );
   const screenVisible =
@@ -316,6 +333,12 @@ export function SlidingGlassDoorDiagram({
     >
       <title id={titleId}>{title}</title>
       <defs>
+        <image
+          id={`${namespace}-source`}
+          href={assetHref}
+          {...assetSource}
+          preserveAspectRatio="none"
+        />
         {muntin ? <>
           <clipPath id={`${namespace}-indicator-glass`}>
             {glassRects.map((rect, index) => <rect key={index} {...rect} />)}
@@ -355,15 +378,28 @@ export function SlidingGlassDoorDiagram({
         </marker>
       </defs>
 
-      <image
-        href={assetHref}
-        x={assetRect.x}
-        y={assetRect.y}
-        width={assetRect.width}
-        height={assetRect.height}
-        preserveAspectRatio="none"
-        data-layer="C139_SCREEN_OFF_STRUCTURE"
-      />
+      <g
+        data-layer="SLIDING_DOOR_LAYOUT"
+        data-frame-x={productRect.x}
+        data-frame-y={productRect.y}
+        data-frame-width={productRect.width}
+        data-frame-height={productRect.height}
+        data-units-per-inch={scale}
+        data-profile-layout={layout.adapted ? "MULTI_SLICE" : "SOURCE_PROPORTIONS"}
+      >
+        <g data-layer="C139_SCREEN_OFF_STRUCTURE">
+          <SourceSlices slices={slices} sourceId={`${namespace}-source`} />
+        </g>
+        <g data-layer="SLIDING_DOOR_FINAL_GLASS" fill="none" pointerEvents="none">
+          {glassRects.map((rect, index) => <rect
+            key={index}
+            {...rect}
+            data-panel-index={spec.glassDlos[index].panelIndex + 1}
+            data-panel-code={spec.glassDlos[index].kind}
+            data-direction={spec.glassDlos[index].direction}
+          />)}
+        </g>
+      </g>
       <GlassAppearanceLayer
         rects={glassRects}
         glassTintHex={glassTintHex}
@@ -388,15 +424,14 @@ export function SlidingGlassDoorDiagram({
         idNamespace={`${namespace}-muntin`}
       />
       {muntin ? (
-        <g clipPath={`url(#${namespace}-indicator-glass)`} data-layer="SLIDING_DOOR_SOURCE_INDICATORS">
-          <image
-            href={assetHref}
-            x={assetRect.x}
-            y={assetRect.y}
-            width={assetRect.width}
-            height={assetRect.height}
-            preserveAspectRatio="none"
-            filter={`url(#${namespace}-source-indicators)`}
+        <g
+          clipPath={`url(#${namespace}-indicator-glass)`}
+          filter={`url(#${namespace}-source-indicators)`}
+          data-layer="SLIDING_DOOR_SOURCE_INDICATORS"
+        >
+          <SourceSlices
+            slices={slices}
+            sourceId={`${namespace}-source`}
           />
         </g>
       ) : null}
