@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
 import { InlinePieceMarkInput } from "./inline-piece-mark-input";
+import { formatDimensionPair, formatDoorDimensions } from "./piece-dimension-description";
 import type {
   ProductWithBrands,
   FrameColor,
@@ -194,13 +195,9 @@ export function PiecesDealerTable({
 
               const markupPercent = Number(currentPieceData.dealerMarkup) || 0;
 
-              const wTxt = currentPieceData.width
-                ? formatInchesFromEighthStep(currentPieceData.width)
-                : "?";
-
-              const hTxt = currentPieceData.height
-                ? formatInchesFromEighthStep(currentPieceData.height)
-                : "?";
+              const sizeText = formatDimensionPair(
+                currentPieceData.width, currentPieceData.height, widthToken, heightToken,
+              );
 
               const sashTxt = currentPieceData.sashHeight
                 ? formatInchesFromEighthStep(currentPieceData.sashHeight)
@@ -214,9 +211,9 @@ export function PiecesDealerTable({
 
               if (product?.name) descriptionParts.push(product.name);
 
-              if (currentPieceData.width || currentPieceData.height) {
+              if (sizeText) {
                 descriptionParts.push(
-                  `${wTxt} ${widthToken} x ${hTxt} ${heightToken}${
+                  `${sizeText}${
                     sashTxt ? ` / Sash ${sashTxt}` : ""
                   }${windowHeightTxt ? ` / Window H ${windowHeightTxt}` : ""}`,
                 );
@@ -240,17 +237,10 @@ export function PiecesDealerTable({
                 );
               }
 
-              if (currentPieceData.doorWidth || currentPieceData.doorHeight) {
-                const doorWTxt = currentPieceData.doorWidth
-                  ? formatInchesFromEighthStep(currentPieceData.doorWidth)
-                  : "?";
-
-                const doorHTxt = currentPieceData.doorHeight
-                  ? formatInchesFromEighthStep(currentPieceData.doorHeight)
-                  : "?";
-
-                descriptionParts.push(`Door ${doorWTxt} W x ${doorHTxt} H`);
-              }
+              const doorSize = formatDoorDimensions(
+                currentPieceData.doorWidth, currentPieceData.doorHeight, currentPieceData.height,
+              );
+              if (doorSize) descriptionParts.push(`Door ${doorSize}`);
 
               if (currentPieceData.leftSideliteWidth) {
                 descriptionParts.push(

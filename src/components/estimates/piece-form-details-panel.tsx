@@ -16,6 +16,7 @@ import type { PieceFormValues } from "./types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { PieceDiagram } from "@/components/piece-diagram";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
+import { formatDoorDimensions } from "./piece-dimension-description";
 
 interface PieceFormDetailsPanelProps {
   piece: PieceFormValues;
@@ -162,8 +163,7 @@ export function PieceFormDetailsPanel({
   const windowHeight = formatDimension(piece.windowHeight);
   const legHeight = formatDimension(piece.legHeight);
 
-  const doorWidth = formatDimension(piece.doorWidth);
-  const doorHeight = formatDimension(piece.doorHeight);
+  const doorSize = formatDoorDimensions(piece.doorWidth, piece.doorHeight, piece.height);
   const leftSideliteWidth = formatDimension(piece.leftSideliteWidth);
   const rightSideliteWidth = formatDimension(piece.rightSideliteWidth);
 
@@ -242,12 +242,10 @@ export function PieceFormDetailsPanel({
             </p>
           )}
 
-          {(doorWidth || doorHeight) && (
+          {doorSize && (
             <p>
               <strong>Door Size:</strong>{" "}
-              {[doorWidth && `${doorWidth} W`, doorHeight && `${doorHeight} H`]
-                .filter(Boolean)
-                .join(" x ") || "—"}
+              {doorSize}
             </p>
           )}
 

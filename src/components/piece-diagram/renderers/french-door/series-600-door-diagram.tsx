@@ -10,6 +10,7 @@ import {
   DIMENSION_LABEL_ABOVE_LINE_PX,
   DIMENSION_LABEL_BELOW_LINE_PX,
   DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
 } from "../dimension-text";
 import {
@@ -931,15 +932,40 @@ export function Series600MixedAssemblyDiagram({
   const frameColor = normalizeFrameColor(frameColorHex);
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
   const movementPanels = mixedMovementPanels(layout);
-  const top = showDimensions ? layout.height * 0.12 : 0;
-  const bottom = showDimensions ? layout.height * 0.14 : 0;
+  // Keep the dimension lines in the viewBox; the fixed pixel padding below
+  // reserves label space without shrinking the product a second time.
+  const top = showDimensions ? layout.height * 0.07 : 0;
+  const bottom = showDimensions ? layout.height * 0.07 : 0;
   const left = showDimensions ? layout.height * 0.02 : 0;
-  const right = showDimensions ? layout.height * 0.23 : 0;
+  const right = showDimensions ? layout.height * 0.07 : 0;
+  // Conservative Arial bold label width, including its prefix and inch mark.
+  // Decimal dimensions need more room than the usual two-digit measurements.
+  const labelWidthPx = (value: number, prefixEm: number) =>
+    DIMENSION_SCREEN_FONT_SIZE_PX *
+    (prefixEm + [...formatDimension(value)].reduce((width, char) => width + (char === "." ? 0.3 : 0.6), 0));
+  const sectionLabelWidth = Math.max(...layout.pieces.map((piece) => labelWidthPx(piece.width, 1.9)));
 
   return (
     <div
       className={containerClass(variant, className)}
-      style={{ minHeight: 0, maxHeight: "100%", backgroundColor: "transparent" }}
+      style={{
+        minHeight: 0,
+        maxHeight: "100%",
+        backgroundColor: "transparent",
+        boxSizing: "border-box",
+        // DimensionText keeps a fixed pixel font and offsets. Reserve its
+        // space inside the clipped card even when the SVG scales down.
+        paddingTop: showDimensions
+          ? DIMENSION_SCREEN_FONT_SIZE_PX - DIMENSION_LABEL_ABOVE_LINE_PX + 2
+          : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+        paddingLeft: showDimensions ? Math.max(32, sectionLabelWidth / 2 + 2) : undefined,
+        paddingRight: showDimensions
+          ? Math.max(72, labelWidthPx(layout.height, 1.7) + DIMENSION_LABEL_OUTWARD_GAP_PX + 2)
+          : undefined,
+      }}
       data-diagram-family="FRENCH_DOOR"
       data-configuration={configuration}
       data-dimension-mode={dimensionMode}

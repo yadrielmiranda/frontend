@@ -223,4 +223,75 @@ module.exports = function register(ctx) {
       assert.match(html, /data-piece-diagram-id="123"/);
     }
   });
+
+  test('French Door dimensions fit all four clipped preview edges after screen font sizing', () => {
+    const {
+      DIMENSION_SCREEN_FONT_SIZE_PX, DIMENSION_LABEL_ABOVE_LINE_PX,
+      DIMENSION_LABEL_BELOW_LINE_PX, DIMENSION_LABEL_OUTWARD_GAP_PX,
+    } = load('components/piece-diagram/renderers/dimension-text.tsx');
+    const examples = [
+      { configuration: 'XO', pieces: [{ kind: 'X', width: 39, height: 80, exteriorHingeSide: 'left' }, { kind: 'O', width: 16, height: 80 }] },
+      { configuration: 'OX', pieces: [{ kind: 'O', width: 16, height: 80 }, { kind: 'X', width: 39, height: 80, exteriorHingeSide: 'right' }] },
+      { configuration: 'OX', pieces: [{ kind: 'O', width: 14, height: 80 }, { kind: 'X', width: 41, height: 80, exteriorHingeSide: 'right' }] },
+      { configuration: 'XO', pieces: [{ kind: 'X', width: 39.375, height: 120.125, exteriorHingeSide: 'left' }, { kind: 'O', width: 16.5, height: 120.125 }] },
+      mixedProps(mixedCases[0]),
+      mixedProps(mixedCases[1]),
+    ];
+    for (const example of examples) for (const variant of ['editor', 'report']) {
+      const html = render(MixedDoor, { ...example, showDimensions: true, variant });
+      const container = tags(html, 'div').find(item => item['data-diagram-family'] === 'FRENCH_DOOR');
+      const padding = Object.fromEntries(['top', 'bottom', 'left', 'right'].map(side =>
+        [side, Number(new RegExp(`(?:^|;)padding-${side}:([\\d.]+)px`).exec(container.style)?.[1] ?? 0)]));
+      const [minX, minY, viewWidth, viewHeight] = tags(html, 'svg')[0].viewBox.split(' ').map(Number);
+      const labels = [...html.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)]
+        .map(match => ({ ...attrs(match[1]), value: match[2].replace(/&quot;/g, '"') }))
+        .filter(label => label['data-screen-font-size']);
+      const upperLabels = labels.filter(label => Number(label.y) < 0);
+      assert.equal(labels.length, example.pieces.length + 2);
+      assert.equal(upperLabels.length, example.pieces.length);
+      assert.deepEqual(upperLabels.map(label => label.value), example.pieces.map(piece => `W. ${piece.width}"`));
+      for (const [width, height] of [[180, 240], [300, 280], [320, 280], [640, 380]]) {
+        // Model SVG xMidYMid meet and the browser's fixed pixel labels. Glyph
+        // widths round up Arial bold measurements (W. 16" ≈61.4px, H. 80"
+        // ≈57.3px at 20px). Vertical bounds also exceed its 22.4px text box.
+        const contentWidth = width - padding.left - padding.right;
+        const contentHeight = height - padding.top - padding.bottom;
+        assert.ok(contentWidth > 0 && contentHeight > 0, 'Reserves leave a drawable viewport');
+        const scale = Math.min(contentWidth / viewWidth, contentHeight / viewHeight);
+        const left = padding.left + (contentWidth - viewWidth * scale) / 2;
+        const top = padding.top + (contentHeight - viewHeight * scale) / 2;
+        const upperBounds = [];
+        for (const label of labels) {
+          const isHeight = label.value.startsWith('H.');
+          const textWidth = [...label.value].reduce((sum, char) => sum +
+            (char === 'W' ? 0.95 : char === 'H' ? 0.73 : /[0-9]/.test(char) ? 0.56 : char === '"' ? 0.48 : 0.28), 0) * DIMENSION_SCREEN_FONT_SIZE_PX;
+          const x = left + (Number(label.x) - minX) * scale + (isHeight ? DIMENSION_LABEL_OUTWARD_GAP_PX : 0);
+          const y = top + (Number(label.y) - minY) * scale +
+            (isHeight ? 0 : Number(label.y) < 0 ? DIMENSION_LABEL_ABOVE_LINE_PX : DIMENSION_LABEL_BELOW_LINE_PX);
+          const bounds = {
+            left: isHeight ? x : x - textWidth / 2,
+            right: isHeight ? x + textWidth : x + textWidth / 2,
+            top: y - DIMENSION_SCREEN_FONT_SIZE_PX * (isHeight ? 0.6 : 1),
+            bottom: y + DIMENSION_SCREEN_FONT_SIZE_PX * (isHeight ? 0.6 : 0.3),
+          };
+          const description = `${example.configuration} ${variant} ${width}x${height} ${label.value}`;
+          assert.ok(bounds.left >= 0, `${description}: left label edge crosses the clipped card`);
+          assert.ok(bounds.right <= width, `${description}: right label edge crosses the clipped card`);
+          assert.ok(bounds.top >= 0, `${description}: top label edge crosses the clipped card`);
+          assert.ok(bounds.bottom <= height, `${description}: bottom label edge crosses the clipped card`);
+          if (Number(label.y) < 0) upperBounds.push(bounds);
+        }
+        if (width >= 300 && example.pieces.length === 2 && example.pieces[0].height === 80) {
+          assert.ok(upperBounds[0].right + 2 <= upperBounds[1].left,
+            `${example.configuration} ${variant} ${width}x${height}: ordinary door/sidelite labels need a visible gap`);
+        }
+      }
+      assert.match(container.style, /(?:^|;)box-sizing:border-box(?:;|$)/,
+        'The pixel reserve must remain inside the existing full-height flex container');
+      const noDimensions = render(MixedDoor, { ...example, showDimensions: false, variant });
+      assert.equal(tags(noDimensions, 'text').filter(item => item['data-screen-font-size']).length, 0);
+      assert.doesNotMatch(tags(noDimensions, 'div')[0].style, /padding-(?:top|bottom|left|right):/,
+        'Reports without dimensions keep the entire viewport for the product');
+    }
+  });
 };
