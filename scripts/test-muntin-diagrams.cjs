@@ -149,6 +149,19 @@ test('Unknown patterns or profiles are omitted instead of inventing a grid', () 
   ]) assert.equal(resolveMuntinForDiagram(saved(hrPanels(), overrides)), null);
 });
 
+test('Declared grids draw independently of the pattern name; fixed designs never masquerade as grids', () => {
+  const declared = resolveMuntinForDiagram(saved(hrPanels(), {
+    pattern: { name: 'Custom grid', requiresLites: true, inputMode: 'GRID', requiresType: true },
+  }));
+  assert.equal(declared.profile, 'flat');
+  assert.equal(bars(hr({ muntin: declared })).length, bars(hr()).length);
+  for (const inputMode of ['NONE', 'PRESET']) {
+    assert.equal(resolveMuntinForDiagram(saved(hrPanels(), {
+      pattern: { name: 'Colonial', requiresLites: true, inputMode, requiresType: true },
+    })), null);
+  }
+});
+
 test('Catalog names are normalized without assuming fixed pattern or type IDs', () => {
   const value = resolveMuntinForDiagram(saved(hrPanels(), {
     pattern: { name: ' COLONIAL ', requiresLites: true }, type: { name: ' 1  in Ogee–Flat ' },
@@ -324,6 +337,16 @@ const reportPiece = () => ({
   diagramMetadata: { dimensionMode: 'STANDARD', hasCoating: false, hasPrivacy: false },
   pieceMuntin: saved(hrPanels()),
 });
+test('Fixed designs retain their pattern and profile in the report without an invented drawing', () => {
+  const piece = { ...reportPiece(), pieceMuntin: {
+    pattern: { name: '8L', inputMode: 'PRESET', requiresLites: false, requiresType: true },
+    type: { name: '1 in Flat-Flat' }, panels: [],
+  } };
+  const html = render(PieceReportCard, { piece, displayMark: 'F1', showPrices: false });
+  assert.match(html, /Grid: 8L · 1 in Flat-Flat/);
+  assert.equal(bars(html).length, 0);
+});
+
 test('Real saved PieceReportCard includes the grid and preserves the PDF capture element', () => {
   const html = render(PieceReportCard, { piece: reportPiece(), displayMark: 'A1', showPrices: false });
   assert.equal(bars(html).length, 7);

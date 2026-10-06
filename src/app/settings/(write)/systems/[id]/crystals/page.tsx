@@ -5,6 +5,7 @@ import { getSystemCrystalsForManage } from "@/app/api/systems.api";
 import { SystemCrystalsClient } from "./system-crystals-client";
 
 import { BackLink } from "@/components/navigation/back-link";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -51,6 +52,10 @@ export default async function ManageSystemCrystalsPage({
             Manage the glass types available for this system. Product:{" "}
             <span className="font-medium">{data.system.product.name}</span>
           </CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <p className="text-sm text-muted-foreground">New glass combinations allow Full View only until muntin rules are assigned.</p>
+            <Button variant="outline" size="sm" asChild><Link href={`/settings/systems/${systemId}/muntins`}>Manage Muntins</Link></Button>
+          </div>
         </CardHeader>
 
         <CardContent>

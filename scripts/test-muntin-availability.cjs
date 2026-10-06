@@ -5,10 +5,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
 const { createFormControl } = require('react-hook-form');
 const root = path.resolve(__dirname, '../src');
-const compile = code => ts.transpileModule(code, { compilerOptions: {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
+const compile = code => ts.transpileModule(code, { fileName: 'fixture.tsx', compilerOptions: {
+  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
 } }).outputText;
 const forbidNetwork = () => { throw new Error('Network access is forbidden in availability tests'); };
 global.fetch = forbidNetwork;
@@ -52,6 +54,28 @@ function visit(node) {
   ts.forEachChild(node, visit);
 }
 visit(component); assert.ok(submitDisabled, 'Real Submit predicate');
+function jsxExpression(prefix, content) {
+  const found = [];
+  function visit(node) {
+    if (ts.isJsxExpression(node) && node.expression?.getText(source).startsWith(prefix)
+      && node.expression.getText(source).includes(content)) found.push(node.expression.getText(source));
+    ts.forEachChild(node, visit);
+  }
+  visit(component); assert.equal(found.length, 1, `Real JSX ${content}`); return found[0];
+}
+const typeUi = jsxExpression('patternRequiresType &&', 'Muntin Type');
+const presetHintUi = jsxExpression('getMuntinInputMode(selectedPattern)', 'drawing preview');
+const fullViewUi = jsxExpression('!defaultFullViewPattern &&', 'Full View');
+function renderExpression(expression, values) {
+  const Element = ({ children }) => React.createElement('span', null, children);
+  return renderToStaticMarkup(evaluate(compile(`return (${expression});`), {
+    exports: {},
+    require(id) { assert.equal(id, 'react/jsx-runtime'); return require(id); },
+    Label: Element, Select: Element, SelectTrigger: Element, SelectValue: Element,
+    SelectContent: Element, SelectItem: Element, fieldLabelClass: '', selectTriggerClass: '',
+    handleMuntinTypeChange() {}, isLocked: false, ...helper.exports, ...values,
+  }));
+}
 const fixtureCode = compile([
   declaration('buildDefaultPanelsFromLayout', source.statements),
   declaration('syncMuntinWithConfigLayout', source.statements),
@@ -59,9 +83,11 @@ const fixtureCode = compile([
   effect('useLayoutEffect', 'calculationValuesVersionRef'),
   declaration('selectedSysConf'), declaration('isWindowWall'), declaration('windowWallMuntinLayout'),
   declaration('hasMuntinLayout'), declaration('muntinOptions'),
-  declaration('activeMuntinPatterns'), declaration('activeMuntinTypes'), declaration('defaultMuntinType'),
+  declaration('activeMuntinPatterns'), declaration('activeMuntinTypes'),
   declaration('defaultMuntinPattern'), declaration('defaultFullViewPattern'),
-  declaration('selectedPattern'), declaration('patternRequiresLites'), declaration('hasAmbiguousWindowWallMuntin'),
+  declaration('selectedPattern'), declaration('patternRequiresLites'), declaration('patternRequiresType'),
+  'const [muntinAvailabilityNotice, setMuntinAvailabilityNotice] = useState(null);',
+  declaration('previousMuntinContextRef'), declaration('muntinContextChangedRef'), declaration('hasAmbiguousWindowWallMuntin'),
   declaration('initialMuntinAdjustedRef'),
   effect('useLayoutEffect', 'normalizeMuntinSelection'), declaration('previousSysConfKeyRef'),
   effect('useEffect', 'hasInitialResults'),
@@ -69,12 +95,16 @@ const fixtureCode = compile([
   declaration('handleMuntinPatternChange'), declaration('handleMuntinTypeChange'),
   declaration('handleMuntinPanelChange'), declaration('handleReconfigureWindowWallMuntin'),
   declaration('currentMuntinPanels'),
-  'return { patterns: activeMuntinPatterns, types: activeMuntinTypes, pattern: handleMuntinPatternChange, type: handleMuntinTypeChange, panel: handleMuntinPanelChange, reconfigure: handleReconfigureWindowWallMuntin, ambiguous: hasAmbiguousWindowWallMuntin, layout: windowWallMuntinLayout, panels: currentMuntinPanels, isWindowWall, patternRequiresLites, hasMuntinLayout, latestCalculationRef, calculationValuesVersionRef };',
+  'return { patterns: activeMuntinPatterns, types: activeMuntinTypes, pattern: handleMuntinPatternChange, type: handleMuntinTypeChange, panel: handleMuntinPanelChange, reconfigure: handleReconfigureWindowWallMuntin, ambiguous: hasAmbiguousWindowWallMuntin, layout: windowWallMuntinLayout, panels: currentMuntinPanels, isWindowWall, patternRequiresLites, patternRequiresType, hasMuntinLayout, latestCalculationRef, calculationValuesVersionRef };',
 ].join('\n'));
 const patterns = [
   { id: 10, name: 'Full View', requiresLites: false, isActive: true, isDefault: true },
   { id: 20, name: 'Colonial', requiresLites: true, isActive: true, isDefault: false },
   { id: 30, name: 'Inactive Pattern', requiresLites: true, isActive: false, isDefault: false },
+  { id: 40, name: 'Diamond Grid', inputMode: 'GRID', requiresType: true, requiresLites: true, isActive: true },
+  { id: 50, name: 'Prairie Preset', inputMode: 'PRESET', requiresType: true, requiresLites: false, isActive: true },
+  { id: 60, name: 'Decorative Preset', inputMode: 'PRESET', requiresType: false, requiresLites: false, isActive: true },
+  { id: 70, name: 'Integral Grid', inputMode: 'GRID', requiresType: false, requiresLites: true, isActive: true },
 ];
 const types = [
   { id: 61, name: 'Flat', isActive: true, isDefault: false },
@@ -89,14 +119,18 @@ const colonial = (idType = 62) => ({ idPattern: 20, idType,
   panels: layout.map((part, index) => ({ ...part, horizontalLites: index + 2, verticalLites: index + 3 })) });
 const fullView = () => ({ idPattern: 10, idType: null, panels: [] });
 const ids = items => items.map(item => item.id);
-const options = settings => getMuntinOptions(settings, patterns, types, true);
+const rule = (patternId = 20, allowedTypeIds = null, crystalId = 7) => ({
+  ruleId: patternId, crystalId, patternId, availability: allowedTypeIds === null ? 'ALL' : 'SELECTED', allowedTypeIds: allowedTypeIds ?? [],
+});
+const policy = (...rules) => ({ muntinRules: rules });
+const options = (settings, selected = 20, crystal = 7, hasLayout = true) => getMuntinOptions(settings, patterns, types, hasLayout, crystal, selected);
 function fixture(settings = {}, selection = colonial(), overrides = {}) {
-  const initialData = { id: 17, idSyst: 1, idConf: 2 };
+  const initialData = { id: 17, idSyst: 1, idConf: 2, idCryst: 7 };
   const form = createFormControl({ defaultValues: { ...initialData, muntin: structuredClone(selection), price: 125, screen: false, ...overrides.formValues } });
   const stop = form.subscribe({ formState: { values: true }, callback() {} });
   Object.keys(form.getValues()).forEach(name => form.register(name));
   const writes = [], refs = [], hooks = [];
-  const state = { isLocked: true, isSubmitting: false, hasPendingDealerMarkup: false, accordion: ['item-options', 'item-results'] };
+  const state = { isLocked: true, isSubmitting: false, hasPendingDealerMarkup: false, accordion: ['item-options', 'item-results'], notice: null };
   let refIndex = 0, hookIndex = 0, values;
   const scope = {
     ...helper.exports, initialData,
@@ -112,6 +146,7 @@ function fixture(settings = {}, selection = colonial(), overrides = {}) {
     setActiveAccordionItems(change) { state.accordion = change(state.accordion); },
     useMemo(factory) { return factory(); },
     useRef(value) { return refs[refIndex++] ??= { current: value }; },
+    useState(value) { return [state.notice ?? value, next => { state.notice = next; }]; },
     ...overrides,
   };
   function runEffect(callback, deps) {
@@ -121,7 +156,8 @@ function fixture(settings = {}, selection = colonial(), overrides = {}) {
   }
   scope.useLayoutEffect = scope.useEffect = runEffect;
   function setPolicy(next, systemId = Number(form.getValues('idSyst'))) {
-    scope.availableSysConfs = [{ idSystem: systemId, idConfig: 2, config: scope.selectedConfig, ...next }];
+    scope.availableSysConfs = [{ idSystem: systemId, idConfig: scope.selectedConfig?.id ?? 2,
+      config: scope.selectedConfig, muntinRules: [rule()], ...next }];
   }
   function render() {
     refIndex = 0; hookIndex = 0;
@@ -133,134 +169,137 @@ function fixture(settings = {}, selection = colonial(), overrides = {}) {
     disabled: () => evaluate(`return (${submitDisabled});`, state),
     policy(next) { setPolicy(next); render(); },
     series(next) { form.setValue('idSyst', 9); setPolicy(next, 9); render(); },
+    crystal(id) { form.setValue('idCryst', id); render(); },
+    config(next) { scope.selectedConfig = { ...scope.selectedConfig, id: 3 }; form.setValue('idConf', 3); setPolicy(next); render(); },
     close() { hooks.forEach(hook => hook.cleanup?.()); stop(); },
   };
 }
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
 
-test('Omitted policy and ALL retain active catalog types and patterns', () => {
-  for (const settings of [undefined, {}, { muntinAvailability: 'ALL', allowedMuntinTypeIds: [61] }]) {
-    assert.deepEqual(ids(options(settings).types), [61, 62]);
-    assert.deepEqual(ids(options(settings).patterns), [10, 20]);
+test('Missing exact rules and legacy ALL never grant divided patterns', () => {
+  for (const settings of [undefined, {}, { muntinAvailability: 'ALL', allowedMuntinTypeIds: [61, 62] }, policy(rule(20, null, 8))]) {
+    assert.deepEqual(ids(options(settings).patterns), [10]); assert.deepEqual(options(settings).types, []);
   }
 });
-test('NONE offers only Full View regardless of selected type IDs', () => {
-  const available = options({ muntinAvailability: 'NONE', allowedMuntinTypeIds: [61, 62] });
-  assert.deepEqual(ids(available.patterns), [10]); assert.deepEqual(available.types, []);
+test('ALL permits only active types for its exact crystal and pattern', () => {
+  assert.deepEqual(ids(options(policy(rule())).types), [61, 62]);
+  assert.deepEqual(ids(options(policy(rule())).patterns), [10, 20]);
+  assert.deepEqual(ids(options(policy(rule()), 40).types), []);
 });
-test('SELECTED intersects explicit IDs with active types and ignores unknown or inactive IDs', () => {
-  const available = options({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61, 63, 999, 61] });
-  assert.deepEqual(ids(available.types), [61]); assert.equal(available.defaultType.id, 61);
-  assert.deepEqual(ids(available.patterns), [10, 20]);
+test('Different patterns have independent type sets for the same crystal', () => {
+  const settings = policy(rule(20, [61]), rule(40, [62]));
+  assert.deepEqual(ids(options(settings, 20).types), [61]);
+  assert.deepEqual(ids(options(settings, 40).types), [62]);
+  assert.deepEqual(ids(options(settings).patterns), [10, 20, 40]);
 });
-test('Empty SELECTED never falls back to ALL and Full View remains available', () => {
-  for (const allowedMuntinTypeIds of [undefined, [], [63, 999]]) {
-    const available = options({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds });
-    assert.deepEqual(ids(available.patterns), [10]); assert.deepEqual(available.types, []);
-  }
+test('Empty, inactive and unknown selected types hide a type-required pattern', () => {
+  for (const typeIds of [[], [63], [999]]) assert.deepEqual(ids(options(policy(rule(20, typeIds))).patterns), [10]);
+  assert.deepEqual(ids(options(policy(rule(20, [61, 63, 999, 61]))).types), [61]);
 });
-test('A missing layout keeps Full View even if the policy permits every type', () => {
-  const available = getMuntinOptions({ muntinAvailability: 'ALL' }, patterns, types, false);
-  assert.deepEqual(ids(available.patterns), [10]); assert.deepEqual(available.types, []);
+test('PRESET works without layout; GRID requires layout independently of type requirements', () => {
+  const settings = policy(rule(), rule(50, [61]), rule(60, []), rule(70, []));
+  assert.deepEqual(ids(options(settings, 50, 7, false).patterns), [10, 50, 60]);
+  assert.deepEqual(ids(options(settings, 70).patterns), [10, 20, 50, 60, 70]);
 });
-test('Supported selection retains object identity and does not mutate saved data', () => {
-  const selection = colonial(61), before = JSON.stringify(selection);
-  assert.equal(normalizeMuntinSelection(selection, options({})), selection);
+test('Supported selections retain identity while an unsupported type becomes Full View, never another type', () => {
+  const selection = colonial(62), before = JSON.stringify(selection);
+  assert.equal(normalizeMuntinSelection(selection, options(policy(rule()))), selection);
+  assert.deepEqual(normalizeMuntinSelection(selection, options(policy(rule(20, [61])))), fullView());
   assert.equal(JSON.stringify(selection), before);
 });
-test('Unsupported type changes to the only allowed one while preserving lite counts', () => {
-  const selection = colonial(62);
-  const normalized = normalizeMuntinSelection(selection, options({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }));
-  assert.equal(normalized.idPattern, 20); assert.equal(normalized.idType, 61);
-  assert.deepEqual(normalized.panels, selection.panels); assert.equal(selection.idType, 62);
+test('Full View clears type and panels; PRESET keeps its type without lites', () => {
+  assert.deepEqual(normalizeMuntinSelection({ ...colonial(), idPattern: 10 }, options(policy())), fullView());
+  assert.deepEqual(normalizeMuntinSelection({ ...colonial(61), idPattern: 50 }, options(policy(rule(50, [61])), 50)),
+    { idPattern: 50, idType: 61, panels: [] });
 });
-test('The first permitted type is selected when no permitted default exists', () => {
-  const available = getMuntinOptions({ muntinAvailability: 'ALL' }, patterns, types.map(type => ({ ...type, isDefault: false })), true);
-  assert.equal(normalizeMuntinSelection(colonial(null), available).idType, 61);
+test('Opening and rerendering an allowed calculated piece preserves values and Submit', () => {
+  const f = fixture(); f.render();
+  assert.deepEqual(f.writes, []); assert.equal(f.disabled(), false); assert.equal(f.state.notice, null); f.close();
 });
-test('NONE clears type and panels when an existing grid becomes unsupported', () => {
-  assert.deepEqual(normalizeMuntinSelection(colonial(), options({ muntinAvailability: 'NONE' })), fullView());
+test('Opening unsupported historical details preserves values, warns and cannot submit an obsolete calculation', () => {
+  const saved = colonial(62), f = fixture(policy(rule(20, [61])), saved);
+  assert.deepEqual(f.form.getValues('muntin'), saved); assert.deepEqual(f.writes, []);
+  assert.equal(f.form.getValues('price'), 125); assert.equal(f.disabled(), true);
+  assert.match(f.state.notice, /saved muntin selection is unavailable/);
+  assert.equal(f.state.accordion.includes('item-results'), false); f.render();
+  assert.equal(f.state.accordion.includes('item-results'), false); assert.deepEqual(f.writes, []); f.close();
 });
-test('Full View never acquires a type or panels during normalization', () => {
-  assert.deepEqual(normalizeMuntinSelection({ ...colonial(), idPattern: 10 }, options({})), fullView());
-  const selection = fullView(); assert.equal(normalizeMuntinSelection(selection, options({})), selection);
+test('Changing crystal resets forbidden selection to Full View and shows a notice', () => {
+  const f = fixture(policy(rule(), rule(20, [61], 8))); const version = f.values().calculationValuesVersionRef.current;
+  f.crystal(8);
+  assert.deepEqual(f.form.getValues('muntin'), fullView()); assert.equal(f.disabled(), true);
+  assert.match(f.state.notice, /Full View has been selected/);
+  assert.ok(f.values().calculationValuesVersionRef.current > version); f.close();
 });
-test('PieceForm reads the SysConf policy and exposes only its allowed dropdown options', () => {
-  const f = fixture({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }, fullView());
-  assert.deepEqual(ids(f.values().types), [61]); assert.deepEqual(ids(f.values().patterns), [10, 20]); f.close();
+test('A permitted crystal switch preserves the selected pattern, type and lite counts', () => {
+  const f = fixture(policy(rule(), rule(20, [62], 8))); const saved = f.form.getValues('muntin');
+  f.crystal(8); assert.deepEqual(f.form.getValues('muntin'), saved); assert.equal(f.state.notice, null); f.close();
 });
-test('Opening an allowed calculated piece neither changes it nor disables Submit', () => {
-  const f = fixture({}, colonial(62));
-  assert.deepEqual(f.writes, []); assert.equal(f.state.isLocked, true); assert.equal(f.disabled(), false); f.close();
+test('Series/config changes never silently replace a forbidden type or restore old panels', () => {
+  for (const change of ['series', 'config']) {
+    const f = fixture(); f[change](policy(rule(20, [61]))); f.render();
+    assert.deepEqual(f.form.getValues('muntin'), fullView()); assert.equal(f.disabled(), true);
+    assert.match(f.state.notice, /Full View has been selected/); f.close();
+  }
 });
-test('Availability normalization unlocks an old price and hides results before Submit', () => {
-  const f = fixture({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }, colonial(62));
-  assert.equal(f.form.getValues('muntin').idType, 61); assert.equal(f.form.getValues('price'), 125);
-  assert.equal(f.state.isLocked, false); assert.equal(f.disabled(), true);
-  assert.equal(f.state.accordion.includes('item-results'), false);
-  assert.equal(f.writes.find(write => write.name === 'muntin').flags.shouldDirty, true); f.close();
+test('Deliberate pattern selection chooses its own allowed type and updates its menu', () => {
+  const f = fixture(policy(rule(20, [61]), rule(40, [62])), fullView());
+  f.values().pattern('20'); f.render(); assert.equal(f.form.getValues('muntin').idType, 61);
+  assert.deepEqual(ids(f.values().types), [61]);
+  f.values().pattern('40'); f.render(); assert.equal(f.form.getValues('muntin').idType, 62);
+  assert.deepEqual(ids(f.values().types), [62]); assert.equal(f.form.getValues('muntin').panels.length, 2); f.close();
 });
-test('The initial accordion effect cannot reopen results invalidated by muntin normalization', () => {
-  const f = fixture({ muntinAvailability: 'NONE' }, colonial());
-  assert.deepEqual(f.form.getValues('muntin'), fullView());
-  assert.equal(f.state.accordion.includes('item-results'), false);
-  assert.equal(f.disabled(), true);
-  f.render();
-  assert.equal(f.state.accordion.includes('item-results'), false);
-  // A later successful Calculate explicitly opens results; a normal options
-  // rerender must preserve that new result instead of treating it as historical.
-  f.state.isLocked = true;
-  f.state.accordion.push('item-results');
-  f.scope.hasOptionsSection = false;
-  f.render();
-  assert.equal(f.state.accordion.includes('item-results'), true);
-  f.close();
+test('PRESET with and without a type has no lite inputs or panels', () => {
+  const f = fixture(policy(rule(50, [61]), rule(60, [])), fullView(), { selectedConfig: { id: 2, muntinLayout: [] } });
+  f.values().pattern('50'); f.render();
+  assert.deepEqual(f.form.getValues('muntin'), { idPattern: 50, idType: 61, panels: [] });
+  assert.equal(f.values().patternRequiresType, true); assert.equal(f.values().patternRequiresLites, false);
+  f.values().pattern('60'); f.render(); assert.equal(f.values().patternRequiresType, false);
+  assert.deepEqual(f.form.getValues('muntin'), { idPattern: 60, idType: null, panels: [] }); f.close();
 });
-test('A same-config policy change invalidates the existing pending-calculation value guard', () => {
-  const f = fixture({}, colonial()); const version = f.values().calculationValuesVersionRef.current;
-  f.policy({ muntinAvailability: 'NONE' });
-  assert.deepEqual(f.form.getValues('muntin'), fullView());
-  assert.ok(f.values().calculationValuesVersionRef.current > version);
-  assert.equal(f.disabled(), true); f.close();
+test('Real PRESET controls render the independent type menu and explicit preview limitation', () => {
+  const selectedPattern = patterns.find(pattern => pattern.id === 50);
+  const values = { selectedPattern, patternRequiresType: helper.exports.muntinPatternRequiresType(selectedPattern),
+    currentMuntin: { idPattern: 50, idType: 61, panels: [] }, props: { muntinTypes: types }, activeMuntinTypes: [types[0]] };
+  const html = renderExpression(typeUi, values);
+  assert.match(html, /Muntin Type/); assert.match(html, /Flat/); assert.doesNotMatch(html, /Ogee/);
+  assert.match(renderExpression(presetHintUi, values), /drawing preview is not available/);
+  assert.equal(renderExpression(typeUi, { ...values, patternRequiresType: false }), '');
 });
-test('Switching series with the same Config replaces a forbidden type and preserves counts', () => {
-  const f = fixture({}, colonial(62));
-  const counts = f.form.getValues('muntin').panels.map(part => [part.horizontalLites, part.verticalLites]);
-  f.series({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] });
-  assert.equal(f.form.getValues('muntin').idType, 61);
-  assert.deepEqual(f.form.getValues('muntin').panels.map(part => [part.horizontalLites, part.verticalLites]), counts);
-  assert.equal(f.disabled(), true); f.close();
+test('GRID without a required type keeps editable panels and no type value', () => {
+  const f = fixture(policy(rule(70, [])), fullView()); f.values().pattern('70'); f.render();
+  assert.equal(f.values().patternRequiresType, false); assert.equal(f.values().patternRequiresLites, true);
+  assert.equal(f.form.getValues('muntin').idType, null); assert.equal(f.form.getValues('muntin').panels.length, 2); f.close();
 });
-test('Switching series to NONE cannot restore forbidden panels in the later config effect', () => {
-  const f = fixture({}, colonial()); f.series({ muntinAvailability: 'NONE' }); f.render();
-  assert.deepEqual(f.form.getValues('muntin'), fullView()); assert.equal(f.disabled(), true); f.close();
+test('Hidden pattern and unavailable type events cannot bypass current options', () => {
+  const f = fixture(policy(rule(20, [61])), colonial(61));
+  f.values().type('62'); f.values().pattern('40'); f.values().type('0');
+  assert.deepEqual(f.form.getValues('muntin'), colonial(61)); f.close();
 });
-test('Pattern handler automatically chooses the permitted type and rejects hidden patterns', () => {
-  const f = fixture({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }, fullView());
-  f.values().pattern('20'); assert.equal(f.form.getValues('muntin').idType, 61);
-  assert.equal(f.form.getValues('muntin').panels.length, 2);
-  f.policy({ muntinAvailability: 'NONE' }); f.values().pattern('20');
+test('A saved unavailable selection can be deliberately repaired and its notice clears', () => {
+  const f = fixture(policy(rule(20, [61])), colonial(62));
+  f.values().pattern('20'); f.render(); assert.equal(f.form.getValues('muntin').idType, 61);
+  assert.equal(f.state.notice, null); assert.equal(f.disabled(), true); f.close();
+});
+test('Initialization on a new configuration starts at Full View', () => {
+  const f = fixture({}, null); f.series(policy(rule()));
   assert.deepEqual(f.form.getValues('muntin'), fullView()); f.close();
 });
-test('Type handler refuses an unavailable type even if an old dropdown event arrives', () => {
-  const f = fixture({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }, colonial(61));
-  f.values().type('62'); assert.equal(f.form.getValues('muntin').idType, 61);
-  f.values().type('0'); assert.equal(f.form.getValues('muntin').idType, 61); f.close();
+test('Full View remains selectable as null without inventing a missing NONE pattern ID', () => {
+  const f = fixture(policy(rule()), colonial(), { props: { muntinPatterns: patterns.filter(p => p.id !== 10), muntinTypes: types } });
+  f.values().pattern('none'); f.render(); assert.equal(f.form.getValues('muntin'), null);
+  assert.match(renderExpression(fullViewUi, { defaultFullViewPattern: null }), /Full View/);
+  f.values().pattern('20'); f.render(); assert.equal(f.form.getValues('muntin').idPattern, 20);
+  f.crystal(8); assert.equal(f.form.getValues('muntin'), null); assert.match(f.state.notice, /Full View has been selected/); f.close();
 });
-test('Initialization on a newly selected configuration chooses Full View, not a priced grid', () => {
-  const f = fixture({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] }, null);
-  f.series({ muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] });
-  assert.deepEqual(f.form.getValues('muntin'), fullView()); f.close();
-});
-test('Linear material and unresolved configs are not rewritten by the availability effect', () => {
-  const f = fixture({ muntinAvailability: 'NONE' }, null, { isLinearMaterial: true });
-  assert.equal(f.form.getValues('muntin'), null); f.close();
-  const missing = fixture({ muntinAvailability: 'NONE' }, colonial(), { selectedConfig: null });
+test('Linear material and unresolved configs are not rewritten by availability', () => {
+  const f = fixture(policy(), null, { isLinearMaterial: true }); assert.equal(f.form.getValues('muntin'), null); f.close();
+  const missing = fixture(policy(), colonial(), { selectedConfig: null });
   assert.deepEqual(missing.form.getValues('muntin'), colonial()); missing.close();
 });
 
-module.exports = { fixture, patterns, types, fullView, helper: helper.exports };
+module.exports = { fixture, patterns, types, fullView, rule, policy, helper: helper.exports };
 if (require.main === module) {
   let failed = 0;
   for (const { name, run } of tests) {

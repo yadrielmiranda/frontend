@@ -4,6 +4,8 @@ import type { MuntinPattern } from "@/lib/types";
 export type CreateMuntinPatternData = {
   name: string;
   requiresLites?: boolean;
+  inputMode?: "NONE" | "GRID" | "PRESET";
+  requiresType?: boolean;
   isActive?: boolean;
   isDefault?: boolean;
 };

@@ -20,7 +20,7 @@ export type ResolvedMuntin = {
 };
 
 type MuntinInput = {
-  pattern?: Pick<MuntinPattern, "name" | "requiresLites"> | null;
+  pattern?: Pick<MuntinPattern, "name" | "requiresLites" | "inputMode" | "requiresType"> | null;
   type?: Pick<MuntinType, "name"> | null;
   panels?: readonly (PanelInput | undefined)[];
 };
@@ -31,7 +31,13 @@ const normalizedName = (name: string) =>
 // These two catalog profiles are one inch wide. Unknown profiles/patterns
 // retain their written specification instead of inventing a visual design.
 export function resolveMuntinForDiagram(input?: MuntinInput | null): ResolvedMuntin | null {
-  if (!input?.pattern?.requiresLites || normalizedName(input.pattern.name) !== "colonial") return null;
+  if (!input?.pattern) return null;
+  // New catalogs explicitly declare the design. Legacy snapshots only have a
+  // name, so preserve the known Colonial drawing without guessing other shapes.
+  const isGrid = input.pattern.inputMode !== undefined
+    ? input.pattern.inputMode === "GRID"
+    : input.pattern.requiresLites && normalizedName(input.pattern.name) === "colonial";
+  if (!isGrid) return null;
   const typeName = normalizedName(input.type?.name ?? "");
   const profile = typeName === "1 in flat-flat" ? "flat"
     : typeName === "1 in ogee-flat" ? "ogee" : null;

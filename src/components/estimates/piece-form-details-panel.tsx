@@ -17,6 +17,7 @@ import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { PieceDiagram } from "@/components/piece-diagram";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { formatDoorDimensions } from "./piece-dimension-description";
+import { getMuntinInputMode, muntinPatternRequiresType } from "./muntin-availability";
 
 interface PieceFormDetailsPanelProps {
   piece: PieceFormValues;
@@ -337,13 +338,13 @@ export function PieceFormDetailsPanel({
             <strong>Muntin Pattern:</strong> {pattern?.name ?? "—"}
           </p>
 
-          {pattern?.requiresLites && (
+          {getMuntinInputMode(pattern) !== "NONE" && (
             <>
-              <p>
+              {muntinPatternRequiresType(pattern) && <p>
                 <strong>Muntin Type:</strong> {muntinType?.name ?? "—"}
-              </p>
+              </p>}
 
-              {piece.muntin?.panels?.length ? (
+              {getMuntinInputMode(pattern) === "GRID" && piece.muntin?.panels?.length ? (
                 <div>
                   <strong>Panels:</strong>
                   <div className="mt-1 space-y-1">
@@ -367,6 +368,9 @@ export function PieceFormDetailsPanel({
                   </div>
                 </div>
               ) : null}
+              {getMuntinInputMode(pattern) === "PRESET" && (
+                <p className="text-xs text-slate-600">Pattern included in the specification; drawing preview unavailable.</p>
+              )}
             </>
           )}
 

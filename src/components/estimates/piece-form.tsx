@@ -49,7 +49,7 @@ import type {
   PieceMuntin,
   MuntinPattern,
   MuntinType,
-  MuntinAvailability,
+  SysConfMuntinRule,
   ConfigMuntinLayoutItem,
 } from "@/lib/types";
 
@@ -65,7 +65,7 @@ import { roundMoney } from "@/lib/formatters";
 
 import type { PieceFormValues } from "./types";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
-import { getMuntinOptions, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
+import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
 import { buildWindowWallMuntinLayout, hasAmbiguousWindowWallMuntinPanels, syncWindowWallMuntinPanels } from "./window-wall-muntin";
 
 type NamedOption = {
@@ -77,8 +77,7 @@ type SystemConfigLink = {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
-  muntinAvailability?: MuntinAvailability;
-  allowedMuntinTypeIds?: number[];
+  muntinRules?: SysConfMuntinRule[];
   isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;
@@ -249,7 +248,7 @@ function syncMuntinWithConfigLayout(
     idPattern: fallbackPatternId, idType: null, panels: [],
   }, options);
   if (!selection) return null;
-  const requiresLites = options.patterns.find((pattern) => pattern.id === selection.idPattern)?.requiresLites;
+  const requiresLites = getMuntinInputMode(options.patterns.find((pattern) => pattern.id === selection.idPattern)) === "GRID";
 
   return {
     ...selection,
@@ -962,12 +961,12 @@ export function PieceForm({
   }, [selectedConfig, isWindowWall]);
 
   const muntinOptions = useMemo(
-    () => getMuntinOptions(selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout),
-    [selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout],
+    () => getMuntinOptions(selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout,
+      Number(pieceValues.idCryst || 0), Number(currentMuntin?.idPattern || 0)),
+    [selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout, pieceValues.idCryst, currentMuntin?.idPattern],
   );
   const activeMuntinPatterns = muntinOptions.patterns;
   const activeMuntinTypes = muntinOptions.types;
-  const defaultMuntinType = muntinOptions.defaultType;
 
   const defaultMuntinPattern = useMemo(
     () => activeMuntinPatterns.find((p) => p.isDefault) ?? null,
@@ -1410,10 +1409,14 @@ export function PieceForm({
   const selectedPattern = useMemo(() => {
     const patternId = Number(pieceValues.muntin?.idPattern || 0);
     if (!patternId) return null;
-    return activeMuntinPatterns.find((p) => p.id === patternId) ?? null;
-  }, [pieceValues.muntin?.idPattern, activeMuntinPatterns]);
+    return props.muntinPatterns.find((p) => p.id === patternId) ?? null;
+  }, [pieceValues.muntin?.idPattern, props.muntinPatterns]);
 
-  const patternRequiresLites = selectedPattern?.requiresLites ?? false;
+  const patternRequiresLites = getMuntinInputMode(selectedPattern) === "GRID";
+  const patternRequiresType = muntinPatternRequiresType(selectedPattern);
+  const [muntinAvailabilityNotice, setMuntinAvailabilityNotice] = useState<string | null>(null);
+  const previousMuntinContextRef = useRef(`${Number(initialData.idSyst || 0)}:${Number(initialData.idConf || 0)}:${Number(initialData.idCryst || 0)}`);
+  const muntinContextChangedRef = useRef(false);
   const hasAmbiguousWindowWallMuntin = isWindowWall && patternRequiresLites
     && hasAmbiguousWindowWallMuntinPanels(windowWallMuntinLayout, currentMuntin?.panels);
   const initialMuntinAdjustedRef = useRef(false);
@@ -1421,9 +1424,24 @@ export function PieceForm({
   useLayoutEffect(() => {
     if (!selectedConfig || !selectedSysConf || isLinearMaterial) return;
     const current = getValues("muntin");
+    const context = `${Number(systemId || 0)}:${Number(idConf || 0)}:${Number(pieceValues.idCryst || 0)}`;
+    if (previousMuntinContextRef.current !== context) muntinContextChangedRef.current = true;
+    previousMuntinContextRef.current = context;
+    if (!isMuntinSelectionAvailable(current, muntinOptions)) {
+      if (!muntinContextChangedRef.current) {
+        // Historical details remain intact until an explicit context/selection edit.
+        setMuntinAvailabilityNotice("The saved muntin selection is unavailable for this glass and configuration. Select an available pattern before calculating again.");
+        initialMuntinAdjustedRef.current = true;
+        setIsLocked(false);
+        setActiveAccordionItems((items) => items.includes("item-results")
+          ? items.filter((item) => item !== "item-results") : items);
+        return;
+      }
+      setMuntinAvailabilityNotice("The previous muntin selection is unavailable for this glass and configuration. Full View has been selected; review the selection and calculate again.");
+    }
     const supported = normalizeMuntinSelection(current, muntinOptions);
     if (supported === (current ?? null) && !isWindowWall) return;
-    const next = supported && muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)?.requiresLites
+    const next = supported && getMuntinInputMode(muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)) === "GRID"
       ? { ...supported, panels: buildDefaultPanelsFromLayout(
           isWindowWall ? windowWallMuntinLayout : selectedConfig.muntinLayout,
           supported.panels, isWindowWall,
@@ -1431,7 +1449,7 @@ export function PieceForm({
       : supported;
     const unchanged = JSON.stringify(next) === JSON.stringify(current ?? null);
     const requiresReconfiguration = isWindowWall && supported
-      && muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)?.requiresLites
+      && getMuntinInputMode(muntinOptions.patterns.find((pattern) => pattern.id === supported.idPattern)) === "GRID"
       && hasAmbiguousWindowWallMuntinPanels(windowWallMuntinLayout, supported.panels);
     if (unchanged && !requiresReconfiguration) return;
     initialMuntinAdjustedRef.current = true;
@@ -1442,7 +1460,7 @@ export function PieceForm({
     setActiveAccordionItems((items) => items.includes("item-results")
       ? items.filter((item) => item !== "item-results") : items);
   }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, isWindowWall,
-    windowWallMuntinLayout, muntinOptions, getValues, setValue]);
+    windowWallMuntinLayout, muntinOptions, getValues, setValue, systemId, idConf, pieceValues.idCryst]);
 
   const dealerMarkupField = register("dealerMarkup", {
     valueAsNumber: true,
@@ -1621,15 +1639,22 @@ export function PieceForm({
   ]);
 
   const handleMuntinPatternChange = (patternIdValue: string) => {
+    if (patternIdValue === "none" && !defaultFullViewPattern) {
+      setValue("muntin", null, { shouldDirty: true });
+      setMuntinAvailabilityNotice(null);
+      return;
+    }
     const patternId = Number(patternIdValue);
     const pattern = activeMuntinPatterns.find((p) => p.id === patternId);
 
     if (!pattern) return;
 
     const current = getValues("muntin");
+    const permittedTypes = muntinOptions.typesByPattern.get(patternId) ?? [];
+    const defaultType = permittedTypes.find((type) => type.isDefault) ?? permittedTypes[0];
 
     const nextPanels =
-      pattern.requiresLites && hasMuntinLayout
+      getMuntinInputMode(pattern) === "GRID" && hasMuntinLayout
         ? buildDefaultPanelsFromLayout(
             isWindowWall ? windowWallMuntinLayout : selectedConfig?.muntinLayout,
             current?.panels,
@@ -1642,20 +1667,21 @@ export function PieceForm({
       {
         idPattern: pattern.id,
         idType:
-          pattern.requiresLites && hasMuntinLayout
-            ? (activeMuntinTypes.find((type) => type.id === Number(current?.idType))?.id ?? defaultMuntinType?.id ?? null)
+          muntinPatternRequiresType(pattern)
+            ? (permittedTypes.find((type) => type.id === Number(current?.idType))?.id ?? defaultType?.id ?? null)
             : null,
         panels: nextPanels,
       },
       { shouldDirty: true },
     );
+    setMuntinAvailabilityNotice(null);
   };
 
   const handleMuntinTypeChange = (typeIdValue: string) => {
     const typeId = Number(typeIdValue);
     const current = getValues("muntin");
 
-    if (!current || !activeMuntinTypes.some((type) => type.id === typeId)) return;
+    if (!current || !muntinOptions.typesByPattern.get(Number(current.idPattern))?.some((type) => type.id === typeId)) return;
 
     setValue(
       "muntin",
@@ -1665,6 +1691,7 @@ export function PieceForm({
       },
       { shouldDirty: true },
     );
+    setMuntinAvailabilityNotice(null);
   };
 
   const handleReconfigureWindowWallMuntin = () => {
@@ -3907,14 +3934,6 @@ export function PieceForm({
                               Select a configuration first to configure muntin.
                             </p>
                           </div>
-                        ) : !currentMuntin ? (
-                          <div>
-                            <Label className={fieldLabelClass}>Muntin</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Muntin will be initialized automatically for this
-                              configuration.
-                            </p>
-                          </div>
                         ) : (
                           <div
                             className={`space-y-4 pt-3 ${isLocked ? "opacity-70" : ""}`}
@@ -3926,13 +3945,16 @@ export function PieceForm({
                                 </Label>
                                 <Select
                                   disabled={isLocked}
-                                  value={String(currentMuntin.idPattern || "")}
+                                  value={String(currentMuntin?.idPattern || defaultFullViewPattern?.id || "none")}
                                   onValueChange={handleMuntinPatternChange}
                                 >
                                   <SelectTrigger className={selectTriggerClass}>
-                                    <SelectValue placeholder="Select pattern..." />
+                                    <SelectValue placeholder="Select pattern...">
+                                      {selectedPattern?.name ?? (currentMuntin?.idPattern ? `Saved pattern #${currentMuntin.idPattern}` : "Full View")}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
+                                    {!defaultFullViewPattern && <SelectItem value="none">Full View</SelectItem>}
                                     {activeMuntinPatterns.map((pattern) => (
                                       <SelectItem
                                         key={pattern.id}
@@ -3945,7 +3967,7 @@ export function PieceForm({
                                 </Select>
                               </div>
 
-                              {patternRequiresLites && hasMuntinLayout && (
+                              {patternRequiresType && (
                                 <div>
                                   <Label className={fieldLabelClass}>
                                     Muntin Type
@@ -3962,7 +3984,9 @@ export function PieceForm({
                                     <SelectTrigger
                                       className={selectTriggerClass}
                                     >
-                                      <SelectValue placeholder="Select type..." />
+                                      <SelectValue placeholder="Select type...">
+                                        {props.muntinTypes.find((type) => type.id === Number(currentMuntin?.idType))?.name}
+                                      </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                       {activeMuntinTypes.map((type) => (
@@ -3979,6 +4003,16 @@ export function PieceForm({
                               )}
                             </div>
 
+                            {muntinAvailabilityNotice && (
+                              <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                {muntinAvailabilityNotice}
+                              </p>
+                            )}
+                            {getMuntinInputMode(selectedPattern) === "PRESET" && (
+                              <p className="text-sm text-muted-foreground">
+                                This pattern is included in the specification. A drawing preview is not available.
+                              </p>
+                            )}
                             {hasAmbiguousWindowWallMuntin && (
                               <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                 <p>Window Wall uses the same grid in every glass panel. Reconfigure the saved grids to choose one Horizontal and Vertical setting for all panels.</p>

@@ -261,10 +261,14 @@ export interface Privacy {
   brandPrivacies?: BrandGlassOptionAssociation[];
 }
 
+export type MuntinInputMode = "NONE" | "GRID" | "PRESET";
+
 export interface MuntinPattern {
   id: number;
   name: string;
   requiresLites: boolean;
+  inputMode?: MuntinInputMode;
+  requiresType?: boolean;
   isActive: boolean;
   isDefault: boolean;
 }
@@ -1329,12 +1333,21 @@ export interface SysConfOptionLink<T> {
 
 export type MuntinAvailability = "NONE" | "ALL" | "SELECTED";
 
+export interface SysConfMuntinRule {
+  ruleId: number;
+  crystalId: number;
+  patternId: number;
+  availability: "ALL" | "SELECTED";
+  allowedTypeIds: number[];
+}
+
 export interface SysConf {
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
   muntinAvailability?: MuntinAvailability;
   allowedMuntinTypeIds?: number[];
+  muntinRules?: SysConfMuntinRule[];
   isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;

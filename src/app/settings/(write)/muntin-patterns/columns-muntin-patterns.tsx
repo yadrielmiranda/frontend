@@ -37,9 +37,17 @@ export function getMuntinPatternColumns({
       header: "Name",
     },
     {
-      accessorKey: "requiresLites",
-      header: "Requires Lites",
-      cell: ({ row }) => (row.original.requiresLites ? "Yes" : "No"),
+      accessorKey: "inputMode",
+      header: "Design",
+      cell: ({ row }) => {
+        const mode = row.original.inputMode ?? (row.original.requiresLites ? "GRID" : "NONE");
+        return mode === "GRID" ? "Adjustable grid" : mode === "PRESET" ? "Fixed design" : "No muntin";
+      },
+    },
+    {
+      accessorKey: "requiresType",
+      header: "Choose type",
+      cell: ({ row }) => (row.original.requiresType ?? row.original.requiresLites) ? "Yes" : "No",
     },
     {
       accessorKey: "isActive",

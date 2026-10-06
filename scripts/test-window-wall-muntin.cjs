@@ -7,7 +7,7 @@ const path = require('node:path');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const { fixture, patterns, types, fullView, helper } = require('./test-muntin-availability.cjs');
+const { fixture, patterns, types, fullView, rule, policy, helper } = require('./test-muntin-availability.cjs');
 const { buildWindowWallMuntinLayout: layout, syncWindowWallMuntinPanels: sync,
   hasAmbiguousWindowWallMuntinPanels: ambiguous } = helper;
 // The imported fixture blocks fetch and HTTP(S). Load only explicit source files.
@@ -169,16 +169,17 @@ test('Nonuniform legacy hides per-cell inputs until explicit Reconfigure grid', 
   assert.equal((renderFormGrid(f).match(/<input\b/g) ?? []).length, 2);
   assert.equal(f.disabled(), true); assert.equal(f.state.accordion.includes('item-results'), false); f.close();
 });
-test('Full View remains empty and NONE continues to forbid Colonial', () => {
+test('Full View remains empty and no exact rule continues to forbid Colonial', () => {
   const f = wwFixture(); f.form.setValue('panelCount', 3); f.render();
   assert.deepEqual(f.form.getValues('muntin'), fullView()); assert.equal(renderFormGrid(f), ''); f.close();
-  const restricted = wwFixture(colonial(shared()), {}, { muntinAvailability: 'NONE' });
-  assert.deepEqual(restricted.form.getValues('muntin'), fullView());
+  const restricted = wwFixture(fullView(), {}, policy());
   restricted.values().pattern('20'); assert.deepEqual(restricted.form.getValues('muntin'), fullView()); restricted.close();
 });
-test('SELECTED restricts the profile without resetting shared H/V', () => {
+test('An unavailable historical profile stays reviewable until deliberate reconfiguration', () => {
   const saved = colonial(shared(4, 5)); saved.idType = 62;
-  const f = wwFixture(saved, {}, { muntinAvailability: 'SELECTED', allowedMuntinTypeIds: [61] });
+  const f = wwFixture(saved, {}, policy(rule(20, [61])));
+  assert.deepEqual(f.form.getValues('muntin'), saved); assert.equal(f.disabled(), true);
+  f.values().pattern('20'); f.render();
   assert.equal(f.form.getValues('muntin').idType, 61); assert.deepEqual(f.form.getValues('muntin').panels, shared(4, 5)); f.close();
 });
 test('SSR repeats the shared 2x3 grid in all six crystals', () => {

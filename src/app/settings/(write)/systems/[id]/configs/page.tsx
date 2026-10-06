@@ -5,7 +5,7 @@ import {
   getAvailableConfigs,
 } from "@/app/api/systems.api";
 import { SystemConfigsClient } from "./system-configs-client";
-import { getMuntinTypes } from "@/app/api/muntin-types.api";
+import { Button } from "@/components/ui/button";
 
 import { BackLink } from "@/components/navigation/back-link";
 import {
@@ -24,10 +24,9 @@ export default async function ManageSystemConfigsPage({
   const { id } = await params;
   const systemId = Number(id);
 
-  const [systemData, availableConfigs, muntinTypes] = await Promise.all([
+  const [systemData, availableConfigs] = await Promise.all([
     getSystemWithConfigs(systemId),
     getAvailableConfigs(systemId),
-    getMuntinTypes({ active: true }),
   ]);
 
   const associatedConfigs = systemData.sysconfs.map((sc) => ({
@@ -38,8 +37,7 @@ export default async function ManageSystemConfigsPage({
     allowScreen: sc.allowScreen,
     sortOrder: sc.sortOrder,
     isDefault: systemData.defaultConfigId === sc.idConfig,
-    muntinAvailability: sc.muntinAvailability ?? "ALL",
-    allowedMuntinTypeIds: sc.allowedMuntinTypeIds ?? [],
+    muntinRuleCount: sc.muntinRules?.length ?? 0,
   }));
 
   const isLinearMaterial =
@@ -72,6 +70,10 @@ export default async function ManageSystemConfigsPage({
               {systemData.brandProduct.product.name}
             </span>
           </CardDescription>
+          {!isLinearMaterial && <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <p className="text-sm text-muted-foreground">Muntin rules are assigned by configuration and glass. New combinations allow Full View only.</p>
+            <Button variant="outline" size="sm" asChild><Link href={`/settings/systems/${systemId}/muntins`}>Manage Muntins</Link></Button>
+          </div>}
         </CardHeader>
 
         <CardContent>
@@ -81,7 +83,6 @@ export default async function ManageSystemConfigsPage({
             isLinearMaterial={isLinearMaterial}
             initialAssociatedConfigs={associatedConfigs}
             initialAvailableConfigs={availableConfigs}
-            muntinTypes={muntinTypes}
           />
         </CardContent>
       </Card>

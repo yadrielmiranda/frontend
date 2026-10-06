@@ -169,6 +169,13 @@ export function getSystemColumns({
                   </Link>
                 </DropdownMenuItem>
               )}
+              {!isLinearMaterial && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/settings/systems/${system.id}/muntins`}>
+                    Manage Muntins
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link href={`/settings/systems/${system.id}/frame-colors`}>
                   {isLinearMaterial ? "Manage Colors" : "Manage Frame Colors"}

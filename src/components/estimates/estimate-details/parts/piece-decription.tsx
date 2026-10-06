@@ -53,8 +53,10 @@ function buildGridLine(piece: PieceWithRelations): string {
   }
 
   if (patternName) {
+    const typeName = getOptionName(muntin.type);
+    const patternDescription = typeName ? `${patternName} · ${typeName}` : patternName;
     if (panels.length === 0) {
-      return `Grid: ${patternName}`;
+      return `Grid: ${patternDescription}`;
     }
 
     const panelDetails = panels
@@ -74,8 +76,8 @@ function buildGridLine(piece: PieceWithRelations): string {
       .join(" | ");
 
     return panelDetails
-      ? `Grid: ${patternName} - ${panelDetails}`
-      : `Grid: ${patternName}`;
+      ? `Grid: ${patternDescription} - ${panelDetails}`
+      : `Grid: ${patternDescription}`;
   }
 
   return "Grid: Yes";
@@ -249,4 +251,3 @@ export function buildPieceDescriptionLines(
     ...details.detailLines,
   ].filter((line) => line.trim());
 }
-

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import {
   createMuntinPattern,
@@ -18,7 +19,8 @@ import {
 
 interface MuntinPatternFormValues {
   name: string;
-  requiresLites: boolean;
+  inputMode: "NONE" | "GRID" | "PRESET";
+  requiresType: boolean;
   isActive: boolean;
   isDefault: boolean;
 }
@@ -28,6 +30,8 @@ interface MuntinPatternFormProps {
     id?: number;
     name: string;
     requiresLites: boolean;
+    inputMode?: "NONE" | "GRID" | "PRESET";
+    requiresType?: boolean;
     isActive: boolean;
     isDefault: boolean;
   };
@@ -46,21 +50,26 @@ export function MuntinPatternForm({
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<MuntinPatternFormValues>({
     defaultValues: {
       name: pattern?.name || "",
-      requiresLites: pattern?.requiresLites ?? true,
+      inputMode: pattern?.inputMode ?? (pattern?.requiresLites === false ? "NONE" : "GRID"),
+      requiresType: pattern?.requiresType ?? pattern?.requiresLites ?? true,
       isActive: pattern?.isActive ?? true,
       isDefault: pattern?.isDefault ?? false,
     },
   });
 
+  const inputMode = watch("inputMode");
+
   const onSubmit: SubmitHandler<MuntinPatternFormValues> = async (data) => {
     try {
       const payload = {
         name: data.name.trim(),
-        requiresLites: Boolean(data.requiresLites),
+        inputMode: data.inputMode,
+        requiresType: data.inputMode === "NONE" ? false : Boolean(data.requiresType),
         isActive: Boolean(data.isActive),
         isDefault: Boolean(data.isDefault),
       };
@@ -109,19 +118,41 @@ export function MuntinPatternForm({
         </div>
 
         <Controller
-          name="requiresLites"
+          name="inputMode"
           control={control}
           render={({ field }) => (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="requiresLites"
-                checked={Boolean(field.value)}
-                onCheckedChange={field.onChange}
-              />
-              <Label htmlFor="requiresLites">Requires Lites</Label>
+            <div className="space-y-2">
+              <Label htmlFor="inputMode">Pattern design</Label>
+              <Select value={field.value} onValueChange={field.onChange} disabled={isSubmitting}>
+                <SelectTrigger id="inputMode"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">No muntin (Full View)</SelectItem>
+                  <SelectItem value="GRID">Adjustable grid</SelectItem>
+                  <SelectItem value="PRESET">Fixed design</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {field.value === "NONE" ? "Clear glass without muntin bars. Available for every configuration and glass."
+                  : field.value === "GRID" ? "Enter Horizontal and Vertical lites for each panel when creating a piece."
+                    : "Identifies a fixed pattern without editable lites. Its name and type appear in the specifications; a diagram for this design is not available yet."}
+              </p>
             </div>
           )}
         />
+
+        {inputMode !== "NONE" && <Controller
+          name="requiresType"
+          control={control}
+          render={({ field }) => (
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="requiresType" checked={Boolean(field.value)} onCheckedChange={field.onChange} disabled={isSubmitting} />
+                <Label htmlFor="requiresType">Choose a muntin type</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">Ask for a profile such as Flat-Flat or Ogee-Flat. Allowed types are managed separately for each series, configuration and glass.</p>
+            </div>
+          )}
+        />}
 
         <Controller
           name="isActive"
