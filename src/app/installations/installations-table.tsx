@@ -277,7 +277,7 @@ export function InstallationsTable({
                   >
                     {hasFilters
                       ? "No installations match these filters."
-                      : "No installation requests yet."}
+                      : "No active installations yet."}
                   </TableCell>
                 </TableRow>
               ) : (
