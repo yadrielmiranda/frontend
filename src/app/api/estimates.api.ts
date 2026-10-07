@@ -335,6 +335,6 @@ export function getEstimateDiscount(id: number) {
     paymentSchedule: import('@/lib/payment-plan').PaymentSchedule | null;
   }>(`/api/estimates/${id}/discount`, { cache: 'no-store' });
 }
-export function updateEstimateDiscount(id: number, body: { scope?: import('@/lib/estimate-discount').EstimateDiscountScope; type?: 'PERCENTAGE' | 'AMOUNT'; value: number }) {
+export function updateEstimateDiscount(id: number, body: import('@/lib/estimate-discount').EstimateDiscountUpdate | { scope?: import('@/lib/estimate-discount').EstimateDiscountScope; type?: 'PERCENTAGE' | 'AMOUNT'; value: number }) {
   return apiFetch<EstimateWithRelations>(`/api/estimates/${id}/discount`, { method: 'PATCH', body });
 }
