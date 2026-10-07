@@ -9,8 +9,10 @@ import {
 } from "../dimension-style";
 import {
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
+  VerticalDimensionText,
 } from "../dimension-text";
 import {
   GlassAppearanceLayer,
@@ -717,7 +719,6 @@ function Dimensions({
   const bottomY = y2 + 105;
   const sideX = x2 + 105;
   const middleY = y1 + frame.height / 2;
-  const labelGap = 78;
   const head = DIMENSIONS.terminalLength;
   const halfHead = DIMENSIONS.terminalHalfWidth;
 
@@ -743,12 +744,7 @@ function Dimensions({
           stroke="none"
         />
         <path
-          d={`M ${sideX} ${y1} L ${sideX} ${middleY - labelGap / 2}`}
-          fill="none"
-          strokeWidth={DIMENSIONS.strokeWidth}
-        />
-        <path
-          d={`M ${sideX} ${middleY + labelGap / 2} L ${sideX} ${y2}`}
+          d={`M ${sideX} ${y1} L ${sideX} ${y2}`}
           fill="none"
           strokeWidth={DIMENSIONS.strokeWidth}
         />
@@ -774,14 +770,11 @@ function Dimensions({
           fallbackFontSize={DIMENSIONS.fontSize}
           screenOffsetYPx={DIMENSION_LABEL_BELOW_LINE_PX}
         >{`W. ${width}`}</DimensionText>
-        <DimensionText
+        <VerticalDimensionText
           x={sideX}
           y={middleY}
-          textAnchor="start"
-          dominantBaseline="central"
           fallbackFontSize={DIMENSIONS.fontSize}
-          screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
-        >{`H. ${height}`}</DimensionText>
+        >{`H. ${height}`}</VerticalDimensionText>
       </g>
     </g>
   );
@@ -936,11 +929,9 @@ export function WindowWallDiagram({
           top: viewportPadding,
           right:
             105 +
-            28 +
-            DIMENSIONS.fontSize * 3.7 +
             viewportPadding +
             attachmentRightPadding,
-          bottom: 105 + 74 + DIMENSIONS.fontSize * 0.5 + viewportPadding,
+          bottom: 105 + viewportPadding,
           left: viewportPadding + attachmentLeftPadding,
         }
       : {
@@ -963,6 +954,13 @@ export function WindowWallDiagram({
       role="img"
       aria-label={`Window Wall, ${resolvedPanelCount} equal panels, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches`}
       className={className}
+      style={{
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       data-family="WINDOW_WALL"
       data-release={RELEASE}
       data-view="EXTERIOR"

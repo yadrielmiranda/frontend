@@ -13,8 +13,10 @@ import {
 } from "../dimension-style";
 import {
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
+  VerticalDimensionText,
 } from "../dimension-text";
 import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
 
@@ -323,7 +325,6 @@ function Dimensions({
   const bottomY = frame.y + frame.height + 105;
   const sideX = frame.x + frame.width + 105;
   const middleY = frame.y + frame.height / 2;
-  const labelGap = 78;
   const head = DIMENSIONS.terminalLength;
   const halfHead = DIMENSIONS.terminalHalfWidth;
 
@@ -347,12 +348,7 @@ function Dimensions({
         stroke="none"
       />
       <path
-        d={`M ${sideX} ${frame.y} V ${middleY - labelGap / 2}`}
-        fill="none"
-        strokeWidth={DIMENSIONS.strokeWidth}
-      />
-      <path
-        d={`M ${sideX} ${middleY + labelGap / 2} V ${frame.y + frame.height}`}
+        d={`M ${sideX} ${frame.y} V ${frame.y + frame.height}`}
         fill="none"
         strokeWidth={DIMENSIONS.strokeWidth}
       />
@@ -374,16 +370,13 @@ function Dimensions({
         >
           {`W. ${width}\"`}
         </DimensionText>
-        <DimensionText
+        <VerticalDimensionText
           x={sideX}
           y={middleY}
-          textAnchor="start"
-          dominantBaseline="central"
           fallbackFontSize={DIMENSIONS.fontSize}
-          screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
         >
           {`H. ${height}\"`}
-        </DimensionText>
+        </VerticalDimensionText>
       </g>
     </g>
   );
@@ -397,8 +390,8 @@ function casementViewBox(frame: Rect, showDimensions: boolean): string {
     showDimensions
       ? {
           top: padding,
-          right: 105 + 28 + DIMENSIONS.fontSize * 3.7 + padding,
-          bottom: 105 + 74 + DIMENSIONS.fontSize * 0.5 + padding,
+          right: 105 + padding,
+          bottom: 105 + padding,
           left: padding,
         }
       : { top: padding, right: padding, bottom: padding, left: padding },
@@ -475,6 +468,13 @@ export function CasementWindowDiagram(
       role="img"
       aria-labelledby={titleId}
       className={props.className}
+      style={{
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       data-family="CASEMENT_WINDOW"
       data-release={RELEASE}
       data-configuration={props.configuration}
@@ -592,6 +592,13 @@ export function CasementFixedWindowDiagram(
       role="img"
       aria-labelledby={titleId}
       className={props.className}
+      style={{
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       data-family="CASEMENT_WINDOW"
       data-variant="FIXED"
       data-release={FIXED_RELEASE}

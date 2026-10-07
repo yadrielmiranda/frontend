@@ -265,14 +265,15 @@ module.exports = function register(ctx) {
           const isHeight = label.value.startsWith('H.');
           const textWidth = [...label.value].reduce((sum, char) => sum +
             (char === 'W' ? 0.95 : char === 'H' ? 0.73 : /[0-9]/.test(char) ? 0.56 : char === '"' ? 0.48 : 0.28), 0) * DIMENSION_SCREEN_FONT_SIZE_PX;
-          const x = left + (Number(label.x) - minX) * scale + (isHeight ? DIMENSION_LABEL_OUTWARD_GAP_PX : 0);
+          const x = left + (Number(label.x) - minX) * scale +
+            (isHeight ? DIMENSION_LABEL_OUTWARD_GAP_PX + DIMENSION_SCREEN_FONT_SIZE_PX / 2 : 0);
           const y = top + (Number(label.y) - minY) * scale +
             (isHeight ? 0 : Number(label.y) < 0 ? DIMENSION_LABEL_ABOVE_LINE_PX : DIMENSION_LABEL_BELOW_LINE_PX);
           const bounds = {
-            left: isHeight ? x : x - textWidth / 2,
-            right: isHeight ? x + textWidth : x + textWidth / 2,
-            top: y - DIMENSION_SCREEN_FONT_SIZE_PX * (isHeight ? 0.6 : 1),
-            bottom: y + DIMENSION_SCREEN_FONT_SIZE_PX * (isHeight ? 0.6 : 0.3),
+            left: isHeight ? x - DIMENSION_SCREEN_FONT_SIZE_PX * 0.6 : x - textWidth / 2,
+            right: isHeight ? x + DIMENSION_SCREEN_FONT_SIZE_PX * 0.6 : x + textWidth / 2,
+            top: y - (isHeight ? textWidth / 2 : DIMENSION_SCREEN_FONT_SIZE_PX),
+            bottom: y + (isHeight ? textWidth / 2 : DIMENSION_SCREEN_FONT_SIZE_PX * 0.3),
           };
           const description = `${example.configuration} ${variant} ${width}x${height} ${label.value}`;
           assert.ok(bounds.left >= 0, `${description}: left label edge crosses the clipped card`);

@@ -9,9 +9,10 @@ import {
 import {
   DIMENSION_LABEL_ABOVE_LINE_PX,
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
   DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VerticalDimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
 } from "../dimension-text";
 import {
   GlassAppearanceLayer,
@@ -28,6 +29,7 @@ import {
   normalizeMovementIndicatorColor,
   type Serie600MovementPanel,
 } from "./series-600-movement-indicators";
+import { mixedDoorPattern } from "./mixed-door-pattern";
 
 type DiagramValue = string | number | null | undefined;
 type Rect = GlassOverlayRect;
@@ -50,23 +52,8 @@ export type PieceDiagramSeries600XXStructureId =
   | "RIGHT_ACTIVE__TWO_BORE"
   | "RIGHT_ACTIVE__THREE_BORE";
 
-export type PieceDiagramSeries600MixedConfiguration =
-  | "OX"
-  | "OOX"
-  | "XO"
-  | "XOO"
-  | "OXO"
-  | "OXOO"
-  | "OOXO"
-  | "OOXOO"
-  | "OXX"
-  | "OOXX"
-  | "XXO"
-  | "XXOO"
-  | "OXXO"
-  | "OXXOO"
-  | "OOXXO"
-  | "OOXXOO";
+// The full O* + X/XX + O* structure is validated by mixedDoorPattern.
+export type PieceDiagramSeries600MixedConfiguration = string;
 
 type MixedPieceBase = {
   width: string | number;
@@ -209,28 +196,6 @@ const XX_STRUCTURES: Record<
     leftGlass: { x: 92, y: 93, width: 315, height: 944 },
     rightGlass: { x: 533, y: 93, width: 315, height: 944 },
   },
-};
-
-const MIXED_PATTERNS: Record<
-  PieceDiagramSeries600MixedConfiguration,
-  readonly PieceDiagramSeries600MixedPiece["kind"][]
-> = {
-  OX: ["O", "X"],
-  OOX: ["O", "O", "X"],
-  XO: ["X", "O"],
-  XOO: ["X", "O", "O"],
-  OXO: ["O", "X", "O"],
-  OXOO: ["O", "X", "O", "O"],
-  OOXO: ["O", "O", "X", "O"],
-  OOXOO: ["O", "O", "X", "O", "O"],
-  OXX: ["O", "XX"],
-  OOXX: ["O", "O", "XX"],
-  XXO: ["XX", "O"],
-  XXOO: ["XX", "O", "O"],
-  OXXO: ["O", "XX", "O"],
-  OXXOO: ["O", "XX", "O", "O"],
-  OOXXO: ["O", "O", "XX", "O"],
-  OOXXOO: ["O", "O", "XX", "O", "O"],
 };
 
 function parsePositiveDimension(value: DiagramValue, name: string): number {
@@ -668,17 +633,14 @@ function DimensionArrows({
             d={`M ${heightX} ${height} L ${heightX - arrowHalf} ${height - arrowDepth} L ${heightX + arrowHalf} ${height - arrowDepth} Z`}
             stroke="none"
           />
-          <DimensionText
+          <VerticalDimensionText
             x={heightX}
             y={height / 2}
-            dominantBaseline="middle"
-            textAnchor="start"
             stroke="none"
             fallbackFontSize={font}
-            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(height)}&quot;
-          </DimensionText>
+          </VerticalDimensionText>
         </g>
       ) : null}
     </g>
@@ -711,7 +673,7 @@ function resolveMixedLayout(
   configuration: PieceDiagramSeries600MixedConfiguration,
   pieces: readonly PieceDiagramSeries600MixedPiece[],
 ): ResolvedMixedLayout {
-  const expected = MIXED_PATTERNS[configuration];
+  const expected = mixedDoorPattern(configuration);
   if (!expected || pieces.length !== expected.length) {
     throw new Error(`Invalid French Door mixed configuration: ${configuration}`);
   }
@@ -865,21 +827,50 @@ function MixedDimensions({
   const topY = -layout.height * 0.055;
   const tickTop = topY - layout.height * 0.012;
   const tickBottom = -layout.height * 0.01;
+  const dimensionSections: {
+    index: number;
+    logicalLeft: number;
+    logicalRight: number;
+    label: string;
+  }[] = [];
+  for (let index = 0; index < layout.pieces.length;) {
+    const piece = layout.pieces[index];
+    let end = index + 1;
+    if (piece.kind === "O") {
+      while (
+        end < layout.pieces.length &&
+        layout.pieces[end].kind === "O" &&
+        layout.pieces[end].width === piece.width
+      ) end++;
+    }
+    // Three or more repeated sidelites need a shared label to stay legible
+    // in the editor. Every physical panel keeps its original width and tick.
+    const count = end - index >= 3 ? end - index : 1;
+    dimensionSections.push({
+      index,
+      logicalLeft: piece.logicalLeft,
+      logicalRight: layout.pieces[index + count - 1].logicalRight,
+      label: count > 1
+        ? `${count} × ${formatDimension(piece.width)}"`
+        : `W. ${formatDimension(piece.width)}"`,
+    });
+    index += count;
+  }
 
   return (
     <g pointerEvents="none" aria-hidden="true" data-layer="FRENCH_DOOR_DIMENSIONS">
-      {layout.pieces.map((piece) => (
-        <g key={`dimension-${piece.index}`} fill={DIMENSION_COLOR} stroke={DIMENSION_COLOR}>
-          <line x1={piece.logicalLeft} y1={topY} x2={piece.logicalRight} y2={topY} strokeWidth={stroke} />
+      {dimensionSections.map((section) => (
+        <g key={`dimension-${section.index}`} fill={DIMENSION_COLOR} stroke={DIMENSION_COLOR}>
+          <line x1={section.logicalLeft} y1={topY} x2={section.logicalRight} y2={topY} strokeWidth={stroke} />
           <DimensionText
-            x={(piece.logicalLeft + piece.logicalRight) / 2}
+            x={(section.logicalLeft + section.logicalRight) / 2}
             y={topY}
             textAnchor="middle"
             stroke="none"
             fallbackFontSize={font}
             screenOffsetYPx={DIMENSION_LABEL_ABOVE_LINE_PX}
           >
-            W. {formatDimension(piece.width)}&quot;
+            {section.label}
           </DimensionText>
         </g>
       ))}
@@ -963,7 +954,7 @@ export function Series600MixedAssemblyDiagram({
           : undefined,
         paddingLeft: showDimensions ? Math.max(32, sectionLabelWidth / 2 + 2) : undefined,
         paddingRight: showDimensions
-          ? Math.max(72, labelWidthPx(layout.height, 1.7) + DIMENSION_LABEL_OUTWARD_GAP_PX + 2)
+          ? Math.max(VERTICAL_DIMENSION_RESERVE_PX, sectionLabelWidth / 2 + 2)
           : undefined,
       }}
       data-diagram-family="FRENCH_DOOR"
@@ -1100,9 +1091,9 @@ export function PieceDiagram({
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
   const namespace = safeId(idNamespace ?? `ae-french-door-${reactId}`);
   const top = showDimensions ? height * 0.02 : 0;
-  const bottom = showDimensions ? height * 0.14 : 0;
+  const bottom = showDimensions ? height * 0.07 : 0;
   const left = showDimensions ? height * 0.02 : 0;
-  const right = showDimensions ? height * 0.23 : 0;
+  const right = showDimensions ? height * 0.07 : 0;
   const materialProps = {
     width,
     height,
@@ -1154,7 +1145,16 @@ export function PieceDiagram({
   return (
     <div
       className={containerClass(variant, className)}
-      style={{ minHeight: 0, maxHeight: "100%", backgroundColor: "transparent" }}
+      style={{
+        minHeight: 0,
+        maxHeight: "100%",
+        backgroundColor: "transparent",
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       data-diagram-family={diagramFamily}
       data-configuration={configuration}
       data-dimension-mode={dimensionMode}

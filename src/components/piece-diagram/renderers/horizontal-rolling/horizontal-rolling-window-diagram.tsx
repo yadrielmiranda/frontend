@@ -12,8 +12,10 @@ import {
 import {
   DIMENSION_LABEL_ABOVE_LINE_PX,
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
+  VerticalDimensionText,
 } from "../dimension-text";
 import { GlassAppearanceLayer } from "../glass-appearance";
 import {
@@ -578,16 +580,8 @@ export function HorizontalRollingWindowDiagram(
           top: layout.preserveC040DimensionLayout
             ? viewportPadding
             : 60 + 24 + DIMENSIONS.fontSize + viewportPadding,
-          right:
-            sideDimensionOffset +
-            44 +
-            DIMENSIONS.fontSize * 3.7 +
-            viewportPadding,
-          bottom:
-            bottomDimensionOffset +
-            (layout.preserveC040DimensionLayout ? 64 : 59) +
-            DIMENSIONS.fontSize * 0.5 +
-            viewportPadding,
+          right: sideDimensionOffset + viewportPadding,
+          bottom: bottomDimensionOffset + viewportPadding,
           left: viewportPadding,
         }
       : {
@@ -678,6 +672,13 @@ export function HorizontalRollingWindowDiagram(
       height="100%"
       overflow="visible"
       viewBox={viewBox}
+      style={{
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
       role="img"
@@ -798,19 +799,16 @@ export function HorizontalRollingWindowDiagram(
           >
             W. {formatDimension(resolvedWidth)}&quot;
           </DimensionText>
-          <DimensionText
+          <VerticalDimensionText
             x={verticalX}
             y={productY + productHeight / 2}
             fill={DIMENSION_COLOR}
             stroke="none"
-            textAnchor="start"
-            dominantBaseline="central"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
-            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(resolvedHeight)}&quot;
-          </DimensionText>
+          </VerticalDimensionText>
         </g>
       ) : null}
     </svg>

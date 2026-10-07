@@ -17,6 +17,8 @@ export const DIMENSION_SCREEN_FONT_SIZE_PX = 20;
 export const DIMENSION_LABEL_OUTWARD_GAP_PX = 10;
 export const DIMENSION_LABEL_BELOW_LINE_PX = 24;
 export const DIMENSION_LABEL_ABOVE_LINE_PX = -10;
+export const VERTICAL_DIMENSION_RESERVE_PX =
+  DIMENSION_LABEL_OUTWARD_GAP_PX + DIMENSION_SCREEN_FONT_SIZE_PX + 4;
 
 type DimensionTextProps = Omit<
   React.SVGProps<SVGTextElement>,
@@ -114,6 +116,40 @@ export function DimensionText({
       dx={screenOffsetXPx === 0 ? undefined : layout.offsetX}
       dy={screenOffsetYPx === 0 ? undefined : layout.offsetY}
       data-screen-font-size={screenFontSizePx}
+    />
+  );
+}
+
+type VerticalDimensionTextProps = Omit<
+  DimensionTextProps,
+  "x" | "y" | "textAnchor" | "transform" | "screenOffsetXPx" | "screenOffsetYPx"
+> & {
+  x: number;
+  y: number;
+  side?: "left" | "right";
+};
+
+export function VerticalDimensionText({
+  x,
+  y,
+  side = "right",
+  screenFontSizePx = DIMENSION_SCREEN_FONT_SIZE_PX,
+  ...props
+}: VerticalDimensionTextProps) {
+  return (
+    <DimensionText
+      {...props}
+      x={x}
+      y={y}
+      textAnchor="middle"
+      dominantBaseline="central"
+      transform={`rotate(-90 ${x} ${y})`}
+      screenFontSizePx={screenFontSizePx}
+      screenOffsetYPx={
+        (side === "left" ? -1 : 1) *
+        (DIMENSION_LABEL_OUTWARD_GAP_PX + screenFontSizePx / 2)
+      }
+      data-dimension-orientation="vertical"
     />
   );
 }

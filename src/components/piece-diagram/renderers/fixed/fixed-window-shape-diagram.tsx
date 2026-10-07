@@ -9,8 +9,10 @@ import {
 } from "../dimension-style";
 import {
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
+  VerticalDimensionText,
 } from "../dimension-text";
 import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
@@ -406,20 +408,14 @@ function VerticalDimension({
         points={`${x},${y1} ${x - DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength} ${x + DIMENSIONS.terminalHalfWidth},${y1 - DIMENSIONS.terminalLength}`}
         fill={DIMENSION_COLOR}
       />
-      <DimensionText
+      <VerticalDimensionText
         x={x}
         y={middle}
-        textAnchor={isLeft ? "end" : "start"}
-        dominantBaseline="central"
+        side={isLeft ? "left" : "right"}
         fallbackFontSize={DIMENSIONS.fontSize}
-        screenOffsetXPx={
-          isLeft
-            ? -DIMENSION_LABEL_OUTWARD_GAP_PX
-            : DIMENSION_LABEL_OUTWARD_GAP_PX
-        }
       >
         {label}
-      </DimensionText>
+      </VerticalDimensionText>
     </g>
   );
 }
@@ -442,15 +438,8 @@ function fixedShapeViewBox(
       minY = Math.min(minY, startY, endY);
       maxY = Math.max(maxY, startY, endY);
 
-      if (geometry.axis === "W") {
-        minX = Math.min(minX, startX, endX);
-        maxX = Math.max(maxX, startX, endX);
-        maxY = Math.max(maxY, startY + 43 + DIMENSIONS.fontSize * 0.5);
-      } else {
-        const labelHalfWidth = DIMENSIONS.fontSize * 2.4;
-        minX = Math.min(minX, startX - labelHalfWidth, endX - labelHalfWidth);
-        maxX = Math.max(maxX, startX + labelHalfWidth, endX + labelHalfWidth);
-      }
+      minX = Math.min(minX, startX, endX);
+      maxX = Math.max(maxX, startX, endX);
     }
   }
 
@@ -522,6 +511,18 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   return (
     <svg
       className={props.className}
+      style={{
+        boxSizing: "border-box",
+        paddingLeft: showDimensions && spec.dimensionGeometry.some(
+          (geometry) => geometry.axis !== "W" && geometry.side === "LEFT",
+        ) ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingRight: showDimensions && spec.dimensionGeometry.some(
+          (geometry) => geometry.axis !== "W" && geometry.side === "RIGHT",
+        ) ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       overflow="visible"
       viewBox={fixedShapeViewBox(spec, showDimensions)}
       preserveAspectRatio="xMidYMid meet"

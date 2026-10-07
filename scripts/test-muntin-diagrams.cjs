@@ -463,8 +463,10 @@ test('SH/FIX Full View ignores leftover Top/Center/Bottom panels in preview and 
 const rendererTestContext = { test, load, render, panel, resolved, bars, panels,
   clipFor, assertClippedBars, attrs, tags, PieceDiagram, PieceReportCard, reportPiece, saved };
 require('./muntin-french-door-cases.cjs')(rendererTestContext);
+require('./french-door-panel-count-cases.cjs')(rendererTestContext);
 require('./muntin-fixed-casement-cases.cjs')(rendererTestContext);
 require('./muntin-sliding-window-wall-cases.cjs')(rendererTestContext);
+require('./vertical-dimension-cases.cjs')(rendererTestContext);
 
 let failures = 0;
 for (const { name, run } of tests) {

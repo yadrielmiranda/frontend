@@ -8,6 +8,7 @@ import type {
   PieceDiagramSeries600MixedPiece,
   PieceDiagramVisualTemplate,
 } from "./series-600-door-diagram";
+import { MAX_FRENCH_DOOR_RENDER_SECTIONS, mixedDoorPattern } from "./mixed-door-pattern";
 
 type StandaloneConfiguration = "X" | "XX" | "O";
 
@@ -39,30 +40,6 @@ const STANDALONE_CONFIGURATIONS = new Set<StandaloneConfiguration>([
   "XX",
   "O",
 ]);
-
-const MIXED_PATTERNS: Readonly<
-  Record<
-    PieceDiagramSeries600MixedConfiguration,
-    readonly ("O" | "X" | "XX")[]
-  >
-> = {
-  OX: ["O", "X"],
-  OOX: ["O", "O", "X"],
-  XO: ["X", "O"],
-  XOO: ["X", "O", "O"],
-  OXO: ["O", "X", "O"],
-  OXOO: ["O", "X", "O", "O"],
-  OOXO: ["O", "O", "X", "O"],
-  OOXOO: ["O", "O", "X", "O", "O"],
-  OXX: ["O", "XX"],
-  OOXX: ["O", "O", "XX"],
-  XXO: ["XX", "O"],
-  XXOO: ["XX", "O", "O"],
-  OXXO: ["O", "XX", "O"],
-  OXXOO: ["O", "XX", "O", "O"],
-  OOXXO: ["O", "O", "XX", "O"],
-  OOXXOO: ["O", "O", "XX", "O", "O"],
-};
 
 const SHARED_FRENCH_DOOR_SERIES = new Set(["600", "650", "675", "950"]);
 
@@ -327,7 +304,8 @@ function mixedResolution({
 
   if (doorWidth === null || height === null) return null;
 
-  let pattern = MIXED_PATTERNS[configuration];
+  let pattern = mixedDoorPattern(configuration);
+  if (!pattern) return null;
   let doorIndex = pattern.findIndex((pieceKind) => pieceKind !== "O");
   let leftSideliteCount = doorIndex;
   let rightSideliteCount = pattern.length - doorIndex - 1;
@@ -339,12 +317,11 @@ function mixedResolution({
     leftSideliteCount = leftSideliteCount > 0 ? Number(piece?.leftPanels) : 0;
     rightSideliteCount = rightSideliteCount > 0 ? Number(piece?.rightPanels) : 0;
     if (
-      !Number.isInteger(leftSideliteCount) ||
-      !Number.isInteger(rightSideliteCount) ||
+      !Number.isSafeInteger(leftSideliteCount) ||
+      !Number.isSafeInteger(rightSideliteCount) ||
       (doorIndex > 0 && leftSideliteCount < 1) ||
       (doorIndex < pattern.length - 1 && rightSideliteCount < 1) ||
-      leftSideliteCount > 2 ||
-      rightSideliteCount > 2
+      leftSideliteCount + rightSideliteCount + 1 > MAX_FRENCH_DOOR_RENDER_SECTIONS
     ) {
       return null;
     }
@@ -355,9 +332,10 @@ function mixedResolution({
       rightSideliteCount > 0 ? positiveDimension(piece?.rightSideliteWidth) : 0;
     if (leftWidth === null || rightWidth === null) return null;
 
-    // Selecciona la plantilla existente que coincide con los paneles reales.
+    // Repite la estructura de sidelite según la cantidad real de cada lado.
     configuration = `${"O".repeat(leftSideliteCount)}${doorKind}${"O".repeat(rightSideliteCount)}` as PieceDiagramSeries600MixedConfiguration;
-    pattern = MIXED_PATTERNS[configuration];
+    pattern = mixedDoorPattern(configuration);
+    if (!pattern) return null;
     doorIndex = leftSideliteCount;
     totalWidth =
       doorWidth +
@@ -449,12 +427,7 @@ export function resolveSharedFrenchDoor({
     });
   }
 
-  if (
-    Object.prototype.hasOwnProperty.call(
-      MIXED_PATTERNS,
-      normalizedConfiguration,
-    )
-  ) {
+  if (mixedDoorPattern(normalizedConfiguration)) {
     return mixedResolution({
       configuration:
         normalizedConfiguration as PieceDiagramSeries600MixedConfiguration,

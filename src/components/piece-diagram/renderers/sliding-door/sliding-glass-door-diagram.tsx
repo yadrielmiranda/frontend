@@ -9,8 +9,10 @@ import {
 } from "../dimension-style";
 import {
   DIMENSION_LABEL_BELOW_LINE_PX,
-  DIMENSION_LABEL_OUTWARD_GAP_PX,
+  DIMENSION_SCREEN_FONT_SIZE_PX,
   DimensionText,
+  VERTICAL_DIMENSION_RESERVE_PX,
+  VerticalDimensionText,
 } from "../dimension-text";
 import {
   GlassAppearanceLayer,
@@ -288,10 +290,8 @@ export function SlidingGlassDoorDiagram({
     showDimensions
       ? {
           top: viewportPadding,
-          right:
-            92 + 44 + DIMENSIONS.fontSize * 3.7 + viewportPadding,
-          bottom:
-            92 + 60 + DIMENSIONS.fontSize * 0.5 + viewportPadding,
+          right: 92 + viewportPadding,
+          bottom: 92 + viewportPadding,
           left: viewportPadding,
         }
       : {
@@ -310,6 +310,13 @@ export function SlidingGlassDoorDiagram({
       height="100%"
       overflow="visible"
       viewBox={viewBox}
+      style={{
+        boxSizing: "border-box",
+        paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined,
+        paddingBottom: showDimensions
+          ? DIMENSION_LABEL_BELOW_LINE_PX + DIMENSION_SCREEN_FONT_SIZE_PX * 0.3 + 2
+          : undefined,
+      }}
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
       role="img"
@@ -478,19 +485,16 @@ export function SlidingGlassDoorDiagram({
           >
             W. {formatDimension(resolvedWidth)}&quot;
           </DimensionText>
-          <DimensionText
+          <VerticalDimensionText
             x={verticalX}
             y={productRect.y + productRect.height / 2}
             fill={DIMENSION_COLOR}
             stroke="none"
-            textAnchor="start"
-            dominantBaseline="central"
             fallbackFontSize={DIMENSIONS.fontSize}
             fontWeight={DIMENSION_FONT_WEIGHT}
-            screenOffsetXPx={DIMENSION_LABEL_OUTWARD_GAP_PX}
           >
             H. {formatDimension(resolvedHeight)}&quot;
-          </DimensionText>
+          </VerticalDimensionText>
         </g>
       ) : null}
     </svg>

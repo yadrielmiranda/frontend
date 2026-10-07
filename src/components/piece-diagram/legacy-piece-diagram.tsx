@@ -1041,45 +1041,25 @@ function CircularShapeDiagram({
   );
 }
 
-function GenericDiagram({
-  width,
-  height,
-  variant,
-}: {
-  width: number;
-  height: number;
-  variant: PieceDiagramVariant;
-}) {
-  const frameThickness = Math.min(
-    Math.max(Math.min(width, height) * 0.06, 4),
-    10,
-  );
-
-  const strokeWidth = variant === "report" ? 1.1 : 1.5;
-
+export function PieceDiagramPlaceholder({
+  className,
+  diagramFamily,
+  dimensionMode,
+}: Pick<PieceDiagramProps, "className" | "diagramFamily" | "dimensionMode">) {
   return (
-    <g>
-      <rect
-        x={0}
-        y={0}
-        width={width}
-        height={height}
-        fill="var(--frame-fill, #FFFFFF)"
-        stroke="black"
-        strokeWidth={strokeWidth}
-      />
-
-      <rect
-        x={frameThickness}
-        y={frameThickness}
-        width={Math.max(width - frameThickness * 2, 1)}
-        height={Math.max(height - frameThickness * 2, 1)}
-        fill="var(--glass-fill, #F7FBFF)"
-        fillOpacity="var(--glass-opacity, 1)"
-        stroke="black"
-        strokeWidth={strokeWidth}
-      />
-    </g>
+    <div
+      className={[
+        "flex h-full w-full items-center justify-center rounded-md bg-slate-50 p-6 text-center",
+        className ?? "",
+      ].join(" ")}
+      data-diagram-state="unavailable"
+      data-diagram-family={diagramFamily}
+      data-dimension-mode={dimensionMode}
+    >
+      <p className="max-w-xs text-sm text-slate-500">
+        Complete the piece details to see the preview.
+      </p>
+    </div>
   );
 }
 
@@ -1161,17 +1141,19 @@ export function PieceDiagram({
 
   const hasValidDimensions =
     dimensions.width > 0 && (isLinearMaterial || dimensions.height > 0);
+  const hasLegacyRenderer =
+    circularShape !== null ||
+    ["HORIZONTAL_SLIDER", "SINGLE_HUNG", "LINEAR_MATERIAL"].includes(
+      resolvedDiagramFamily,
+    );
 
-  if (!hasValidDimensions) {
+  if (!hasValidDimensions || !hasLegacyRenderer) {
     return (
-      <div
-        className={[
-          "flex h-full w-full items-center justify-center rounded-md bg-gray-100",
-          className ?? "",
-        ].join(" ")}
-      >
-        <p className="text-sm text-gray-500">Enter dimensions</p>
-      </div>
+      <PieceDiagramPlaceholder
+        className={className}
+        diagramFamily={resolvedDiagramFamily}
+        dimensionMode={dimensionMode}
+      />
     );
   }
 
@@ -1306,17 +1288,6 @@ export function PieceDiagram({
               variant={variant}
             />
           )}
-
-          {circularShape === null &&
-            !["HORIZONTAL_SLIDER", "SINGLE_HUNG", "LINEAR_MATERIAL"].includes(
-              resolvedDiagramFamily,
-            ) && (
-              <GenericDiagram
-                width={scaledWidth}
-                height={scaledHeight}
-                variant={variant}
-              />
-            )}
         </g>
       </svg>
     </div>
