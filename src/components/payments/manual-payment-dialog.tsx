@@ -31,6 +31,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
 import type { PaymentMethod, PaymentType } from "@/lib/types";
+import type { PaymentSchedule } from "@/lib/payment-plan";
+import { previewCustomPayment } from "@/lib/custom-payment";
+import { CustomPaymentAmount } from "./custom-payment-amount";
 
 type ManualMethod = Exclude<PaymentMethod, "CARD" | "BANK">;
 
@@ -47,6 +50,8 @@ export function ManualPaymentDialog({
   sequences,
   payFullBalance = false,
   amount,
+  paymentSchedule,
+  customAmount,
   label = "Record manual payment",
   disabled = false,
   requiresDepositTerms = false,
@@ -62,6 +67,8 @@ export function ManualPaymentDialog({
   sequences?: number[];
   payFullBalance?: boolean;
   amount: number;
+  paymentSchedule?: PaymentSchedule | null;
+  customAmount?: number;
   label?: string;
   disabled?: boolean;
   requiresDepositTerms?: boolean;
@@ -80,9 +87,15 @@ export function ManualPaymentDialog({
   const [fundsVerified, setFundsVerified] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [cityFeeAccepted, setCityFeeAccepted] = useState(false);
+  const [manualCustom, setManualCustom] = useState(customAmount !== undefined);
+  const [customInput, setCustomInput] = useState(customAmount?.toFixed(2) ?? "");
+  const custom = previewCustomPayment(paymentSchedule, customInput);
+  const acceptsCityFee = manualCustom ? Boolean(custom.cityFeeKey) : requiresCityFeeAcceptance;
+  const acceptedCityAmount = manualCustom ? custom.cityFeeAmount : cityFeeAmount ?? amount;
 
   const submit = async () => {
     if (disabled || busy) return;
+    if (manualCustom && !custom.valid) { toast.error(custom.error!); return; }
     if (!reference.trim()) {
       toast.error("Enter the check, transfer, or receipt reference.");
       return;
@@ -95,7 +108,7 @@ export function ManualPaymentDialog({
       toast.error("Confirm acceptance of the deposit terms.");
       return;
     }
-    if (requiresCityFeeAcceptance && !cityFeeAccepted) { toast.error("Confirm customer acceptance of the City Fee adjustment."); return; }
+    if (acceptsCityFee && !cityFeeAccepted) { toast.error("Confirm customer acceptance of the City Fee adjustment."); return; }
     if (!paidAt || Number.isNaN(new Date(paidAt).getTime())) {
       toast.error("Enter a valid payment date.");
       return;
@@ -106,13 +119,14 @@ export function ManualPaymentDialog({
       if (beforeSubmit && !(await beforeSubmit())) return;
       const payment = await recordManualPayment({
         estimateId,
-        type,
-        sequence,
-        sequences,
-        ...(payFullBalance ? { payFullBalance: true, expectedBalance: amount } : {}),
+        type: manualCustom ? "INSTALLMENT" : type,
+        sequence: manualCustom ? undefined : sequence,
+        sequences: manualCustom ? undefined : sequences,
+        ...(manualCustom ? { customAmount: custom.amount, expectedBalance: custom.maximum }
+          : payFullBalance ? { payFullBalance: true, expectedBalance: amount } : {}),
         method,
         fundsVerified: true,
-        cityFeeAccepted: requiresCityFeeAcceptance ? cityFeeAccepted : undefined,
+        cityFeeAccepted: acceptsCityFee ? cityFeeAccepted : undefined,
         reference: reference.trim(),
         note: note.trim() || undefined,
         paidAt: new Date(paidAt).toISOString(),
@@ -120,7 +134,7 @@ export function ManualPaymentDialog({
           ? termsAccepted
           : undefined,
       });
-      toast.success("Payment recorded and workflow updated.");
+      toast.success("Payment recorded.");
       setOpen(false);
       onRecorded?.(payment);
     } catch (error) {
@@ -137,20 +151,24 @@ export function ManualPaymentDialog({
           <Banknote className="h-4 w-4" /> {label}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Record confirmed manual payment</DialogTitle>
           <DialogDescription>
-            This records the selected payments as paid.
+            This records the confirmed amount against the selected project balance.
             Use it only after the funds are visible and verified.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+          {manualCustom ? <CustomPaymentAmount input={customInput} preview={custom} disabled={busy}
+            onChange={value => { setCustomInput(value); setCityFeeAccepted(false); }} /> : <div className="rounded-lg border bg-slate-50 p-3 text-sm">
             <div className="text-muted-foreground">Amount received</div>
             <div className="text-xl font-semibold">{formatMoney(amount)}</div>
-          </div>
+          </div>}
+          {custom.available && customAmount === undefined && <Button type="button" variant="outline" disabled={busy} onClick={() => {
+            setManualCustom(!manualCustom); setCityFeeAccepted(false);
+          }}>{manualCustom ? "Use scheduled amount" : "Pay another amount"}</Button>}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -204,10 +222,10 @@ export function ManualPaymentDialog({
             />
           </div>
 
-          {requiresCityFeeAcceptance && (
+          {acceptsCityFee && (
             <label className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
               <Checkbox checked={cityFeeAccepted} onCheckedChange={value => setCityFeeAccepted(value === true)} />
-              <span>The customer accepted the City Fee adjustment of {formatMoney(cityFeeAmount ?? amount)}.</span>
+              <span>The customer accepted the City Fee adjustment of {formatMoney(acceptedCityAmount)}.</span>
             </label>
           )}
           {requiresDepositTerms && (
@@ -256,8 +274,9 @@ export function ManualPaymentDialog({
               busy ||
               !reference.trim() ||
               !fundsVerified ||
+              (manualCustom && !custom.valid) ||
               (requiresDepositTerms && !termsAccepted) ||
-              (requiresCityFeeAcceptance && !cityFeeAccepted)
+              (acceptsCityFee && !cityFeeAccepted)
             }
             onClick={() => void submit()}
           >

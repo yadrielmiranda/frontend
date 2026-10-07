@@ -2,8 +2,9 @@
 
 import { hasRefundHistory, refundedBalance } from "@/lib/payment-accounting";
 import { PaymentHistory } from "@/components/payments/payment-history";
-import { FullBalancePrompt, FullBalanceReview, FullBalanceToggle, InstallmentSelection, selectedInstallmentCheckout, useInstallmentSelection } from "@/components/payments/installment-selection";
+import { FullBalancePrompt, FullBalanceReview, FullBalanceToggle, selectedInstallmentCheckout, useInstallmentSelection } from "@/components/payments/installment-selection";
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
+import { CustomPaymentAmount, useCustomPayment } from "@/components/payments/custom-payment-amount";
 import type { PaymentSchedule } from "@/lib/payment-plan";
 import type { EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { useState } from "react";
@@ -215,6 +216,8 @@ function EstimatePaymentCardContent({
   const [materialAccepted, setMaterialAccepted] = useState(false);
   const [acceptedCityKey, setAcceptedCityKey] = useState("");
   const installments = useInstallmentSelection(paymentSchedule, installationJob?.status !== "DEPOSIT_PAYMENT_PENDING");
+  const custom = useCustomPayment(paymentSchedule, installationJob?.status !== "DEPOSIT_PAYMENT_PENDING"
+    && !paymentBlockedReason && !networkPaymentBlocked);
   if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
 
   const isOwner = currentUserId === estimateOwnerId;
@@ -234,26 +237,33 @@ function EstimatePaymentCardContent({
   paymentSchedule,
   });
 
-  const selectingInstallments = defaultAction?.type === "INSTALLMENT" || installments.isFullBalance;
-  const action = selectingInstallments ? {
-    ...defaultAction,
+  const selectingInstallments = defaultAction?.type === "INSTALLMENT" || installments.isFullBalance || custom.active;
+  const action: PaymentAction | null = custom.active ? {
+    type: "INSTALLMENT" as const,
+    amount: custom.preview.valid ? custom.preview.amount : 0,
+    title: "Custom project payment",
+    description: "Choose an amount to apply toward your project installments.",
+    requiresCityFeeAcceptance: Boolean(custom.preview.cityFeeKey),
+    cityFeeAmount: custom.preview.cityFeeAmount,
+  } : installments.isFullBalance ? {
     type: "INSTALLMENT" as const,
     sequence: installments.selected[0]?.sequence,
     amount: installments.amount,
-    title: installments.isFullBalance ? "Full project balance" : installments.rows.length > 1 ? "Selected payments" : defaultAction!.title,
-    description: installments.isFullBalance ? "Pay all remaining project installments, including payments not yet due." : installments.rows.length > 1 ? "Choose the items you want to pay now. The total updates with your selection." : defaultAction!.description,
+    title: "Full project balance",
+    description: "Pay all remaining project installments, including payments not yet due.",
     requiresCityFeeAcceptance: Boolean(installments.cityFeeKey),
     cityFeeAmount: installments.cityFeeAmount,
   } : defaultAction;
-  const cityKey = selectingInstallments ? installments.cityFeeKey : "";
+  const cityKey = custom.active ? custom.preview.cityFeeKey : selectingInstallments ? installments.cityFeeKey : "";
   const cityFeeAccepted = Boolean(cityKey) && acceptedCityKey === cityKey;
-  const hasSelection = !selectingInstallments || installments.sequences.length > 0;
+  const hasSelection = custom.active ? custom.preview.valid : !selectingInstallments || installments.sequences.length > 0;
 
   if (!action && installments.canPayFullBalance && paymentSchedule) {
-    return <div className="space-y-5"><PaymentScheduleView schedule={paymentSchedule} /><FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)} /></div>;
+    return <div className="space-y-5"><PaymentScheduleView schedule={paymentSchedule} /><FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)} />
+      {custom.available && <Button type="button" variant="outline" onClick={custom.enable}>Pay another amount</Button>}</div>;
   }
 
-  if (!action || !Number.isFinite(action.amount) || (action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
+  if (!action || !Number.isFinite(action.amount) || (!custom.active && action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
     return <PaymentScheduleView schedule={paymentSchedule} />;
   }
 
@@ -263,13 +273,14 @@ function EstimatePaymentCardContent({
   const depositTermsSatisfied =
     depositTermsPreviouslyAccepted || depositTermsAccepted;
   const requiresDepositTerms = action.type === "INSTALLATION_DEPOSIT";
-  const requiresMaterialAcceptance = ownerRole === "client" && (action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1)));
+  const selectedSequences = custom.active ? custom.preview.allocations.map(({ row }) => row.sequence) : installments.sequences;
+  const requiresMaterialAcceptance = ownerRole === "client" && (action.type === "MATERIAL" || (action.type === "INSTALLMENT" && selectedSequences.includes(paymentSchedule?.initialSequence ?? -1)));
   const paymentPool =
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob.payments
       : materialPayments;
   const activeCheckoutPayment = selectingInstallments
-    ? selectedInstallmentCheckout(paymentPool, installments.sequences, installments.amount)
+    ? selectedInstallmentCheckout(paymentPool, selectedSequences, custom.active ? action.amount : installments.amount)
     : paymentPool.find(payment => payment.type === action.type &&
         (action.sequence == null || payment.sequence === action.sequence) && payment.status === "PENDING" && payment.stripeSessionId);
   const checkoutStarted = Boolean(activeCheckoutPayment);
@@ -310,8 +321,9 @@ function EstimatePaymentCardContent({
         requiresDepositTerms ? depositTermsSatisfied : undefined,
         requiresMaterialAcceptance ? materialAccepted : undefined,
         action.requiresCityFeeAcceptance ? cityFeeAccepted : undefined,
-        selectingInstallments && !installments.isFullBalance ? installments.sequences : undefined,
-        installments.isFullBalance ? { payFullBalance: true, expectedBalance: installments.amount } : undefined,
+        selectingInstallments && !installments.isFullBalance && !custom.active ? installments.sequences : undefined,
+        !custom.active && installments.isFullBalance ? { payFullBalance: true, expectedBalance: installments.amount } : undefined,
+        custom.active ? { customAmount: custom.preview.amount, expectedBalance: custom.preview.maximum } : undefined,
       );
       window.location.href = url;
     } catch (error) {
@@ -334,7 +346,7 @@ function EstimatePaymentCardContent({
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {installments.isFullBalance ? "Advance payment" : installments.rows.length > 1 ? "Payments due" : "Next payment"}
+              {custom.active ? "Custom payment" : installments.isFullBalance ? "Advance payment" : "Next payment"}
             </p>
             <h3 className="mt-0.5 text-base font-semibold text-slate-950">
               {action.title}
@@ -347,7 +359,7 @@ function EstimatePaymentCardContent({
 
         <div className="shrink-0 text-left sm:min-w-80 sm:text-right">
           <p className="text-xs font-medium text-slate-500">
-            {showCardCheckoutAmounts ? "Payment total" : installments.isFullBalance ? "Payment amount" : "Due now"}
+            {showCardCheckoutAmounts ? "Payment total" : installments.isFullBalance || custom.active ? "Payment amount" : "Due now"}
           </p>
           <p aria-live="polite" className="text-2xl font-semibold tracking-tight text-slate-950">
             {formatMoney(
@@ -365,8 +377,9 @@ function EstimatePaymentCardContent({
         </div>
       </div>
 
-      {installments.isFullBalance ? <FullBalanceReview rows={installments.rows} cityFeePending={paymentSchedule?.cityFeePending} /> : selectingInstallments && <InstallmentSelection rows={installments.rows} sequences={installments.sequences}
-        onChange={values => { installments.setSequences(values); setAcceptedCityKey(""); }} disabled={busy} />}
+      {custom.active ? <CustomPaymentAmount input={custom.input} preview={custom.preview} disabled={busy}
+        onChange={value => { custom.setInput(value); setAcceptedCityKey(""); }} />
+        : installments.isFullBalance && <FullBalanceReview rows={installments.rows} cityFeePending={paymentSchedule?.cityFeePending} />}
 
       {requiresDepositTerms && canPay && (
         <label
@@ -464,8 +477,12 @@ function EstimatePaymentCardContent({
       )}
 
       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+        {custom.available && <Button type="button" variant="outline" disabled={busy} onClick={() => {
+          if (custom.active) custom.disable(); else custom.enable();
+          installments.setFullBalance(false); setAcceptedCityKey("");
+        }}>{custom.active ? "Back to next payment" : "Pay another amount"}</Button>}
         {(installments.offerFullBalance || installments.isFullBalance) && <FullBalanceToggle selected={installments.isFullBalance}
-          disabled={busy} onChange={() => { installments.setFullBalance(!installments.isFullBalance); setAcceptedCityKey(""); }} />}
+          disabled={busy} onChange={() => { custom.disable(); installments.setFullBalance(!installments.isFullBalance); setAcceptedCityKey(""); }} />}
         {canPay ? (
           <>
             <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
@@ -490,12 +507,12 @@ function EstimatePaymentCardContent({
               )}
               {busy
                 ? "Opening checkout..."
-                : !hasSelection ? "Select a payment"
+                : !hasSelection ? custom.active ? "Enter a valid amount" : "Select a payment"
                 : (requiresDepositTerms && !depositTermsSatisfied) || (requiresMaterialAcceptance && !materialAccepted)
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
-                    : action.amount === 0 ? action.requiresCityFeeAcceptance ? "Confirm City Fee" : ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1))) ? (installationJob && installationJob.status !== "CANCELED" ? "Submit for order review" : "Confirm order") : "Confirm step") : "Continue to payment"}
+                    : action.amount === 0 ? action.requiresCityFeeAcceptance ? "Confirm City Fee" : ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1))) ? (installationJob && installationJob.status !== "CANCELED" ? "Submit for order review" : "Confirm order") : "Confirm step") : action.type === "INSTALLMENT" && !custom.active && !installments.isFullBalance ? "Pay next installment" : "Continue to payment"}
             </Button>
           </>
         ) : isOwner && isInternalDealer ? (
@@ -512,11 +529,13 @@ function EstimatePaymentCardContent({
             disabled={networkPaymentBlocked}
             estimateId={estimateId}
             type={action.type}
-            key={`${installments.sequences.join(",")}:${action.amount}:${cityKey}`}
+            key={`${custom.active}:${installments.sequences.join(",")}:${action.amount}:${cityKey}:${paymentSchedule?.fullBalance?.amount}`}
             sequence={selectingInstallments ? undefined : action.sequence}
-            sequences={selectingInstallments && !installments.isFullBalance ? installments.sequences : undefined}
-            payFullBalance={installments.isFullBalance}
+            sequences={selectingInstallments && !installments.isFullBalance && !custom.active ? installments.sequences : undefined}
+            payFullBalance={!custom.active && installments.isFullBalance}
             amount={action.amount}
+            paymentSchedule={installationJob?.status === "DEPOSIT_PAYMENT_PENDING" ? null : paymentSchedule}
+            customAmount={custom.active ? custom.preview.amount : undefined}
             requiresCityFeeAcceptance={action.requiresCityFeeAcceptance}
             cityFeeAmount={action.cityFeeAmount}
             requiresDepositTerms={

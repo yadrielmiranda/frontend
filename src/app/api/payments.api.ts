@@ -7,6 +7,7 @@ export type ManualPaymentResult = EstimatePayment & {
 };
 
 export type FullBalanceRequest = { payFullBalance: true; expectedBalance: number };
+export type CustomAmountRequest = { customAmount: number; expectedBalance: number };
 
 export type CheckoutSessionResponse = {
   url: string;
@@ -75,6 +76,7 @@ export function createCheckoutSession(
   cityFeeAccepted?: boolean,
   sequences?: number[],
   fullBalance?: FullBalanceRequest,
+  customPayment?: CustomAmountRequest,
 ) {
   return apiFetch<CheckoutSessionResponse>("/api/payments/checkout-session", {
     method: "POST",
@@ -87,6 +89,7 @@ export function createCheckoutSession(
       cityFeeAccepted,
       sequences,
       ...fullBalance,
+      ...customPayment,
     },
   });
 }
@@ -121,12 +124,13 @@ export function createPublicCheckoutSession(
   sequences?: number[],
   fullBalance?: FullBalanceRequest,
   selection?: { items: PublicPaymentSelection[]; expectedBalance: number },
+  customPayment?: CustomAmountRequest,
 ) {
   return apiFetch<CheckoutSessionResponse>(
     `/api/payments/public/${encodeURIComponent(token)}/checkout-session`,
     {
       method: "POST",
-      body: { installationDepositTermsAccepted, agreementId, cityFeeAccepted, sequences, ...fullBalance, ...selection },
+      body: { installationDepositTermsAccepted, agreementId, cityFeeAccepted, sequences, ...fullBalance, ...selection, ...customPayment },
       suppressAuthEvent: true,
     },
   );
@@ -155,6 +159,7 @@ export function recordManualPayment(data: {
   sequences?: number[];
   payFullBalance?: boolean;
   expectedBalance?: number;
+  customAmount?: number;
   method: Exclude<PaymentMethod, "CARD" | "BANK">;
   fundsVerified: true;
   reference: string;

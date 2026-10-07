@@ -95,6 +95,12 @@ export default function CheckoutSuccessContent() {
             redirectedRef.current = true; setStatus('done'); setOrderId(est.order.id);
             toast.success('Installment payment confirmed.'); router.replace(`/orders/${est.order.id}`); return;
           }
+          if (paid) {
+            if (!alive || redirectedRef.current) return;
+            redirectedRef.current = true; setStatus("done");
+            toast.success("Payment confirmed. Applied toward your project balance.");
+            router.replace(`/estimates/${estimateId}/edit`); return;
+          }
           setAttempt(value => value + 1); return;
         }
         if (paymentType !== "MATERIAL") {
