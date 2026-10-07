@@ -2207,37 +2207,9 @@ export function PieceForm({
                 "No dimension policy exists for this System + Config + Crystal combination.",
             );
           } else if (precheck.reason === "OVERSIZE") {
-            const belowMin = precheck.belowMinimum;
-
-            if (belowMin) {
-              const minW =
-                precheck.suggestion?.minWidthIn ??
-                precheck.suggestion?.maxWidthIn ??
-                null;
-              const minH =
-                precheck.suggestion?.minHeightIn ??
-                precheck.suggestion?.maxHeightIn ??
-                null;
-              const sW = minW != null ? `${minW}″` : "—";
-              const sH = minH != null ? `${minH}″` : "—";
-
-              toast.error(
-                precheck.note
-                  ? `${precheck.note}. Minimum allowed size: W=${sW}, H=${sH}.`
-                  : `Please review the dimensions. Minimum allowed size: W=${sW}, H=${sH}.`,
-              );
-            } else {
-              const maxW = precheck.suggestion?.maxWidthIn ?? null;
-              const maxH = precheck.suggestion?.maxHeightIn ?? null;
-              const sW = maxW != null ? `${maxW}″` : "—";
-              const sH = maxH != null ? `${maxH}″` : "—";
-
-              toast.error(
-                precheck.note
-                  ? `${precheck.note}. Maximum allowed size: W=${sW}, H=${sH}.`
-                  : `Please review the dimensions. Maximum allowed size: W=${sW}, H=${sH}.`,
-              );
-            }
+            toast.error(
+              "The entered dimensions are not allowed for this piece. Please review and adjust the measurements.",
+            );
           } else {
             toast.error("Dimension validation failed.");
           }
