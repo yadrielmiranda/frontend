@@ -259,8 +259,9 @@ function EstimatePaymentCardContent({
   const hasSelection = custom.active ? custom.preview.valid : !selectingInstallments || installments.sequences.length > 0;
 
   if (!action && installments.canPayFullBalance && paymentSchedule) {
-    return <div className="space-y-5"><PaymentScheduleView schedule={paymentSchedule} /><FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)} />
-      {custom.available && <Button type="button" variant="outline" onClick={custom.enable}>Pay another amount</Button>}</div>;
+    return <div className="space-y-5"><PaymentScheduleView schedule={paymentSchedule} />
+      <FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)}
+        onCustomAmount={custom.available ? custom.enable : undefined} /></div>;
   }
 
   if (!action || !Number.isFinite(action.amount) || (!custom.active && action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
@@ -515,7 +516,7 @@ function EstimatePaymentCardContent({
                     : action.amount === 0 ? action.requiresCityFeeAcceptance ? "Confirm City Fee" : ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1))) ? (installationJob && installationJob.status !== "CANCELED" ? "Submit for order review" : "Confirm order") : "Confirm step") : action.type === "INSTALLMENT" && !custom.active && !installments.isFullBalance ? "Pay next installment" : "Continue to payment"}
             </Button>
           </>
-        ) : isOwner && isInternalDealer ? (
+        ) : isOwner && isInternalDealer && !custom.active ? (
           <div className="space-y-2 text-right">
             <p className="text-sm text-slate-600">
               Send this payment link to the final customer.

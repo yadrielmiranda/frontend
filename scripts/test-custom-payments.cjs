@@ -224,6 +224,62 @@ test('a credit-covered initial row marked PAID but still awaiting confirmation r
   f.button('Pay another amount').props.onClick(); f.input('Custom payment amount', '1');
   assert.equal(f.button('Accept terms to continue').props.disabled, true); f.close();
 });
+test('admin and internal dealer can record customer payments while the customer uses the public checkout', () => {
+  for (const currentUserId of [1, 2]) {
+    const f = fixture('authenticated', { currentUserId, dealerMode: 'INTERNAL',
+      dealerNetwork: { payerType: 'CUSTOMER', canPay: false, canRecordManualPayment: true },
+      materialPayments: [{ type: 'INSTALLMENT', sequence: 1, status: 'PENDING', stripeSessionId: 'customer-checkout',
+        baseAmount: '5320.64', surchargeAmount: '159.62', amount: '5480.26' }] });
+    const manual = () => f.all(f.render(), node => node.type?.name === 'ManualPaymentDialog')[0];
+    assert.equal(manual().props.amount, 5320.64);
+    assert.equal(manual().props.disabled, false);
+    assert.deepEqual(manual().props.sequences, [1]);
+    assert.equal(f.all(f.render(), node => node.type === 'Button').some(node => f.text(node) === 'Resume payment'), false);
+    f.button('Pay another amount').props.onClick(); f.input('Custom payment amount', '8000');
+    assert.equal(manual().props.customAmount, 8000);
+    assert.equal(manual().props.amount, 8000);
+    f.close();
+  }
+});
+
+test('manual payment remains unavailable without permission or while the estimate is blocked', () => {
+  for (const overrides of [{ canRecordManualPayment: false }, { paymentBlockedReason: 'Recalculate to continue.' }]) {
+    const f = fixture('authenticated', overrides);
+    assert.equal(f.all(f.render(), node => node.type?.name === 'ManualPaymentDialog').length, 0); f.close();
+  }
+  const f = fixture('authenticated', { networkPaymentBlocked: true });
+  assert.equal(f.all(f.render(), node => node.type?.name === 'ManualPaymentDialog')[0].props.disabled, true); f.close();
+});
+
+test('internal dealer and admin custom amounts offer manual recording without a misleading generic customer link', () => {
+  for (const order of [null, { id: 29 }]) {
+    for (const [currentUserId, dealerNetwork] of [
+      [2, null], [1, null],
+      [2, { payerType: 'CUSTOMER', canPay: false, canRecordManualPayment: true }],
+      [1, { payerType: 'CUSTOMER', canPay: false, canRecordManualPayment: true }],
+    ]) {
+      const f = fixture('authenticated', { order, dealerNetwork, currentUserId, dealerMode: 'INTERNAL',
+        paymentSchedule: schedule([row(2, 'RELEASE', '59.05', order ? 'UPCOMING' : 'DUE')]) });
+      const links = () => f.all(f.render(), node => node.type === 'PaymentLink');
+      const manual = () => f.all(f.render(), node => node.type?.name === 'ManualPaymentDialog');
+      f.button('Pay another amount').props.onClick();
+      assert.equal(links().length, 0);
+      assert.equal(manual().length, 0); // No manual submission before a valid amount.
+      f.input('Custom payment amount', '36');
+      assert.equal(links().length, 0);
+      assert.doesNotMatch(f.text(f.render()), /Send this payment link to the final customer/);
+      assert.equal(manual().length, 1);
+      assert.equal(manual()[0].props.customAmount, 36);
+      assert.equal(manual()[0].props.amount, 36);
+      assert.equal(f.requests.length, 0);
+      f.button('Back to next payment').props.onClick();
+      if (order) f.button('Pay full balance').props.onClick();
+      assert.equal(links().length, currentUserId === 2 ? 1 : 0); // Preserve existing sharing permissions.
+      f.close();
+    }
+  }
+});
+
 test('manual payment accepts a reviewed custom amount without marking entire selected installments paid', async () => {
   const f = fixture('manual'); f.button('Pay another amount').props.onClick(); f.input('Custom payment amount', '8000'); f.verified();
   assert.equal(f.button('Mark paid').props.disabled, false); f.button('Mark paid').props.onClick(); await flush();

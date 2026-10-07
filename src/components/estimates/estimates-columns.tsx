@@ -173,21 +173,15 @@ function getEstimateListAction(
 ): keyof typeof estimateListActions {
   if (canEditEstimateFromList(estimate, currentUser)) return "edit";
 
-  const materialPayment = estimate.payments?.find(
-    (payment) => (payment.type === "MATERIAL" || payment.type === "INSTALLMENT"),
-  );
-  const isPaymentLocked =
-    materialPayment?.status === "PAID" ||
-    Boolean(materialPayment?.stripeSessionId);
   const canManage =
     currentUser?.id === estimate.idUser || estimate.dealerNetwork?.canAssist === true ||
     isAdminRole(currentUser?.role?.name) ||
     isOperatorRole(currentUser?.role?.name);
 
-  // Comparte la acción entre nombre, número y menú.
+  // Un pago bloquea la edición de las piezas, no el acceso a los pagos pendientes.
+  // La página del estimado conserva sus controles de solo lectura.
   const canOpen =
     (estimate.status?.name ?? "").trim().toLowerCase() === "active" &&
-    !isPaymentLocked &&
     !estimate.order &&
     canManage;
 

@@ -29,15 +29,22 @@ export function useInstallmentSelection(schedule: PaymentSchedule | null | undef
   };
 }
 
-export function FullBalancePrompt({ schedule, onSelect }: { schedule: PaymentSchedule; onSelect: () => void }) {
+export function FullBalancePrompt({ schedule, onSelect, onCustomAmount }: {
+  schedule: PaymentSchedule;
+  onSelect: () => void;
+  onCustomAmount?: () => void;
+}) {
   return (
-    <section id="estimate-payment" className="scroll-mt-28 print:hidden flex flex-col gap-4 rounded-xl border border-slate-300 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h3 className="font-semibold">{schedule.orderReviewPending ? "Pending order review" : "No payment is currently due"}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{schedule.orderReviewPending ? "Your order is awaiting administrative review. You can pay the remaining project balance in advance." : "You can pay the remaining project balance in advance."}</p>
+    <section id="estimate-payment" className="scroll-mt-28 print:hidden rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="font-semibold">{schedule.orderReviewPending ? "Pending order review" : "No payment is currently due"}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{schedule.orderReviewPending ? "Your order is awaiting administrative review. You can pay the remaining project balance in advance." : "You can pay the remaining project balance in advance."}</p>
+        </div>
+        <div className="shrink-0 text-sm sm:text-right"><span className="block text-muted-foreground">Project balance</span><strong>{formatMoney(Number(schedule.fullBalance?.amount ?? 0))}</strong></div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-4">
-        <div className="text-sm"><span className="block text-muted-foreground">Project balance</span><strong>{formatMoney(Number(schedule.fullBalance?.amount ?? 0))}</strong></div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        {onCustomAmount && <Button type="button" variant="outline" onClick={onCustomAmount}>Pay another amount</Button>}
         <Button type="button" variant="outline" onClick={onSelect}>Pay full balance</Button>
       </div>
     </section>
