@@ -423,6 +423,7 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  referralCosts?: import("./dealer-earnings").ReferralCostsSummary | null;
   networkPaymentBlocked?: boolean;
   dealerNetwork?: EstimateDealerNetwork | null;
   networkBillingPriceT?: string | number | null;
@@ -1000,6 +1001,7 @@ export interface OrderStatus {
 }
 
 export interface Order {
+  referralCosts?: import("./dealer-earnings").ReferralCostsSummary | null;
   subdealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   materialProfits?: import("./dealer-earnings").MaterialProfitsSummary | null;

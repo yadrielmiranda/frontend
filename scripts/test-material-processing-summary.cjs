@@ -108,6 +108,52 @@ test('older summaries without processing fields keep the existing company presen
   const html = render(MaterialProfitAdjustments, { profits: legacy, showDealerEarnings: true });
   assert.ok(html.includes('Company real profit after dealer earnings')); assert.ok(!html.includes('processing'));
 });
+
+test('a direct client order shows referral liability and the supplied company remainder', () => {
+  const html = orderView(order({ dealerModeSnapshot: null, dealerEarnings: null,
+    referralCosts: { amount: '30.00', status: 'CALCULATED' },
+    materialProfits: { ...profits, authenticExpectedProfit: '150.00', authenticRealProfit: '164.50' },
+  }), true);
+  for (const text of ['Referral reward cost', '$30.00', 'Company expected profit after referral rewards', '$150.00', '$164.50']) assert.ok(html.includes(text), text);
+});
+
+test('unknown referral liability keeps company profit pending instead of showing zero', () => {
+  const html = render(MaterialProfitAdjustments, { profits: { ...profits, authenticExpectedProfit: null, authenticRealProfit: null },
+    showDealerEarnings: false, referralCosts: { amount: null, status: 'PENDING_REAL_COST' } });
+  assert.ok(html.includes('Pending final reward calculation'));
+  assert.ok(html.includes('Pending referral reward'));
+  assert.ok(!html.includes('$0.00'));
+});
+
+test('approved material refunds and referral rewards reconcile to the supplied company net', () => {
+  const value = order({ dealerModeSnapshot: null, dealerEarnings: null, saleSubtotal: '1500.00', rate: '1000.00', netProfit: '500.00',
+    referralCosts: { amount: '80.00', status: 'CALCULATED' },
+    materialProfits: { ...profits, expectedProfit: '500.00', materialRefundCredit: '100.00', authenticExpectedProfit: '320.00' },
+  });
+  const html = orderView(value, true);
+  for (const text of ['Approved material refund credit', '$100.00', 'Referral reward cost', '$80.00', '$320.00']) assert.ok(html.includes(text), text);
+  assert.ok(!html.includes('$420.00'));
+  const privateHtml = orderView(value, false);
+  assert.ok(!privateHtml.includes('Approved material refund credit'));
+  assert.ok(!privateHtml.includes('$320.00'));
+});
+
+test('zero refund credit does not clutter the financial summary', () => {
+  const html = render(MaterialProfitAdjustments, { profits: { ...profits, materialRefundCredit: '0.00' }, showDealerEarnings: true });
+  assert.ok(!html.includes('Approved material refund credit'));
+});
+
+test('referral costs remain private on customer reports and orders', () => {
+  const referralCosts = { amount: '37.13', status: 'CALCULATED' };
+  for (const reportKind of ['dealer', 'client', 'dealer-customer', 'dealer-customer-total']) {
+    const html = reportView(estimate({ referralCosts }), reportKind);
+    assert.ok(!html.includes('Referral reward cost'));
+    assert.ok(!html.includes('$37.13'));
+  }
+  const html = orderView(order({ referralCosts }), false);
+  assert.ok(!html.includes('Referral reward cost'));
+  assert.ok(!html.includes('$37.13'));
+});
 test('the shared dealer card uses only a generic pending message for unconfirmed costs', () => {
   const html = render(DealerEarningsSummaryCard, { earnings: { ...earnings, status: 'PENDING_COST', amount: null } });
   assert.ok(html.includes('Dealer material earnings')); assert.ok(html.includes('Earnings pending confirmation'));

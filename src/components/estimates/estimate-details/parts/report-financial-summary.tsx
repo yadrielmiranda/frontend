@@ -611,6 +611,7 @@ function AdminProfitability({
             </div>
             <MaterialProfitAdjustments
               profits={estimate.materialProfits}
+              referralCosts={estimate.referralCosts}
               showDealerEarnings={internalDealer || Boolean(estimate.dealerEarnings || estimate.subdealerEarnings)}
             />
           </>

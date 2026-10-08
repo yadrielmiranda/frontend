@@ -35,6 +35,7 @@ export interface DealerEarningsSummary {
 }
 
 export interface MaterialProfitsSummary {
+  materialRefundCredit?: string;
   expectedProfit: string;
   realProfit: string | null;
   processingCost?: string | null;
@@ -43,4 +44,9 @@ export interface MaterialProfitsSummary {
   netProfitD: string;
   authenticExpectedProfit: string | null;
   authenticRealProfit: string | null;
+}
+
+export interface ReferralCostsSummary {
+  amount: string | null;
+  status: "CALCULATED" | "PENDING_REAL_COST" | "PENDING_COST" | "PENDING_REVIEW" | "REVERSED";
 }

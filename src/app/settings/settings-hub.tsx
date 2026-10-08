@@ -268,6 +268,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
 
   const administrationItems: SettingsItem[] = [
     {
+      title: "Referral Rewards",
+      description: "Manage referral earnings and manual ACH withdrawals.",
+      href: "/settings/referrals",
+      icon: BadgeDollarSign,
+      color: "bg-emerald-50 text-emerald-600",
+      show: isAdmin,
+    },
+    {
       title: "Warehouse & Delivery",
       description: "Set the pickup address, delivery distance, and delivery pricing.",
       href: "/settings/warehouse-delivery",

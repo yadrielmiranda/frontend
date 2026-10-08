@@ -10,6 +10,7 @@ import {
   LogOut,
   User,
   UserCircle,
+  Gift,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,11 @@ export function UserDropdown() {
                 My Branding
               </DropdownMenuItem>
             )}
+
+            {(roleName === "dealer" || roleName === "client") && <DropdownMenuItem
+              className="cursor-pointer gap-2 rounded-lg"
+              onClick={() => { setIsDropdownOpen(false); router.push("/referrals"); }}
+            ><Gift className="h-4 w-4 text-slate-500" />My referrals</DropdownMenuItem>}
 
             <DropdownMenuSeparator />
 

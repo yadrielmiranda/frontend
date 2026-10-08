@@ -1,20 +1,24 @@
-import type { MaterialProfitsSummary } from "@/lib/dealer-earnings";
+import type { MaterialProfitsSummary, ReferralCostsSummary } from "@/lib/dealer-earnings";
 import { formatMoney } from "@/lib/formatters";
 
 // Render only inside the existing staff financial summaries.
 export function MaterialProfitAdjustments({
   profits,
   showDealerEarnings,
+  referralCosts,
 }: {
   profits: MaterialProfitsSummary;
   showDealerEarnings: boolean;
+  referralCosts?: ReferralCostsSummary | null;
 }) {
   const hasProcessingCost = profits.processingCostStatus != null;
   const processingPending = profits.processingCostStatus === "PENDING";
   const pendingNetProfit = processingPending
     ? "Pending processing cost confirmation"
     : "Pending real factory cost";
-  const pendingRealProfit = processingPending
+  const pendingReferral = referralCosts?.amount == null && referralCosts != null;
+  const earningsLabel = [showDealerEarnings ? "dealer earnings" : "", referralCosts ? "referral rewards" : ""].filter(Boolean).join(" and ");
+  const pendingRealProfit = pendingReferral ? "Pending referral reward" : processingPending
     ? "Pending processing cost confirmation"
     : profits.realProfit == null
       ? "Pending real factory cost"
@@ -22,6 +26,10 @@ export function MaterialProfitAdjustments({
 
   return (
     <>
+      {Number(profits.materialRefundCredit ?? 0) > 0 && <div>
+        <div className="text-muted-foreground">Approved material refund credit</div>
+        <div className="font-medium">{formatMoney(profits.materialRefundCredit!)}</div>
+      </div>}
       {hasProcessingCost && (
         <>
           <div>
@@ -34,14 +42,18 @@ export function MaterialProfitAdjustments({
           </div>
         </>
       )}
-      {showDealerEarnings && (
+      {referralCosts && <div>
+        <div className="text-muted-foreground">Referral reward cost</div>
+        <div className="font-medium">{referralCosts.amount == null ? "Pending final reward calculation" : formatMoney(referralCosts.amount)}</div>
+      </div>}
+      {(showDealerEarnings || referralCosts) && (
         <>
           <div>
-            <div className="text-muted-foreground">Company expected profit after dealer earnings</div>
-            <div className="font-medium">{profits.authenticExpectedProfit == null ? "Pending dealer earnings" : formatMoney(profits.authenticExpectedProfit)}</div>
+            <div className="text-muted-foreground">Company expected profit after {earningsLabel}</div>
+            <div className="font-medium">{profits.authenticExpectedProfit == null ? pendingReferral ? "Pending referral reward" : "Pending dealer earnings" : formatMoney(profits.authenticExpectedProfit)}</div>
           </div>
           <div>
-            <div className="text-muted-foreground">{hasProcessingCost ? "Company real profit after processing costs and dealer earnings" : "Company real profit after dealer earnings"}</div>
+            <div className="text-muted-foreground">Company real profit after {hasProcessingCost ? "processing costs and " : ""}{earningsLabel}</div>
             <div className="font-medium">{profits.authenticRealProfit == null ? pendingRealProfit : formatMoney(profits.authenticRealProfit)}</div>
           </div>
         </>

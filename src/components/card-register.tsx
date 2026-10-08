@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
+import { resolveReferral } from "@/app/api/referrals.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
 import { getCurrentPlatformTerms, platformTermsPageUrl, type PlatformTermsVersion } from '@/app/api/platform-terms.api';
 
@@ -113,8 +114,13 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export function CardRegister() {
+export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   const router = useRouter();
+  const [referral, setReferral] = useState<{ code: string } | null>(null);
+  const [referralLoading, setReferralLoading] = useState(Boolean(referralCode));
+  const [referralError, setReferralError] = useState<string | null>(null);
+  const [referralRetry, setReferralRetry] = useState(0);
+  const registrationEnabled = REGISTRATION_ENABLED || Boolean(referral && referral.code === referralCode);
   const [showPassword, setShowPassword] = useState(false);
   const [deliveryUnavailable, setDeliveryUnavailable] = useState(false);
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
@@ -125,6 +131,25 @@ export function CardRegister() {
   const [platformTermsError, setPlatformTermsError] = useState<string | null>(null);
   const [platformTermsAccepted, setPlatformTermsAccepted] = useState<number | null>(null);
   const [platformTermsReload, setPlatformTermsReload] = useState(0);
+
+  useEffect(() => {
+    let canceled = false;
+    setReferral(null);
+    setReferralError(null);
+    if (!referralCode) { setReferralLoading(false); return; }
+    setReferralLoading(true);
+    if (!/^[A-Za-z0-9_-]{20,40}$/.test(referralCode)) {
+      setReferralError("This registration link is invalid. Please request a new link.");
+      setReferralLoading(false);
+      return;
+    }
+    resolveReferral(referralCode).then(result => {
+      if (!canceled && result.valid) setReferral({ code: referralCode });
+    }).catch(() => {
+      if (!canceled) setReferralError("This registration link could not be verified. Try again or request a new link.");
+    }).finally(() => { if (!canceled) setReferralLoading(false); });
+    return () => { canceled = true; };
+  }, [referralCode, referralRetry]);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,10 +230,11 @@ export function CardRegister() {
 
   const handleRegister = async (data: RegisterFormData) => {
     const wantsSms = data.serviceConsent || data.promotionsConsent;
-    if (!REGISTRATION_ENABLED || (wantsSms && !consentProgram)) return;
+    if (!registrationEnabled || (wantsSms && !consentProgram)) return;
     if (!platformTermsLoaded || (platformTerms && platformTermsAccepted !== platformTerms.id)) return;
     try {
       const result = await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
+        ...(referral ? { referralCode: referral.code } : {}),
         ...(platformTerms ? { platformTermsAccepted: true, platformTermsVersionId: platformTerms.id } : {}),
       });
 
@@ -263,6 +289,8 @@ export function CardRegister() {
         <CardDescription className="text-sm text-white/45">
           Client account details and notification preferences.
         </CardDescription>
+        {referralLoading && <p role="status" className="text-sm text-white/70">Checking your link…</p>}
+        {referralError && <div role="alert" className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"><p>{referralError}</p><button type="button" className="underline" onClick={() => setReferralRetry(value => value + 1)}>Try again</button></div>}
       </CardHeader>
 
       <form onSubmit={handleSubmit(handleRegister)}>
@@ -525,7 +553,7 @@ export function CardRegister() {
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
-          {!REGISTRATION_ENABLED && (
+          {!registrationEnabled && !referralCode && (
             <p id="registration-availability" role="status" className="w-full rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
               Account registration is not available yet. Please check back later.
             </p>
@@ -533,8 +561,8 @@ export function CardRegister() {
           <Button
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
-            disabled={!REGISTRATION_ENABLED || isSubmitting || !platformTermsLoaded || Boolean(platformTerms && platformTermsAccepted !== platformTerms.id)}
-            aria-describedby={!REGISTRATION_ENABLED ? "registration-availability" : undefined}
+            disabled={!registrationEnabled || isSubmitting || !platformTermsLoaded || Boolean(platformTerms && platformTermsAccepted !== platformTerms.id)}
+            aria-describedby={!registrationEnabled && !referralCode ? "registration-availability" : undefined}
           >
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

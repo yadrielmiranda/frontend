@@ -125,6 +125,7 @@ export function resetPassword(data: ResetPasswordData) {
  * Signup público (si lo usas)
  */
 type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
+  referralCode?: string;
   platformTermsAccepted?: boolean;
   platformTermsVersionId?: number;
   serviceConsent: boolean;

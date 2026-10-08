@@ -243,6 +243,7 @@ export function OrderDetails({
             {order.materialProfits && (
               <MaterialProfitAdjustments
                 profits={order.materialProfits}
+                referralCosts={order.referralCosts}
                 showDealerEarnings={order.dealerModeSnapshot === "INTERNAL" || Boolean(order.dealerEarnings || order.subdealerEarnings)}
               />
             )}

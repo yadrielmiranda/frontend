@@ -51,6 +51,7 @@ export function SettingsMenuItems({
 
   return (
     <Fragment>
+      {isAdmin && <DropdownMenuItem asChild className={itemClass}><Link href="/settings/referrals"><BadgeDollarSign className={iconClass} />Referral Rewards</Link></DropdownMenuItem>}
       {/* Catalog */}
       <DropdownMenuLabel className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         Catalog
