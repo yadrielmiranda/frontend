@@ -406,6 +406,46 @@ export function PieceForm({
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(
     [],
   );
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [resultsScrollRequest, setResultsScrollRequest] = useState(0);
+
+  useEffect(() => {
+    if (!resultsScrollRequest) return;
+
+    let canceled = false;
+    const frame = window.requestAnimationFrame(async () => {
+      const container = scrollContainerRef.current;
+      const results = resultsRef.current;
+      if (!container || !results) return;
+
+      // Results must finish expanding before the scroll range is measured.
+      await Promise.allSettled(
+        results.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+      if (
+        canceled ||
+        resultsScrollRequest !== latestCalculationRef.current ||
+        results.dataset.state !== "open"
+      ) return;
+
+      container.scrollTo({
+        top:
+          container.scrollTop +
+          results.getBoundingClientRect().top -
+          container.getBoundingClientRect().top -
+          8,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
+    });
+
+    return () => {
+      canceled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [resultsScrollRequest]);
 
   const [hasPendingDealerMarkup, setHasPendingDealerMarkup] = useState(false);
   const [dimensionPolicies, setDimensionPolicies] = useState<PolicyListItem[]>(
@@ -1732,7 +1772,8 @@ export function PieceForm({
     );
   };
 
-  const handleCalculate = async () => {
+  const handleCalculate = async (scrollToResults = false) => {
+    setResultsScrollRequest(0);
     const calculationId = ++latestCalculationRef.current;
     let valuesVersion = calculationValuesVersionRef.current;
     const isCurrentCalculation = () =>
@@ -2287,6 +2328,7 @@ export function PieceForm({
       }
 
       setHasPendingDealerMarkup(false);
+      if (scrollToResults) setResultsScrollRequest(calculationId);
       toast.success("Piece calculated successfully.");
     } catch (error) {
       if (!isCurrentCalculation()) return;
@@ -2295,6 +2337,7 @@ export function PieceForm({
   };
 
   const handleUnlock = () => {
+    setResultsScrollRequest(0);
     setIsLocked(false);
     setActiveAccordionItems((prev) =>
       prev.filter((item) => item !== "item-results"),
@@ -2385,12 +2428,15 @@ export function PieceForm({
         onSubmit(withoutInactiveDimensions(values, dimensionRequirements)),
       )}
     >
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto p-1 pb-40 sm:pb-24 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div ref={scrollContainerRef} className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto p-1 pb-40 sm:pb-24 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="min-w-0">
           <Accordion
             type="multiple"
             value={activeAccordionItems}
-            onValueChange={setActiveAccordionItems}
+            onValueChange={(items) => {
+              setActiveAccordionItems(items);
+              if (!items.includes("item-results")) setResultsScrollRequest(0);
+            }}
             className="w-full"
           >
             <AccordionItem value="item-frame">
@@ -4063,7 +4109,7 @@ export function PieceForm({
             )}
 
             {hasResults && (
-              <AccordionItem value="item-results">
+              <AccordionItem ref={resultsRef} value="item-results">
                 <AccordionTrigger className="font-semibold text-base text-green-700">
                   Results
                 </AccordionTrigger>
@@ -4245,7 +4291,7 @@ export function PieceForm({
             type="button"
             variant="secondary"
             className="border border-blue-200 bg-blue-100 text-blue-800 shadow-none hover:bg-blue-200"
-            onClick={handleCalculate}
+            onClick={() => void handleCalculate(true)}
           >
             <Calculator className="mr-2 h-4 w-4" /> Calculate
           </Button>

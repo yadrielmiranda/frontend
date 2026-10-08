@@ -50,7 +50,7 @@ const guardStatements = statements.filter(node =>
   (ts.isVariableStatement(node) && node.declarationList.declarations.some(d => guardNames.includes(d.name.getText(source))))
   || (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
     && ["useEffect", "useLayoutEffect"].includes(node.expression.expression.getText(source))
-    && guardNames.some(name => containsIdentifier(node, name))));
+    && containsIdentifier(node, "calculationValuesVersionRef")));
 function compile(code) {
   return ts.transpileModule(code, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
@@ -147,6 +147,7 @@ function fixture(options = {}) {
     calculatePiece: calculateMock("estimate"),
     toast: { error: message => errors.push(message), success: message => successes.push(message) },
     setIsLocked: value => { state.isLocked = value; },
+    setResultsScrollRequest: value => { state.resultsScrollRequest = value; },
     setHasPendingDealerMarkup: value => { state.hasPendingDealerMarkup = value; },
     setActiveAccordionItems: update => { state.activeAccordionItems = typeof update === "function" ? update(state.activeAccordionItems) : update; },
     useRef(initialValue) { const index = refIndex++; return refs[index] ??= { current: initialValue }; },
