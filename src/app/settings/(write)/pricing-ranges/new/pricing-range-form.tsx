@@ -35,7 +35,7 @@ import type {
   SystemWithConfigs,
 } from "@/lib/types";
 
-const DIMENSION_DECIMAL_PATTERN = /^\d{1,7}(?:\.\d{1,3})?$/;
+const DIMENSION_DECIMAL_PATTERN = /^\d{1,7}(?:\.\d{1,4})?$/;
 const PRICING_DECIMAL_PATTERN = /^-?\d{1,4}(?:\.\d{1,20})?$/;
 const CODE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -649,7 +649,7 @@ export function PricingRangeForm({
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
                       Number(value) > 0) ||
-                    "Use a positive value with up to 3 decimals.",
+                    "Use a positive value with up to 4 decimals.",
                 }}
                 render={({ field, fieldState }) => (
                   <>
@@ -704,7 +704,7 @@ export function PricingRangeForm({
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
                       Number(value) > 0) ||
-                    "Use a positive value with up to 3 decimals.",
+                    "Use a positive value with up to 4 decimals.",
                 }}
                 render={({ field, fieldState }) => (
                   <>
@@ -770,7 +770,7 @@ export function PricingRangeForm({
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
                       Number(value) > 0) ||
-                    "Use a positive value with up to 3 decimals.",
+                    "Use a positive value with up to 4 decimals.",
                 }}
                 render={({ field, fieldState }) => (
                   <>
@@ -825,7 +825,7 @@ export function PricingRangeForm({
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
                       Number(value) > 0) ||
-                    "Use a positive value with up to 3 decimals.",
+                    "Use a positive value with up to 4 decimals.",
                 }}
                 render={({ field, fieldState }) => (
                   <>
