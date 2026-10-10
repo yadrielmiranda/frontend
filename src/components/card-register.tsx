@@ -120,7 +120,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   const [referralLoading, setReferralLoading] = useState(Boolean(referralCode));
   const [referralError, setReferralError] = useState<string | null>(null);
   const [referralRetry, setReferralRetry] = useState(0);
-  const registrationEnabled = REGISTRATION_ENABLED || Boolean(referral && referral.code === referralCode);
+  const registrationEnabled = REGISTRATION_ENABLED && (!referralCode || Boolean(referral && referral.code === referralCode));
   const [showPassword, setShowPassword] = useState(false);
   const [deliveryUnavailable, setDeliveryUnavailable] = useState(false);
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
@@ -553,7 +553,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
-          {!registrationEnabled && !referralCode && (
+          {!REGISTRATION_ENABLED && (
             <p id="registration-availability" role="status" className="w-full rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
               Account registration is not available yet. Please check back later.
             </p>
@@ -562,7 +562,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             type="submit"
             className="h-11 w-full rounded-xl bg-red-600 font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-700"
             disabled={!registrationEnabled || isSubmitting || !platformTermsLoaded || Boolean(platformTerms && platformTermsAccepted !== platformTerms.id)}
-            aria-describedby={!registrationEnabled && !referralCode ? "registration-availability" : undefined}
+            aria-describedby={!REGISTRATION_ENABLED ? "registration-availability" : undefined}
           >
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,4 +1,4 @@
-// Exercise registration handlers offline: removing the banner must not remove attribution.
+// Exercise registration handlers offline, including the global form gate and future referral attribution.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -47,13 +47,20 @@ const mocks = {
   '@/app/api/geo.api': { lookupZip: async () => null },
 };
 const cache = new Map();
-function load(relative) {
+function load(relative, enableRegistration = false) {
   const filename = path.resolve(__dirname, '../src', relative);
-  if (cache.has(filename)) return cache.get(filename);
-  const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { fileName: filename,
+  const cacheKey = `${filename}:${enableRegistration}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
+  let source = fs.readFileSync(filename, 'utf8');
+  if (enableRegistration) {
+    assert.match(source, /const REGISTRATION_ENABLED = false;/, 'The real application must remain closed');
+    // Test the future open state in memory only; never enable registration in application files.
+    source = source.replace('const REGISTRATION_ENABLED = false;', 'const REGISTRATION_ENABLED = true;');
+  }
+  const code = ts.transpileModule(source, { fileName: filename,
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const exports = {};
-  cache.set(filename, exports);
+  cache.set(cacheKey, exports);
   new Function('require', 'exports', code)(id => {
     if (id in mocks) return mocks[id];
     if (id.startsWith('@/components/ui/')) return ui;
@@ -63,7 +70,7 @@ function load(relative) {
   }, exports);
   return exports;
 }
-const { CardRegister } = load('components/card-register.tsx');
+let { CardRegister } = load('components/card-register.tsx');
 const all = (node, predicate) => node == null || typeof node !== 'object' ? [] : Array.isArray(node)
   ? node.flatMap(child => all(child, predicate)) : [...(predicate(node) ? [node] : []), ...all(node.props?.children, predicate)];
 const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node)
@@ -79,14 +86,45 @@ const settle = async code => {
   return tree;
 };
 const submit = tree => all(tree, node => node.type === 'form')[0].props.onSubmit();
+const submitButton = tree => all(tree, node => node.props?.type === 'submit')[0];
 const reset = () => { for (const slot of slots) slot?.cleanup?.(); slots = []; cursor = 0; effects = []; calls = []; };
 const code = 'a'.repeat(36);
+const assertClosed = async (tree, description) => {
+  assert.equal(submitButton(tree).props.disabled, true, `${description}: submit button must be disabled`);
+  assert.equal(submitButton(tree).props['aria-describedby'], 'registration-availability');
+  assert.match(text(tree), /Account registration is not available yet\. Please check back later\./);
+  await submit(tree);
+  assert.equal(calls.length, 0, `${description}: direct submission must also respect the closed form`);
+};
 
 (async () => {
   resolveLink = async value => ({ valid: true, code: value, referrerName: 'Private Referrer Name' });
-  let tree = await settle(code);
+  let tree = await settle(undefined);
+  await assertClosed(tree, 'Ordinary registration');
+
+  reset();
+  tree = await settle(code);
+  await assertClosed(tree, 'Valid referral');
+  assert.doesNotMatch(text(tree), /Invited by|Private Referrer Name|eligible purchases|referral reward/i);
+
+  reset();
+  resolveLink = async () => { throw new Error('Inactive link'); };
+  tree = await settle(code);
+  await assertClosed(tree, 'Invalid referral');
+
+  reset();
+  resolveLink = () => new Promise(() => {});
+  tree = await settle(code);
+  await assertClosed(tree, 'Pending referral verification');
+
+  reset();
+  ({ CardRegister } = load('components/card-register.tsx', true));
+  resolveLink = async value => ({ valid: true, code: value, referrerName: 'Private Referrer Name' });
+  tree = await settle(code);
   assert.match(text(tree), /Create Client Account/);
   assert.doesNotMatch(text(tree), /Invited by|Private Referrer Name|eligible purchases|referral reward/i);
+  assert.doesNotMatch(text(tree), /Account registration is not available yet/);
+  assert.equal(submitButton(tree).props.disabled, false);
   await submit(tree);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].referralCode, code, 'Verified referral must survive a normal-looking registration');
@@ -97,6 +135,7 @@ const code = 'a'.repeat(36);
   resolveLink = async () => { throw new Error('Inactive link'); };
   tree = await settle(code);
   assert.match(text(tree), /registration link could not be verified/);
+  assert.equal(submitButton(tree).props.disabled, true);
   await submit(tree);
   assert.equal(calls.length, 0, 'Invalid referral must not silently become an unattributed registration');
 
@@ -106,6 +145,7 @@ const code = 'a'.repeat(36);
     : new Promise(resolve => { release = resolve; });
   await settle(code);
   tree = await settle('b'.repeat(36));
+  assert.equal(submitButton(tree).props.disabled, true);
   await submit(tree);
   assert.equal(calls.length, 0, 'Switching links must not submit attribution from the previous URL');
   release({ valid: true, code: 'b'.repeat(36) });
@@ -115,7 +155,9 @@ const code = 'a'.repeat(36);
 
   reset();
   tree = await settle(undefined);
+  assert.equal(submitButton(tree).props.disabled, false);
   await submit(tree);
-  assert.equal(calls.length, 0, 'Ordinary registration availability remains unchanged');
-  console.log('Referral registration passed: hidden banner, preserved attribution/consents, invalid link, changed link, and normal availability.');
+  assert.equal(calls.length, 1, 'The future open state permits ordinary registration');
+  assert.equal(calls[0].referralCode, undefined);
+  console.log('Referral registration passed: closed form blocks every entry and direct submit; in-memory open state preserves attribution/consents and rejects unverified links.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
