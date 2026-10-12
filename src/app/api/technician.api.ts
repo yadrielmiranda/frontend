@@ -3,6 +3,8 @@ import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, Installation
 
 export type TechnicianUnit = {
   lineNumber: string; barcode: string; mark: string;
+  source: "ORDER" | "EXTERNAL"; externalPoId: number | null;
+  description: string; supplierName: string;
   product: string; system: string; configuration: string;
   orderNumber: string; poNumber: string;
   expectedParts: number | null; inTransit: number; onHand: number;
@@ -22,7 +24,10 @@ export type TechnicianScanResult = {
 export type TechnicianAction = "RECEIVE";
 
 export type FactoryPickupPoPreview = {
-  orderId: number;
+  key: string;
+  source: "ORDER" | "EXTERNAL";
+  externalPoId: number | null;
+  orderId: number | null;
   orderNumber: string;
   poNumber: string;
   pieces: number;
@@ -30,6 +35,7 @@ export type FactoryPickupPoPreview = {
 };
 
 export type FactoryPickupLine = TechnicianUnit & {
+  key: string;
   orderId: number | null;
   targetParts: number;
   collected: number;
@@ -38,7 +44,10 @@ export type FactoryPickupLine = TechnicianUnit & {
 };
 
 export type FactoryPickupOrder = {
-  orderId: number;
+  key: string;
+  source: "ORDER" | "EXTERNAL";
+  externalPoId: number | null;
+  orderId: number | null;
   orderNumber: string;
   poNumber: string;
   addedDuringPickup: boolean;
@@ -86,6 +95,8 @@ export type FactoryPickupCandidate = FactoryPickupPoPreview & {
   product: string;
   system: string;
   configuration: string;
+  description: string;
+  supplierName: string;
 };
 
 export type FactoryPickupScanResult =

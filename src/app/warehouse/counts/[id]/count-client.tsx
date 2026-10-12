@@ -15,6 +15,7 @@ import {
 } from "@/app/api/warehouse.api";
 import { ScanPad } from "../../scan-pad";
 import { dateLabel, errorMessage, Pagination, countLocation } from "../../warehouse-shared";
+import { UnitOrigin, ExternalDescription } from "../../unit-origin";
 
 export function CountClient({
   initial,
@@ -161,6 +162,8 @@ export function CountClient({
             I{last.stock.lineNumber}. Stock unchanged.
             {last.replayed ? " This reading was already recorded." : ""}
           </p>
+          <UnitOrigin unit={last.stock} />
+          <ExternalDescription unit={last.stock} />
           <Button variant="outline" onClick={undo} disabled={busy || pending}>
             Undo last count reading
           </Button>
@@ -175,7 +178,7 @@ export function CountClient({
         <Input
           className="sm:max-w-sm"
           aria-label="Search physical count"
-          placeholder="Order, mark, customer or barcode"
+          placeholder="Order, PO, mark, customer or barcode"
           value={search}
           maxLength={150}
           onChange={(e) => {
@@ -211,9 +214,10 @@ export function CountClient({
                 {row.stock.mark} · {row.stock.product} {row.stock.configuration}
               </p>
               <p className="text-xs text-muted-foreground">
-                I{row.stock.lineNumber} · Order #{row.stock.orderNumber} ·{" "}
-                {row.stock.customer}
+                I{row.stock.lineNumber} · <UnitOrigin unit={row.stock} /> · PO {row.stock.poNumber} ·{" "}
+                {row.stock.customer || row.stock.project}
               </p>
+              <ExternalDescription unit={row.stock} />
             </div>
             <div className="flex gap-5 text-sm">
               <span>

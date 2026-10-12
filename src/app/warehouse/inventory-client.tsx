@@ -4,10 +4,12 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { StoreSelect } from "./store-select";
 import { TransferForm } from "./transfer-form";
+import { UnitOrigin, unitOriginLabel } from "./unit-origin";
 import {
   ChevronDown,
   ChevronRight,
   Download,
+  FileJson,
   RefreshCw,
   Search,
   ScanBarcode,
@@ -120,9 +122,9 @@ function PieceDescription({ unit }: { unit: WarehouseUnit }) {
   return (
     <div>
       <p className="font-medium">{unit.product}</p>
-      <p className="text-xs text-muted-foreground">
-        {unit.system} · {unit.configuration}
-      </p>
+      {[unit.system, unit.configuration].some(Boolean) && <p className="text-xs text-muted-foreground">
+        {[unit.system, unit.configuration].filter(Boolean).join(" · ")}
+      </p>}
     </div>
   );
 }
@@ -187,18 +189,9 @@ function PoInventoryTable({
                       </button>
                     </td>
                     <td className="px-4 py-4">
-                      {group.orderId ? (
-                        <Link
-                          className="font-medium underline"
-                          href={`/orders/${group.orderId}`}
-                        >
-                          #{group.orderNumber}
-                        </Link>
-                      ) : (
-                        <span className="font-medium">—</span>
-                      )}
+                      <UnitOrigin unit={group} link />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {group.customer}
+                        {group.customer || group.project}
                       </p>
                     </td>
                     <td className="px-4 py-4 font-semibold">{metrics.pieces}</td>
@@ -311,14 +304,8 @@ function PoInventoryTable({
                     PO {group.poNumber || "—"}
                   </button>
                   <p className="mt-1 text-sm">
-                    {group.orderId ? (
-                      <Link className="underline" href={`/orders/${group.orderId}`}>
-                        #{group.orderNumber}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}{" "}
-                    · {group.customer}
+                    <UnitOrigin unit={group} link />{" "}
+                    · {group.customer || group.project}
                   </p>
                 </div>
               </div>
@@ -350,7 +337,7 @@ function PoInventoryTable({
                           </p>
                           <p className="font-medium">{unit.product}</p>
                           <p className="text-xs text-muted-foreground">
-                            {unit.system} · {unit.configuration}
+                            {[unit.system, unit.configuration].filter(Boolean).join(" · ")}
                           </p>
                         </div>
                         <State unit={unit} />
@@ -419,18 +406,9 @@ function PieceInventoryTable({
             {data.items.map((row) => (
               <tr key={row.lineNumber} className="hover:bg-slate-50">
                 <td className="px-4 py-4">
-                  {row.orderId ? (
-                    <Link
-                      className="font-medium underline"
-                      href={`/orders/${row.orderId}`}
-                    >
-                      #{row.orderNumber}
-                    </Link>
-                  ) : (
-                    <span>—</span>
-                  )}
+                  <UnitOrigin unit={row} link />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {row.customer}
+                    {row.customer || row.project}
                   </p>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 font-mono">
@@ -483,10 +461,10 @@ function PieceInventoryTable({
                 </p>
                 <p className="font-semibold">{row.product}</p>
                 <p className="text-xs text-muted-foreground">
-                  {row.system} · {row.configuration}
+                  {[row.system, row.configuration].filter(Boolean).join(" · ")}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Order #{row.orderNumber} · {row.customer}
+                  {unitOriginLabel(row)} · {row.customer || row.project}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   PO: <span className="font-mono text-foreground">{row.poNumber || "—"}</span>
@@ -519,6 +497,7 @@ export function InventoryClient({
   initial,
   initialSearch,
   initialView,
+  initialSource,
   initialStores,
   initialStoreId,
   admin,
@@ -526,6 +505,7 @@ export function InventoryClient({
   initial: WarehousePoInventory;
   initialSearch: string;
   initialView: string;
+  initialSource: string;
   initialStores: WarehouseStore[];
   initialStoreId: string;
   admin: boolean;
@@ -535,6 +515,7 @@ export function InventoryClient({
     [mode, setMode] = useState<InventoryMode>("po"),
     [search, setSearch] = useState(initialSearch),
     [view, setView] = useState(initialView),
+    [source, setSource] = useState(initialSource),
     [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false),
     [exporting, setExporting] = useState(false),
@@ -551,6 +532,7 @@ export function InventoryClient({
       const query = {
         search,
         view,
+        source: source === "all" ? undefined : source,
         page,
         storeId,
         pageSize: mode === "po" ? 20 : 50,
@@ -570,7 +552,7 @@ export function InventoryClient({
     } finally {
       if (id === sequence.current) setBusy(false);
     }
-  }, [search, view, page, storeId, mode]);
+  }, [search, view, source, page, storeId, mode]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => {
@@ -599,6 +581,7 @@ export function InventoryClient({
         const result = await warehouseInventory({
           search,
           view,
+          source: source === "all" ? undefined : source,
           page: current,
           pageSize: 100,
           storeId,
@@ -609,7 +592,9 @@ export function InventoryClient({
       const content = [
         [
           "Order",
+          "Source",
           "Customer",
+          "Project",
           "PO",
           "Mark",
           "Product",
@@ -625,7 +610,9 @@ export function InventoryClient({
         ],
         ...rows.map((row) => [
           row.orderNumber,
+          row.source === "EXTERNAL" ? "External PO" : "Order",
           row.customer,
+          row.project,
           row.poNumber,
           row.mark,
           row.product,
@@ -719,6 +706,7 @@ export function InventoryClient({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {admin && <Button asChild variant="outline"><Link href="/warehouse/external-po"><FileJson className="mr-2 h-4 w-4" />Import External PO</Link></Button>}
           <Button asChild variant="outline">
             <Link href="/warehouse/receipts">Pending receipt</Link>
           </Button>
@@ -740,14 +728,14 @@ export function InventoryClient({
           </Button>
         </div>
       </div>
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 xl:flex-row">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
             aria-label="Search inventory"
             maxLength={150}
             className="pl-9"
-            placeholder="Order, customer, mark, PO or barcode"
+            placeholder="Order, customer, project, mark, PO or barcode"
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
@@ -756,6 +744,10 @@ export function InventoryClient({
             }}
           />
         </div>
+        <Select value={source} onValueChange={value => { setSource(value); setPage(1); setExpanded(new Set()); }}>
+          <SelectTrigger aria-label="Inventory source" className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="ORDER">System orders</SelectItem><SelectItem value="EXTERNAL">External POs</SelectItem></SelectContent>
+        </Select>
         <Select
           value={view}
           onValueChange={(value) => {
@@ -779,7 +771,7 @@ export function InventoryClient({
             ))}
           </SelectContent>
         </Select>
-        <div className="w-full lg:w-56">
+        <div className="w-full xl:w-56">
           <StoreSelect
             stores={stores}
             value={storeId}
@@ -818,8 +810,7 @@ export function InventoryClient({
           <div className="space-y-2 px-5 py-12 text-center">
             <p className="font-medium">No units match this view.</p>
             <p className="text-sm text-muted-foreground">
-              Use All imported units to find pieces awaiting receipt. Import the
-              factory JSON from an order to register its barcodes.
+              Use All imported units to find pieces awaiting receipt. An administrator can register factory barcodes from an order or with Import External PO.
             </p>
           </div>
         ) : mode === "po" ? (

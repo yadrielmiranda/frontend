@@ -16,6 +16,7 @@ import { ScanPad } from "@/app/warehouse/scan-pad";
 import { InstallApp } from "./install-app";
 import { TechnicianReceipts, pendingReceiptKey, pendingInstallationDeliveryKey } from "./technician-receipts";
 import { FactoryPickups } from "./factory-pickups";
+import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 
 type View = { operation: "HOME" | "COLLECT" | "RECEIVE" | "INSTALLATION_DELIVERY"; mode: "scan" | "select"; storeId: string };
 const home: View = { operation: "HOME", mode: "scan", storeId: "" };
@@ -185,7 +186,8 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       {scanning && last && <section className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4" role="status">
         <p className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 className="h-5 w-5" />{last.replayed ? "Already recorded. No duplicate added." : last.movement.type === "COLLECT" ? "Collected · In transit" : `Received · ${last.movement.toStore?.name ?? "Warehouse"}`}</p>
         <p className="text-sm font-semibold">{last.stock.mark || "No mark"} · {last.stock.product}</p>
-        <p className="text-sm">Order #{last.stock.orderNumber}{last.stock.poNumber ? ` · PO ${last.stock.poNumber}` : ""}</p>
+        <p className="text-sm"><UnitOrigin unit={last.stock} />{last.stock.poNumber ? ` · PO ${last.stock.poNumber}` : ""}</p>
+        <ExternalDescription unit={last.stock} />
         <p className="font-mono text-sm">{last.stock.barcode}</p>
         <p className="text-sm">In transit: <b>{last.stock.inTransit}</b> · At warehouse: <b>{last.stock.onHand}</b>{last.stock.expectedParts !== null ? ` · Expected: ${last.stock.expectedParts}` : ""}</p>
         <p className="text-xs text-slate-600">Saved {new Date(last.movement.createdAt).toLocaleString()}</p>

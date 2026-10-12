@@ -11,6 +11,7 @@ import {
 } from "@/app/api/warehouse.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
+import { UnitOrigin, ExternalDescription } from "../unit-origin";
 
 type Selection = Record<string, { unit: WarehouseUnit; quantity: string }>;
 const LIMIT = 500;
@@ -30,7 +31,7 @@ export function ReceiptsClient({ initial, initialStores }: {
   const target = stores.find((s) => String(s.id) === storeId && s.isActive);
   const installation = chosen[0]?.unit.installation;
   const invalidInstallation = !installation?.address || chosen.some(({ unit }) =>
-    unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
+    unit.source === "EXTERNAL" || unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
   const targetValid = delivering ? !invalidInstallation : Boolean(target);
   const totalParts = chosen.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
   const invalid = chosen.some(({ unit, quantity }) => !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || Number(quantity) > unit.inTransit || Number(quantity) > 200);
@@ -74,7 +75,7 @@ export function ReceiptsClient({ initial, initialStores }: {
     setSelection((prev) => {
       const next = { ...prev };
       for (const unit of data.items) {
-        if (delivering && !unit.installation?.address) continue;
+        if (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) continue;
         if (!checked) delete next[unit.lineNumber];
         else if (!next[unit.lineNumber] && Object.keys(next).length < LIMIT)
           next[unit.lineNumber] = { unit, quantity: String(unit.inTransit) };
@@ -97,7 +98,7 @@ export function ReceiptsClient({ initial, initialStores }: {
         if (current * 100 >= result.total) break;
       }
       if (Object.keys(next).length !== total) throw new Error("Pending units changed while selecting. Refresh and try again.");
-      setSelection(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.installation?.address)) : next);
+      setSelection(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.source !== "EXTERNAL" && entry.unit.installation?.address)) : next);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSelecting(false); }
   }
@@ -124,7 +125,7 @@ export function ReceiptsClient({ initial, initialStores }: {
       // Conservar la misma clave y selección permite verificar una respuesta perdida.
     } finally { setSaving(false); saveLock.current = false; }
   }
-  const pageUnits = delivering ? data.items.filter((unit) => unit.installation?.address) : data.items;
+  const pageUnits = delivering ? data.items.filter((unit) => unit.source !== "EXTERNAL" && unit.installation?.address) : data.items;
   const allPage = pageUnits.length > 0 && pageUnits.every((u) => Boolean(selection[u.lineNumber]));
   return (
     <div className="space-y-5">
@@ -187,9 +188,9 @@ export function ReceiptsClient({ initial, initialStores }: {
               const entry = selection[unit.lineNumber];
               const stale = entry && entry.unit.version !== unit.version;
               return <tr key={unit.lineNumber} className={entry ? "bg-slate-50" : ""}>
-                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && !unit.installation?.address) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} /></td>
-                <td className="px-4 py-4"><Link href={`/orders/${unit.orderId}`} className="font-medium underline">#{unit.orderNumber}</Link><p className="text-xs text-muted-foreground">{unit.customer}</p>{unit.poNumber && <p className="text-xs text-muted-foreground">PO {unit.poNumber}</p>}</td>
-                <td className="px-4 py-4"><p className="font-medium">{unit.mark || "—"} · {unit.product}</p><p className="text-xs text-muted-foreground">{unit.system} · {unit.configuration}</p><p className="font-mono text-xs">{unit.barcode}</p>{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</td>
+                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} /></td>
+                <td className="px-4 py-4"><UnitOrigin unit={unit} link /><p className="text-xs text-muted-foreground">{unit.customer || unit.project}</p>{unit.poNumber && <p className="text-xs text-muted-foreground">PO {unit.poNumber}</p>}</td>
+                <td className="px-4 py-4"><p className="font-medium">{unit.mark || "—"} · {unit.product}</p><p className="text-xs text-muted-foreground">{[unit.system, unit.configuration].filter(Boolean).join(" · ")}</p><p className="font-mono text-xs">{unit.barcode}</p><ExternalDescription unit={unit} />{delivering && unit.source === "EXTERNAL" && <p className="text-xs text-muted-foreground">Receive this external PO at a warehouse.</p>}{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</td>
                 <td className="px-4 py-4 font-semibold">{unit.inTransit}</td>
                 <td className="px-4 py-4"><Input type="number" min={1} max={unit.inTransit} step={1} className="w-24" aria-label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
                   onChange={(e) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: e.target.value } }))} /></td>

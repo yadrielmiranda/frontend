@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { isApiError } from "@/app/api/_base";
 import { technicianPending, technicianReceive, technicianDeliverToInstallation, type TechnicianUnit } from "@/app/api/technician.api";
 import { warehouseRequestKey, type Paged, type ReceiptItem, type InstallationDestination } from "@/app/api/warehouse.api";
+import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 
 export const pendingReceiptKey = (actorId: number) => `technician-receipt:${actorId}`;
 export const pendingInstallationDeliveryKey = (actorId: number) => `technician-installation-delivery:${actorId}`;
@@ -30,7 +31,7 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
   const chosen = Object.values(selected);
   const installation = chosen[0]?.unit.installation;
   const invalidInstallation = !installation?.address || chosen.some(({ unit }) =>
-    unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
+    unit.source === "EXTERNAL" || unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
   const parts = chosen.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const staleSelection = chosen.some(({ unit }) => {
     const current = data.items.find((item) => item.lineNumber === unit.lineNumber);
@@ -99,7 +100,7 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
         if (current * 100 >= result.total) break;
       }
       if (Object.keys(next).length !== total) throw new Error("Pending units changed. Refresh and select again.");
-      setSelected(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.installation?.address)) : next);
+      setSelected(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.source !== "EXTERNAL" && entry.unit.installation?.address)) : next);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSelecting(false); }
   }
@@ -174,9 +175,11 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
       const stale = entry && entry.unit.version !== unit.version;
       return <section key={unit.lineNumber} className={`rounded-xl border bg-white p-4 ${entry ? "ring-1 ring-slate-800" : ""}`}>
         <label className="flex cursor-pointer items-start gap-3 py-1">
-          <input type="checkbox" className="mt-1 h-6 w-6 shrink-0" checked={Boolean(entry)} disabled={locked || loading || (delivering && !unit.installation?.address) || (!entry && chosen.length >= LIMIT)} onChange={(event) => toggle(unit, event.target.checked)} />
-          <div className="min-w-0 space-y-1"><p className="font-semibold">{unit.mark || "No mark"} · {unit.product}</p><p className="text-sm">Order #{unit.orderNumber}{unit.poNumber ? ` · PO ${unit.poNumber}` : ""}</p><p className="text-xs text-slate-500">{unit.system} · {unit.configuration}</p><p className="font-mono text-xs">{unit.barcode}</p><p className="text-sm">In transit: <b>{unit.inTransit}</b></p></div>
+          <input type="checkbox" className="mt-1 h-6 w-6 shrink-0" checked={Boolean(entry)} disabled={locked || loading || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(event) => toggle(unit, event.target.checked)} />
+          <div className="min-w-0 space-y-1"><p className="font-semibold">{unit.mark || "No mark"} · {unit.product}</p><p className="text-sm"><UnitOrigin unit={unit} />{unit.poNumber ? ` · PO ${unit.poNumber}` : ""}</p><p className="text-xs text-slate-500">{[unit.system, unit.configuration].filter(Boolean).join(" · ")}</p><p className="font-mono text-xs">{unit.barcode}</p><p className="text-sm">In transit: <b>{unit.inTransit}</b></p></div>
         </label>
+        <ExternalDescription unit={unit} />
+        {delivering && unit.source === "EXTERNAL" && <p className="mt-2 text-xs text-slate-500">Receive this external PO at a warehouse.</p>}
         {entry && <div className="mt-3 flex items-center justify-between gap-4 border-t pt-3"><label htmlFor={`quantity-${unit.lineNumber}`} className="text-sm font-medium">{delivering ? "Parts to deliver" : "Parts to receive"}</label><Input id={`quantity-${unit.lineNumber}`} className="h-12 w-28 text-base" type="number" inputMode="numeric" min={1} max={unit.inTransit} step={1} disabled={locked || loading} value={entry.quantity} onChange={(event) => setSelected((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: event.target.value } }))} /></div>}
         {stale && <p className="mt-2 text-xs text-red-700">This unit changed. Deselect and select again before receiving.</p>}
       </section>;

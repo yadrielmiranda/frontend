@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { WarehouseUnit, WarehouseMovement, CountInfo } from "@/app/api/warehouse.api";
+import { UnitOrigin, ExternalDescription } from "./unit-origin";
 
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Unable to complete this operation.";
@@ -89,16 +90,11 @@ export function UnitSummary({ unit }: { unit: WarehouseUnit }) {
           {unit.mark || "No mark"} · {unit.product} {unit.configuration}
         </p>
         <p className="text-sm text-muted-foreground">
-          {unit.customer} · Order{" "}
-          {unit.orderId ? (
-            <Link className="underline" href={`/orders/${unit.orderId}`}>
-              #{unit.orderNumber}
-            </Link>
-          ) : (
-            "—"
-          )}
+          {unit.customer || unit.project} · <UnitOrigin unit={unit} link />
         </p>
+        {unit.poNumber && <p className="mt-1 text-xs text-muted-foreground">PO {unit.poNumber}</p>}
         <p className="mt-1 font-mono text-sm">{unit.barcode}</p>
+        <ExternalDescription unit={unit} />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

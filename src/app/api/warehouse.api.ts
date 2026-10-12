@@ -20,7 +20,11 @@ export type WarehouseStore = WarehouseStoreRef & {
 export type WarehouseUnit = {
   lineNumber: string;
   barcode: string;
-  pieceId: number;
+  pieceId: number | null;
+  source: "ORDER" | "EXTERNAL";
+  externalPoId: number | null;
+  description: string;
+  supplierName: string;
   mark: string;
   product: string;
   system: string;
@@ -86,6 +90,8 @@ export type Inventory = Paged<WarehouseUnit> & {
 };
 export type WarehousePoGroup = {
   key: string;
+  source: "ORDER" | "EXTERNAL";
+  externalPoId: number | null;
   orderId: number | null;
   orderNumber: string;
   poNumber: string;

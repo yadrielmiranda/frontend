@@ -45,7 +45,7 @@ const actions: {
     value: "RELEASE",
     label: "Release from warehouse",
     description:
-      "Choose the source store, then scan each part leaving it. Complete pickup or delivery from the order after the handover.",
+      "Choose the source store, then scan each part leaving it. For a system order, complete pickup or delivery from that order after the handover.",
   },
 ];
 export function ScanClient({

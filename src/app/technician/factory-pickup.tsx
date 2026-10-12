@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { errorMessage } from "@/app/warehouse/warehouse-shared";
+import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 
 const reasonOptions: Array<{ value: FactoryPickupPartialReason; label: string }> = [
   { value: "NOT_READY_AT_FACTORY", label: "Not ready at factory" },
@@ -68,6 +69,8 @@ function RemainingList({ lines }: { lines: FactoryPickupLine[] }) {
                 <p className="mt-1 font-semibold text-slate-950">{line.product}</p>
                 <p className="text-xs text-slate-500">{[line.system, line.configuration].filter(Boolean).join(" · ")}</p>
                 <p className="mt-1 font-mono text-xs text-slate-600">Line {line.lineNumber}</p>
+                <UnitOrigin unit={line} />
+                <ExternalDescription unit={line} />
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold text-red-700">{line.remaining} missing</p>
@@ -372,9 +375,9 @@ export function FactoryPickup({
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {planned.length > 0 && <section className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-slate-950">Pickup list</h3><span className="text-sm text-slate-600">{planned.length} PO{planned.length === 1 ? "" : "s"} · {plannedParts} parts</span></div>
-        {planned.map((po) => <div key={po.orderId} className="flex items-center justify-between gap-3 rounded-xl border bg-slate-50 p-3">
-          <div><p className="font-semibold">PO {po.poNumber}</p><p className="text-sm text-slate-600">Order #{po.orderNumber} · {po.pieces} pieces · {po.parts} parts to collect</p></div>
-          <Button type="button" size="icon" variant="ghost" aria-label={`Remove PO ${po.poNumber}`} disabled={working} onClick={() => setPlanned((items) => items.filter((item) => item.orderId !== po.orderId))}><X className="h-4 w-4" /></Button>
+        {planned.map((po) => <div key={po.key} className="flex items-center justify-between gap-3 rounded-xl border bg-slate-50 p-3">
+          <div><p className="font-semibold">PO {po.poNumber}</p><p className="text-sm text-slate-600"><UnitOrigin unit={po} /> · {po.pieces} pieces · {po.parts} parts to collect</p></div>
+          <Button type="button" size="icon" variant="ghost" aria-label={`Remove PO ${po.poNumber}`} disabled={working} onClick={() => setPlanned((items) => items.filter((item) => item.key !== po.key))}><X className="h-4 w-4" /></Button>
         </div>)}
         <Button className="min-h-12 w-full" disabled={working || offline || blocked || !technicianIds.length} onClick={() => void startPickup()}>{working ? "Creating…" : "Create pickup"}</Button>
       </section>}
@@ -414,8 +417,8 @@ export function FactoryPickup({
       {syncError && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{syncError}</p>}
 
       {candidate && <section className="space-y-4 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
-        <div className="flex gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-semibold text-amber-950">PO {candidate.candidate.poNumber} is not included in this pickup.</h3><p className="mt-1 text-sm text-amber-900">This part belongs to Order #{candidate.candidate.orderNumber}. Add the entire PO to the pickup and record this same scan?</p></div></div>
-        <div className="rounded-xl bg-white/80 p-3 text-sm"><p className="font-semibold">Mark {candidate.candidate.mark || "—"} · {candidate.candidate.product}</p><p className="text-slate-600">{[candidate.candidate.system, candidate.candidate.configuration].filter(Boolean).join(" · ")}</p><p className="mt-1 font-mono text-xs">Line {candidate.candidate.lineNumber}</p><p className="mt-2">PO adds <b>{candidate.candidate.pieces} pieces · {candidate.candidate.parts} parts</b> remaining at the factory.</p></div>
+        <div className="flex gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-semibold text-amber-950">PO {candidate.candidate.poNumber} is not included in this pickup.</h3><p className="mt-1 text-sm text-amber-900"><UnitOrigin unit={candidate.candidate} />. Add the entire PO to the pickup and record this same scan?</p></div></div>
+        <div className="rounded-xl bg-white/80 p-3 text-sm"><p className="font-semibold">Mark {candidate.candidate.mark || "—"} · {candidate.candidate.product}</p><p className="text-slate-600">{[candidate.candidate.system, candidate.candidate.configuration].filter(Boolean).join(" · ")}</p><p className="mt-1 font-mono text-xs">Line {candidate.candidate.lineNumber}</p><ExternalDescription unit={candidate.candidate} /><p className="mt-2">PO adds <b>{candidate.candidate.pieces} pieces · {candidate.candidate.parts} parts</b> remaining at the factory.</p></div>
         <div className="grid grid-cols-2 gap-2"><Button variant="outline" className="min-h-12" disabled={working} onClick={() => saveCandidate(null)}>Cancel</Button><Button className="min-h-12" disabled={working || offline || blocked} onClick={() => void confirmAddPo()}>{working ? "Adding…" : "Add PO to pickup"}</Button></div>
       </section>}
 
@@ -445,6 +448,8 @@ export function FactoryPickup({
       {last && !candidate && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4" role="status">
         <p className="flex items-center gap-2 font-semibold text-emerald-800"><PackageCheck className="h-5 w-5" />{last.replayed ? "Already recorded. No duplicate added." : "Collected · In transit"}</p>
         <p className="mt-2 font-semibold">PO {last.stock.poNumber} · Mark {last.stock.mark || "—"} · {last.stock.product}</p>
+        <UnitOrigin unit={last.stock} />
+        <ExternalDescription unit={last.stock} />
         <p className="text-sm text-slate-600">{[last.stock.system, last.stock.configuration].filter(Boolean).join(" · ")}</p>
         <p className="mt-1 font-mono text-xs">Line {last.stock.lineNumber}</p>
         <p className="mt-2 text-sm">This line: <b>{last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.collected ?? 0} / {last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.targetParts ?? last.stock.expectedParts ?? "—"}</b> collected for this pickup.</p>
@@ -455,8 +460,8 @@ export function FactoryPickup({
 
       <section className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-slate-950">PO progress</h3><span className="text-xs text-slate-500">Any scan order</span></div>
-        {run.orders.map((order) => <div key={order.orderId} className="rounded-xl border bg-slate-50 p-3">
-          <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500">Order #{order.orderNumber} · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div><div className="text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div></div>
+        {run.orders.map((order) => <div key={order.key} className="rounded-xl border bg-slate-50 p-3">
+          <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} /> · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div><div className="text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div></div>
         </div>)}
       </section>
 

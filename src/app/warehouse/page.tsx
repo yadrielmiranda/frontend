@@ -5,7 +5,7 @@ import { InventoryClient } from "./inventory-client";
 export default async function WarehousePage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; view?: string; storeId?: string }>;
+  searchParams: Promise<{ search?: string; view?: string; storeId?: string; source?: string }>;
 }) {
   const user = await requireWarehouseUser();
   const query = await searchParams;
@@ -16,8 +16,9 @@ export default async function WarehousePage({
     : "on_hand";
   const search =
     typeof query.search === "string" ? query.search.slice(0, 150) : "";
+  const source = query.source === "ORDER" || query.source === "EXTERNAL" ? query.source : "all";
   const storeId = view !== "in_transit" && (query.storeId === "unassigned" || (/^[1-9]\d*$/.test(query.storeId ?? "") && Number.isSafeInteger(Number(query.storeId)))) ? query.storeId! : "all";
-  const [initial, stores] = await Promise.all([warehouseInventoryByPo({ search, view, storeId, pageSize: 20 }), warehouseStores()]);
+  const [initial, stores] = await Promise.all([warehouseInventoryByPo({ search, view, storeId, source: source === "all" ? undefined : source, pageSize: 20 }), warehouseStores()]);
   return (
     <InventoryClient
       initial={initial}
@@ -25,6 +26,7 @@ export default async function WarehousePage({
       initialStoreId={storeId}
       initialSearch={search}
       initialView={view}
+      initialSource={source}
       admin={user?.role?.name === "admin"}
     />
   );
