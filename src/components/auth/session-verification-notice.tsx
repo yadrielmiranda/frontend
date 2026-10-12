@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export function SessionVerificationNotice({ onRetry }: { onRetry: () => Promise<unknown> }) {
   const [isRetrying, setIsRetrying] = useState(false);
+  const pathname = usePathname();
+  // Shared payment links work without a portal session.
+  if (pathname.startsWith("/public/material-sales/")) return null;
 
   async function retry() {
     setIsRetrying(true);

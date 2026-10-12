@@ -47,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {!isPublicDocumentPage && (
         <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 py-5 text-center text-xs text-slate-500">
           <Link href="/company" className="underline underline-offset-4">Company</Link>
+          <Link href="/materials" className="underline underline-offset-4">Materials</Link>
           <Link href="/terms" className="underline underline-offset-4">Terms and Conditions</Link>
         </footer>
       )}

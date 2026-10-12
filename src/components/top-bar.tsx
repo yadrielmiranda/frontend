@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserDropdown } from "@/components/user-dropdown";
 import { SettingsMenuItems } from "./settings-menu-items";
-import { Menu, FileText, ShoppingBag, Settings, Hammer, Warehouse, Users } from "lucide-react";
+import { Menu, FileText, ShoppingBag, ShoppingCart, Settings, Hammer, Warehouse, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import brandLogo from "../../public/logo.png";
@@ -37,11 +37,15 @@ function TopBar() {
   const isEstimatesActive = pathname.startsWith("/estimates");
   const isWarehouseActive = pathname.startsWith("/warehouse");
   const isOrdersActive = pathname.startsWith("/orders");
+  const isMaterialsActive = pathname === "/materials" || pathname.startsWith("/materials/");
   const isInstallationsActive = pathname.startsWith("/installations");
   const canAccessDealers = ["dealer", "admin", "operator"].includes(user?.role?.name ?? "");
   const dealerNetworkLabel = user?.role?.name === "dealer" ? "My dealers" : "Dealer network";
   const isDealersActive = pathname.startsWith("/dealers");
   const isSettingsActive = pathname.startsWith("/settings");
+  const hasStaffNavigation = canAccessWarehouse(user?.role?.name) || canAccessSettings(user?.role?.name);
+  const desktopMenuVisibility = hasStaffNavigation ? "hidden 2xl:flex" : "hidden xl:flex";
+  const mobileMenuVisibility = hasStaffNavigation ? "2xl:hidden" : "xl:hidden";
 
   const navButtonClass = (active: boolean) =>
     active
@@ -99,9 +103,9 @@ function TopBar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden h-9 w-28 animate-pulse rounded-xl bg-slate-200 xl:block" />
+            <div className={`h-9 w-28 animate-pulse rounded-xl bg-slate-200 ${desktopMenuVisibility}`} />
             <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200" />
-            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200 xl:hidden" />
+            <div className={`h-9 w-9 animate-pulse rounded-xl bg-slate-200 ${mobileMenuVisibility}`} />
           </div>
         </div>
 
@@ -118,7 +122,7 @@ function TopBar() {
         </div>
 
         {isAuthenticated && (
-          <nav className="hidden items-center gap-2 xl:flex">
+          <nav className={`items-center gap-2 ${desktopMenuVisibility}`}>
             <Button
               variant="ghost"
               className={navButtonClass(isEstimatesActive)}
@@ -149,6 +153,17 @@ function TopBar() {
               <Link href="/orders">
                 <ShoppingBag className="mr-2 h-4 w-4" />
                 Orders
+              </Link>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className={navButtonClass(isMaterialsActive)}
+              asChild
+            >
+              <Link href="/materials">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Materials
               </Link>
             </Button>
 
@@ -183,7 +198,7 @@ function TopBar() {
         )}
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="xl:hidden">
+          <div className={mobileMenuVisibility}>
             {isAuthenticated && (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -233,6 +248,17 @@ function TopBar() {
                       <Link href="/orders">
                         <ShoppingBag className="mr-2 h-4 w-4" />
                         Orders
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${mobileNavButtonClass(isMaterialsActive)}`}
+                      asChild
+                    >
+                      <Link href="/materials">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Materials
                       </Link>
                     </Button>
 

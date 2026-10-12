@@ -7,6 +7,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   email: string | null;
+  phone?: string | null;
   isTaxExempt: boolean;
   dealerMode?: "EXTERNAL" | "INTERNAL" | null;
   role: {

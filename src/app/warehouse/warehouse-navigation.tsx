@@ -6,6 +6,7 @@ import { Boxes, ScanBarcode, History, ClipboardCheck, PackageCheck, Warehouse } 
 
 const links = [
   { href: "/warehouse", label: "Inventory", icon: Boxes },
+  { href: "/warehouse/materials", label: "Materials", icon: Boxes },
   { href: "/warehouse/receipts", label: "Pending receipt", icon: PackageCheck },
   { href: "/warehouse/stores", label: "Stores", icon: Warehouse },
   { href: "/warehouse/scan", label: "Scan", icon: ScanBarcode },

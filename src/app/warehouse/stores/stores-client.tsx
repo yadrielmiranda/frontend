@@ -46,7 +46,7 @@ export function StoresClient({ initial, admin }: { initial: WarehouseStore[]; ad
             <div className="flex items-start justify-between gap-3"><h3 className="break-words font-semibold">{store.name}</h3><span className={`shrink-0 rounded-full px-2 py-1 text-xs ${store.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{store.isActive ? "Active" : "Inactive"}</span></div>
             <p className="text-3xl font-bold">{store.onHand.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">physical parts</span></p>
             <p className="text-xs text-muted-foreground">{store.units} units with stock</p>
-            <div className="flex flex-wrap gap-2"><Button asChild variant="outline" size="sm"><Link href={`/warehouse?storeId=${store.id}`}>View stock</Link></Button>{admin && <Button variant="outline" size="sm" disabled={busy} onClick={() => edit(store)}><Pencil className="mr-2 h-3 w-3" />Edit</Button>}</div>
+            <div className="flex flex-wrap gap-2"><Button asChild variant="outline" size="sm"><Link href={`/warehouse?storeId=${store.id}`}>View stock</Link></Button><Button asChild variant="outline" size="sm"><Link href={`/warehouse/stores/${store.id}/materials`}>Material inventory</Link></Button>{store.isActive && <Button asChild variant="outline" size="sm"><Link href={`/warehouse/stores/${store.id}/internal-use`}>Internal use</Link></Button>}{admin && <Button variant="outline" size="sm" disabled={busy} onClick={() => edit(store)}><Pencil className="mr-2 h-3 w-3" />Edit</Button>}</div>
           </section>
         ))}
       </div>

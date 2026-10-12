@@ -16,6 +16,7 @@ import {
   Ruler,
   Settings,
   ShoppingBag,
+  ShoppingCart,
   ShieldCheck,
   UserRound,
   Users,
@@ -324,6 +325,19 @@ export default function HomePage() {
                     Go to Estimates
                   </Link>
                 </Button>
+
+                {(isClient || isDealer) && (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                  >
+                    <Link href="/materials">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Shop materials
+                    </Link>
+                  </Button>
+                )}
 
                 {canSeeSettings && (
                   <Button

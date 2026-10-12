@@ -310,12 +310,60 @@ test("ProfilePage: a valid SSR session still hydrates the profile", async () => 
   assert.deepEqual(f.redirects, []);
 });
 
+function materialsPageFixture(account, failure) {
+  let catalogCalls = 0;
+  const redirects = [];
+  const loginRedirect = new Error("Simulated login redirect"), notFound = new Error("Simulated not found");
+  const initial = { taxRate: "7", currency: "usd", products: [] };
+  const page = load("app/materials/page.tsx", {
+    "react/jsx-runtime": jsxRuntime,
+    "@/lib/session": { getCurrentUser: async () => { if (failure) throw failure; return account; } },
+    "@/app/api/materials.api": { materialCatalog: async () => { catalogCalls++; return initial; } },
+    "./materials-catalog-client": { MaterialsCatalogClient: "MaterialsCatalogClient" },
+    "next/navigation": {
+      redirect(target) { redirects.push(target); throw loginRedirect; },
+      notFound() { throw notFound; },
+    },
+  });
+  return { render: page.default, redirects, loginRedirect, notFound, initial, catalogCalls: () => catalogCalls };
+}
+
+test("MaterialsPage: guests must sign in before any catalog request", async () => {
+  const f = materialsPageFixture(null);
+  await assert.rejects(f.render(), error => error === f.loginRedirect);
+  assert.deepEqual(f.redirects, ["/login"]);
+  assert.equal(f.catalogCalls(), 0);
+});
+
+test("MaterialsPage: an authenticated client can load the catalog", async () => {
+  const f = materialsPageFixture({ ...user, role: { name: "client" } });
+  const tree = await f.render();
+  assert.equal(tree.type, "MaterialsCatalogClient");
+  assert.deepEqual(tree.props.initial, f.initial);
+  assert.equal(f.catalogCalls(), 1);
+});
+
+test("MaterialsPage: technician accounts cannot load the shopping catalog", async () => {
+  const f = materialsPageFixture({ ...user, role: { name: "technician" } });
+  await assert.rejects(f.render(), error => error === f.notFound);
+  assert.equal(f.catalogCalls(), 0);
+});
+
+test("MaterialsPage: a session verification failure cannot become anonymous shopping", async () => {
+  const error = new Error("Session temporarily unavailable");
+  const f = materialsPageFixture(null, error);
+  await assert.rejects(f.render(), result => result === error);
+  assert.deepEqual(f.redirects, []);
+  assert.equal(f.catalogCalls(), 0);
+});
+
 for (const outcome of ["success", "failure"]) {
   test(`SessionVerificationNotice: ${outcome} retry is disabled while pending and settles`, async () => {
     let state, calls = 0, resolve, reject;
     const pending = new Promise((yes, no) => { resolve = yes; reject = no; });
     const Notice = load("components/auth/session-verification-notice.tsx", {
       "react/jsx-runtime": jsxRuntime,
+      "next/navigation": { usePathname: () => "/materials" },
       react: { useState(initial) {
         if (state === undefined) state = initial;
         return [state, value => { state = typeof value === "function" ? value(state) : value; }];
