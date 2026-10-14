@@ -201,7 +201,7 @@ export function ScanClient({
           <p className="text-sm text-muted-foreground">
             {releaseToInstallation
               ? "Choose the source store, then scan each part leaving for installation. No recipient name or signature is required."
-              : "Customer deliveries include the POs, pieces and parts received, with the recipient’s first name, last name and signature."}
+              : "Choose the source store and select the POs from the list. Review their pieces and parts with the recipient, then record their first name, last name and signature."}
           </p>
         </section>
       )}

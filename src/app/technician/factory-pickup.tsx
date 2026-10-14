@@ -25,6 +25,7 @@ import {
   warehouseRequestKey,
   warehouseStartPickup,
   warehouseUndo,
+  type CustomerDelivery,
 } from "@/app/api/warehouse.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,8 @@ import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { errorMessage } from "@/app/warehouse/warehouse-shared";
 import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
+import { PickupCustomerDelivery } from "./pickup-customer-delivery";
+import { pickupDeliveryContextKey } from "./pickup-customer-delivery-data";
 
 const reasonOptions: Array<{ value: FactoryPickupPartialReason; label: string }> = [
   { value: "NOT_READY_AT_FACTORY", label: "Not ready at factory" },
@@ -133,6 +136,8 @@ export function FactoryPickup({
   const [editingAssignments, setEditingAssignments] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [accessLost, setAccessLost] = useState(false);
+  const [deliveryPoKey, setDeliveryPoKey] = useState<string | null>(null);
+  const [deliveryMessage, setDeliveryMessage] = useState("");
   const mounted = useRef(true);
   const writeRevision = useRef(0);
   const undoKey = useRef("");
@@ -142,7 +147,7 @@ export function FactoryPickup({
 
   const busy = working || scanBusy || undoing;
   const canScan = run?.status === "ACTIVE" && !accessLost;
-  useEffect(() => onBusy(busy || Boolean(candidate)), [busy, candidate, onBusy]);
+  useEffect(() => onBusy(busy || Boolean(candidate) || Boolean(deliveryPoKey)), [busy, candidate, deliveryPoKey, onBusy]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -160,6 +165,10 @@ export function FactoryPickup({
       if (!mounted.current) return;
       setRun(current);
       if (current) {
+        try {
+          const savedPo = sessionStorage.getItem(pickupDeliveryContextKey(surface, actorId, current.id));
+          if (savedPo && current.orders.some(order => order.key === savedPo)) setDeliveryPoKey(savedPo);
+        } catch { /* An unconfirmed signed request is also retained by the delivery form. */ }
         try {
           const saved = localStorage.getItem(candidateKey(surface, actorId, current.id));
           if (saved) {
@@ -188,7 +197,7 @@ export function FactoryPickup({
 
   // Descarta el sondeo al iniciar una escritura para no reemplazar su respuesta con progreso anterior.
   useEffect(() => {
-    if (!run || offline || busy) return;
+    if (!run || offline || busy || deliveryPoKey) return;
     let canceled = false;
     let pending = false;
     const refresh = async () => {
@@ -208,7 +217,37 @@ export function FactoryPickup({
     const timer = window.setInterval(() => void refresh(), 5000);
     void refresh();
     return () => { canceled = true; window.clearInterval(timer); };
-  }, [run?.id, offline, busy, pickupDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [run?.id, offline, busy, deliveryPoKey, pickupDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function openCustomerDelivery(poKey: string) {
+    if (!run || busy || offline || blocked || candidate || finishing || editingAssignments || accessLost) return;
+    try { sessionStorage.setItem(pickupDeliveryContextKey(surface, actorId, run.id), poKey); }
+    catch { setError("Enable site storage before starting a customer delivery."); return; }
+    writeRevision.current++;
+    setDeliveryPoKey(poKey); setDeliveryMessage(""); setError("");
+    onScanModeChange?.(false);
+  }
+
+  async function continuePickup(delivery?: CustomerDelivery) {
+    if (!run || working) return;
+    writeRevision.current++;
+    setWorking(true); setError(""); setLast(null); setUndoMessage(""); undoKey.current = "";
+    try {
+      const current = await pickupDetail(run.id);
+      if (!mounted.current) return;
+      setRun(current); setSyncError(""); setAccessLost(false);
+    } catch (reason) {
+      if (!mounted.current) return;
+      setSyncError(`Pickup could not be refreshed. ${errorMessage(reason)}`);
+      setAccessLost(true);
+    } finally {
+      if (mounted.current) {
+        try { sessionStorage.removeItem(pickupDeliveryContextKey(surface, actorId, run.id)); } catch { /* Safe to recover the saved receipt again. */ }
+        if (delivery) setDeliveryMessage(`Delivery #${delivery.id} recorded. Continue this pickup when ready.`);
+        setDeliveryPoKey(null); setWorking(false);
+      }
+    }
+  }
 
   async function addPlannedPo() {
     const value = poNumber.trim();
@@ -342,6 +381,12 @@ export function FactoryPickup({
 
   if (loading) return <p role="status" className="rounded-xl border bg-white p-5 text-sm text-slate-600">Loading factory pickup…</p>;
 
+  if (run && deliveryPoKey) return working
+    ? <p role="status" className="rounded-xl border bg-white p-5 text-sm text-slate-600">Refreshing pickup…</p>
+    : <PickupCustomerDelivery actorId={actorId} surface={surface} runId={run.id} poKey={deliveryPoKey}
+        poNumber={run.orders.find(order => order.key === deliveryPoKey)?.poNumber ?? ""} blocked={blocked}
+        onClose={() => void continuePickup()} onComplete={delivery => void continuePickup(delivery)} />;
+
   if (finished) return (
     <section className="space-y-4 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
@@ -401,6 +446,7 @@ export function FactoryPickup({
 
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {undoMessage && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{undoMessage}</p>}
+      {deliveryMessage && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{deliveryMessage}</p>}
 
       <section className="space-y-2 rounded-xl border bg-white p-4 text-sm">
         <p>Created by <b>{run.createdBy.name}</b> · {new Date(run.startedAt).toLocaleString()}</p>
@@ -462,6 +508,7 @@ export function FactoryPickup({
         <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-slate-950">PO progress</h3><span className="text-xs text-slate-500">Any scan order</span></div>
         {run.orders.map((order) => <div key={order.key} className="rounded-xl border bg-slate-50 p-3">
           <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} /> · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div><div className="text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div></div>
+          {run.lines.some(line => line.key === order.key && line.collected > 0 && line.inTransit > 0) && <Button className="mt-3 min-h-12 w-full" disabled={busy || offline || blocked || Boolean(candidate) || finishing || editingAssignments || accessLost} onClick={() => openCustomerDelivery(order.key)}>Deliver to customer</Button>}
         </div>)}
       </section>
 

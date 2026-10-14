@@ -52,9 +52,13 @@ const helpers = loader()('app/warehouse/customer-deliveries/customer-delivery-se
 function unit(lineNumber, overrides = {}) {
   return { lineNumber, barcode: `I${lineNumber}`, source: 'EXTERNAL', externalPoId: 1, pieceId: null, description: `Description ${lineNumber}`, product: 'French Door', system: '600', configuration: 'X', mark: '', orderNumber: '', poNumber: '292427', customer: 'Santos', project: '', installation: null, inTransit: 2, onHand: 7, unassigned: 1, stores: [{ id: 1, name: 'Store 1', isActive: true, onHand: 2 }, { id: 2, name: 'Store 2', isActive: true, onHand: 4 }], expectedParts: 10, released: 0, version: 3, ...overrides };
 }
+function group(units, overrides = {}) {
+  const first = units[0];
+  return { key: first.source === 'EXTERNAL' ? `external:${first.externalPoId}` : `order:${first.orderId ?? 1}`, source: first.source, externalPoId: first.externalPoId, orderId: first.orderId ?? null, orderNumber: first.orderNumber, poNumber: first.poNumber, customer: first.customer, project: first.project, units, ...overrides };
+}
 const parts = [unit('1126830'), unit('1126835', { poNumber: '292759', source: 'ORDER', orderNumber: 'SO-2' })];
 const signature = [[{ x: 0.1, y: 0.5 }, { x: 0.2, y: 0.3 }, { x: 0.3, y: 0.5 }, { x: 0.4, y: 0.3 }, { x: 0.5, y: 0.5 }]];
-const props = (extra = {}) => ({ actorId: 10, actorRole: 'admin', initial: { items: structuredClone(parts), total: 2, page: 1, pageSize: 50, activeCountId: null, summary: {} }, initialStores: [{ id: 1, name: 'Store 1', isActive: true }], initialSource: 'TRANSIT', initialStoreId: '', ...extra });
+const props = (extra = {}) => ({ actorId: 10, actorRole: 'admin', initial: { items: structuredClone(parts.map(item => group([item]))), total: 2, page: 1, pageSize: 20, activeCountId: null, summary: {} }, initialStores: [{ id: 1, name: 'Store 1', isActive: true }], initialSource: 'TRANSIT', initialStoreId: '', ...extra });
 function harness(initial = props(), api = {}, navigation = {}, auth) {
   const states = [], refs = []; let si = 0, ri = 0, ei = 0, mounted = false;
   let initialEffect;
@@ -78,7 +82,12 @@ const label = (h, value) => nodes(h.render(), node => node.props?.['aria-label']
 const byType = (h, type) => nodes(h.render(), node => node.type === type)[0];
 const button = (h, value) => nodes(h.render(), node => node.type === 'Button' && text(node) === value)[0];
 function click(h, value) { const item = button(h, value); assert.ok(item, `Missing button: ${value}`); assert.ok(!item.props.disabled, `Disabled button: ${value}`); return item.props.onClick(); }
-function select(h, barcode) { label(h, `Select ${barcode}`).props.onChange({ target: { checked: true } }); }
+function expand(h, barcode) {
+  if (!label(h, `Select ${barcode}`)) {
+    for (const toggle of nodes(h.render(), node => node.type === 'Button' && node.props?.['aria-expanded'] === false)) toggle.props.onClick();
+  }
+}
+function select(h, barcode) { expand(h, barcode); label(h, `Select ${barcode}`).props.onChange({ target: { checked: true } }); }
 function enter(h, id, value) { nodes(h.render(), node => node.props?.id === id)[0].props.onChange({ target: { value } }); }
 function sign(h) {
   enter(h, 'delivery-first-name', ' Ana '); enter(h, 'delivery-last-name', ' Perez ');
@@ -115,6 +124,85 @@ test('unassigned warehouse release sends explicit null location', () => {
   const request = helpers.customerDeliveryRequest({ selection: selection(), source: 'WAREHOUSE', storeId: 'unassigned', firstName: 'Ana', lastName: 'Perez', signatureStrokes: signature, requestKey: 'key' });
   assert.equal(request.storeId, null);
 });
+test('POs and customer names are visible before typing or expanding pieces', () => {
+  const h = harness();
+  assert.ok(label(h, 'Select PO 292427'));
+  assert.ok(label(h, 'Select PO 292759'));
+  assert.match(text(h.render()), /Santos/);
+  assert.equal(label(h, 'Search delivery POs').props.value, '');
+  assert.equal(label(h, 'Select I1126830'), undefined);
+  assert.equal(byType(h, 'Pagination').props.label, 'POs');
+});
+test('one PO selection includes all its pieces even beyond a piece-list page', () => {
+  const many = Array.from({ length: 75 }, (_, index) => unit(String(2000000 + index)));
+  const initial = { ...props().initial, items: [group(many)], total: 1 };
+  const h = harness(props({ initial }));
+  label(h, 'Select PO 292427').props.onChange({ target: { checked: true } });
+  click(h, 'Deliver to customer');
+  const receipt = byType(h, 'CustomerDeliveryReceipt').props.delivery;
+  assert.equal(receipt.totalPieces, 75);
+  assert.equal(receipt.totalParts, 150);
+  assert.deepEqual(receipt.items.map(item => item.lineNumber), many.map(item => item.lineNumber));
+});
+test('warehouse PO selection includes only stock at the chosen store', () => {
+  const units = [parts[0], unit('1126831', { stores: [{ id: 2, name: 'Store 2', isActive: true, onHand: 4 }] })];
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', initial: { ...props().initial, items: [group(units)], total: 1 } }));
+  label(h, 'Select PO 292427').props.onChange({ target: { checked: true } });
+  click(h, 'Deliver to customer');
+  const receipt = byType(h, 'CustomerDeliveryReceipt').props.delivery;
+  assert.equal(receipt.storeId, 1);
+  assert.equal(receipt.totalPieces, 1);
+  assert.equal(receipt.totalParts, 2);
+});
+test('selecting and clearing one PO preserves selections from another PO', () => {
+  const h = harness();
+  for (const po of ['292427', '292759']) label(h, `Select PO ${po}`).props.onChange({ target: { checked: true } });
+  label(h, 'Select PO 292427').props.onChange({ target: { checked: false } });
+  click(h, 'Deliver to customer');
+  assert.deepEqual(byType(h, 'CustomerDeliveryReceipt').props.delivery.items.map(item => item.poNumber), ['292759']);
+});
+test('whole-PO selection cannot silently stop at the maximum piece limit', () => {
+  const tooMany = group(Array.from({ length: 501 }, (_, index) => unit(String(3000000 + index))));
+  const original = selection();
+  assert.throws(() => helpers.selectDeliveryPos(original, [tooMany], 'TRANSIT', '', true), /at most 500 pieces/);
+  assert.deepEqual(Object.keys(original), ['1126830']);
+  const h = harness(props({ initial: { ...props().initial, items: [tooMany], total: 1 } }));
+  label(h, 'Select PO 292427').props.onChange({ target: { checked: true } });
+  assert.match(text(h.render()), /Choose fewer POs or open Pieces/);
+  assert.equal(button(h, 'Deliver to customer'), undefined);
+});
+test('partial quantities and stale versions are not marked as a full PO selection', () => {
+  const po = group([parts[0]]);
+  const selected = helpers.selectDeliveryPos({}, [po], 'TRANSIT', '', true);
+  assert.equal(helpers.deliveryPoSelected(po, selected, 'TRANSIT', ''), true);
+  assert.equal(helpers.deliveryPoSelected(po, selection(), 'TRANSIT', ''), false);
+  assert.equal(helpers.deliveryPoSelected(group([{ ...parts[0], version: 4 }]), selected, 'TRANSIT', ''), false);
+});
+test('select all loads every PO page and requests complete POs despite search', async () => {
+  const groups = Array.from({ length: 21 }, (_, index) => group([unit(String(4000000 + index), { externalPoId: index + 1, poNumber: String(290000 + index) })]));
+  const calls = [];
+  const h = harness(props({ initialSearch: '1126830', initial: { ...props().initial, items: groups.slice(0, 20), total: 21 } }), {
+    warehouseInventoryByPo: async query => {
+      calls.push(query);
+      return { ...props().initial, total: 21, page: query.page, items: groups.slice((query.page - 1) * 20, query.page * 20) };
+    },
+  });
+  await click(h, 'Select all matching POs');
+  assert.deepEqual(calls.map(query => query.page), [1, 2]);
+  assert.ok(calls.every(query => query.completePo === true && query.search === '1126830' && query.view === 'in_transit'));
+  click(h, 'Deliver to customer');
+  assert.equal(byType(h, 'CustomerDeliveryReceipt').props.delivery.totalPieces, 21);
+});
+test('warehouse select-all queries remain restricted to the selected store', async () => {
+  let query;
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1' }), {
+    warehouseInventoryByPo: async value => { query = value; return props().initial; },
+  });
+  await click(h, 'Select all matching POs');
+  assert.equal(query.storeId, '1');
+  assert.equal(query.view, 'on_hand');
+  assert.equal(query.completePo, true);
+});
 test('partial multi-PO preview contains only delivered pieces and their physical quantities', () => {
   const h = harness(); select(h, 'I1126830'); select(h, 'I1126835');
   label(h, 'Deliver parts for I1126830').props.onChange({ target: { value: '1' } });
@@ -137,6 +225,7 @@ test('warehouse scan only stages a part and never records a release before signi
   let scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead('I1126830'));
   scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead('I1126830'));
   assert.equal(reads, 2); assert.equal(writes, 0);
+  expand(h, 'I1126830');
   assert.equal(label(h, 'Deliver parts for I1126830').props.value, '2');
   await assert.rejects(() => byType(h, 'ScanPad').props.onRead('I1126830'), /No more parts/);
 });
@@ -211,6 +300,145 @@ test('different logged-in staff cannot see or replay another persons pending sig
   const wrongAccount = harness(props(), { warehouseDeliverToCustomer: async () => { writes++; } }, {}, auth);
   assert.equal(byType(wrongAccount, 'CustomerDeliveryReceipt'), undefined);
   assert.equal(button(wrongAccount, 'Check delivery'), undefined); assert.equal(writes, 0);
+});
+
+const embeddedProps = (extra = {}) => props({
+  initialPoKey: 'external:1', autoReviewPo: true,
+  embedded: { pickupRunId: 44, onClose() {}, onComplete() {} }, ...extra,
+});
+function savedReceipt(body, id = 81) {
+  return {
+    id, source: body.source, storeId: null, storeName: null, firstName: body.firstName,
+    lastName: body.lastName, signatureStrokes: body.signatureStrokes,
+    items: body.items.map(item => ({ ...parts.find(part => part.barcode === item.barcode), quantity: item.quantity })),
+    totalPieces: body.items.length, totalParts: body.items.reduce((sum, item) => sum + item.quantity, 0),
+    actor: 'Test administrator', createdAt: '2026-10-14T12:00:00.000Z',
+  };
+}
+
+test('embedded pickup opens the exact PO receipt and cannot browse unrelated POs', () => {
+  const h = harness(embeddedProps());
+  const receipt = byType(h, 'CustomerDeliveryReceipt').props.delivery;
+  assert.deepEqual(receipt.items.map(item => item.lineNumber), ['1126830']);
+  assert.equal(receipt.totalParts, 2);
+  assert.equal(byType(h, 'ScanPad'), undefined);
+  click(h, 'Back to selection');
+  assert.ok(label(h, 'Select PO 292427'));
+  assert.equal(label(h, 'Select PO 292759'), undefined);
+  assert.equal(label(h, 'Search delivery POs'), undefined);
+  assert.equal(button(h, 'Select all matching POs'), undefined);
+  assert.equal(byType(h, 'Pagination'), undefined);
+  assert.equal(button(h, 'From warehouse'), undefined);
+});
+
+test('embedded pickup never substitutes a different PO when the requested one is missing', () => {
+  const h = harness(embeddedProps({ initialPoKey: 'external:999' }));
+  assert.equal(byType(h, 'CustomerDeliveryReceipt'), undefined);
+  assert.equal(label(h, 'Select PO 292427'), undefined);
+  assert.equal(label(h, 'Select PO 292759'), undefined);
+  assert.equal(button(h, 'Confirm signed delivery'), undefined);
+  assert.match(text(h.render()), /no collected parts available/);
+});
+
+test('embedded pickup saves the signed receipt in place and only continues on request', async () => {
+  let closed = 0, completed, destination, body;
+  const h = harness(embeddedProps({ embedded: { pickupRunId: 44, onClose() { closed++; }, onComplete(value) { completed = value; } } }), {
+    warehouseDeliverToCustomer: async request => { body = structuredClone(request); return savedReceipt(request); },
+  }, { replace(value) { destination = value; } });
+  sign(h); await click(h, 'Confirm signed delivery');
+  assert.equal(body.pickupRunId, 44);
+  assert.equal(body.items.length, 1);
+  assert.equal(destination, undefined);
+  assert.equal(completed, undefined);
+  assert.equal(closed, 0);
+  assert.equal(byType(h, 'CustomerDeliveryReceipt').props.delivery.id, 81);
+  assert.equal(button(h, 'Back to pickup'), undefined);
+  assert.equal(storage.size, 1);
+  click(h, 'Continue pickup');
+  assert.equal(completed.id, 81);
+  assert.equal(storage.size, 0);
+});
+
+test('embedded pickup blocks exit during an ambiguous request and recovers unchanged data', async () => {
+  let closed = 0; const bodies = [];
+  const h = harness(embeddedProps({ embedded: { pickupRunId: 44, onClose() { closed++; }, onComplete() {} } }), {
+    warehouseDeliverToCustomer: async body => { bodies.push(structuredClone(body)); throw new Error('Response lost'); },
+  });
+  sign(h); await click(h, 'Confirm signed delivery');
+  assert.equal(button(h, 'Back to pickup').props.disabled, true);
+  button(h, 'Back to pickup').props.onClick();
+  assert.equal(closed, 0);
+  const recovered = harness(embeddedProps({ initialPoKey: 'order:1', embedded: { pickupRunId: 99, onClose() {}, onComplete() {} } }), {
+    warehouseDeliverToCustomer: async body => { bodies.push(structuredClone(body)); return savedReceipt(body); },
+  });
+  assert.deepEqual(byType(recovered, 'CustomerDeliveryReceipt').props.delivery.items.map(item => item.lineNumber), ['1126830']);
+  await click(recovered, 'Check delivery');
+  assert.deepEqual(bodies[1], bodies[0]);
+  assert.equal(bodies[1].pickupRunId, 44);
+});
+
+test('embedded pickup can close before submitting without releasing any parts', () => {
+  let closed = 0, writes = 0;
+  const h = harness(embeddedProps({ embedded: { pickupRunId: 44, onClose() { closed++; }, onComplete() {} } }), {
+    warehouseDeliverToCustomer: async () => { writes++; },
+  });
+  click(h, 'Back to pickup');
+  assert.equal(closed, 1);
+  assert.equal(writes, 0);
+});
+
+test('embedded pickup honors an active count and does not auto-open an invalid large PO', () => {
+  const counted = harness(embeddedProps({ initial: { ...props().initial, activeCountId: 9 } }));
+  assert.equal(byType(counted, 'CustomerDeliveryReceipt'), undefined);
+  assert.equal(button(counted, 'Deliver to customer').props.disabled, true);
+  const oversized = group(Array.from({ length: 501 }, (_, index) => unit(String(7000000 + index))));
+  const h = harness(embeddedProps({ initial: { ...props().initial, items: [oversized], total: 1 } }));
+  assert.equal(byType(h, 'CustomerDeliveryReceipt'), undefined);
+  assert.equal(button(h, 'Confirm signed delivery'), undefined);
+  assert.match(text(h.render()), /at most 500 pieces/);
+});
+
+test('embedded pickup refuses a new delivery while a live count blocks it', async () => {
+  let writes = 0;
+  const h = harness(embeddedProps({ embedded: { pickupRunId: 44, blocked: true, onClose() {}, onComplete() {} } }), {
+    warehouseDeliverToCustomer: async () => { writes++; },
+  });
+  sign(h);
+  assert.equal(button(h, 'Confirm signed delivery').props.disabled, true);
+  await button(h, 'Confirm signed delivery').props.onClick();
+  assert.equal(writes, 0);
+});
+
+for (const status of [403, 409]) test(`embedded inventory rejection (${status}) requires refreshing the pickup before another signature`, async () => {
+  let closed = 0;
+  const h = harness(embeddedProps({ embedded: { pickupRunId: 44, onClose() { closed++; }, onComplete() {} } }), {
+    warehouseDeliverToCustomer: async () => { throw new ApiError('Stock changed', status); },
+  });
+  sign(h); await click(h, 'Confirm signed delivery');
+  assert.equal(button(h, 'Back to selection'), undefined);
+  sign(h); assert.equal(button(h, 'Confirm signed delivery').props.disabled, true);
+  assert.match(text(h.render()), /Return to the pickup and reopen this PO/);
+  click(h, 'Back to pickup');
+  assert.equal(closed, 1);
+});
+
+test('reloading a saved embedded receipt recovers the same delivery before continuing pickup', async () => {
+  const bodies = []; let completed;
+  const options = embeddedProps({ embedded: { pickupRunId: 44, onClose() {}, onComplete(value) { completed = value; } } });
+  const api = { warehouseDeliverToCustomer: async body => { bodies.push(structuredClone(body)); return savedReceipt(body); } };
+  const first = harness(options, api);
+  sign(first); await click(first, 'Confirm signed delivery');
+  assert.equal(storage.size, 1);
+  assert.equal(completed, undefined);
+  const reloaded = harness({ ...options, initial: { ...props().initial, items: [], total: 0 } }, api);
+  assert.equal(button(reloaded, 'Confirm signed delivery'), undefined);
+  await click(reloaded, 'Check delivery');
+  assert.deepEqual(bodies[1], bodies[0]);
+  assert.equal(byType(reloaded, 'CustomerDeliveryReceipt').props.delivery.id, 81);
+  assert.equal(storage.size, 1);
+  click(reloaded, 'Continue pickup');
+  assert.equal(completed.id, 81);
+  assert.equal(storage.size, 0);
 });
 
 (async () => {

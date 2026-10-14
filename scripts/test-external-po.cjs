@@ -21,6 +21,8 @@ const stubs = {
   '@/app/api/warehouse-delivery.api': {},
   './store-select': { StoreSelect: () => null },
   '../store-select': { StoreSelect: () => null },
+  './pickup-customer-delivery': { PickupCustomerDelivery: () => null },
+  './pickup-customer-delivery-data': { pickupDeliveryContextKey: (surface, actorId, runId) => `${surface}:${actorId}:${runId}` },
   './transfer-form': { TransferForm: () => null },
 };
 function load(relativeFile) {
@@ -182,12 +184,19 @@ test('mixed inventory exposes admin import and names external POs without fake o
   assert.match(html, /href="\/orders\/1"/); assert.doesNotMatch(html, /\/orders\/null|\/orders\/undefined/);
   assert.doesNotMatch(render(InventoryClient, { ...props, admin: false }), /href="\/warehouse\/external-po"/);
 });
-test('pending receipt shows original external descriptions and only valid order links', () => {
-  const html = render(ReceiptsClient, { initial: { items: [internal, external], total: 2, page: 1, pageSize: 50,
-    summary, activeCountId: null }, initialStores: [] });
+test('pending receipt preserves external descriptions when expanded and labels real order origins', () => {
+  const items = [internal, external].map(unit => ({ ...unit,
+    key: unit.source === 'EXTERNAL' ? `external:${unit.externalPoId}` : `order:${unit.orderId}`, units: [unit] }));
+  const props = { initial: { items, total: 2, page: 1, pageSize: 20, summary, activeCountId: null }, initialStores: [] };
+  const view = controlled('app/warehouse/receipts/receipts-client.tsx', 'ReceiptsClient', []);
+  const collapsed = view.render(props);
+  const expand = nodes(collapsed, node => node.props['aria-label'] === 'Show pieces for PO PO-2');
+  assert.equal(expand.length, 1);
+  expand[0].props.onClick();
+  const html = renderToStaticMarkup(view.render(props));
   assert.match(html, /Original description/); assert.match(html, /23 1\/2 x 95/);
-  assert.match(html, /External PO/); assert.match(html, /href="\/orders\/1"/);
-  assert.doesNotMatch(html, /\/orders\/null|\/orders\/undefined/);
+  assert.match(html, /External PO/); assert.match(html, /Order #ORD-1/);
+  assert.doesNotMatch(html, /\/orders\/null|\/orders\/undefined|Order #null|Order #undefined/);
 });
 test('import requests use multipart preview and a count-only confirmation', async () => {
   const file = new File(['{"schema":"synthetic"}'], 'fixture.json', { type: 'application/json' });

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeft, CheckCircle2, ChevronRight, Factory, LogOut, Warehouse, WifiOff } from "lucide-react";
 import brandLogo from "../../../public/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -149,6 +150,11 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
         <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Receive at warehouse</h2><p className="mt-1 text-sm text-slate-600">Choose the store and receive by selection or scan.</p></div>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-500 sm:block" aria-hidden="true" />
       </button>
+      <Link href="/technician/customer-deliveries/new" className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-red-200 border-l-4 border-l-red-600 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><CheckCircle2 className="h-7 w-7" aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Deliver to customer</h2><p className="mt-1 text-sm text-slate-600">Choose collected POs and record the recipient’s signature. No second scan is needed.</p></div>
+        <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
+      </Link>
       <button type="button" onClick={() => changeView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" })} className="group flex min-h-32 w-full items-center gap-3 rounded-2xl border border-slate-200 border-l-4 border-l-slate-900 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 sm:gap-5 sm:p-6">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white sm:h-14 sm:w-14"><CheckCircle2 className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold text-slate-950 sm:text-xl">Deliver to installation</h2><p className="mt-1 text-sm text-slate-600">Confirm factory-collected parts that have arrived at the job site.</p></div>

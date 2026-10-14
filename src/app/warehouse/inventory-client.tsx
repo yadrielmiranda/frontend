@@ -132,18 +132,32 @@ function PieceDescription({ unit }: { unit: WarehouseUnit }) {
 function PoInventoryTable({
   data,
   storeId,
+  deliverySource,
   expanded,
   onToggle,
   onSelect,
 }: {
   data: WarehousePoInventory;
   storeId: string;
+  deliverySource: "TRANSIT" | "WAREHOUSE";
   expanded: Set<string>;
   onToggle: (key: string) => void;
   onSelect: (unit: WarehouseUnit) => void;
 }) {
   const allStores = storeId === "all";
   const columns = allStores ? 8 : 7;
+  function deliveryLink(group: WarehousePoGroup) {
+    const available = group.units.some((unit) => deliverySource === "TRANSIT"
+      ? unit.inTransit > 0 : locationQuantity(unit, storeId) > 0);
+    if (!available) return null;
+    const query = new URLSearchParams({ source: deliverySource, poKey: group.key, search: group.poNumber || group.orderNumber });
+    if (deliverySource === "WAREHOUSE" && !allStores) query.set("storeId", storeId);
+    return <Link href={`/warehouse/customer-deliveries/new?${query}`}
+      className="mt-2 block text-xs font-medium text-red-700 underline"
+      aria-label={`Deliver PO ${group.poNumber || group.orderNumber} to customer`}>
+      Deliver to customer
+    </Link>;
+  }
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
@@ -187,6 +201,7 @@ function PoInventoryTable({
                         )}
                         {group.poNumber || "—"}
                       </button>
+                      {deliveryLink(group)}
                     </td>
                     <td className="px-4 py-4">
                       <UnitOrigin unit={group} link />
@@ -307,6 +322,7 @@ function PoInventoryTable({
                     <UnitOrigin unit={group} link />{" "}
                     · {group.customer || group.project}
                   </p>
+                  {deliveryLink(group)}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
@@ -823,6 +839,7 @@ export function InventoryClient({
             data={currentData as WarehousePoInventory}
             storeId={storeId}
             expanded={expanded}
+            deliverySource={view === "in_transit" ? "TRANSIT" : "WAREHOUSE"}
             onToggle={(key) =>
               setExpanded((current) => {
                 const next = new Set(current);

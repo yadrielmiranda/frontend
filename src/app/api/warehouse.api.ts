@@ -250,6 +250,7 @@ export type CustomerDeliveryItem = {
 export type CustomerDeliveryRequest = {
   requestKey: string;
   source: "TRANSIT" | "WAREHOUSE";
+  pickupRunId?: number;
   storeId?: number | null;
   firstName: string;
   lastName: string;
@@ -277,6 +278,8 @@ export const warehouseDeliverToCustomer = (body: CustomerDeliveryRequest) =>
   });
 export const warehouseCustomerDelivery = (id: number) =>
   get<CustomerDelivery>(`customer-deliveries/${id}`);
+export const warehousePickupCustomerDeliveryOptions = (id: number, poKey: string) =>
+  get<import("./technician.api").TechnicianCustomerDeliveryOptions>(`pickups/${id}/customer-delivery-options`, { poKey });
 export type ReceiptResult = {
   units: number; parts: number; storeId: number; storeName: string; replayed: boolean;
 };

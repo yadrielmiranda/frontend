@@ -1,27 +1,29 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PackageCheck, RefreshCw, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, PackageCheck, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  warehouseInventory, warehouseReceive, warehouseStores, warehouseRequestKey, warehouseDeliverToInstallation,
-  type Inventory, type WarehouseStore, type WarehouseUnit, type ReceiptItem,
+  warehouseInventoryByPo, warehouseReceive, warehouseStores, warehouseRequestKey, warehouseDeliverToInstallation,
+  type WarehousePoInventory, type WarehousePoGroup, type WarehouseStore, type WarehouseUnit, type ReceiptItem,
 } from "@/app/api/warehouse.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
-import { UnitOrigin, ExternalDescription } from "../unit-origin";
+import { UnitOrigin } from "../unit-origin";
+import { deliveryPoSelected, selectDeliveryPos } from "../customer-deliveries/customer-delivery-selection";
 
 type Selection = Record<string, { unit: WarehouseUnit; quantity: string }>;
 const LIMIT = 500;
 
 export function ReceiptsClient({ initial, initialStores }: {
-  initial: Inventory; initialStores: WarehouseStore[];
+  initial: WarehousePoInventory; initialStores: WarehouseStore[];
 }) {
   const [data, setData] = useState(initial), [stores, setStores] = useState(initialStores);
   const [search, setSearch] = useState(""), [page, setPage] = useState(1);
   const [selection, setSelection] = useState<Selection>({}), [storeId, setStoreId] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [destination, setDestination] = useState<"warehouse" | "installation">("warehouse");
   const delivering = destination === "installation";
   const [loading, setLoading] = useState(false), [saving, setSaving] = useState(false), [selecting, setSelecting] = useState(false);
@@ -40,7 +42,7 @@ export function ReceiptsClient({ initial, initialStores }: {
     setLoading(true);
     try {
       const [next, nextStores] = await Promise.all([
-        warehouseInventory({ view: "in_transit", search, page }), warehouseStores(),
+        warehouseInventoryByPo({ view: "in_transit", search, page, pageSize: 20, completePo: true }), warehouseStores(),
       ]);
       if (seq === serial.current) { setData(next); setStores(nextStores); }
     } catch (e) {
@@ -70,35 +72,31 @@ export function ReceiptsClient({ initial, initialStores }: {
       return next;
     });
   }
-  function selectPage(checked: boolean) {
-    setSuccess("");
-    setSelection((prev) => {
-      const next = { ...prev };
-      for (const unit of data.items) {
-        if (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) continue;
-        if (!checked) delete next[unit.lineNumber];
-        else if (!next[unit.lineNumber] && Object.keys(next).length < LIMIT)
-          next[unit.lineNumber] = { unit, quantity: String(unit.inTransit) };
-      }
-      return next;
-    });
+  function eligibleGroups(groups: WarehousePoGroup[]) {
+    return groups.map((group) => ({ ...group, units: group.units.filter((unit) => unit.inTransit > 0 && (!delivering || (unit.source !== "EXTERNAL" && Boolean(unit.installation?.address)))) })).filter((group) => group.units.length > 0);
+  }
+  function selectPos(groups: WarehousePoGroup[], checked: boolean) {
+    setSuccess(""); setError("");
+    try { setSelection(selectDeliveryPos(selection, eligibleGroups(groups), "TRANSIT", "", checked)); }
+    catch (e) { setError(errorMessage(e)); }
   }
   async function selectAll() {
     setSelecting(true); setError(""); setSuccess("");
     try {
-      const next: Selection = {};
+      let next: Selection = {};
       let total: number | undefined;
+      let received = 0;
       for (let current = 1; ; current++) {
-        const result = await warehouseInventory({ view: "in_transit", search, page: current, pageSize: 100 });
-        if (result.total > LIMIT) throw new Error(`Select at most ${LIMIT} units at a time. Filter by order or select individual pages.`);
+        const result = await warehouseInventoryByPo({ view: "in_transit", search, page: current, pageSize: 20, completePo: true });
         if (total !== undefined && total !== result.total)
-          throw new Error("Pending units changed while selecting. Refresh and try again.");
+          throw new Error("Pending POs changed while selecting. Refresh and try again.");
         total = result.total;
-        for (const unit of result.items) next[unit.lineNumber] = { unit, quantity: String(unit.inTransit) };
-        if (current * 100 >= result.total) break;
+        received += result.items.length;
+        next = selectDeliveryPos(next, eligibleGroups(result.items), "TRANSIT", "", true);
+        if (current * 20 >= result.total) break;
       }
-      if (Object.keys(next).length !== total) throw new Error("Pending units changed while selecting. Refresh and try again.");
-      setSelection(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.source !== "EXTERNAL" && entry.unit.installation?.address)) : next);
+      if (received !== total) throw new Error("Pending POs changed while selecting. Refresh and try again.");
+      setSelection(next);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSelecting(false); }
   }
@@ -125,22 +123,28 @@ export function ReceiptsClient({ initial, initialStores }: {
       // Conservar la misma clave y selección permite verificar una respuesta perdida.
     } finally { setSaving(false); saveLock.current = false; }
   }
-  const pageUnits = delivering ? data.items.filter((unit) => unit.source !== "EXTERNAL" && unit.installation?.address) : data.items;
-  const allPage = pageUnits.length > 0 && pageUnits.every((u) => Boolean(selection[u.lineNumber]));
+  const pageGroups = eligibleGroups(data.items);
+  const allPage = pageGroups.length > 0 && pageGroups.every((group) => deliveryPoSelected(group, selection, "TRANSIT", ""));
+  const selectedPos = new Map<string, { poNumber: string; orderNumber: string; customer: string; pieces: number; parts: number }>();
+  for (const { unit, quantity } of chosen) {
+    const key = unit.source === "EXTERNAL" ? `external:${unit.externalPoId}` : unit.orderId ? `order:${unit.orderId}` : `line:${unit.lineNumber}`;
+    const entry = selectedPos.get(key) ?? { poNumber: unit.poNumber, orderNumber: unit.orderNumber, customer: unit.customer || unit.project, pieces: 0, parts: 0 };
+    entry.pieces++; entry.parts += Number(quantity) || 0; selectedPos.set(key, entry);
+  }
   return (
     <div className="space-y-5">
       <CountNotice id={data.activeCountId} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Pending receipt</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Parts collected from the factory and still in transit. Select the parts that have actually arrived; no second scan is required.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Choose the POs that have arrived from the factory. Only previously collected parts are included; no second scan is required.</p>
         </div>
         <Button asChild variant="outline"><Link href="/warehouse/scan">Receive by scanning</Link></Button>
       </div>
       <div className="flex flex-wrap gap-3">
         <div className="relative min-w-60 flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <Input aria-label="Search pending receipts" className="pl-9" placeholder="Order, customer, PO, mark or barcode" maxLength={150}
+          <Input aria-label="Search pending receipts" className="pl-9" placeholder="Search by customer, order or PO (optional)" maxLength={150}
             value={search} disabled={saving || selecting || confirm}
             onChange={(e) => { serial.current++; setLoading(true); setSearch(e.target.value); setPage(1); setSelection({}); setError(""); }} />
         </div>
@@ -148,7 +152,7 @@ export function ReceiptsClient({ initial, initialStores }: {
           <RefreshCw className="mr-2 h-4 w-4" />Refresh / clear selection
         </Button>
       </div>
-      <section className="space-y-3 rounded-xl border bg-white p-4">
+      <section className="z-10 space-y-3 rounded-xl border bg-white p-4 shadow-sm sm:sticky sm:top-24">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Material destination">
           <Button asChild variant="outline" disabled={busy || confirm}>
             <Link href={`/warehouse/customer-deliveries/new?source=TRANSIT&search=${encodeURIComponent(search)}`}
@@ -166,7 +170,7 @@ export function ReceiptsClient({ initial, initialStores }: {
             <p className="text-sm font-medium">Destination store</p>
             <StoreSelect stores={stores} value={storeId} onChange={setStoreId} disabled={saving || confirm} label="Receipt destination store" />
           </div>}
-          <div className="flex-1 text-sm"><b>{chosen.length}</b> units selected · <b>{totalParts}</b> physical parts</div>
+          <div className="flex-1 text-sm"><b>{selectedPos.size}</b> POs · <b>{chosen.length}</b> pieces selected · <b>{totalParts}</b> physical parts</div>
           <Button disabled={busy || Boolean(data.activeCountId) || !targetValid || !chosen.length || invalid || chosen.length > LIMIT} onClick={() => { setError(""); setConfirm(true); }}>
             <PackageCheck className="mr-2 h-4 w-4" />{delivering ? "Deliver selected" : "Receive selected"}
           </Button>
@@ -174,44 +178,49 @@ export function ReceiptsClient({ initial, initialStores }: {
         {!delivering && !stores.some((s) => s.isActive) && <p className="text-sm text-amber-800">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> first.</p>}
         {delivering && <p className="text-sm text-muted-foreground">Select parts for one installation. Confirm only the quantities that have physically arrived at the job site.</p>}
         {delivering && chosen.length > 0 && (invalidInstallation ? <p role="alert" className="text-sm text-amber-800">Select parts for one installation with a confirmed address. Filter by order or PO.</p> : <p className="text-sm">Order #{chosen[0].unit.orderNumber} · <Link href={`/installations/${installation!.id}`} className="underline">Installation #{installation!.id}</Link><br />{installation!.address}</p>)}
-        {!delivering && chosen.length > 0 && <p className="text-xs text-muted-foreground">Each selected row receives its entered quantity. To split stock between stores, receive only the quantity for this store and then receive the remaining parts into another store.</p>}
+        {!delivering && chosen.length > 0 && <p className="text-xs text-muted-foreground">To split a PO between stores, open Pieces and enter only the parts for this store. Receive the remaining parts into another store afterward.</p>}
       </section>
       {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{success}</p>}
       {error && !confirm && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={allPage} disabled={busy || confirm || !pageUnits.length} onChange={(e) => selectPage(e.target.checked)} />Select this page</label>
-        <Button variant="outline" size="sm" disabled={busy || confirm || data.total === 0 || data.total > LIMIT} onClick={selectAll}>
-          {selecting ? "Selecting…" : `Select all ${data.total} matching units`}
+        <label className="flex min-h-10 items-center gap-2"><input type="checkbox" className="h-4 w-4" checked={allPage} disabled={busy || confirm || !pageGroups.length} onChange={(e) => selectPos(pageGroups, e.target.checked)} />Select POs on this page</label>
+        <Button variant="outline" size="sm" disabled={busy || confirm || data.total === 0} onClick={selectAll}>
+          {selecting ? "Selecting…" : `Select all ${data.total} matching POs`}
         </Button>
-        {data.total > LIMIT && <span className="text-xs text-muted-foreground">Maximum {LIMIT} units per operation. Narrow the search to select all.</span>}
       </div>
-      <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>
-            {["Select", "Order / customer", "Piece / barcode", "In transit", delivering ? "Deliver now" : "Receive now"].map((h) => <th className="px-4 py-3 font-medium" key={h}>{h}</th>)}
-          </tr></thead>
-          <tbody className="divide-y">
-            {data.items.map((unit) => {
-              const entry = selection[unit.lineNumber];
-              const stale = entry && entry.unit.version !== unit.version;
-              return <tr key={unit.lineNumber} className={entry ? "bg-slate-50" : ""}>
-                <td className="px-4 py-4"><input type="checkbox" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} /></td>
-                <td className="px-4 py-4"><UnitOrigin unit={unit} link /><p className="text-xs text-muted-foreground">{unit.customer || unit.project}</p>{unit.poNumber && <p className="text-xs text-muted-foreground">PO {unit.poNumber}</p>}</td>
-                <td className="px-4 py-4"><p className="font-medium">{unit.mark || "—"} · {unit.product}</p><p className="text-xs text-muted-foreground">{[unit.system, unit.configuration].filter(Boolean).join(" · ")}</p><p className="font-mono text-xs">{unit.barcode}</p><ExternalDescription unit={unit} />{delivering && unit.source === "EXTERNAL" && <p className="text-xs text-muted-foreground">Receive this external PO at a warehouse.</p>}{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</td>
-                <td className="px-4 py-4 font-semibold">{unit.inTransit}</td>
-                <td className="px-4 py-4"><Input type="number" min={1} max={unit.inTransit} step={1} className="w-24" aria-label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
-                  onChange={(e) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: e.target.value } }))} /></td>
-              </tr>;
-            })}
-            {!data.items.length && <tr><td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">No parts pending receipt. Collect parts from the factory first, or use Scan for a direct receipt.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <Pagination {...data} onPage={(next) => { serial.current++; setLoading(true); setPage(next); }} disabled={busy || confirm} />
+      <div><h3 className="font-semibold">POs pending receipt</h3><p className="mt-1 text-sm text-muted-foreground">Select a PO to include all its parts in transit. Open Pieces to select individual pieces or change quantities.</p></div>
+      <div className="space-y-3" aria-busy={loading}>{data.items.map((group) => {
+        const eligible = eligibleGroups([group])[0];
+        const all = Boolean(eligible && deliveryPoSelected(eligible, selection, "TRANSIT", ""));
+        const some = group.units.some((unit) => Boolean(selection[unit.lineNumber]));
+        const open = Boolean(expanded[group.key]);
+        const parts = group.units.reduce((sum, unit) => sum + unit.inTransit, 0);
+        return <section key={group.key} className={`overflow-hidden rounded-xl border bg-white ${some ? "border-slate-400" : ""}`}>
+          <div className="flex flex-wrap items-center gap-4 p-4">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" aria-label={`Select PO ${group.poNumber || group.orderNumber || group.key}`} aria-checked={all ? true : some ? "mixed" : false} checked={all} disabled={busy || confirm || !eligible} onChange={(e) => selectPos([group], e.target.checked)} />
+              <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{group.units.length} pieces · {parts} physical parts in transit</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial quantities selected"}</span>}{delivering && !eligible && <span className="block text-xs text-muted-foreground">{group.source === "EXTERNAL" ? "External POs can be received at a warehouse or delivered directly to a customer." : "A confirmed installation address is required."}</span>}</span>
+            </label>
+            <Button variant="outline" size="sm" aria-label={`${open ? "Hide" : "Show"} pieces for PO ${group.poNumber || group.orderNumber || group.key}`} aria-expanded={open} disabled={busy || confirm} onClick={() => setExpanded((previous) => ({ ...previous, [group.key]: !open }))}>{open ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4" />}Pieces</Button>
+          </div>
+          {open && <div className="divide-y border-t bg-slate-50/50">{group.units.map((unit) => {
+            const entry = selection[unit.lineNumber];
+            const stale = entry && entry.unit.version !== unit.version;
+            return <div key={unit.lineNumber} className="flex flex-wrap items-start gap-3 p-4">
+              <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} />
+              <div className="min-w-40 flex-1 text-sm"><p className="break-words font-medium">{unit.description || [unit.mark, unit.product, unit.system, unit.configuration].filter(Boolean).join(" · ")}</p>{unit.description && unit.mark && unit.mark !== unit.description && <p className="text-xs text-muted-foreground">Mark: {unit.mark}</p>}<p className="text-xs text-muted-foreground">Line {unit.lineNumber} · {unit.inTransit} parts in transit</p><p className="font-mono text-xs text-muted-foreground">{unit.barcode}</p>{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</div>
+              <label className="space-y-1 text-xs"><span className="block">{delivering ? "Deliver now" : "Receive now"}</span><Input type="number" min={1} max={Math.min(unit.inTransit, 200)} step={1} className="w-24" aria-label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
+                onChange={(e) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: e.target.value } }))} /></label>
+            </div>;
+          })}</div>}
+        </section>;
+      })}{!data.items.length && <p className="rounded-xl border bg-white px-5 py-12 text-center text-sm text-muted-foreground">No POs pending receipt. Collect parts from the factory first, or use Scan for a direct receipt.</p>}</div>
+      <Pagination {...data} label="POs" onPage={(next) => { serial.current++; setLoading(true); setPage(next); }} disabled={busy || confirm} />
       <Dialog open={confirm} onOpenChange={(open) => { if (!saving) setConfirm(open); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{delivering ? "Confirm delivery to installation" : "Confirm warehouse receipt"}</DialogTitle><DialogDescription>{delivering ? "Only confirm parts that are physically present at this installation address." : "Only confirm parts that are physically present at the selected store."}</DialogDescription></DialogHeader>
           {delivering ? <div className="space-y-2 text-sm"><p>Deliver <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> for <b>Order #{chosen[0]?.unit.orderNumber}</b>.</p><p className="font-semibold">Installation #{installation?.id} · {installation?.address}</p></div> : <p className="text-sm">Receive <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> into <b>{target?.name ?? "the selected store"}</b>. These quantities will leave transit and enter that store.</p>}
+          <div className="max-h-56 overflow-y-auto rounded-lg border px-3 text-sm">{[...selectedPos.entries()].map(([key, po]) => <div key={key} className="border-b py-3 last:border-0"><p className="font-medium">PO {po.poNumber || "—"}{po.orderNumber ? ` · Order #${po.orderNumber}` : ""}</p>{po.customer && <p className="text-xs text-muted-foreground">{po.customer}</p>}<p className="text-xs">{po.pieces} pieces · {po.parts} physical parts</p></div>)}</div>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button><Button disabled={saving || !targetValid || invalid || !chosen.length} onClick={receive}>{saving ? "Saving…" : delivering ? "Confirm delivery" : "Confirm receipt"}</Button></DialogFooter>
         </DialogContent>

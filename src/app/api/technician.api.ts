@@ -1,5 +1,5 @@
 import { apiFetch } from "./_base";
-import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult } from "./warehouse.api";
+import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult, CustomerDelivery, CustomerDeliveryRequest } from "./warehouse.api";
 
 export type TechnicianUnit = {
   lineNumber: string; barcode: string; mark: string;
@@ -143,6 +143,29 @@ export const technicianDeliverToInstallation = (body: InstallationDeliveryReques
   apiFetch<InstallationDeliveryResult>("/api/technician/installation-deliveries", {
     method: "POST", body, timeoutMs: 90000,
   });
+
+export type TechnicianCustomerDeliveryPo = {
+  key: string;
+  source: "ORDER" | "EXTERNAL";
+  orderId: number | null;
+  externalPoId: number | null;
+  orderNumber: string;
+  poNumber: string;
+  customerName?: string;
+  projectName?: string;
+  expectedParts: number | null;
+  availableParts: number;
+  pieces: number;
+  // On this endpoint, inTransit is the quantity available from this technician's assigned pickups.
+  lines: TechnicianUnit[];
+};
+export type TechnicianCustomerDeliveryOptions = Paged<TechnicianCustomerDeliveryPo> & { countOpen: boolean };
+export const technicianCustomerDeliveryOptions = (query: { search?: string; page?: number; pageSize?: number; poKey?: string; pickupRunId?: number } = {}) =>
+  apiFetch<TechnicianCustomerDeliveryOptions>("/api/technician/customer-delivery-options", { query, cache: "no-store" });
+export const technicianDeliverToCustomer = (body: CustomerDeliveryRequest) =>
+  apiFetch<CustomerDelivery>("/api/technician/customer-deliveries", { method: "POST", body, timeoutMs: 90000 });
+export const technicianCustomerDelivery = (id: number) =>
+  apiFetch<CustomerDelivery>(`/api/technician/customer-deliveries/${id}`, { cache: "no-store" });
 
 export function parseCurrentFactoryPickup(value: unknown): FactoryPickupRun | null {
   // Sin recogida activa, la respuesta HTTP puede venir sin cuerpo en lugar de JSON null.
