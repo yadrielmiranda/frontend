@@ -68,6 +68,7 @@ export type WarehouseMovement = {
   reversalOfId: number | null;
   reversed: boolean;
   countId: number | null;
+  customerDeliveryId?: number | null;
   countDelta: number;
   createdAt: string;
 };
@@ -233,6 +234,49 @@ export const warehouseUpdateStore = (store: WarehouseStore, name: string, isActi
     method: "PATCH", body: { name, isActive, version: store.version },
   });
 export type ReceiptItem = { barcode: string; quantity: number; version: number };
+export type CustomerDeliveryItem = {
+  lineNumber: string;
+  barcode: string;
+  poNumber: string;
+  source: "ORDER" | "EXTERNAL";
+  orderNumber: string;
+  mark: string;
+  description: string;
+  product: string;
+  system: string;
+  configuration: string;
+  quantity: number;
+};
+export type CustomerDeliveryRequest = {
+  requestKey: string;
+  source: "TRANSIT" | "WAREHOUSE";
+  storeId?: number | null;
+  firstName: string;
+  lastName: string;
+  signatureStrokes: { x: number; y: number }[][];
+  items: ReceiptItem[];
+};
+export type CustomerDelivery = {
+  id: number;
+  source: "TRANSIT" | "WAREHOUSE";
+  storeId: number | null;
+  storeName: string | null;
+  firstName: string;
+  lastName: string;
+  signatureStrokes: { x: number; y: number }[][];
+  items: CustomerDeliveryItem[];
+  totalPieces: number;
+  totalParts: number;
+  actor: string;
+  createdAt: string;
+  replayed?: boolean;
+};
+export const warehouseDeliverToCustomer = (body: CustomerDeliveryRequest) =>
+  apiFetch<CustomerDelivery>("/api/warehouse/customer-deliveries", {
+    method: "POST", body, timeoutMs: 90000,
+  });
+export const warehouseCustomerDelivery = (id: number) =>
+  get<CustomerDelivery>(`customer-deliveries/${id}`);
 export type ReceiptResult = {
   units: number; parts: number; storeId: number; storeName: string; replayed: boolean;
 };

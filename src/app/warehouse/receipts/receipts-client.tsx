@@ -150,6 +150,13 @@ export function ReceiptsClient({ initial, initialStores }: {
       </div>
       <section className="space-y-3 rounded-xl border bg-white p-4">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Material destination">
+          <Button asChild variant="outline" disabled={busy || confirm}>
+            <Link href={`/warehouse/customer-deliveries/new?source=TRANSIT&search=${encodeURIComponent(search)}`}
+              aria-disabled={busy || confirm} tabIndex={busy || confirm ? -1 : undefined}
+              onClick={(event) => { if (busy || confirm) event.preventDefault(); }}>
+              Deliver directly to customer
+            </Link>
+          </Button>
           {(["warehouse", "installation"] as const).map((value) => <Button key={value} variant={destination === value ? "default" : "outline"} aria-pressed={destination === value} disabled={busy || confirm} onClick={() => { setDestination(value); setSelection({}); setError(""); setSuccess(""); }}>
             {value === "warehouse" ? "Receive at warehouse" : "Deliver to installation"}
           </Button>)}

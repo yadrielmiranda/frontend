@@ -50,7 +50,7 @@ import {
   CountNotice,
   dateLabel,
   errorMessage,
-  movementLabels,
+  movementLabel,
   Pagination,
   UnitSummary,
   MovementLocation,
@@ -710,6 +710,11 @@ export function InventoryClient({
           <Button asChild variant="outline">
             <Link href="/warehouse/receipts">Pending receipt</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href={`/warehouse/customer-deliveries/new?source=${view === "in_transit" ? "TRANSIT" : "WAREHOUSE"}&search=${encodeURIComponent(search)}${view !== "in_transit" && storeId !== "all" ? `&storeId=${encodeURIComponent(storeId)}` : ""}`}>
+              Deliver to customer
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/warehouse/scan">
               <ScanBarcode className="mr-2 h-4 w-4" />
@@ -1037,7 +1042,7 @@ function UnitDetails({
             {history.map((m) => (
               <div key={m.id} className="rounded-lg border p-3 text-sm">
                 <p className="font-medium">
-                  {movementLabels[m.type]}
+                  {movementLabel(m)}
                   {m.reversed ? " · Reversed" : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">

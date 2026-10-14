@@ -19,6 +19,8 @@ export const movementLabels: Record<string, string> = {
   COUNT: "Physical count reading",
   COUNT_UNDO: "Count reading reversed",
 };
+export const movementLabel = (movement: Pick<WarehouseMovement, "type" | "customerDeliveryId">) =>
+  movement.customerDeliveryId ? "Delivered to customer" : movementLabels[movement.type] ?? movement.type;
 export const countLocation = (count: Pick<CountInfo, "scope" | "store">) =>
   count.scope === "STORE" ? count.store?.name ?? "Store" : count.scope === "UNASSIGNED" ? "Unassigned" : "All warehouse";
 export const storeBreakdown = (unit: WarehouseUnit) => [
@@ -26,6 +28,14 @@ export const storeBreakdown = (unit: WarehouseUnit) => [
   ...(unit.unassigned > 0 ? [`Unassigned: ${unit.unassigned}`] : []),
 ].join(" · ");
 export function MovementLocation({ movement: m }: { movement: WarehouseMovement }) {
+  if (m.customerDeliveryId) return <div className="space-y-1 text-sm text-muted-foreground">
+    <p>{m.quantity} {m.quantity === 1 ? "part" : "parts"} · {m.transitDelta < 0
+      ? "Delivered directly from factory collection"
+      : `From ${m.fromStore?.name ?? "Unassigned"}`}</p>
+    <Link className="font-medium text-red-700 underline" href={`/warehouse/customer-deliveries/${m.customerDeliveryId}`}>
+      View signed receipt #{m.customerDeliveryId}
+    </Link>
+  </div>;
   if (m.installation) return <div className="space-y-1 text-sm text-muted-foreground">
     <p>{m.quantity} {m.quantity === 1 ? "part" : "parts"} · {m.type === "UNDO" ? "Reversed movement for " : m.onHandDelta < 0 ? `From ${m.fromStore?.name ?? "Unassigned"} to ` : "Delivered directly to "}
       <Link className="underline" href={`/installations/${m.installation.id}`}>installation #{m.installation.id}</Link>

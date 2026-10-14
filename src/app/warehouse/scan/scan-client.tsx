@@ -33,7 +33,7 @@ const actions: {
     value: "COLLECT",
     label: "Collect from factory",
     description:
-      "Plan the POs for this factory visit, then scan their parts in any order. Confirm arrival at a store or directly at the installation in Pending receipt.",
+      "Plan the POs for this factory visit, then scan their parts in any order. In Pending receipt, receive them at a store or record their delivery without rescanning.",
   },
   {
     value: "RECEIVE",
@@ -45,7 +45,7 @@ const actions: {
     value: "RELEASE",
     label: "Release from warehouse",
     description:
-      "Choose the source store, then scan each part leaving it. For a system order, complete pickup or delivery from that order after the handover.",
+      "Choose a customer delivery with a signed receipt, or release parts for installation.",
   },
 ];
 export function ScanClient({
@@ -67,6 +67,7 @@ export function ScanClient({
     [undone, setUndone] = useState(false),
     [error, setError] = useState("");
   const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState("");
+  const [releaseToInstallation, setReleaseToInstallation] = useState(false);
   const [scanFocus, setScanFocus] = useState(false), [scannerRevision, setScannerRevision] = useState(0);
   const [offline, setOffline] = useState(false), [pickupRevision, setPickupRevision] = useState(0);
   const undoKey = useRef(""), focusRoot = useRef<HTMLDivElement>(null);
@@ -169,6 +170,7 @@ export function ScanClient({
             onClick={() => {
               setScanFocus(false);
               setAction(option.value);
+              setReleaseToInstallation(false);
               setStoreId("");
               setLast(null);
               setError("");
@@ -182,7 +184,28 @@ export function ScanClient({
       <p className={`text-sm text-muted-foreground ${scanFocus ? "hidden sm:block" : ""}`}>
         {activeAction.description}
       </p>
-      {action !== "COLLECT" && (
+      {action === "RELEASE" && (
+        <section className={`space-y-3 rounded-xl border bg-white p-4 ${scanFocus ? "hidden sm:block" : ""}`}>
+          <h3 className="font-semibold">Who are these parts for?</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button asChild variant="outline" disabled={pending || undoing}>
+              <Link aria-disabled={pending || undoing} tabIndex={pending || undoing ? -1 : undefined}
+                onClick={(event) => { if (pending || undoing) event.preventDefault(); }}
+                href="/warehouse/customer-deliveries/new?source=WAREHOUSE">Deliver to customer</Link>
+            </Button>
+            <Button variant={releaseToInstallation ? "default" : "outline"} disabled={pending || undoing}
+              aria-pressed={releaseToInstallation} onClick={() => setReleaseToInstallation(true)}>
+              Release to installation
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {releaseToInstallation
+              ? "Choose the source store, then scan each part leaving for installation. No recipient name or signature is required."
+              : "Customer deliveries include the POs, pieces and parts received, with the recipient’s first name, last name and signature."}
+          </p>
+        </section>
+      )}
+      {(action === "RECEIVE" || (action === "RELEASE" && releaseToInstallation)) && (
         <div className={`space-y-2 sm:max-w-sm ${scanFocus ? "hidden sm:block" : ""}`}>
           <p className="text-sm font-medium">{action === "RECEIVE" ? "Destination store" : "Source store"}</p>
           <StoreSelect stores={stores} value={storeId} onChange={setStoreId}
@@ -192,6 +215,10 @@ export function ScanClient({
         </div>
       )}
       {action === "RECEIVE" && <Link href="/warehouse/receipts" className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>Receive selected or all pending units without rescanning</Link>}
+      {action === "COLLECT" && <Link href="/warehouse/customer-deliveries/new?source=TRANSIT"
+        className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>
+        Deliver collected parts directly to a customer without rescanning
+      </Link>}
       {action === "COLLECT" && isAdmin && (
         <FactoryPickups
           key={`${actorId}:warehouse-pickup:${pickupRevision}`}
@@ -203,7 +230,7 @@ export function ScanClient({
           onScanModeChange={setScanFocus}
         />
       )}
-      {action !== "COLLECT" && (locationValid || pending) && <ScanPad
+      {(action === "RECEIVE" || (action === "RELEASE" && releaseToInstallation)) && (locationValid || pending) && <ScanPad
         key={`${action}:${storeId}:${scannerRevision}`}
         scope={`${action}:${storeId}`}
         disabled={Boolean(countId) || undoing}

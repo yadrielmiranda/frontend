@@ -11,7 +11,7 @@ import {
 import {
   dateLabel,
   errorMessage,
-  movementLabels,
+  movementLabel,
   MovementLocation,
   Pagination,
 } from "../warehouse-shared";
@@ -101,7 +101,7 @@ export function HistoryClient({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-semibold">
-                  {movementLabels[m.type]}
+                  {movementLabel(m)}
                   {m.reversed ? " · Reversed" : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">
