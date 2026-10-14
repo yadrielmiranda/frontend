@@ -264,6 +264,7 @@ export function OrderDetails({
       ) : null}
 
       {<EstimatePaymentCard
+        customerChargesSummary={installation?.customerChargesSummary ?? order.estimate.customerChargesSummary}
         estimateId={order.idEst} estimateOwnerId={order.userId} ownerRole={order.user.role.name}
         estimateStatus="Ordered" order={order} materialPayments={order.estimate.payments ?? []}
         installationJob={installation} currentUserId={currentUserId} dealerNetwork={order.estimate.dealerNetwork}

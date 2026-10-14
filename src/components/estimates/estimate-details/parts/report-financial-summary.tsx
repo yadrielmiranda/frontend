@@ -258,11 +258,13 @@ function ExternalDealerChargesSummary({
   comparison,
   discount = 0,
   installationDiscount = 0,
+  customerDiscount = 0,
 }: {
   summary: EstimateCustomerChargeSummary;
   comparison: boolean;
   discount?: number;
   installationDiscount?: number;
+  customerDiscount?: number;
 }) {
   const customerLines = summary.lines.filter(
     (line) => line.usedInCustomerQuote,
@@ -292,6 +294,7 @@ function ExternalDealerChargesSummary({
               }
             />
           ))}
+          {customerDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(customerDiscount)}`} />}
         </div>
       </div>
     );
@@ -346,11 +349,11 @@ function ExternalDealerChargesSummary({
               </td>
             </tr>
           ))}
-          {discount > 0 && (
+          {(discount > 0 || customerDiscount > 0) && (
             <tr className="border-t text-emerald-700">
               <td className="px-4 py-3">Additional discount</td>
-              <td className="px-4 py-3 text-right">−{formatMoney(discount)}</td>
-              <td className="px-4 py-3 text-right">—</td>
+              <td className="px-4 py-3 text-right">{discount > 0 ? `−${formatMoney(discount)}` : "—"}</td>
+              <td className="px-4 py-3 text-right">{customerDiscount > 0 ? `−${formatMoney(customerDiscount)}` : "—"}</td>
             </tr>
           )}
           {hasCharges && (
@@ -360,7 +363,7 @@ function ExternalDealerChargesSummary({
                 {formatMoney(numberValue(summary.systemTotal) - discount)}
               </td>
               <td className="px-4 py-3 text-right">
-                {formatMoney(numberValue(summary.customerTotal))}
+                {formatMoney(numberValue(summary.customerTotal) - customerDiscount)}
               </td>
             </tr>
           )}
@@ -681,7 +684,7 @@ export function ReportFinancialSummary({
   const cityFee = numberValue(installationSummary?.cityFee);
   const sharedCharges = roundMoney(installationTotal + permitFee + cityFee);
   const customerServiceCharges = externalDealerCharges
-    ? numberValue(externalDealerCharges.customerTotal)
+    ? numberValue(externalDealerCharges.customerTotal) - (manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0)
     : sharedCharges - (manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0);
   const internalCharges = sharedCharges - (manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0);
   const dealerMaterialProfit = roundMoney(
@@ -766,7 +769,8 @@ export function ReportFinancialSummary({
               summary={externalDealerCharges}
               comparison={comparisonView}
               discount={manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0}
-              installationDiscount={numberValue(manualDiscount?.installation.discount)}
+              installationDiscount={manualDiscount?.payer === "ACCOUNT_OWNER" ? numberValue(manualDiscount.installation.discount) : 0}
+              customerDiscount={manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0}
             />
           ) : (
             <InstallationSummary summary={installationSummary} discount={numberValue(manualDiscount?.installation.discount)} />
@@ -774,7 +778,7 @@ export function ReportFinancialSummary({
         </div>
       )}
 
-      {!projectTotalOnly && !(comparisonView && externalDealerCharges) && otherServiceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(otherServiceDiscount)}`} />}
+      {!projectTotalOnly && !externalDealerCharges && otherServiceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(otherServiceDiscount)}`} />}
       {!projectTotalOnly && <ManualDiscountSummary summary={manualDiscount} />}
       <div
         className={`break-inside-avoid rounded-xl border px-5 py-3 ${

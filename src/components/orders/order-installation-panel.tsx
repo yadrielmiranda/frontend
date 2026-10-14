@@ -18,6 +18,7 @@ import { formatMoney } from "@/lib/formatters";
 import { ManualPaymentDialog } from "@/components/payments/manual-payment-dialog";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import { paidInstallationCredit } from "@/lib/installation-flow";
+import { customerChargeAdditions } from "@/lib/customer-charge-additions";
 import { CardFeeBreakdown } from "@/components/payments/card-fee-breakdown";
 import { getCardPaymentBreakdown } from "@/lib/card-payment";
 import { OrderPaymentSection } from "./order-payment-section";
@@ -44,9 +45,10 @@ export function OrderInstallationPanel({
   const [responseNote, setResponseNote] = useState("");
   const [decisionComment, setDecisionComment] = useState("");
   const latestQuote = job.quotes[0];
+  const additions = customerChargeAdditions(job.customerChargesSummary ?? order.estimate.customerChargesSummary, order.dealerModeSnapshot === "INTERNAL");
   const installationBalance = Math.max(
     0,
-    Number(job.manualDiscountSummary?.installation.total ?? latestQuote?.total ?? 0) - paidInstallationCredit(job),
+    Number(job.manualDiscountSummary?.installation.total ?? latestQuote?.total ?? 0) + additions.installation + additions.custom - paidInstallationCredit(job),
   );
   const proposedAppointment = job.appointments.find(
     (appointment) =>

@@ -213,6 +213,8 @@ export function EstimateForm({
   const [discountDirty, setDiscountDirty] = useState(false);
   const [discountLoading, setDiscountLoading] = useState(false);
   const [discountError, setDiscountError] = useState(false);
+  const discountRequestGeneration = useRef(0);
+  const [customerChargesBusy, setCustomerChargesBusy] = useState(false);
   const router = useRouter();
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
@@ -231,7 +233,9 @@ export function EstimateForm({
   const canUseCustomerPricing =
     isDealerRole(ownerRole) && canSetCustomerOnEstimate(role);
   const useCurrentDealerClassification = Boolean(
-    estimate && estimate.status?.name === "Active" && !estimate.order,
+    estimate && estimate.status?.name === "Active" && !estimate.order &&
+      !(estimate.payments ?? []).some(payment =>
+        ["PENDING", "PAID", "REFUNDED"].includes(payment.status) || payment.paidAt != null),
   );
   const dealerMode = estimate?.dealerNetwork ? estimate.dealerModeSnapshot ?? null : useCurrentDealerClassification
     ? (estimate?.user?.dealerMode ?? estimate?.dealerModeSnapshot ?? null)
@@ -952,18 +956,40 @@ export function EstimateForm({
     }
   };
 
+  const refreshDiscountData = useCallback(async () => {
+    if (!estimate?.id) return;
+    const generation = ++discountRequestGeneration.current;
+    setDiscountLoading(true);
+    try {
+      const data = await getEstimateDiscount(estimate.id);
+      if (generation === discountRequestGeneration.current) {
+        setDiscountData(data);
+        setDiscountError(false);
+      }
+    } catch (error) {
+      if (generation === discountRequestGeneration.current) {
+        setDiscountError(true);
+        throw error;
+      }
+    } finally {
+      if (generation === discountRequestGeneration.current) setDiscountLoading(false);
+    }
+  }, [estimate?.id]);
   const discountRefreshKey = JSON.stringify([watchedPieces, financialInstallation?.id, financialInstallation?.status, financialInstallation?.updatedAt, financialInstallation?.quotes?.[0]?.status, financialInstallation?.quotes?.[0]?.total, financialInstallation?.permit?.cityFee, taxRate, customerTaxRatePercent, promotionEstimate]);
   useEffect(() => {
-    if (!estimate?.id) return;
-    let active = true;
-    setDiscountLoading(true);
-    // El calendario se actualiza con los mismos importes guardados que el
-    // descuento, incluso si el estimado se abrió vacío o no tiene instalación.
-    getEstimateDiscount(estimate.id).then(data => {
-      if (active) { setDiscountData(data); setDiscountError(false); }
-    }).catch(() => { if (active) setDiscountError(true); }).finally(() => { if (active) setDiscountLoading(false); });
-    return () => { active = false; };
-  }, [estimate?.id, discountRefreshKey]);
+    void refreshDiscountData().catch(() => undefined);
+    return () => { discountRequestGeneration.current += 1; };
+  }, [refreshDiscountData, discountRefreshKey]);
+  const onCustomerChargesChange = async (next: EstimateCustomerChargeSummary | null) => {
+    setCustomerChargesSummary(next);
+    // La tarjeta permanece ocupada hasta recibir las cuotas actualizadas.
+    await refreshDiscountData();
+  };
+  const onCustomerChargesError = () => {
+    discountRequestGeneration.current += 1;
+    setDiscountLoading(false);
+    setDiscountError(true);
+  };
   const onDiscountSaved = (updated: EstimateWithRelations) => {
     setDiscountData({
       config: updated.manualDiscount ?? null,
@@ -1720,10 +1746,10 @@ export function EstimateForm({
 
         {isEditMode &&
           estimate &&
-          ownerRole === "dealer" &&
-          dealerMode === "EXTERNAL" && (
+          isDealerRole(ownerRole) && (
             <DealerCustomerChargesCard
               estimateId={estimate.id}
+              dealerMode={dealerMode}
               initialSummary={estimate.customerChargesSummary ?? null}
               refreshKey={[
                 financialInstallation?.id ?? "none",
@@ -1735,12 +1761,16 @@ export function EstimateForm({
                 financialInstallation?.permit?.cityFee ?? "none",
               ].join(":")}
               editable={
-                role === "dealer" &&
-                currentUserId === estimate.idUser &&
+                (isAdminRole(role) || (isDealerRole(role) && currentUserId === estimate.idUser)) &&
                 estimate.status?.name === "Active" &&
-                !estimate.order
+                !estimate.order &&
+                (dealerMode !== "INTERNAL" || (!readOnly &&
+                  ![...(estimate.payments ?? []), ...(financialInstallation?.payments ?? [])]
+                    .some(payment => ["PENDING", "PAID", "REFUNDED"].includes(payment.status) || payment.paidAt != null)))
               }
-              onSummaryChange={setCustomerChargesSummary}
+              onSummaryChange={onCustomerChargesChange}
+              onBusyChange={setCustomerChargesBusy}
+              onError={onCustomerChargesError}
             />
           )}
 
@@ -1769,6 +1799,7 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <EstimatePaymentCard
+            customerChargesSummary={customerChargesSummary}
             networkPaymentBlocked={estimate.networkPaymentBlocked}
             paymentSchedule={discountData.paymentSchedule}
             dealerNetwork={discountData.dealerNetwork ?? estimate.dealerNetwork}
@@ -1791,7 +1822,7 @@ export function EstimateForm({
             cardSurchargeFraction={cardSurchargeFraction}
             beforePayment={saveEstimateHeader}
             paymentBlockedReason={
-              discountDirty ? "Save or discard the additional discount changes before payment." : discountLoading ? "Updating estimate totals…" : discountError ? "Could not refresh estimate totals. Reload to continue." : needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
+              customerChargesBusy ? "Updating customer charges and payment totals…" : discountDirty ? "Save or discard the additional discount changes before payment." : discountLoading ? "Updating estimate totals…" : discountError ? "Could not refresh estimate totals. Reload to continue." : needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
                 ? "Finish or cancel the installation calculation to continue to payment."
                 : undefined
             }

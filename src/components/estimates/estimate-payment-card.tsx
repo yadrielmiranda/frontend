@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { paidInstallationCredit } from "@/lib/installation-flow";
+import { customerChargeAdditions } from "@/lib/customer-charge-additions";
 import type {
   DealerMode,
+  EstimateCustomerChargeSummary,
   EstimatePayment,
   InstallationJob,
   Order,
@@ -53,6 +55,8 @@ export function resolveEstimatePaymentAction({
   allowNoCharge = false,
   manualDiscount,
   paymentSchedule,
+  dealerMode,
+  customerChargesSummary,
 }: {
   estimateStatus: string;
   order: Order | null;
@@ -62,6 +66,8 @@ export function resolveEstimatePaymentAction({
   allowNoCharge?: boolean;
   manualDiscount?: EstimateDiscountSummary | null;
   paymentSchedule?: PaymentSchedule | null;
+  dealerMode?: DealerMode | null;
+  customerChargesSummary?: EstimateCustomerChargeSummary | null;
 }): PaymentAction | null {
   if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
   manualDiscount = manualDiscount ?? installationJob?.manualDiscountSummary;
@@ -70,6 +76,12 @@ export function resolveEstimatePaymentAction({
     installationJob && installationJob.status !== "CANCELED"
       ? installationJob
       : null;
+  const additions = customerChargeAdditions(
+    customerChargesSummary ?? installationJob?.customerChargesSummary,
+    dealerMode === "INTERNAL",
+    Boolean(activeJob),
+  );
+  if (!activeJob) materialAmount = roundMoney(materialAmount + additions.custom);
 
   const payments = [...materialPayments, ...(installationJob?.payments ?? [])];
   const recovery = payments.find(p => p.type !== 'INSTALLMENT' && !p.refundReviewPending && hasRefundHistory(p) && refundedBalance(p) > 0 &&
@@ -101,7 +113,9 @@ export function resolveEstimatePaymentAction({
       type: "MATERIAL",
       title: "Ready to place your order",
       description:
-        "Pay the material total. Your order will be created automatically after payment is confirmed.",
+        additions.custom > 0
+          ? "Pay the material total and additional charges. Your order will be created automatically after payment is confirmed."
+          : "Pay the material total. Your order will be created automatically after payment is confirmed.",
       amount: materialAmount,
     };
   }
@@ -126,12 +140,12 @@ export function resolveEstimatePaymentAction({
       title: "Permit Fee",
       description:
         "The installation quote is approved. The Permit Fee is the next required payment.",
-      amount: Number(manualDiscount?.permit.total ?? activeJob.permit.permitFeeSnapshot),
+      amount: roundMoney(Number(manualDiscount?.permit.total ?? activeJob.permit.permitFeeSnapshot) + additions.permit),
     };
   }
 
   if (!order && activeJob.status === "MATERIAL_PAYMENT_PENDING") {
-    const cityFee = Number(manualDiscount?.city.total ?? activeJob.permit?.cityFee ?? 0);
+    const cityFee = Number(manualDiscount?.city.total ?? activeJob.permit?.cityFee ?? 0) + additions.city;
 
     return {
       type: "MATERIAL",
@@ -149,7 +163,7 @@ export function resolveEstimatePaymentAction({
     const balance = roundMoney(
       Math.max(
         0,
-        Number(manualDiscount?.installation.total ?? quote?.total ?? 0) - paidInstallationCredit(activeJob),
+        Number(manualDiscount?.installation.total ?? quote?.total ?? 0) + additions.installation + additions.custom - paidInstallationCredit(activeJob),
       ),
     );
 
@@ -182,6 +196,7 @@ function EstimatePaymentCardContent({
   manualDiscount,
   paymentSchedule,
   dealerMode,
+  customerChargesSummary,
   cardSurchargeFraction = 0,
   canRecordManualPayment = false,
   paymentBlockedReason,
@@ -203,6 +218,7 @@ function EstimatePaymentCardContent({
   manualDiscount?: EstimateDiscountSummary | null;
   paymentSchedule?: PaymentSchedule | null;
   dealerMode?: DealerMode | null;
+  customerChargesSummary?: EstimateCustomerChargeSummary | null;
   cardSurchargeFraction?: number;
   canRecordManualPayment?: boolean;
   paymentBlockedReason?: string;
@@ -234,7 +250,9 @@ function EstimatePaymentCardContent({
     materialAmount,
     allowNoCharge,
     manualDiscount,
-  paymentSchedule,
+    paymentSchedule,
+    dealerMode: isInternalDealer ? "INTERNAL" : "EXTERNAL",
+    customerChargesSummary,
   });
 
   const selectingInstallments = defaultAction?.type === "INSTALLMENT" || installments.isFullBalance || custom.active;

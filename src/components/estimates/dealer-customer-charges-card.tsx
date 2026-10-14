@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,7 @@ import {
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type {
+  DealerMode,
   EstimateCustomerChargePricingMode,
   EstimateCustomerChargeSummary,
   EstimateCustomerChargeSummaryLine,
@@ -38,10 +39,22 @@ import { CircleDollarSign, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type UiPricingMode = "SAME" | EstimateCustomerChargePricingMode;
+type ChargeMutation = (operation: () => Promise<EstimateCustomerChargeSummary>) => Promise<boolean>;
 
 function numberValue(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function initialPricingValue(
+  pricingMode: EstimateCustomerChargeSummaryLine["pricingMode"],
+  pricingValue: EstimateCustomerChargeSummaryLine["pricingValue"],
+  internalDealer: boolean,
+) {
+  if (internalDealer && pricingMode !== "PERCENTAGE" && pricingMode !== "AMOUNT") {
+    return "0";
+  }
+  return pricingValue == null ? "" : String(numberValue(pricingValue));
 }
 
 function customerPricePreview(
@@ -67,35 +80,41 @@ function SystemChargeRow({
   estimateId,
   line,
   editable,
-  onChange,
+  internalDealer,
+  busy,
+  runMutation,
 }: {
   estimateId: number;
   line: EstimateCustomerChargeSummaryLine;
   editable: boolean;
-  onChange: (summary: EstimateCustomerChargeSummary) => void;
+  internalDealer: boolean;
+  busy: boolean;
+  runMutation: ChargeMutation;
 }) {
-  const initialMode: UiPricingMode = line.pricingMode ?? "SAME";
+  const initialMode: UiPricingMode = internalDealer
+    ? line.pricingMode === "PERCENTAGE" ? "PERCENTAGE" : "AMOUNT"
+    : line.pricingMode ?? "SAME";
   const [mode, setMode] = useState<UiPricingMode>(initialMode);
   const [value, setValue] = useState(
-    line.pricingValue == null ? "" : String(numberValue(line.pricingValue)),
+    initialPricingValue(line.pricingMode, line.pricingValue, internalDealer),
   );
   const [usedInCustomerQuote, setUsedInCustomerQuote] = useState(
-    line.usedInCustomerQuote,
+    internalDealer || line.usedInCustomerQuote,
   );
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setMode(line.pricingMode ?? "SAME");
-    setValue(
-      line.pricingValue == null ? "" : String(numberValue(line.pricingValue)),
-    );
-    setUsedInCustomerQuote(line.usedInCustomerQuote);
+    setMode(internalDealer
+      ? line.pricingMode === "PERCENTAGE" ? "PERCENTAGE" : "AMOUNT"
+      : line.pricingMode ?? "SAME");
+    setValue(initialPricingValue(line.pricingMode, line.pricingValue, internalDealer));
+    setUsedInCustomerQuote(internalDealer || line.usedInCustomerQuote);
   }, [
     line.id,
     line.pricingMode,
     line.pricingValue,
     line.systemAmount,
     line.usedInCustomerQuote,
+    internalDealer,
   ]);
 
   const preview = customerPricePreview(line, mode, value);
@@ -108,52 +127,37 @@ function SystemChargeRow({
     costPending && (mode === "PERCENTAGE" || mode === "AMOUNT");
 
   const save = async () => {
-    setBusy(true);
-    try {
-      const next = await saveSystemCustomerCharge(estimateId, {
+    if (!editable || busy || invalidValue || derivedModeBlocked) return;
+    const saved = await runMutation(() => saveSystemCustomerCharge(estimateId, {
         source: line.source as Exclude<typeof line.source, "CUSTOM">,
         sourceRefId: line.sourceRefId,
         pricingMode: mode,
         value: mode === "SAME" ? 0 : numericValue,
-        usedInCustomerQuote,
-      });
-
-      onChange(next);
-      toast.success("Customer price saved.");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
-    }
+        usedInCustomerQuote: internalDealer || usedInCustomerQuote,
+      }));
+    if (saved) toast.success("Customer price saved.");
   };
 
   const changeUsage = async (nextUsedInCustomerQuote: boolean) => {
+    if (!editable || busy || internalDealer) return;
     const savedMode = line.pricingMode ?? "SAME";
     const savedValue =
       line.pricingValue == null ? 0 : numberValue(line.pricingValue);
 
-    setUsedInCustomerQuote(nextUsedInCustomerQuote);
-    setBusy(true);
-    try {
-      onChange(
-        await saveSystemCustomerCharge(estimateId, {
+    const saved = await runMutation(() => saveSystemCustomerCharge(estimateId, {
           source: line.source as Exclude<typeof line.source, "CUSTOM">,
           sourceRefId: line.sourceRefId,
           pricingMode: savedMode,
           value: savedMode === "SAME" ? 0 : savedValue,
           usedInCustomerQuote: nextUsedInCustomerQuote,
-        }),
-      );
+        }));
+    if (saved) {
+      setUsedInCustomerQuote(nextUsedInCustomerQuote);
       toast.success(
         nextUsedInCustomerQuote
           ? "Charge added to the customer quote."
           : "Charge removed from the customer quote.",
       );
-    } catch (error) {
-      setUsedInCustomerQuote(line.usedInCustomerQuote);
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -175,7 +179,7 @@ function SystemChargeRow({
           </p>
         </div>
         <div className="flex flex-wrap items-start justify-end gap-6">
-          <div className="flex items-center gap-2 pt-1">
+          {!internalDealer && <div className="flex items-center gap-2 pt-1">
             <Switch
               id={`use-customer-charge-${line.sourceKey}`}
               checked={usedInCustomerQuote}
@@ -186,7 +190,7 @@ function SystemChargeRow({
             <Label htmlFor={`use-customer-charge-${line.sourceKey}`}>
               Use in customer quote
             </Label>
-          </div>
+          </div>}
           <div className="min-w-28 text-right">
             <p className="text-xs text-slate-500">Customer price</p>
             <p
@@ -234,14 +238,14 @@ function SystemChargeRow({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="SAME">Same as our price</SelectItem>
+                {!internalDealer && <SelectItem value="SAME">Same as our price</SelectItem>}
                 <SelectItem value="PERCENTAGE" disabled={costPending}>
                   Percentage above cost
                 </SelectItem>
                 <SelectItem value="AMOUNT" disabled={costPending}>
                   Amount above cost
                 </SelectItem>
-                <SelectItem value="FINAL">Final customer price</SelectItem>
+                {!internalDealer && <SelectItem value="FINAL">Final customer price</SelectItem>}
               </SelectContent>
             </Select>
           </div>
@@ -296,18 +300,19 @@ function DealerChargeRow({
   estimateId,
   line,
   editable,
-  onChange,
+  busy,
+  runMutation,
 }: {
   estimateId: number;
   line: EstimateCustomerChargeSummaryLine;
   editable: boolean;
-  onChange: (summary: EstimateCustomerChargeSummary) => void;
+  busy: boolean;
+  runMutation: ChargeMutation;
 }) {
   const [description, setDescription] = useState(line.description);
   const [amount, setAmount] = useState(
     String(numberValue(line.customerAmount)),
   );
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setDescription(line.description);
@@ -329,37 +334,21 @@ function DealerChargeRow({
   }
 
   const save = async () => {
-    if (!line.id || !description.trim()) return;
+    if (!editable || busy || !line.id || !description.trim()) return;
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || numericAmount < 0) return;
 
-    setBusy(true);
-    try {
-      onChange(
-        await updateDealerCustomerCharge(estimateId, line.id, {
+    const saved = await runMutation(() => updateDealerCustomerCharge(estimateId, line.id!, {
           description: description.trim(),
           amount: numericAmount,
-        }),
-      );
-      toast.success("Customer charge updated.");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
-    }
+        }));
+    if (saved) toast.success("Customer charge updated.");
   };
 
   const remove = async () => {
-    if (!line.id) return;
-    setBusy(true);
-    try {
-      onChange(await deleteEstimateCustomerCharge(estimateId, line.id));
-      toast.success("Customer charge removed.");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    if (!editable || busy || !line.id) return;
+    const removed = await runMutation(() => deleteEstimateCustomerCharge(estimateId, line.id!));
+    if (removed) toast.success("Customer charge removed.");
   };
 
   return (
@@ -372,6 +361,7 @@ function DealerChargeRow({
           id={`dealer-charge-description-${line.id}`}
           maxLength={150}
           value={description}
+          disabled={busy}
           onChange={(event) => setDescription(event.target.value)}
         />
       </div>
@@ -385,6 +375,7 @@ function DealerChargeRow({
           min="0"
           step="0.01"
           value={amount}
+          disabled={busy}
           onChange={(event) => setAmount(event.target.value)}
         />
       </div>
@@ -409,46 +400,79 @@ function DealerChargeRow({
 
 export function DealerCustomerChargesCard({
   estimateId,
+  dealerMode,
   initialSummary,
   refreshKey,
   editable,
   onSummaryChange,
+  onBusyChange,
+  onError,
 }: {
   estimateId: number;
+  dealerMode: DealerMode | null;
   initialSummary: EstimateCustomerChargeSummary | null;
   refreshKey: string;
   editable: boolean;
-  onSummaryChange: (summary: EstimateCustomerChargeSummary | null) => void;
+  onSummaryChange: (summary: EstimateCustomerChargeSummary | null) => void | Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
+  onError?: () => void;
 }) {
+  const internalDealer = dealerMode === "INTERNAL";
   const [summary, setSummary] = useState(initialSummary);
-  const [loading, setLoading] = useState(!initialSummary);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const pendingRequests = useRef(0);
+  const generation = useRef(0);
+  const requestQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const callbacks = useRef({ onSummaryChange, onBusyChange, onError });
+  callbacks.current = { onSummaryChange, onBusyChange, onError };
 
-  const commit = (next: EstimateCustomerChargeSummary | null) => {
-    setSummary(next);
-    onSummaryChange(next);
+  const enqueue = useCallback((
+    operation: () => Promise<EstimateCustomerChargeSummary | null>,
+    requestGeneration: number,
+    refresh = false,
+  ): Promise<boolean> => {
+    pendingRequests.current += 1;
+    setBusy(true);
+    callbacks.current.onBusyChange?.(true);
+    const request = requestQueue.current.then(async () => {
+      if (refresh && generation.current !== requestGeneration) return;
+      const next = await operation();
+      if (generation.current === requestGeneration) {
+        setSummary(next);
+        await callbacks.current.onSummaryChange(next);
+      }
+    });
+    requestQueue.current = request.catch(() => undefined);
+    return request.then(() => true).catch((error) => {
+      if (generation.current === requestGeneration) {
+        callbacks.current.onError?.();
+        toast.error((error as Error).message);
+      }
+      return false;
+    }).finally(() => {
+      pendingRequests.current -= 1;
+      if (pendingRequests.current === 0) {
+        setBusy(false);
+        callbacks.current.onBusyChange?.(false);
+      }
+    });
+  }, []);
+
+  const runMutation: ChargeMutation = async (operation) => {
+    if (!editable || pendingRequests.current > 0) return false;
+    return enqueue(operation, ++generation.current);
   };
 
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    getEstimateCustomerCharges(estimateId)
-      .then((next) => {
-        if (active) commit(next);
-      })
-      .catch((error) => {
-        if (active) toast.error((error as Error).message);
-      })
-      .finally(() => active && setLoading(false));
+    const requestGeneration = ++generation.current;
+    void enqueue(() => getEstimateCustomerCharges(estimateId), requestGeneration, true);
 
     return () => {
-      active = false;
+      if (generation.current === requestGeneration) generation.current += 1;
     };
-    // commit intentionally stays local so a parent render cannot restart this request.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estimateId, refreshKey]);
+  }, [estimateId, refreshKey, enqueue]);
 
   const systemLines = useMemo(
     () => summary?.lines.filter((line) => line.origin === "SYSTEM") ?? [],
@@ -460,6 +484,7 @@ export function DealerCustomerChargesCard({
   );
 
   const addCharge = async () => {
+    if (!editable || pendingRequests.current > 0) return;
     const numericAmount = Number(amount);
     if (!description.trim()) {
       toast.error("Enter a charge description.");
@@ -470,21 +495,14 @@ export function DealerCustomerChargesCard({
       return;
     }
 
-    setBusy(true);
-    try {
-      commit(
-        await createDealerCustomerCharge(estimateId, {
+    const saved = await runMutation(() => createDealerCustomerCharge(estimateId, {
           description: description.trim(),
           amount: numericAmount,
-        }),
-      );
+        }));
+    if (saved) {
       setDescription("");
       setAmount("");
       toast.success("Customer charge added.");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -498,8 +516,9 @@ export function DealerCustomerChargesCard({
               &amp; charges
             </CardTitle>
             <CardDescription>
-              External dealer pricing only. These amounts appear in the customer
-              report and never change what you owe us.
+              {internalDealer
+                ? "These amounts are included in the total the customer pays us, including any amounts added above our price and dealer-created charges."
+                : "External dealer pricing only. These amounts appear in the customer report and never change what you owe us."}
             </CardDescription>
           </div>
           <Badge variant="outline">Customer pricing</Badge>
@@ -507,7 +526,7 @@ export function DealerCustomerChargesCard({
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {loading && !summary ? (
+        {busy && !summary ? (
           <p className="text-sm text-slate-500">Loading customer charges…</p>
         ) : (
           <>
@@ -517,8 +536,9 @@ export function DealerCustomerChargesCard({
                   Generated by the system
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Use our price, add a percentage or amount, or set the final
-                  customer price directly.
+                  {internalDealer
+                    ? "Add a percentage or amount above our calculated price. Use zero to keep our price. Calculated charges are always included in the customer total."
+                    : "Use our price, add a percentage or amount, or set the final customer price directly."}
                 </p>
               </div>
 
@@ -529,13 +549,16 @@ export function DealerCustomerChargesCard({
                     estimateId={estimateId}
                     line={line}
                     editable={editable}
-                    onChange={commit}
+                    internalDealer={internalDealer}
+                    busy={busy}
+                    runMutation={runMutation}
                   />
                 ))
               ) : (
                 <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                  No company installation charges exist. You can still add your
-                  own installation and service prices below.
+                  {internalDealer
+                    ? "No installation has been calculated. You can still add other charges below."
+                    : "No company installation charges exist. You can still add your own installation and service prices below."}
                 </div>
               )}
             </div>
@@ -546,8 +569,9 @@ export function DealerCustomerChargesCard({
                   Created by the dealer
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Add installation or any other service even when you do not
-                  request installation from us.
+                  {internalDealer
+                    ? "Add any additional work or service with a description and customer price."
+                    : "Add installation or any other service even when you do not request installation from us."}
                 </p>
               </div>
 
@@ -557,7 +581,8 @@ export function DealerCustomerChargesCard({
                   estimateId={estimateId}
                   line={line}
                   editable={editable}
-                  onChange={commit}
+                  busy={busy}
+                  runMutation={runMutation}
                 />
               ))}
 
@@ -571,8 +596,9 @@ export function DealerCustomerChargesCard({
                       id="new-customer-charge-description"
                       maxLength={150}
                       value={description}
+                      disabled={busy}
                       onChange={(event) => setDescription(event.target.value)}
-                      placeholder="e.g. Installation or Remove shutters"
+                      placeholder={internalDealer ? "e.g. Remove shutters" : "e.g. Installation or Remove shutters"}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -585,6 +611,7 @@ export function DealerCustomerChargesCard({
                       min="0"
                       step="0.01"
                       value={amount}
+                      disabled={busy}
                       onChange={(event) => setAmount(event.target.value)}
                       placeholder="0.00"
                     />
@@ -608,8 +635,9 @@ export function DealerCustomerChargesCard({
                 </div>
                 {summary.customerTotalIncomplete && (
                   <p className="mt-1 text-xs font-medium text-amber-800">
-                    Some company prices are pending. Set a final customer price
-                    or wait for the system price to complete the total.
+                    {internalDealer
+                      ? "Some company prices are pending. The total will be complete once those prices are available."
+                      : "Some company prices are pending. Set a final customer price or wait for the system price to complete the total."}
                   </p>
                 )}
               </div>

@@ -130,6 +130,13 @@ export function EstimateRevisionSummary({
           original: amount(financialComparison.original.installationTotal),
           revised: amount(financialComparison.revised.installationTotal),
         },
+        ...(Number(financialComparison.original.additionalCharges ?? 0) > 0 || Number(financialComparison.revised.additionalCharges ?? 0) > 0
+          ? [{
+              label: "Additional charges",
+              original: amount(financialComparison.original.additionalCharges ?? "0"),
+              revised: amount(financialComparison.revised.additionalCharges ?? "0"),
+            }]
+          : []),
         ...(financialComparison.includesPermit
           ? [
               {

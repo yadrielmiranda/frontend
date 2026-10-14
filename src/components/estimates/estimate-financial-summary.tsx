@@ -16,6 +16,7 @@ import type {
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { paidBaseFor, paidInstallationCredit } from "@/lib/installation-flow";
 import { additionalServiceTotals } from "@/lib/installation-service-totals";
+import { customerChargeAdditions } from "@/lib/customer-charge-additions";
 import { canSetCustomerOnEstimate } from "@/lib/rbac";
 import { DealerProfitSummary } from "./dealer-profit-summary";
 import { DealerEarningsSummaryCard } from "./dealer-earnings-summary";
@@ -111,14 +112,16 @@ function TaxAmount({ total }: { total: MaterialTotals }) {
   );
 }
 
-function ExternalDealerServiceSummary({
+function DealerServiceSummary({
   summary,
   discount = 0,
   installationDiscount = 0,
+  customerDiscount = 0,
 }: {
   summary: EstimateCustomerChargeSummary | null;
   discount?: number;
   installationDiscount?: number;
+  customerDiscount?: number;
 }) {
   const lines = summary?.lines ?? [];
 
@@ -169,7 +172,7 @@ function ExternalDealerServiceSummary({
           </div>
         ))}
 
-      {discount > 0 && <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 border-t px-4 py-2.5 text-sm text-emerald-700"><span>Additional discount</span><span className="text-right">−{formatMoney(discount)}</span><span className="text-right">—</span></div>}
+      {(discount > 0 || customerDiscount > 0) && <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] gap-3 border-t px-4 py-2.5 text-sm text-emerald-700"><span>Additional discount</span><span className="text-right">{discount > 0 ? `−${formatMoney(discount)}` : "—"}</span><span className="text-right">{customerDiscount > 0 ? `−${formatMoney(customerDiscount)}` : "—"}</span></div>}
       {summary && lines.length > 0 && (
         <div className="grid min-w-[520px] grid-cols-[minmax(0,1fr)_minmax(120px,0.45fr)_minmax(120px,0.45fr)] items-center gap-3 border-t bg-slate-50/60 px-4 py-3 text-sm font-semibold">
           <span>Services total</span>
@@ -177,7 +180,7 @@ function ExternalDealerServiceSummary({
             {formatMoney(numberValue(summary.systemTotal) - discount)}
           </span>
           <span className="text-right">
-            {formatMoney(numberValue(summary.customerTotal))}
+            {formatMoney(numberValue(summary.customerTotal) - customerDiscount)}
           </span>
         </div>
       )}
@@ -228,7 +231,7 @@ export function EstimateFinancialSummary({
       ? null
       : savedManualDiscount;
   let customerChargesSummary = savedCustomerChargesSummary;
-  if (!installationJob && savedCustomerChargesSummary) {
+  if (!activeJob && savedCustomerChargesSummary) {
     const lines = savedCustomerChargesSummary.lines.filter(
       (line) => line.origin === "DEALER",
     );
@@ -336,8 +339,9 @@ export function EstimateFinancialSummary({
   const depositPaid = activeJob
     ? paidBaseFor(activeJob, "INSTALLATION_DEPOSIT")
     : 0;
+  const internalAdditions = customerChargeAdditions(customerChargesSummary, isDealerEstimate && dealerMode === "INTERNAL", Boolean(activeJob));
   const installationBalance = activeJob
-    ? roundMoney(Math.max(0, quoteTotal - paidInstallationCredit(activeJob)))
+    ? roundMoney(Math.max(0, quoteTotal + internalAdditions.installation + internalAdditions.custom - paidInstallationCredit(activeJob)))
     : 0;
   const serviceDiscount = activeJob
     ? numberValue(manualDiscount?.installation.discount) +
@@ -349,7 +353,9 @@ export function EstimateFinancialSummary({
   const customerChargesTotal =
     isExternalDealer && customerChargesSummary
       ? numberValue(customerChargesSummary.customerTotal)
-      : sharedChargesTotal;
+      : roundMoney(sharedChargesTotal + (isDealerEstimate && customerChargesSummary
+          ? numberValue(customerChargesSummary.customerTotal) - numberValue(customerChargesSummary.systemTotal)
+          : 0));
   const internalProjectTotal = roundMoney(
     internalMaterial.total + internalServiceTotal,
   );
@@ -567,9 +573,14 @@ export function EstimateFinancialSummary({
             </div>
           )}
 
-          {isExternalDealer ? (
+          {isDealerEstimate && (isExternalDealer || customerChargesSummary) ? (
             <div>
-              <ExternalDealerServiceSummary summary={customerChargesSummary} discount={serviceDiscount} installationDiscount={numberValue(manualDiscount?.installation.discount)} />
+              <DealerServiceSummary
+                summary={customerChargesSummary}
+                discount={manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0}
+                customerDiscount={manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0}
+                installationDiscount={manualDiscount?.payer === "ACCOUNT_OWNER" ? numberValue(manualDiscount.installation.discount) : 0}
+              />
               {numberValue(quote?.installationSurcharge) > 0 && <p className="mt-2 text-sm text-muted-foreground">Your Installation cost includes an installation surcharge of {formatMoney(numberValue(quote?.installationSurcharge))}.</p>}
             </div>
           ) : (
@@ -640,12 +651,6 @@ export function EstimateFinancialSummary({
                     <SummaryRow label="Permit management" value="Not included" />
                   )}
 
-                  {isDealerEstimate && (
-                    <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-                      The system installation price is the final customer price
-                      for this account.
-                    </p>
-                  )}
                 </>
               )}
             </div>
