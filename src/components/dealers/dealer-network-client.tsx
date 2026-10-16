@@ -7,6 +7,7 @@ import { Plus, Pencil, Loader2, Search, Power, PowerOff, ClipboardCheck } from '
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createNetworkAccount, updateNetworkMarkup, type DealerNetwork, type NetworkMember } from '@/app/api/dealer-network.api';
 import { NetworkBusinessDialog } from './network-business-dialog';
@@ -27,6 +28,7 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [error, setError] = useState('');
+  const [address, setAddress] = useState({ street: '', city: '', state: '', postalCode: '' });
   const parents = initialData.members.filter(member => member.level < 3 && member.isActive && !member.networkSalesBlocked);
   const parent = initialData.members.find(member => member.id === (editing?.parentDealerId ?? Number(parentId)));
   const allowInternal = parent?.level === 1 && parent.dealerMode === "INTERNAL";
@@ -74,7 +76,8 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <h1 className="text-4xl font-bold">{initialData.level === null ? 'Dealer network' : 'My dealers'}</h1>
       {initialData.canCreate && <Button variant="green" onClick={() => {
-        setParentId(String(isAdmin ? parents[0]?.id ?? '' : currentUserId)); setMode('EXTERNAL'); setEarningsMode('MARKUP'); setError(''); setCreating(true);
+        setParentId(String(isAdmin ? parents[0]?.id ?? '' : currentUserId)); setMode('EXTERNAL'); setEarningsMode('MARKUP'); setError('');
+        setAddress({ street: '', city: '', state: '', postalCode: '' }); setCreating(true);
       }}><Plus className="mr-2 h-4 w-4" />{isAdmin ? 'New account' : `New ${initialData.level === 'Subdealer' ? 'distributor' : 'subdealer'}`}</Button>}
     </div>
     {isAdmin || initialData.level !== null ? <DealerNetworkTree members={initialData.members.filter(member => member.id !== currentUserId)} currentUserId={currentUserId} showMarkupSource={isAdmin} busy={busy} onEdit={editTerms} onBusiness={setSuspending} /> : <>
@@ -115,8 +118,33 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
                 <Field name="email" label="Email" type="email" maxLength={150} />
                 <Field name="phone" label="Phone" type="tel" placeholder="(305) 555-1234" />
               </div>
-              <Field name="street" label="Street address" maxLength={150} />
-              <div className="grid grid-cols-3 gap-3"><Field name="city" label="City" maxLength={100} /><Field name="state" label="State" maxLength={2} placeholder="FL" /><Field name="postalCode" label="ZIP code" inputMode="numeric" pattern="[0-9]{5}" maxLength={5} /></div>
+              <div className="text-sm font-medium">
+                <label htmlFor="network-street">Street address</label>
+                <AddressAutocomplete
+                  id="network-street"
+                  name="street"
+                  className="mt-1"
+                  required
+                  maxLength={150}
+                  value={address.street}
+                  disabled={busy}
+                  contextKey={JSON.stringify([address.city, address.state, address.postalCode, parentId])}
+                  onChange={event => setAddress(current => ({ ...current, street: event.target.value }))}
+                  onAddressSelect={selected => {
+                    if (selected.street.length > 150 || selected.city.length > 100) {
+                      setError('The selected address is too long. Enter a street with up to 150 characters and a city with up to 100 characters.');
+                      return;
+                    }
+                    setAddress({ street: selected.street, city: selected.city, state: selected.state, postalCode: selected.postalCode });
+                    setError('');
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Field name="city" label="City" maxLength={100} value={address.city} onChange={event => setAddress(current => ({ ...current, city: event.target.value }))} />
+                <Field name="state" label="State" maxLength={2} placeholder="FL" value={address.state} onChange={event => setAddress(current => ({ ...current, state: event.target.value }))} />
+                <Field name="postalCode" label="ZIP code" inputMode="numeric" pattern="[0-9]{5}" maxLength={5} value={address.postalCode} onChange={event => setAddress(current => ({ ...current, postalCode: event.target.value }))} />
+              </div>
             </>}
             {allowInternal && <label className="block text-sm font-medium">Subdealer type<select className="mt-1 h-10 w-full rounded-md border bg-white px-3" value={mode} onChange={event => setMode(event.target.value as 'INTERNAL' | 'EXTERNAL')}><option value="EXTERNAL">External</option><option value="INTERNAL">Internal</option></select></label>}
             {effectiveMode === 'INTERNAL' && <div className="space-y-3 rounded-lg border bg-slate-50 p-4">

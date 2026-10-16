@@ -12,6 +12,7 @@ import { US_STATES } from "@/lib/us-states";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -49,6 +50,8 @@ function validateDraft(draft: Draft): string | null {
     !draft.postalCode.trim()
   )
     return "Complete the warehouse address.";
+  if (draft.street.trim().length > 150 || draft.city.trim().length > 100)
+    return "Use no more than 150 characters for the street and 100 for the city.";
   if (!US_STATES.some((state) => state.value === draft.state))
     return "Select a valid state.";
   if (!/^\d{5}(?:-\d{4})?$/.test(draft.postalCode.trim()))
@@ -188,11 +191,13 @@ export function WarehouseDeliveryClient({
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2 sm:col-span-2 lg:col-span-4">
                 <Label htmlFor="warehouse-street">Street address</Label>
-                <Input
+                <AddressAutocomplete
                   id="warehouse-street"
-                  autoComplete="street-address"
                   maxLength={150}
                   value={draft.street}
+                  disabled={busy}
+                  contextKey={JSON.stringify([draft.city, draft.state, draft.postalCode])}
+                  onAddressSelect={change}
                   onChange={(event) => change({ street: event.target.value })}
                 />
               </div>

@@ -27,9 +27,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
-import { lookupZip } from "@/app/api/geo.api";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
 import { StateCombobox } from "@/components/StateCombobox";
@@ -177,21 +177,7 @@ export function UserForm({
     },
   });
 
-  const zip = useWatch({ control, name: "postalCode" });
-
-  useEffect(() => {
-    const zip5 = normalizeUSZip(zip);
-    if (!isValidUSZip(zip5)) return;
-
-    lookupZip(zip5)
-      .then((res) => {
-        if (!res) return;
-        if (!watch("city")) setValue("city", res.city, { shouldDirty: true });
-        if (!watch("state"))
-          setValue("state", res.state, { shouldDirty: true });
-      })
-      .catch(() => {});
-  }, [zip, setValue, watch]);
+  const addressContext = useWatch({ control, name: ["city", "state", "postalCode"] });
 
   const selectedRoleId = watch("idRole");
   const selectedRoleName = roles.find(
@@ -446,10 +432,27 @@ export function UserForm({
 
         <div className="md:col-span-2">
           <Label>Street{showRequiredMark && <RequiredMark />}</Label>
-          <Input
-            {...register("street", { required: "Street is required" })}
-            disabled={isAdminEditMode}
-            autoComplete="address-line1"
+          <Controller
+            name="street"
+            control={control}
+            rules={{ required: "Street is required", maxLength: { value: 150, message: "Street must be 150 characters or fewer." } }}
+            render={({ field }) => (
+              <AddressAutocomplete
+                {...field}
+                value={field.value ?? ""}
+                maxLength={150}
+                aria-label="Street"
+                disabled={isAdminEditMode || isSubmitting}
+                contextKey={JSON.stringify(addressContext)}
+                onAddressSelect={(address) => {
+                  const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
+                  setValue("street", address.street, options);
+                  setValue("city", address.city, options);
+                  setValue("state", address.state, options);
+                  setValue("postalCode", address.postalCode, options);
+                }}
+              />
+            )}
           />
           {errors.street && (
             <p className="text-sm text-red-500 mt-1">{errors.street.message}</p>
@@ -459,7 +462,8 @@ export function UserForm({
         <div>
           <Label>City{showRequiredMark && <RequiredMark />}</Label>
           <Input
-            {...register("city", { required: "City is required" })}
+            maxLength={100}
+            {...register("city", { required: "City is required", maxLength: { value: 100, message: "City must be 100 characters or fewer." } })}
             disabled={isAdminEditMode}
             autoComplete="address-level2"
           />

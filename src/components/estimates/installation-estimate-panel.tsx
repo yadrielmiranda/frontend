@@ -41,6 +41,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -272,6 +273,14 @@ export function InstallationEstimatePanel({
       toast.error("Installation is available only in Florida.");
       return;
     }
+    if (address.street.trim().length > 150 || address.city.trim().length > 100) {
+      toast.error("Use no more than 150 characters for the street and 100 for the city.");
+      return;
+    }
+    if (!/^\d{5}(?:-\d{4})?$/.test(address.postalCode.trim())) {
+      toast.error("Enter a valid 5-digit ZIP code or ZIP+4.");
+      return;
+    }
     if (permitRequested === null) {
       toast.error("Select a permit management option.");
       return;
@@ -398,6 +407,26 @@ export function InstallationEstimatePanel({
                               <SelectTrigger id="installation-state" className="w-full"><SelectValue placeholder="Select state" /></SelectTrigger>
                               <SelectContent><SelectItem value="FL">Florida (FL)</SelectItem></SelectContent>
                             </Select>
+                          ) : key === "street" ? (
+                            <AddressAutocomplete
+                              id="installation-street"
+                              value={address.street}
+                              maxLength={150}
+                              disabled={busy}
+                              contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
+                              onChange={event => {
+                                setAddress(current => ({ ...current, street: event.target.value }));
+                                setAddressConfirmed(false);
+                              }}
+                              onAddressSelect={selected => {
+                                setAddressConfirmed(false);
+                                if (selected.state !== "FL") {
+                                  toast.error("Installation is available only in Florida. Choose a Florida address.");
+                                  return;
+                                }
+                                setAddress(selected);
+                              }}
+                            />
                           ) : (
                             <Input id={`installation-${key}`} value={address[key]} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { setAddress(current => ({ ...current, [key]: event.target.value })); setAddressConfirmed(false); }} />
                           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -38,7 +38,8 @@ import { getCurrentPlatformTerms, platformTermsPageUrl, type PlatformTermsVersio
 import { StateCombobox } from "@/components/StateCombobox";
 import { US_STATES } from "@/lib/us-states";
 
-import { lookupZip } from "@/app/api/geo.api";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
+import type { PlaceAddress } from "@/app/api/geo.api";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
@@ -82,11 +83,11 @@ const registerSchema = z.object({
 
   street: z.string().min(1, {
     message: "Street address is required.",
-  }),
+  }).max(150, "Street address must be 150 characters or fewer."),
 
   city: z.string().min(1, {
     message: "City is required.",
-  }),
+  }).max(100, "City must be 100 characters or fewer."),
 
   state: z
     .string()
@@ -169,7 +170,6 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     handleSubmit,
     control,
     setValue,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -205,28 +205,16 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     return () => { cancelled = true; };
   }, [consentReload, setValue]);
 
-  // Busca la ciudad y el estado automáticamente usando el ZIP.
-  const zip = useWatch({ control, name: "postalCode" });
+  const addressContext = useWatch({ control, name: ["city", "state", "postalCode"] });
 
-  useEffect(() => {
-    const zip5 = normalizeUSZip(zip);
-    if (!isValidUSZip(zip5)) return;
-
-    lookupZip(zip5)
-      .then((res) => {
-        if (!res) return;
-
-        // No sobreescribas valores que el usuario ya escribió.
-        if (!getValues("city")) {
-          setValue("city", res.city, { shouldDirty: true });
-        }
-
-        if (!getValues("state")) {
-          setValue("state", res.state, { shouldDirty: true });
-        }
-      })
-      .catch(() => {});
-  }, [zip, getValues, setValue]);
+  const applyAddress = (address: PlaceAddress) => {
+    if (isSubmitting) return;
+    const options = { shouldDirty: true, shouldValidate: true };
+    setValue("street", address.street, options);
+    setValue("city", address.city, options);
+    setValue("state", address.state, options);
+    setValue("postalCode", address.postalCode, options);
+  };
 
   const handleRegister = async (data: RegisterFormData) => {
     const wantsSms = data.serviceConsent || data.promotionsConsent;
@@ -403,12 +391,24 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               <RequiredMark />
             </Label>
 
-            <Input
-              id="street"
-              autoComplete="address-line1"
-              placeholder="Enter your street address"
-              className={inputClass}
-              {...register("street")}
+            <Controller
+              control={control}
+              name="street"
+              render={({ field }) => (
+                <AddressAutocomplete
+                  {...field}
+                  value={field.value ?? ""}
+                  id="street"
+                  placeholder="Start typing your street address"
+                  className={inputClass}
+                  maxLength={150}
+                  access="registration"
+                  contextKey={JSON.stringify(addressContext)}
+                  onAddressSelect={applyAddress}
+                  disabled={isSubmitting}
+                  aria-invalid={Boolean(errors.street)}
+                />
+              )}
             />
 
             {errors.street && (
@@ -424,6 +424,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
 
             <Input
               id="city"
+              maxLength={100}
               autoComplete="address-level2"
               placeholder="City"
               className={inputClass}

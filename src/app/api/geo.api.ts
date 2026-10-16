@@ -20,17 +20,22 @@ export type PlaceAddress = {
   postalCode: string;
 };
 
-export function autocompleteAddress(input: string, sessionToken: string) {
+export type PlacesAccess = "authenticated" | "registration";
+
+export function autocompleteAddress(input: string, sessionToken: string, access: PlacesAccess = "authenticated") {
   return apiFetch<{ suggestions: PlaceSuggestion[] }>(
-    "/api/geo/places/autocomplete",
-    { method: "POST", body: { input, sessionToken }, timeoutMs: 10000 },
+    `/api/geo/${access === "registration" ? "registration/" : ""}places/autocomplete`,
+    { method: "POST", body: { input, sessionToken }, timeoutMs: 10000,
+      ...(access === "registration" ? { suppressAuthEvent: true } : {}),
+    },
   );
 }
 
-export function getPlaceAddress(placeId: string, sessionToken: string) {
-  return apiFetch<PlaceAddress>("/api/geo/places/details", {
+export function getPlaceAddress(placeId: string, sessionToken: string, access: PlacesAccess = "authenticated") {
+  return apiFetch<PlaceAddress>(`/api/geo/${access === "registration" ? "registration/" : ""}places/details`, {
     method: "POST",
     body: { placeId, sessionToken },
     timeoutMs: 10000,
+    ...(access === "registration" ? { suppressAuthEvent: true } : {}),
   });
 }

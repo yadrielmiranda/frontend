@@ -30,6 +30,7 @@ const react = {
 const mocks = {
   'react/jsx-runtime': { jsx, jsxs: jsx }, react,
   'react-hook-form': {
+    Controller: 'Controller',
     useForm: () => ({ register: name => ({ name }), handleSubmit: callback => () => callback(formData), control: {},
       setValue, getValues, formState: { errors: {}, isSubmitting: false } }),
     useWatch: () => '',
@@ -44,7 +45,7 @@ const mocks = {
   '@/app/api/sms.api': { getSmsProgram: async () => ({ registration: {}, version: 'test-consent' }) },
   '@/app/api/platform-terms.api': { getCurrentPlatformTerms: async () => null, platformTermsPageUrl: () => '/terms' },
   '@/components/StateCombobox': ui,
-  '@/app/api/geo.api': { lookupZip: async () => null },
+  '@/components/address-autocomplete': { AddressAutocomplete: 'AddressAutocomplete' },
 };
 const cache = new Map();
 function load(relative, enableRegistration = false) {
@@ -100,6 +101,11 @@ const assertClosed = async (tree, description) => {
 (async () => {
   resolveLink = async value => ({ valid: true, code: value, referrerName: 'Private Referrer Name' });
   let tree = await settle(undefined);
+  const streetController = all(tree, node => node.type === 'Controller' && node.props.name === 'street')[0];
+  assert.ok(streetController, 'Street address is connected to the registration form');
+  const streetInput = streetController.props.render({ field: { value: '', name: 'street', onChange() {} } });
+  assert.equal(streetInput.type, 'AddressAutocomplete');
+  assert.equal(streetInput.props.access, 'registration', 'Registration uses the public autocomplete endpoint');
   await assertClosed(tree, 'Ordinary registration');
 
   reset();

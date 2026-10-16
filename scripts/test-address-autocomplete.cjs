@@ -210,6 +210,32 @@ test('API helpers send only address search data through the authenticated backen
   ]);
 });
 
+test('registration uses public endpoints without prompting for authentication', async () => {
+  const requests = [];
+  const api = load('app/api/geo.api.ts', { './_base': { apiFetch: (...args) => { requests.push(args); return Promise.resolve({}); } } });
+  await api.autocompleteAddress('100 Example', 'session', 'registration');
+  await api.getPlaceAddress('place-one', 'session', 'registration');
+  assert.deepEqual(requests, [
+    ['/api/geo/registration/places/autocomplete', { method: 'POST', body: { input: '100 Example', sessionToken: 'session' }, timeoutMs: 10000, suppressAuthEvent: true }],
+    ['/api/geo/registration/places/details', { method: 'POST', body: { placeId: 'place-one', sessionToken: 'session' }, timeoutMs: 10000, suppressAuthEvent: true }],
+  ]);
+  const f = fixture({}, { access: 'registration' });
+  f.focus(); f.type('100 Example'); await f.tick(); f.key('Enter'); await flush();
+  assert.deepEqual(f.requests.map(request => request.args[2]), ['registration', 'registration']);
+  assert.deepEqual(f.selections, [address]);
+});
+
+test('switching access context cancels in-flight suggestions and rotates the session', async () => {
+  const pending = deferred(); let count = 0;
+  const f = fixture({ autocompleteAddress: () => ++count === 1 ? pending.promise : Promise.resolve({ suggestions }) });
+  f.focus(); f.type('100 Example'); await f.tick();
+  f.update({ access: 'registration' }); pending.resolve({ suggestions }); await flush();
+  assert.equal(f.options().length, 0);
+  f.type('100 Example Road'); await f.tick();
+  assert.equal(f.requests[1].args[2], 'registration');
+  assert.notEqual(f.requests[0].args[1], f.requests[1].args[1]);
+});
+
 (async () => {
   for (const { name, run } of tests) {
     try { await run(); console.log(`PASS ${name}`); }

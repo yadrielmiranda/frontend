@@ -6,6 +6,7 @@ import {
   getPlaceAddress,
   type PlaceAddress,
   type PlaceSuggestion,
+  type PlacesAccess,
 } from "@/app/api/geo.api";
 import { Input } from "@/components/ui/input";
 
@@ -18,6 +19,7 @@ type AddressAutocompleteProps = Omit<
   onAddressSelect: (address: PlaceAddress) => void;
   /** Changing another address field cancels a pending selection. */
   contextKey?: string;
+  access?: PlacesAccess;
 };
 
 type Status = "idle" | "searching" | "results" | "empty" | "unavailable" | "resolving";
@@ -39,6 +41,7 @@ export function AddressAutocomplete({
   onChange,
   onAddressSelect,
   contextKey = "",
+  access = "authenticated",
   onBlur,
   onFocus,
   onKeyDown,
@@ -61,10 +64,11 @@ export function AddressAutocomplete({
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectedValue = React.useRef(value);
   const previousContext = React.useRef(contextKey);
+  const previousAccess = React.useRef(access);
   const session = React.useRef<{ token: string; startedAt: number } | null>(null);
   const displayedSession = React.useRef<string | null>(null);
-  const latest = React.useRef({ value, contextKey, disabled, readOnly, onAddressSelect });
-  latest.current = { value, contextKey, disabled, readOnly, onAddressSelect };
+  const latest = React.useRef({ value, contextKey, access, disabled, readOnly, onAddressSelect });
+  latest.current = { value, contextKey, access, disabled, readOnly, onAddressSelect };
 
   const cancel = React.useCallback(() => {
     revision.current++;
@@ -86,16 +90,17 @@ export function AddressAutocomplete({
   }, []);
 
   React.useEffect(() => {
-    if (value !== expectedValue.current || contextKey !== previousContext.current || disabled || readOnly) {
+    if (value !== expectedValue.current || contextKey !== previousContext.current || access !== previousAccess.current || disabled || readOnly) {
       cancel();
     }
     expectedValue.current = value;
     previousContext.current = contextKey;
-  }, [value, contextKey, disabled, readOnly, cancel]);
+    previousAccess.current = access;
+  }, [value, contextKey, access, disabled, readOnly, cancel]);
 
   function isCurrent(request: number, street: string, context: string) {
     return mounted.current && focused.current && revision.current === request &&
-      latest.current.value === street && latest.current.contextKey === context &&
+      latest.current.value === street && latest.current.contextKey === context && latest.current.access === access &&
       !latest.current.disabled && !latest.current.readOnly;
   }
 
@@ -120,7 +125,7 @@ export function AddressAutocomplete({
           session.current = { token: createSessionToken(), startedAt: Date.now() };
         }
         const token = session.current.token;
-        const response = await autocompleteAddress(street.trim(), token);
+        const response = await autocompleteAddress(street.trim(), token, access);
         if (!isCurrent(request, street, context)) return;
         displayedSession.current = token;
         setSuggestions(response.suggestions);
@@ -145,7 +150,7 @@ export function AddressAutocomplete({
     setActiveIndex(-1);
     setStatus("resolving");
     try {
-      const address = await getPlaceAddress(suggestion.placeId, token);
+      const address = await getPlaceAddress(suggestion.placeId, token, access);
       if (!isCurrent(request, street, context)) return;
       setStatus("idle");
       latest.current.onAddressSelect(address);

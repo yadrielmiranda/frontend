@@ -12,6 +12,7 @@ import { US_STATES } from "@/lib/us-states";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -73,6 +74,10 @@ function validateDraft(draft: Draft): string | null {
   ) {
     return "Complete the departure address.";
   }
+  if (draft.originStreet.trim().length > 150 || draft.originCity.trim().length > 100)
+    return "Use no more than 150 characters for the street and 100 for the city.";
+  if (!US_STATES.some((state) => state.value === draft.originState))
+    return "Select a valid state.";
   if (!/^\d{5}(?:-\d{4})?$/.test(draft.originPostalCode.trim()))
     return "Enter a valid ZIP code.";
   if (
@@ -232,11 +237,18 @@ export function InstallationCoverageClient({
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2 sm:col-span-2 lg:col-span-4">
                 <Label htmlFor="coverage-street">Street address</Label>
-                <Input
+                <AddressAutocomplete
                   id="coverage-street"
-                  autoComplete="street-address"
                   maxLength={150}
                   value={draft.originStreet}
+                  disabled={busy}
+                  contextKey={JSON.stringify([draft.originCity, draft.originState, draft.originPostalCode])}
+                  onAddressSelect={address => change({
+                    originStreet: address.street,
+                    originCity: address.city,
+                    originState: address.state,
+                    originPostalCode: address.postalCode,
+                  })}
                   onChange={(event) =>
                     change({ originStreet: event.target.value })
                   }

@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
@@ -179,6 +180,10 @@ export function OrderDeliveryPanel({
       !address.postalCode.trim()
     ) {
       toast.error("Complete the entire delivery address.");
+      return;
+    }
+    if (address.street.trim().length > 150 || address.city.trim().length > 100) {
+      toast.error("Use no more than 150 characters for the street and 100 for the city.");
       return;
     }
     if (!/^[A-Za-z]{2}$/.test(address.state.trim())) {
@@ -527,10 +532,13 @@ export function OrderDeliveryPanel({
           <div className="grid gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
               <Label htmlFor="delivery-street">Street</Label>
-              <Input
+              <AddressAutocomplete
                 id="delivery-street"
                 value={address.street}
-                autoComplete="street-address"
+                maxLength={150}
+                disabled={busy}
+                contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
+                onAddressSelect={setAddress}
                 onChange={(event) =>
                   setAddress((current) => ({
                     ...current,
@@ -544,6 +552,8 @@ export function OrderDeliveryPanel({
               <Input
                 id="delivery-city"
                 value={address.city}
+                maxLength={100}
+                disabled={busy}
                 autoComplete="address-level2"
                 onChange={(event) =>
                   setAddress((current) => ({
@@ -559,6 +569,7 @@ export function OrderDeliveryPanel({
                 <Input
                   id="delivery-state"
                   value={address.state}
+                  disabled={busy}
                   maxLength={2}
                   autoComplete="address-level1"
                   onChange={(event) =>
@@ -574,6 +585,7 @@ export function OrderDeliveryPanel({
                 <Input
                   id="delivery-zip"
                   value={address.postalCode}
+                  disabled={busy}
                   maxLength={10}
                   inputMode="numeric"
                   autoComplete="postal-code"

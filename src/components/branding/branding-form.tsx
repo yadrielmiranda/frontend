@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
@@ -18,17 +18,15 @@ import {
   type UpdateBrandingData,
 } from "@/app/api/brandings.api";
 
-import { lookupZip } from "@/app/api/geo.api";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import {
   BRANDING_COLOR_PATTERN,
   DEFAULT_BRANDING_COLOR,
   getReadableTextColor,
   normalizeBrandingColor,
 } from "@/lib/branding-color";
-import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 
 import { StateCombobox } from "@/components/StateCombobox";
-import { US_STATES } from "@/lib/us-states";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
 import { Button } from "@/components/ui/button";
@@ -111,7 +109,6 @@ export function BrandingForm({
     handleSubmit,
     reset,
     setValue,
-    getValues,
     control,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({ defaultValues });
@@ -125,29 +122,7 @@ export function BrandingForm({
   const brandingColor = useWatch({ control, name: "brandingColor" });
   const previewBrandingColor = normalizeBrandingColor(brandingColor);
   const previewTextColor = getReadableTextColor(previewBrandingColor);
-  const zip = useWatch({ control, name: "postalCode" });
-
-  // ZIP lookup -> auto city/state (no pisa si ya escribieron)
-  useEffect(() => {
-    const zip5 = normalizeUSZip(zip);
-    if (!isValidUSZip(zip5)) return;
-
-    lookupZip(zip5)
-      .then((res) => {
-        if (!res) return;
-
-        if (!getValues("city")) {
-          setValue("city", res.city, { shouldDirty: true });
-        }
-
-        // Solo setea state si está vacío y si el código existe en US_STATES
-        const state = (res.state || "").trim().toUpperCase();
-        if (!getValues("state") && US_STATES.some((s) => s.value === state)) {
-          setValue("state", state, { shouldDirty: true });
-        }
-      })
-      .catch(() => {});
-  }, [zip, getValues, setValue]);
+  const addressContext = useWatch({ control, name: ["city", "state", "postalCode"] });
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -282,13 +257,36 @@ export function BrandingForm({
 
         <div>
           <Label>Street</Label>
-          <Input disabled={disableAll} {...register("street")} />
+          <Controller
+            name="street"
+            control={control}
+            rules={{ maxLength: { value: 150, message: "Street must be 150 characters or fewer." } }}
+            render={({ field }) => (
+              <AddressAutocomplete
+                {...field}
+                value={field.value ?? ""}
+                maxLength={150}
+                aria-label="Street"
+                disabled={disableAll}
+                contextKey={JSON.stringify(addressContext)}
+                onAddressSelect={(address) => {
+                  const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
+                  setValue("street", address.street, options);
+                  setValue("city", address.city, options);
+                  setValue("state", address.state, options);
+                  setValue("postalCode", address.postalCode, options);
+                }}
+              />
+            )}
+          />
+          {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label>City</Label>
-            <Input disabled={disableAll} {...register("city")} />
+            <Input disabled={disableAll} maxLength={100} {...register("city", { maxLength: { value: 100, message: "City must be 100 characters or fewer." } })} />
+            {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
           </div>
 
           {/* ✅ State combobox pro */}
