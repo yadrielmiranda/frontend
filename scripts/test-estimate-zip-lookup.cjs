@@ -1,42 +1,28 @@
-/* Isolated ZIP lookup regression tests. The TypeScript AST selects the real
- * effect and related autosave callbacks from EstimateForm; no copied lookup
- * implementation. Uses installed react-hook-form's real form control/change
- * notifications, deferred lookup results and fake autosave timers.
- * No React renderer, browser, environment files, network or database.
- * Run from frontend: node scripts/test-estimate-zip-lookup.cjs */
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const ts = require("typescript");
-const { createFormControl } = require("react-hook-form");
-
-const sourcePath = path.resolve(__dirname, "../src/components/estimates/estimate-form.tsx");
-const source = ts.createSourceFile(sourcePath, fs.readFileSync(sourcePath, "utf8"),
-  ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const component = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "EstimateForm");
-assert.ok(component?.body, "EstimateForm source is available");
-
-function containsCall(node, name) {
-  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) return true;
-  return Boolean(ts.forEachChild(node, child => containsCall(child, name)));
+/* Regression entry point for estimate addresses (formerly ZIP lookup).
+ * Real selection/autosave callbacks and react-hook-form; no network or DB.
+ * Run: node scripts/test-estimate-zip-lookup.cjs */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const { createFormControl } = require('react-hook-form');
+function readSource(relative) {
+  const file = path.resolve(__dirname, '../src', relative);
+  return ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 }
+const source = readSource('components/estimates/estimate-form.tsx');
+const card = readSource('components/estimates/customer-details-card.tsx');
+const component = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'EstimateForm');
+const cardComponent = card.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'CustomerDetailsCard');
 function containsIdentifier(node, name) {
   if (ts.isIdentifier(node) && node.text === name) return true;
   return Boolean(ts.forEachChild(node, child => containsIdentifier(child, name)));
 }
-function effectUsing(name, isCall = false) {
-  const found = component.body.statements.filter(node => ts.isExpressionStatement(node)
-    && ts.isCallExpression(node.expression) && ts.isIdentifier(node.expression.expression)
-    && node.expression.expression.text === "useEffect"
-    && (isCall ? containsCall(node, name) : containsIdentifier(node, name)));
-  assert.equal(found.length, 1, `Exactly one real effect uses ${name}`);
-  return found[0].getText(source);
-}
-function declaration(name, statements = component.body.statements) {
-  const found = statements.find(node => ts.isVariableStatement(node)
-    && node.declarationList.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === name));
-  assert.ok(found, `Real declaration ${name} is available`);
-  return found.getText(source);
+function declaration(name, statements = component.body.statements, file = source) {
+  const node = statements.find(n => ts.isVariableStatement(n)
+    && n.declarationList.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === name));
+  assert.ok(node, `Real declaration ${name} is available`);
+  return node.getText(file);
 }
 function compile(code) {
   return ts.transpileModule(code, { compilerOptions: {
@@ -44,223 +30,111 @@ function compile(code) {
   } }).outputText;
 }
 function evaluate(code, scope) {
-  const deniedFetch = () => { throw new Error("Network access is forbidden in ZIP tests"); };
-  const values = { fetch: deniedFetch, process: { env: {} }, ...scope };
+  const values = { fetch() { throw new Error('Network access is forbidden'); }, process: { env: {} }, ...scope };
   return new Function(...Object.keys(values), code)(...Object.values(values));
 }
-const zipEffect = compile(effectUsing("lookupZip", true));
+const saveEffect = component.body.statements.find(n => ts.isExpressionStatement(n)
+  && ts.isCallExpression(n.expression) && n.expression.expression.getText(source) === 'useEffect'
+  && containsIdentifier(n, 'headerAutosaveReadyRef'));
+assert.ok(saveEffect);
 const autosave = compile([
-  declaration("ESTIMATE_HEADER_FIELDS", source.statements),
-  declaration("buildEstimateHeaderPayload"),
-  declaration("saveEstimateHeader"),
-  effectUsing("headerAutosaveReadyRef"),
-].join("\n"));
-const zipHelpers = {};
-evaluate(compile(fs.readFileSync(path.resolve(__dirname, "../src/lib/validators-zip.ts"), "utf8")), { exports: zipHelpers });
+  declaration('ESTIMATE_HEADER_FIELDS', source.statements),
+  declaration('buildEstimateHeaderPayload'), declaration('saveEstimateHeader'), saveEffect.getText(source),
+].join('\n'));
+const selection = compile(`${declaration('applyAddress', cardComponent.body.statements, card)}\nreturn applyAddress;`);
 const flush = async () => { for (let i = 0; i < 3; i++) await new Promise(setImmediate); };
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
-const initial = { name: "Test estimate", customerCity: "Original city", customerState: "ZZ",
-  customerPostalCode: "33101", customerTaxRate: 0 };
-
-function fixture(values = {}) {
-  const form = createFormControl({ defaultValues: { ...initial, ...values } });
-  // subscribe mounts the real form-control store, as useForm does; getValues
-  // and watch now observe registered field changes rather than default values.
+const saved = { name: 'Test estimate', customerStreet: '100 Example Street', customerCity: 'El Portal',
+  customerState: 'FL', customerPostalCode: '33138', customerTaxRate: 0 };
+const selected = { street: '200 Example Avenue', city: 'El Portal', state: 'FL', postalCode: '33138' };
+function fixture(values = {}, disabled = false) {
+  const form = createFormControl({ defaultValues: { ...saved, ...values } });
   const stopForm = form.subscribe({ formState: { values: true }, callback() {} });
-  const fields = Object.fromEntries(Object.keys(initial).map(name => [name, form.register(name)]));
-  const requests = [], writes = [], saves = [], toasts = [], timers = new Map();
-  let zipCleanup, saveCleanup, timerId = 0, subscriptions = 0;
-  const refs = {
-    headerAutosaveReadyRef: { current: false }, headerAutosaveTimeoutRef: { current: null },
-    lastSavedHeaderRef: { current: "" }, headerSaveQueueRef: { current: Promise.resolve() },
-  };
-  const scope = {
-    ...zipHelpers,
-    watch(callback) {
-      subscriptions++;
-      const subscription = form.watch(callback);
-      return { unsubscribe() { subscriptions--; subscription.unsubscribe(); } };
-    },
-    getValues: form.getValues,
-    setValue(name, value, options) { writes.push({ name, value, options }); form.setValue(name, value, options); },
-    lookupZip(zip) {
-      let resolve, reject;
-      const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
-      requests.push({ zip, resolve, reject });
-      return promise;
-    },
-  };
-  const renderZip = () => {
-    zipCleanup?.();
-    zipCleanup = undefined;
-    evaluate(zipEffect, { ...scope, zip: form.getValues("customerPostalCode"),
-      useEffect(callback) { zipCleanup = callback(); } });
-  };
-  const renderAutosave = () => {
-    saveCleanup?.();
-    evaluate(autosave, { ...scope, ...refs, canUseCustomerPricing: true,
-      readOnly: false, needsRecalculation: false, estimate: { id: 41 }, headerSnapshot: "test-snapshot",
-      useCallback: fn => fn, useEffect(callback) { saveCleanup = callback(); },
-      trigger: form.trigger, setPromotionEstimate() {}, toast: { error: message => toasts.push(message) },
+  const fields = Object.fromEntries(Object.keys(saved).map(name => [name, form.register(name)]));
+  const writes = [], saves = [], toasts = [], timers = new Map();
+  let cleanup, timerId = 0;
+  const refs = { headerAutosaveReadyRef: { current: false }, headerAutosaveTimeoutRef: { current: null },
+    lastSavedHeaderRef: { current: '' }, headerSaveQueueRef: { current: Promise.resolve() } };
+  const scope = { getValues: form.getValues,
+    setValue(name, value, options) { writes.push({ name, value, options }); form.setValue(name, value, options); } };
+  const applyAddress = evaluate(selection, { ...scope, disabled });
+  const render = () => {
+    cleanup?.();
+    evaluate(autosave, { ...scope, ...refs, canUseCustomerPricing: true, readOnly: disabled,
+      needsRecalculation: false, estimate: { id: 41 }, headerSnapshot: JSON.stringify(form.getValues()),
+      useCallback: fn => fn, useEffect(fn) { cleanup = fn(); }, trigger: form.trigger,
+      setPromotionEstimate() {}, toast: { error: message => toasts.push(message) },
       updateEstimateHeader: async (id, payload) => { saves.push({ id, payload }); return { id, ...payload }; },
-      setTimeout(callback, delay) { assert.equal(delay, 600); timers.set(++timerId, callback); return timerId; },
+      setTimeout(fn, delay) { assert.equal(delay, 600); timers.set(++timerId, fn); return timerId; },
       clearTimeout(id) { timers.delete(id); },
     });
   };
-  return {
-    form, requests, writes, saves, toasts, renderZip, renderAutosave,
-    // This is RHF's actual registered handler. Controller forwards the same
-    // {target: {name, value}, type: 'change'} contract to its registered handler.
-    async change(name, value) { await fields[name].onChange({ target: { name, value }, type: "change" }); },
-    async blur(name) { await fields[name].onBlur({ target: { name, value: form.getValues(name) }, type: "blur" }); },
-    async resolve(index, result) { requests[index].resolve(result); await flush(); },
-    async reject(index) { requests[index].reject(new Error("Simulated lookup failure")); await flush(); },
-    async runAutosaveTimers() {
-      const callbacks = [...timers.values()]; timers.clear(); callbacks.forEach(fn => fn());
-      await refs.headerSaveQueueRef.current; await flush();
-    },
-    unmount() { zipCleanup?.(); zipCleanup = undefined; saveCleanup?.(); saveCleanup = undefined; stopForm(); },
-    subscriptions: () => subscriptions,
+  return { form, writes, saves, toasts, render, applyAddress,
+    async change(name, value) { await fields[name].onChange({ target: { name, value }, type: 'change' }); },
+    async save() { const callbacks = [...timers.values()]; timers.clear(); callbacks.forEach(fn => fn());
+      await refs.headerSaveQueueRef.current; await flush(); },
+    unmount() { cleanup?.(); stopForm(); },
   };
 }
-
-test("normal response fills both fields and retains dirty flags", async () => {
-  const f = fixture(); f.renderZip();
-  assert.equal(f.requests[0].zip, "33101");
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.form.getValues("customerCity"), "Miami");
-  assert.equal(f.form.getValues("customerState"), "FL");
-  assert.deepEqual(f.writes.map(write => write.options), [{ shouldDirty: true }, { shouldDirty: true }]);
-  f.unmount();
+test('no ZIP lookup can replace a saved or manually entered city', () => {
+  assert.equal(containsIdentifier(source, 'lookupZip'), false);
+  assert.equal(containsIdentifier(card, 'lookupZip'), false);
+  assert.ok(containsIdentifier(card, 'AddressAutocomplete'));
 });
-
-test("ZIP A then B with reversed responses keeps the B location", async () => {
-  const f = fixture(); f.renderZip();
-  await f.change("customerPostalCode", "10001"); f.renderZip();
-  assert.deepEqual(f.requests.map(request => request.zip), ["33101", "10001"]);
-  await f.resolve(1, { city: "New York", state: "NY" });
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.form.getValues("customerCity"), "New York");
-  assert.equal(f.form.getValues("customerState"), "NY");
-  assert.equal(f.writes.length, 2, "Stale result performs no writes");
-  f.unmount();
+test('opening an estimate preserves El Portal without autosave', async () => {
+  const f = fixture(); f.render(); await f.save();
+  assert.deepEqual(f.form.getValues(), saved);
+  assert.deepEqual(f.writes, []); assert.deepEqual(f.saves, []); f.unmount();
 });
-
-test("ZIP change before effect cleanup rejects the old response", async () => {
-  const f = fixture(); f.renderZip();
-  await f.change("customerPostalCode", "10001");
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.writes.length, 0);
-  assert.equal(f.form.getValues("customerPostalCode"), "10001");
-  f.unmount();
+test('selected address persists all four fields through real autosave', async () => {
+  const f = fixture(); f.render(); f.applyAddress(selected); f.render(); await f.save();
+  assert.equal(f.saves.length, 1); assert.equal(f.saves[0].id, 41);
+  for (const [field, value] of Object.entries({ customerStreet: selected.street, customerCity: selected.city,
+    customerState: selected.state, customerPostalCode: selected.postalCode })) {
+    assert.equal(f.form.getValues(field), value); assert.equal(f.saves[0].payload[field], value);
+  }
+  assert.equal(f.writes.length, 4);
+  assert.ok(f.writes.every(w => w.options.shouldDirty && w.options.shouldValidate));
+  assert.deepEqual(f.toasts, []); f.unmount();
 });
-
-test("programmatic ZIP change before effect cleanup is checked against current values", async () => {
-  const f = fixture(); f.renderZip();
-  f.form.setValue("customerPostalCode", "10001");
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.writes.length, 0);
-  f.unmount();
-});
-
-for (const field of ["customerCity", "customerState"]) {
-  test(`pending lookup preserves manual ${field} and does not write the other field`, async () => {
-    const f = fixture(); f.renderZip();
-    await f.change(field, field === "customerCity" ? "Manual city" : "CA");
-    const expected = f.form.getValues();
-    await f.resolve(0, { city: "Miami", state: "FL" });
-    assert.deepEqual(f.form.getValues(), expected);
-    assert.equal(f.writes.length, 0, "Manual edit invalidates the complete response");
-    f.unmount();
-  });
-}
-
-for (const field of ["customerPostalCode", "customerCity", "customerState"]) {
-  test(`manual ${field} change and reversal still invalidates the request without rerender`, async () => {
-    const f = fixture(); f.renderZip();
-    const original = f.form.getValues(field);
-    await f.change(field, field === "customerPostalCode" ? "10001" : "Changed");
-    await f.change(field, original);
-    await f.resolve(0, { city: "Miami", state: "FL" });
-    assert.equal(f.writes.length, 0);
-    f.unmount();
-  });
-}
-
-test("blur, validation and unrelated edits do not cancel a valid result", async () => {
-  const f = fixture(); f.renderZip();
-  await f.blur("customerCity"); await f.blur("customerPostalCode");
-  await f.form.trigger();
-  await f.change("name", "Updated project");
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.form.getValues("customerCity"), "Miami");
-  assert.equal(f.form.getValues("customerState"), "FL");
-  f.unmount();
-});
-
-for (const result of ["null", "rejection"]) {
-  test(`${result} lookup leaves current address unchanged`, async () => {
-    const f = fixture(); f.renderZip();
-    if (result === "null") await f.resolve(0, null); else await f.reject(0);
-    assert.equal(f.writes.length, 0);
-    assert.equal(f.form.getValues("customerCity"), initial.customerCity);
-    assert.equal(f.form.getValues("customerState"), initial.customerState);
-    f.unmount();
-  });
-}
-
-test("invalid ZIP never starts lookup and invalidation protects pending results", async () => {
-  const f = fixture({ customerPostalCode: "12" }); f.renderZip();
-  assert.equal(f.requests.length, 0);
-  await f.change("customerPostalCode", "33101"); f.renderZip();
-  await f.change("customerPostalCode", "12"); f.renderZip();
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.requests.length, 1); assert.equal(f.writes.length, 0);
-  f.unmount();
-});
-
-test("unmount cancels result writes and unsubscribes the lookup watcher", async () => {
-  const f = fixture(); f.renderZip(); f.unmount();
-  assert.equal(f.subscriptions(), 0);
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  assert.equal(f.writes.length, 0);
-});
-
-test("autosave persists only the current ZIP B address after out-of-order lookup", async () => {
-  const f = fixture(); f.renderZip(); f.renderAutosave();
-  await f.change("customerPostalCode", "10001"); f.renderZip(); f.renderAutosave();
-  await f.resolve(1, { city: "New York", state: "NY" }); f.renderAutosave();
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  await f.runAutosaveTimers();
+test('manual city and ZIP corrections survive saving and reopening', async () => {
+  const f = fixture(); f.render();
+  await f.change('customerCity', 'Manual city'); await f.change('customerPostalCode', '10001');
+  f.render(); await f.save();
   assert.equal(f.saves.length, 1);
-  assert.equal(f.saves[0].id, 41);
-  assert.equal(f.saves[0].payload.customerPostalCode, "10001");
-  assert.equal(f.saves[0].payload.customerCity, "New York");
-  assert.equal(f.saves[0].payload.customerState, "NY");
-  assert.deepEqual(f.toasts, []);
-  f.unmount();
+  assert.equal(f.saves[0].payload.customerCity, 'Manual city');
+  assert.equal(f.saves[0].payload.customerPostalCode, '10001');
+  const reopened = fixture(f.saves[0].payload); reopened.render(); await reopened.save();
+  assert.equal(reopened.form.getValues('customerCity'), 'Manual city');
+  assert.deepEqual(reopened.saves, []); reopened.unmount(); f.unmount();
 });
-
-test("autosave preserves a manual address instead of a late ZIP response", async () => {
-  const f = fixture(); f.renderZip(); f.renderAutosave();
-  await f.change("customerCity", "Manual city"); await f.change("customerState", "CA");
-  f.renderAutosave();
-  await f.resolve(0, { city: "Miami", state: "FL" });
-  await f.runAutosaveTimers();
-  assert.equal(f.saves.length, 1);
-  assert.equal(f.saves[0].payload.customerCity, "Manual city");
-  assert.equal(f.saves[0].payload.customerState, "CA");
-  assert.deepEqual(f.toasts, []);
-  f.unmount();
+test('manual correction after selection wins over pending autosave', async () => {
+  const f = fixture(); f.render();
+  f.applyAddress({ ...selected, city: 'Miami' }); f.render();
+  await f.change('customerCity', 'El Portal'); f.render(); await f.save();
+  assert.equal(f.saves.length, 1); assert.equal(f.saves[0].payload.customerCity, 'El Portal');
+  assert.equal(f.saves[0].payload.customerStreet, selected.street); f.unmount();
 });
-
+test('manual entry works without selecting a suggestion', async () => {
+  const f = fixture({ customerStreet: '', customerCity: '', customerState: '', customerPostalCode: '' });
+  f.render();
+  for (const [name, value] of Object.entries(saved)) await f.change(name, value);
+  f.render(); await f.save();
+  assert.equal(f.saves.length, 1); assert.equal(f.saves[0].payload.customerCity, 'El Portal');
+  assert.equal(f.saves[0].payload.customerStreet, saved.customerStreet); f.unmount();
+});
+test('read-only selection cannot change or save the address', async () => {
+  const f = fixture({}, true); f.render(); f.applyAddress(selected); f.render(); await f.save();
+  assert.deepEqual(f.form.getValues(), saved);
+  assert.deepEqual(f.writes, []); assert.deepEqual(f.saves, []); f.unmount();
+});
 (async () => {
   let failures = 0;
   for (const { name, run } of tests) {
     try { await run(); console.log(`PASS ${name}`); }
     catch (error) { failures++; console.error(`FAIL ${name}: ${error.message}`); }
   }
-  console.log(`${tests.length - failures}/${tests.length} ZIP lookup tests passed (real effect/RHF, simulated I/O).`);
+  console.log(`${tests.length - failures}/${tests.length} estimate address tests passed (real callbacks/RHF, simulated I/O).`);
   if (failures) process.exitCode = 1;
 })().catch(error => { console.error(error); process.exitCode = 1; });

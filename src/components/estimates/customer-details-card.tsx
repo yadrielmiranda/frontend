@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
+import type { Control, FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
+import type { PlaceAddress } from "@/app/api/geo.api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +17,8 @@ import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
 type Props = {
   register: UseFormRegister<EstimateFormValues>;
   control: Control<EstimateFormValues>;
+  setValue: UseFormSetValue<EstimateFormValues>;
+  disabled?: boolean;
   errors?: FieldErrors<EstimateFormValues>;
 };
 
@@ -26,7 +31,21 @@ const customerFieldClassName =
   "border-slate-400 shadow-none hover:border-slate-500 focus-visible:border-slate-500 focus-visible:ring-slate-500/10";
 const customerLabelClassName = "mb-1.5 block";
 
-export function CustomerDetailsCard({ register, control, errors }: Props) {
+export function CustomerDetailsCard({ register, control, setValue, disabled, errors }: Props) {
+  const addressContext = useWatch({
+    control,
+    name: ["customerCity", "customerState", "customerPostalCode"],
+  });
+
+  const applyAddress = (address: PlaceAddress) => {
+    if (disabled) return;
+    const options = { shouldDirty: true, shouldValidate: true };
+    setValue("customerStreet", address.street, options);
+    setValue("customerCity", address.city, options);
+    setValue("customerState", address.state, options);
+    setValue("customerPostalCode", address.postalCode, options);
+  };
+
   return (
     <Card className="border-blue-200 bg-blue-50/40">
       <CardHeader>
@@ -136,12 +155,22 @@ export function CustomerDetailsCard({ register, control, errors }: Props) {
             >
               Street Address
             </Label>
-            <Input
-              id="customerStreet"
-              className={customerFieldClassName}
-              placeholder=""
-              autoComplete="address-line1"
-              {...register("customerStreet")}
+            <Controller
+              control={control}
+              name="customerStreet"
+              render={({ field }) => (
+                <AddressAutocomplete
+                  {...field}
+                  value={field.value ?? ""}
+                  id="customerStreet"
+                  className={customerFieldClassName}
+                  placeholder="Start typing an address"
+                  contextKey={JSON.stringify(addressContext)}
+                  onAddressSelect={applyAddress}
+                  disabled={disabled}
+                  aria-invalid={Boolean(errors?.customerStreet)}
+                />
+              )}
             />
             <FieldError
               message={errors?.customerStreet?.message as string | undefined}
