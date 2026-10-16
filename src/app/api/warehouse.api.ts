@@ -283,6 +283,16 @@ export const warehousePickupCustomerDeliveryOptions = (id: number, poKey: string
 export type ReceiptResult = {
   units: number; parts: number; storeId: number; storeName: string; replayed: boolean;
 };
+export type WarehouseReleaseRequest = {
+  requestKey: string; storeId: number | null; items: ReceiptItem[];
+};
+export type WarehouseReleaseResult = {
+  units: number; parts: number; storeId: number | null; storeName: string; replayed: boolean;
+};
+export const warehouseRelease = (body: WarehouseReleaseRequest) =>
+  apiFetch<WarehouseReleaseResult>("/api/warehouse/releases", {
+    method: "POST", body, timeoutMs: 90000,
+  });
 export type InstallationDeliveryRequest = {
   installationJobId: number; installationAddress: string;
   items: ReceiptItem[]; requestKey: string;

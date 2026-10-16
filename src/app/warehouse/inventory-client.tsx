@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { StoreSelect } from "./store-select";
 import { TransferForm } from "./transfer-form";
+import { WarehouseReleaseActions } from "./release-actions";
 import { UnitOrigin, unitOriginLabel } from "./unit-origin";
 import {
   ChevronDown,
@@ -146,17 +147,13 @@ function PoInventoryTable({
 }) {
   const allStores = storeId === "all";
   const columns = allStores ? 8 : 7;
-  function deliveryLink(group: WarehousePoGroup) {
+  function releaseActions(group: WarehousePoGroup) {
     const available = group.units.some((unit) => deliverySource === "TRANSIT"
       ? unit.inTransit > 0 : locationQuantity(unit, storeId) > 0);
     if (!available) return null;
-    const query = new URLSearchParams({ source: deliverySource, poKey: group.key, search: group.poNumber || group.orderNumber });
-    if (deliverySource === "WAREHOUSE" && !allStores) query.set("storeId", storeId);
-    return <Link href={`/warehouse/customer-deliveries/new?${query}`}
-      className="mt-2 block text-xs font-medium text-red-700 underline"
-      aria-label={`Deliver PO ${group.poNumber || group.orderNumber} to customer`}>
-      Deliver to customer
-    </Link>;
+    return <WarehouseReleaseActions source={deliverySource} storeId={storeId}
+      search={group.poNumber || group.orderNumber} poKey={group.key}
+      poLabel={group.poNumber || group.orderNumber} compact />;
   }
   return (
     <>
@@ -201,7 +198,7 @@ function PoInventoryTable({
                         )}
                         {group.poNumber || "—"}
                       </button>
-                      {deliveryLink(group)}
+                      {releaseActions(group)}
                     </td>
                     <td className="px-4 py-4">
                       <UnitOrigin unit={group} link />
@@ -322,7 +319,7 @@ function PoInventoryTable({
                     <UnitOrigin unit={group} link />{" "}
                     · {group.customer || group.project}
                   </p>
-                  {deliveryLink(group)}
+                  {releaseActions(group)}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
@@ -726,11 +723,8 @@ export function InventoryClient({
           <Button asChild variant="outline">
             <Link href="/warehouse/receipts">Pending receipt</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href={`/warehouse/customer-deliveries/new?source=${view === "in_transit" ? "TRANSIT" : "WAREHOUSE"}&search=${encodeURIComponent(search)}${view !== "in_transit" && storeId !== "all" ? `&storeId=${encodeURIComponent(storeId)}` : ""}`}>
-              Deliver to customer
-            </Link>
-          </Button>
+          <WarehouseReleaseActions source={view === "in_transit" ? "TRANSIT" : "WAREHOUSE"}
+            search={search} storeId={storeId} />
           <Button asChild>
             <Link href="/warehouse/scan">
               <ScanBarcode className="mr-2 h-4 w-4" />

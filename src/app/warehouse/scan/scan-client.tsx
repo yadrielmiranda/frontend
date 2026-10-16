@@ -53,21 +53,25 @@ export function ScanClient({
   isAdmin,
   activeCountId,
   initialStores,
+  initialRelease = false,
+  initialStoreId = "",
 }: {
   actorId: number;
   isAdmin: boolean;
   activeCountId: number | null;
   initialStores: WarehouseStore[];
+  initialRelease?: boolean;
+  initialStoreId?: string;
 }) {
-  const [action, setAction] = useState<WarehouseAction>("RECEIVE"),
+  const [action, setAction] = useState<WarehouseAction>(initialRelease ? "RELEASE" : "RECEIVE"),
     [last, setLast] = useState<ScanResult | null>(null),
     [pending, setPending] = useState(false);
   const [countId, setCountId] = useState(activeCountId),
     [undoing, setUndoing] = useState(false),
     [undone, setUndone] = useState(false),
     [error, setError] = useState("");
-  const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState("");
-  const [releaseToInstallation, setReleaseToInstallation] = useState(false);
+  const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState(initialStoreId);
+  const [releaseToInstallation, setReleaseToInstallation] = useState(initialRelease);
   const [scanFocus, setScanFocus] = useState(false), [scannerRevision, setScannerRevision] = useState(0);
   const [offline, setOffline] = useState(false), [pickupRevision, setPickupRevision] = useState(0);
   const undoKey = useRef(""), focusRoot = useRef<HTMLDivElement>(null);
@@ -203,6 +207,13 @@ export function ScanClient({
               ? "Choose the source store, then scan each part leaving for installation. No recipient name or signature is required."
               : "Choose the source store and select the POs from the list. Review their pieces and parts with the recipient, then record their first name, last name and signature."}
           </p>
+          {releaseToInstallation && <Link
+            href={`/warehouse/releases/new${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`}
+            aria-disabled={pending || undoing} tabIndex={pending || undoing ? -1 : undefined}
+            onClick={(event) => { if (pending || undoing) event.preventDefault(); }}
+            className="inline-block text-sm font-medium text-red-700 underline underline-offset-2">
+            Select POs and quantities without scanning
+          </Link>}
         </section>
       )}
       {(action === "RECEIVE" || (action === "RELEASE" && releaseToInstallation)) && (
