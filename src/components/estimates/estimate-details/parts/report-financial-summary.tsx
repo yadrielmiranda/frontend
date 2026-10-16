@@ -6,6 +6,7 @@ import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { DealerProfitSummary } from "../../dealer-profit-summary";
 import { DealerEarningsSummaryCard } from "../../dealer-earnings-summary";
+import { NetworkProfitBreakdownCard } from "../../network-profit-breakdown-card";
 import { internalDealerServiceEarnings } from "@/lib/dealer-service-earnings";
 import { MaterialProfitAdjustments } from "../../material-profit-adjustments";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
@@ -626,6 +627,7 @@ function AdminProfitability({
 }
 
 export function ReportFinancialSummary({
+  isAdmin = false,
   estimate,
   reportKind,
   installationSummary = estimate.installationSummary ?? null,
@@ -633,9 +635,11 @@ export function ReportFinancialSummary({
 }: {
   estimate: EstimateWithRelations;
   reportKind: EstimateReportKind;
+  isAdmin?: boolean;
   installationSummary?: EstimateInstallationReportSummary | null;
   showPaymentSchedule?: boolean;
 }) {
+  const showNetworkProfit = isAdmin && reportKind === "admin" && Boolean(estimate.networkProfitBreakdown);
   const hideDealerPromotions =
     (reportKind === "dealer-customer" ||
       reportKind === "dealer-customer-total") &&
@@ -837,7 +841,9 @@ export function ReportFinancialSummary({
         )}
       </div>
 
-      {comparisonView && (estimate.dealerModeSnapshot === "INTERNAL" || estimate.dealerEarnings) ? (
+      {showNetworkProfit ? (
+        <NetworkProfitBreakdownCard breakdown={estimate.networkProfitBreakdown} isAdmin={isAdmin} />
+      ) : comparisonView && (estimate.dealerModeSnapshot === "INTERNAL" || estimate.dealerEarnings) ? (
         <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       ) : comparisonView && (
         <DealerProfitSummary
@@ -846,7 +852,7 @@ export function ReportFinancialSummary({
         />
       )}
 
-      {reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={estimate.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
+      {!showNetworkProfit && reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={estimate.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />

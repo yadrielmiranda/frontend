@@ -327,6 +327,7 @@ export function deleteEstimateCustomerCharge(
 
 export function getEstimateDiscount(id: number) {
   return apiFetch<{
+    networkProfitBreakdown?: import('@/lib/network-profit-breakdown').NetworkProfitBreakdown | null;
     dealerNetwork?: import('@/lib/types').EstimateDealerNetwork | null;
     config: import('@/lib/estimate-discount').EstimateDiscountConfig | null;
     summary: import('@/lib/estimate-discount').EstimateDiscountSummary | null;

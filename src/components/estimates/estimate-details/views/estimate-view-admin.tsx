@@ -8,8 +8,10 @@ type Piece = EstimateWithRelations["pieces"][number];
 
 export function EstimateViewAdmin({
   estimate,
+  isAdmin = false,
 }: {
   estimate: EstimateWithRelations;
+  isAdmin?: boolean;
 }) {
   return (
     <>
@@ -24,7 +26,7 @@ export function EstimateViewAdmin({
         getSubtotal={(piece: Piece) => Number(piece.subtotal) || 0}
       />
 
-      <ReportFinancialSummary estimate={estimate} reportKind="admin" />
+      <ReportFinancialSummary estimate={estimate} reportKind="admin" isAdmin={isAdmin} />
     </>
   );
 }

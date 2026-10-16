@@ -387,8 +387,8 @@ export function EstimateDetails({
       return <EstimateViewDealerInternal estimate={estimate} />;
     }
 
-    return <EstimateViewAdmin estimate={estimate} />;
-  }, [customerPricingMode, estimate, ownerIsDealer, reportMode]);
+    return <EstimateViewAdmin estimate={estimate} isAdmin={isAdminRole(userRole)} />;
+  }, [customerPricingMode, estimate, ownerIsDealer, reportMode, userRole]);
 
   const pdfView = useMemo<PdfView>(() => {
     if (reportMode === "admin") return "admin";

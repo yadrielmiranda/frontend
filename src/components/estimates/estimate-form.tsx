@@ -205,6 +205,7 @@ export function EstimateForm({
     summary: estimate?.manualDiscountSummary ?? null,
     dealerEarnings: estimate?.dealerEarnings ?? null,
     subdealerEarnings: estimate?.subdealerEarnings,
+    networkProfitBreakdown: estimate?.networkProfitBreakdown,
     dealerNetwork: estimate?.dealerNetwork,
     paymentSchedule: initialInstallation?.paymentSchedule ?? estimate?.paymentSchedule ?? null,
   });
@@ -560,6 +561,7 @@ export function EstimateForm({
       summary: updated.manualDiscountSummary ?? null,
       dealerEarnings: updated.dealerEarnings ?? null,
       subdealerEarnings: updated.subdealerEarnings,
+      networkProfitBreakdown: updated.networkProfitBreakdown,
       dealerNetwork: updated.dealerNetwork,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
@@ -957,6 +959,7 @@ export function EstimateForm({
       summary: updated.manualDiscountSummary ?? null,
       dealerEarnings: updated.dealerEarnings ?? null,
       subdealerEarnings: updated.subdealerEarnings,
+      networkProfitBreakdown: updated.networkProfitBreakdown,
       dealerNetwork: updated.dealerNetwork,
       paymentSchedule: updated.paymentSchedule ?? null,
     });
@@ -1738,6 +1741,8 @@ export function EstimateForm({
           )}
 
         <EstimateFinancialSummary
+          isAdmin={isAdminRole(role)}
+          networkProfitBreakdown={discountData.networkProfitBreakdown}
           manualDiscount={discountData.summary}
           discountEditor={role === "admin" && estimate ? <ManualDiscountEditor
             estimateId={estimate.id} config={discountData.config} summary={discountData.summary}

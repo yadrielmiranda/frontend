@@ -26,6 +26,8 @@ const baseMocks = {
   './dealer-profit-summary': { DealerProfitSummary: 'DealerProfitSummary' },
   '../../dealer-profit-summary': { DealerProfitSummary: 'DealerProfitSummary' },
   './dealer-earnings-summary': { DealerEarningsSummaryCard: 'DealerEarningsSummaryCard' },
+  './network-profit-breakdown-card': { NetworkProfitBreakdownCard: 'NetworkProfitBreakdownCard' },
+  '../../network-profit-breakdown-card': { NetworkProfitBreakdownCard: 'NetworkProfitBreakdownCard' },
   '../../dealer-earnings-summary': { DealerEarningsSummaryCard: 'DealerEarningsSummaryCard' },
   '../../material-profit-adjustments': { MaterialProfitAdjustments: 'MaterialProfitAdjustments' },
   './pieces-breakdown-bar': { PiecesBreakdownBar: 'PiecesBreakdownBar' },

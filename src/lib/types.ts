@@ -423,6 +423,7 @@ export interface EstimatePayment {
 }
 
 export interface Estimate {
+  networkProfitBreakdown?: import("./network-profit-breakdown").NetworkProfitBreakdown | null;
   referralCosts?: import("./dealer-earnings").ReferralCostsSummary | null;
   networkPaymentBlocked?: boolean;
   dealerNetwork?: EstimateDealerNetwork | null;
@@ -1047,6 +1048,7 @@ export interface OrderStatus {
 }
 
 export interface Order {
+  networkProfitBreakdown?: import("./network-profit-breakdown").NetworkProfitBreakdown | null;
   referralCosts?: import("./dealer-earnings").ReferralCostsSummary | null;
   subdealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;
   dealerEarnings?: import("./dealer-earnings").DealerEarningsSummary | null;

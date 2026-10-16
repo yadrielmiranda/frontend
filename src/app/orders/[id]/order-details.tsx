@@ -12,6 +12,7 @@ import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-
 import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
 import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
 import { DealerEarningsSummaryCard } from "@/components/estimates/dealer-earnings-summary";
+import { NetworkProfitBreakdownCard } from "@/components/estimates/network-profit-breakdown-card";
 import { MaterialProfitAdjustments } from "@/components/estimates/material-profit-adjustments";
 import { internalDealerServiceEarnings } from "@/lib/dealer-service-earnings";
 
@@ -39,6 +40,7 @@ export function OrderDetails({
   canRecordManualPayment: boolean;
 }) {
   const [paymentTarget, setPaymentTarget] = useState<HTMLDivElement | null>(null);
+  const showNetworkProfit = isAdmin && Boolean(order.networkProfitBreakdown);
   const serviceEarnings = internalDealerServiceEarnings({
     dealerMode: order.estimate?.dealerModeSnapshot ?? order.dealerModeSnapshot, network: order.estimate?.dealerNetwork,
     summary: order.estimate?.customerChargesSummary,
@@ -171,11 +173,13 @@ export function OrderDetails({
         />
       )}
 
-      {order.dealerEarnings && (
+      {showNetworkProfit ? (
+        <NetworkProfitBreakdownCard breakdown={order.networkProfitBreakdown} isAdmin={isAdmin} />
+      ) : order.dealerEarnings && (
         <DealerEarningsSummaryCard earnings={order.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       )}
 
-      {isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={order.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
+      {!showNetworkProfit && isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={order.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (
