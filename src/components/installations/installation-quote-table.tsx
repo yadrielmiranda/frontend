@@ -51,8 +51,9 @@ export function InstallationQuoteTable({
             <th className="p-3">Service</th>
             {showInternal && <th className="p-3">Origin</th>}
             <th className="p-3 text-right">
-              {showInternal ? "Rate" : "Unit Price"}
+              {showInternal ? "Provider rate" : "Unit Price"}
             </th>
+            {showInternal && <th className="p-3 text-right">Profile rate</th>}
             <th className="p-3 text-right">Qty</th>
             <th className="p-3 text-right">Total</th>
             {renderAction && <th className="p-3" />}
@@ -84,7 +85,7 @@ export function InstallationQuoteTable({
               )}
               <td className="p-3 text-right">
                 {showInternal
-                  ? formatMoney(Number(line.rate))
+                  ? unitMoney(Number(line.rate))
                   : unitMoney(
                       Number(
                         line.unitPrice ??
@@ -93,6 +94,7 @@ export function InstallationQuoteTable({
                       ),
                     )}
               </td>
+              {showInternal && <td className="p-3 text-right">{line.saleRate != null ? unitMoney(Number(line.saleRate)) : "—"}</td>}
               <td className="p-3 text-right">
                 {showInternal
                   ? `${Number(line.billableQuantity).toFixed(2)} × ${line.occurrences}`

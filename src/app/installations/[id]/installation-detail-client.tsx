@@ -87,6 +87,7 @@ import type { PieceFormValues } from "@/components/estimates/types";
 import { EstimateRevisionSummary } from "@/components/estimates/estimate-revision-summary";
 import { revisionPieceForm, revisionPieceInput } from "@/components/estimates/material-revisions/piece-values";
 import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
+import { InstallationFinancialSummary } from "@/components/installations/installation-financial-summary";
 import { AdditionalServiceFields } from "@/components/installations/additional-service-fields";
 import {
   additionalServiceValidationError,
@@ -1467,10 +1468,10 @@ export function InstallationDetailClient({
                     {money(latest.baseSubtotal)}
                   </span>
                   <span className="text-muted-foreground">
-                    Profile ({latest.profileNameSnapshot})
+                    Profile increases ({latest.profileNameSnapshot})
                   </span>
                   <span className="text-right">
-                    {Number(latest.profileAdjustmentPercent).toFixed(2)}%
+                    {money(Number(latest.adjustedSubtotal ?? 0) - Number(latest.baseSubtotal ?? 0))}
                   </span>
                   <span className="text-muted-foreground">
                     Adjusted subtotal
@@ -1495,7 +1496,7 @@ export function InstallationDetailClient({
                   {Number(latest.minimumAdjustment) > 0 && (
                     <>
                       <span className="text-muted-foreground">
-                        Initial minimum adjustment
+                        {latest.providerCostSnapshot ? "Provider minimum adjustment" : "Initial minimum adjustment"}
                       </span>
                       <span className="text-right">
                         {money(latest.minimumAdjustment)}
@@ -1508,6 +1509,7 @@ export function InstallationDetailClient({
                   <strong className="text-right">{money(latest.total)}</strong>
                 </div>
               )}
+              {latest && <InstallationFinancialSummary quote={latest} processing={job.installationProcessingSummary} userRole={userRole} />}
             </CardContent>
           </Card>
 

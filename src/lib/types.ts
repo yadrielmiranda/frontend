@@ -587,11 +587,20 @@ export interface InstallationPriceProfile {
   id: number;
   name: string;
   adjustmentPercent: string | number;
+  adjustments?: InstallationProfileAdjustment[];
   minimumCharge: string | number;
   isDefault: boolean;
   isActive: boolean;
   sortOrder: number;
   _count?: { roles: number; users: number; quotes: number };
+}
+
+export interface InstallationProfileAdjustment {
+  serviceId: number;
+  ruleId: number | null;
+  type: "PERCENT" | "AMOUNT";
+  value: string | number;
+  legacyLineRounding?: boolean;
 }
 
 export interface InstallationMeasurement {
@@ -742,6 +751,16 @@ export interface InstallationQuoteLine {
   panelCount?: number | null;
   lengthIn?: string | number | null;
   rate?: string | number;
+  saleRate?: string | number;
+  rateAdjustmentSnapshot?: {
+    schema: 1;
+    source: "LEGACY" | "RULE" | "SERVICE" | "NONE";
+    type: "PERCENT" | "AMOUNT" | null;
+    value: string;
+    providerRate: string;
+    saleRate: string;
+    legacyLineRounding: boolean;
+  } | null;
   billableQuantity?: string | number;
   occurrences: number;
   baseAmount?: string | number;
@@ -776,6 +795,15 @@ export interface InstallationServiceMinimumSnapshot {
 export type InstallationAddress = { street: string; city: string; state: string; postalCode: string };
 
 export interface InstallationQuote {
+  profileRateAdjustmentsSnapshot?: { schema: 1; adjustments: InstallationProfileAdjustment[] } | null;
+  providerCostSnapshot?: {
+    schema: 1;
+    baseSubtotal: string;
+    serviceMinimumAdjustment: string;
+    minimumAdjustment: string;
+    installationSurcharge: string;
+    total: string;
+  } | null;
   installationSurcharge?: string | number;
   pricingDetailsVisible?: boolean;
   additionalInstallationCharge?: string | number;
@@ -826,6 +854,7 @@ export interface InstallationAppointment {
 }
 
 export interface InstallationJob {
+  installationProcessingSummary?: InstallationProcessingSummary | null;
   customerChargesSummary?: EstimateCustomerChargeSummary | null;
   installationAddress?: InstallationAddress | null;
   installationAddressConfirmedAt?: string | null;
@@ -855,6 +884,21 @@ export interface InstallationJob {
   payments: EstimatePayment[];
   appointments: InstallationAppointment[];
   revisions: EstimateRevision[];
+}
+
+export interface InstallationProcessingPartySummary {
+  collected: string;
+  processingFee: string | null;
+  surcharge: string;
+  netProcessingCost: string | null;
+  netCollected: string | null;
+}
+
+export interface InstallationProcessingSummary {
+  status: "CONFIRMED" | "PENDING" | "REVIEW" | "UNALLOCATED" | "NONE";
+  provider: InstallationProcessingPartySummary;
+  company: InstallationProcessingPartySummary;
+  dealer: InstallationProcessingPartySummary;
 }
 
 export interface InstallationRevisionAmounts {

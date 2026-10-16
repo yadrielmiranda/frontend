@@ -21,6 +21,7 @@ import { canSetCustomerOnEstimate } from "@/lib/rbac";
 import { DealerProfitSummary } from "./dealer-profit-summary";
 import { DealerEarningsSummaryCard } from "./dealer-earnings-summary";
 import type { DealerEarningsSummary } from "@/lib/dealer-earnings";
+import { internalDealerServiceEarnings } from "@/lib/dealer-service-earnings";
 import {
   Card,
   CardContent,
@@ -195,6 +196,7 @@ export function EstimateFinancialSummary({
   subdealerEarnings,
   dealerNetwork,
   earningsPending = false,
+  serviceEarningsPending = false,
   ownerIsTaxExempt,
   taxRate,
   customerTaxRatePercent,
@@ -212,6 +214,7 @@ export function EstimateFinancialSummary({
   subdealerEarnings?: DealerEarningsSummary | null;
   dealerNetwork?: import("@/lib/types").EstimateDealerNetwork | null;
   earningsPending?: boolean;
+  serviceEarningsPending?: boolean;
   ownerIsTaxExempt: boolean;
   taxRate: number;
   customerTaxRatePercent: number;
@@ -254,6 +257,10 @@ export function EstimateFinancialSummary({
     activeJob?.quotes.find((candidate) => candidate.status !== "REJECTED") ??
     null;
   const revisionTotals = pendingRevisionTotals(activeJob, quote);
+  const serviceEarnings = internalDealerServiceEarnings({
+    dealerMode, network: dealerNetwork, summary: customerChargesSummary,
+    pending: serviceEarningsPending || Boolean(revisionTotals),
+  });
 
   const internalMaterial: MaterialTotals = revisionTotals
     ? {
@@ -715,7 +722,7 @@ export function EstimateFinancialSummary({
         </div>
 
         {isDealerEstimate && (dealerMode === "INTERNAL" || dealerEarnings) ? (
-          <DealerEarningsSummaryCard earnings={dealerEarnings} pendingChanges={earningsPending || Boolean(revisionTotals)} />
+          <DealerEarningsSummaryCard earnings={dealerEarnings} pendingChanges={earningsPending || Boolean(revisionTotals)} serviceProfit={serviceEarnings.dealer} />
         ) : isDealerEstimate && (
           <DealerProfitSummary
             materialProfit={dealerNetwork?.materialProfit != null ? Number(dealerNetwork.materialProfit) : dealerProfit}
@@ -723,7 +730,7 @@ export function EstimateFinancialSummary({
           />
         )}
 
-        {subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={subdealerEarnings} pendingChanges={earningsPending} />}
+        {subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={subdealerEarnings} pendingChanges={earningsPending || Boolean(revisionTotals)} serviceProfit={serviceEarnings.subdealer} />}
 
         {activeJob && !activeJob.paymentSchedule && (
           <div className="rounded-lg border px-4 py-3">

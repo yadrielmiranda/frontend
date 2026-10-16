@@ -6,6 +6,7 @@ import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { DealerProfitSummary } from "../../dealer-profit-summary";
 import { DealerEarningsSummaryCard } from "../../dealer-earnings-summary";
+import { internalDealerServiceEarnings } from "@/lib/dealer-service-earnings";
 import { MaterialProfitAdjustments } from "../../material-profit-adjustments";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import { formatMoney, roundMoney } from "@/lib/formatters";
@@ -692,6 +693,9 @@ export function ReportFinancialSummary({
       (internalMaterial.subtotal - (internalMaterial.manualNetDiscount ?? 0)),
   );
   const dealerServiceProfit = roundMoney(customerServiceCharges - internalCharges);
+  const serviceEarnings = internalDealerServiceEarnings({
+    dealerMode: estimate.dealerModeSnapshot, network: estimate.dealerNetwork, summary: estimate.customerChargesSummary,
+  });
   const internalProjectTotal = roundMoney(
     internalMaterial.total + internalCharges,
   );
@@ -834,7 +838,7 @@ export function ReportFinancialSummary({
       </div>
 
       {comparisonView && (estimate.dealerModeSnapshot === "INTERNAL" || estimate.dealerEarnings) ? (
-        <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} />
+        <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       ) : comparisonView && (
         <DealerProfitSummary
           materialProfit={estimate.dealerNetwork?.materialProfit != null ? Number(estimate.dealerNetwork.materialProfit) : dealerMaterialProfit}
@@ -842,7 +846,7 @@ export function ReportFinancialSummary({
         />
       )}
 
-      {reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={estimate.subdealerEarnings} />}
+      {reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={estimate.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {reportKind === "admin" && (
         <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />

@@ -1789,6 +1789,7 @@ export function EstimateForm({
           subdealerEarnings={discountData.subdealerEarnings}
           dealerNetwork={discountData.dealerNetwork}
           earningsPending={needsRecalculation || discountDirty || discountLoading || discountError}
+          serviceEarningsPending={customerChargesBusy || discountError || needsRecalculation || isInstallationRequestEditing}
           ownerIsTaxExempt={isTaxExempt}
           taxRate={taxRate}
           customerTaxRatePercent={Number(customerTaxRatePercent) || 0}

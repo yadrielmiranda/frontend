@@ -12,11 +12,13 @@ import type {
   InstallationLineOrigin,
   InstallationPermitStatus,
   InstallationPriceProfile,
+  InstallationProfileAdjustment,
   InstallationRuleMetric,
   InstallationService,
 } from "@/lib/types";
 
 export type InstallationRuleInput = {
+  id?: number;
   minValue?: number | null;
   minInclusive?: boolean;
   maxValue?: number | null;
@@ -44,7 +46,7 @@ export type InstallationServiceInput = {
 
 export type InstallationProfileInput = {
   name: string;
-  adjustmentPercent: number;
+  adjustments: Array<Omit<InstallationProfileAdjustment, "value" | "legacyLineRounding"> & { value: number }>;
   minimumCharge: number;
   isDefault?: boolean;
   isActive?: boolean;

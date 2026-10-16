@@ -128,6 +128,9 @@ const discount = { payer: 'CUSTOMER', scope: 'INSTALLATION', discount: '100',
 baseMocks['@/lib/customer-charge-additions'] = load('lib/customer-charge-additions.ts', {
   './formatters': { roundMoney: rounding },
 });
+baseMocks['@/lib/dealer-service-earnings'] = load('lib/dealer-service-earnings.ts', {
+  './formatters': { roundMoney: rounding },
+});
 const Financial = load('components/estimates/estimate-financial-summary.tsx').EstimateFinancialSummary;
 const Report = load('components/estimates/estimate-details/parts/report-financial-summary.tsx').ReportFinancialSummary;
 const paymentMocks = {
@@ -336,6 +339,28 @@ test('revision comparison displays custom charges included in the project total'
   const output = text(Revision(props));
   assert.match(output, /Additional charges\$150\.00\$150\.00/);
   assert.match(output, /Project total\$2,350\.00\$2,450\.00/);
+});
+
+test('estimate editor adds the owner service increases to the material plan without subtracting company discounts', () => {
+  const earnings = { status: 'CALCULATED', amount: '40' };
+  const tree = Financial({ ...financialProps, dealerEarnings: earnings, manualDiscount: discount });
+  const card = all(tree, node => node.type === 'DealerEarningsSummaryCard')[0];
+  assert.equal(card.props.earnings, earnings);
+  assert.equal(card.props.serviceProfit, 350);
+  const loading = Financial({ ...financialProps, dealerEarnings: earnings, serviceEarningsPending: true });
+  assert.equal(all(loading, node => node.type === 'DealerEarningsSummaryCard')[0].props.serviceProfit, null);
+});
+
+test('estimate editor assigns internal subdealer increases only to the owner card', () => {
+  const earnings = { status: 'CALCULATED', amount: '40' }, sub = { ...earnings, amount: '17' };
+  const network = { level: 'SUBDEALER', viewerIsOwner: false };
+  const tree = Financial({ ...financialProps, dealerEarnings: earnings, subdealerEarnings: sub, dealerNetwork: network });
+  const cards = all(tree, node => node.type === 'DealerEarningsSummaryCard');
+  assert.equal(cards[0].props.serviceProfit, undefined);
+  assert.equal(cards[1].props.serviceProfit, 350);
+  assert.equal(cards[1].props.label, 'Subdealer Profit');
+  const owner = Financial({ ...financialProps, dealerEarnings: sub, dealerNetwork: { ...network, viewerIsOwner: true } });
+  assert.equal(all(owner, node => node.type === 'DealerEarningsSummaryCard')[0].props.serviceProfit, 350);
 });
 
 (async () => {

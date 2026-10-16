@@ -13,6 +13,7 @@ import { OrderMaterialPanel } from "@/components/orders/order-material-panel";
 import { OrderDeliveryPanel } from "@/components/orders/order-delivery-panel";
 import { DealerEarningsSummaryCard } from "@/components/estimates/dealer-earnings-summary";
 import { MaterialProfitAdjustments } from "@/components/estimates/material-profit-adjustments";
+import { internalDealerServiceEarnings } from "@/lib/dealer-service-earnings";
 
 export function OrderDetails({
   order,
@@ -38,6 +39,10 @@ export function OrderDetails({
   canRecordManualPayment: boolean;
 }) {
   const [paymentTarget, setPaymentTarget] = useState<HTMLDivElement | null>(null);
+  const serviceEarnings = internalDealerServiceEarnings({
+    dealerMode: order.estimate?.dealerModeSnapshot ?? order.dealerModeSnapshot, network: order.estimate?.dealerNetwork,
+    summary: order.estimate?.customerChargesSummary,
+  });
 
   useEffect(() => {
     if (!paymentTarget) return;
@@ -167,10 +172,10 @@ export function OrderDetails({
       )}
 
       {order.dealerEarnings && (
-        <DealerEarningsSummaryCard earnings={order.dealerEarnings} />
+        <DealerEarningsSummaryCard earnings={order.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       )}
 
-      {isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label="Subdealer material earnings" earnings={order.subdealerEarnings} />}
+      {isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={order.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (

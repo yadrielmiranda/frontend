@@ -169,8 +169,8 @@ test('an authorized order view distinguishes gross and net real material profits
 });
 test('an order without financial permission never renders processing details, even with a staff-shaped payload', () => {
   const html = orderView(order(), false);
-  assert.ok(html.includes('Dealer material earnings')); assert.ok(html.includes('$40.00'));
-  assert.ok(!/processing|Gross real|Net real|Company real/i.test(html)); assert.ok(!html.includes('$5.50'));
+  assert.ok(html.includes('Dealer Profit')); assert.ok(html.includes('$40.00'));
+  assert.ok(!/Material processing cost|Gross real|Net real|Company real/i.test(html)); assert.ok(!html.includes('$5.50'));
 });
 for (const mode of ['EXTERNAL', null]) {
   test(`an authorized ${mode ?? 'DIRECT CLIENT'} order shows costs without inventing dealer earnings`, () => {
@@ -186,7 +186,7 @@ test('the administrative estimate report shows processing adjustments', () => {
 for (const reportKind of ['dealer', 'client', 'dealer-customer', 'dealer-customer-total']) {
   test(`${reportKind} reports never show staff processing fields even if supplied`, () => {
     const html = reportView(estimate(), reportKind);
-    assert.ok(!/processing|Gross real|Net real|Company real/i.test(html)); assert.ok(!html.includes('$5.50'));
+    assert.ok(!/Material processing cost|Gross real|Net real|Company real/i.test(html)); assert.ok(!html.includes('$5.50'));
   });
 }
 for (const mode of ['EXTERNAL', null]) {
@@ -197,6 +197,76 @@ for (const mode of ['EXTERNAL', null]) {
     assert.ok(!html.includes('after dealer earnings')); assert.ok(!html.includes('and dealer earnings')); assert.ok(!html.includes('Dealer material earnings'));
   });
 }
+const serviceLine = { id: 1, origin: 'SYSTEM', source: 'INSTALLATION', sourceKey: 'INSTALLATION', description: 'Installation',
+  systemAmount: '1000', customerAmount: '1600', usedInCustomerQuote: true, needsReview: false, sortOrder: 0 };
+const serviceCharges = { enabled: true, lines: [serviceLine], systemTotal: '1000', customerTotal: '1600',
+  knownSystemMargin: '600', dealerCreatedTotal: '0', customerTotalIncomplete: false, systemTotalIncomplete: false };
+const profitSection = (html, label = 'Dealer Profit') => html.match(new RegExp(`<section aria-label="${label}"[^>]*>[\\s\\S]*?</section>`))?.[0] ?? '';
+const network = { level: 'SUBDEALER', viewerIsOwner: false, rootMode: 'INTERNAL', payerType: 'CUSTOMER' };
+test('internal reports and orders add only the dealer increase to the supplied material earnings plan', () => {
+  const value = estimate({ customerChargesSummary: serviceCharges });
+  for (const html of [reportView(value, 'dealer'), orderView(order({ estimate: value }), false)]) {
+    const card = profitSection(html);
+    for (const expected of ['$640.00', 'Material:', '$40.00', 'Installation &amp; services:', '$600.00', 'before card processing fees']) assert.ok(card.includes(expected), expected);
+    assert.ok(!card.includes('$680.00'), 'Does not replace material plan with gross resale margin');
+    assert.ok(!card.includes('$1,640.00'), 'Company installation price is not dealer profit');
+  }
+});
+test('a company-funded installation discount does not reduce the dealer increase', () => {
+  const value = estimate({ customerChargesSummary: serviceCharges, manualDiscountSummary: { payer: 'CUSTOMER', scope: 'INSTALLATION', discount: '100',
+    material: { tax: '0', total: '300', netDiscount: '0' }, installation: { discount: '100', total: '900' }, permit: { discount: '0', total: '0' }, city: { discount: '0', total: '0' } } });
+  const card = profitSection(reportView(value, 'dealer'));
+  assert.ok(card.includes('$640.00')); assert.ok(card.includes('$600.00')); assert.ok(!card.includes('$540.00'));
+});
+test('pending material keeps the known service increase visible without inventing a total', () => {
+  const card = profitSection(reportView(estimate({ customerChargesSummary: serviceCharges,
+    dealerEarnings: { ...earnings, status: 'PENDING_REAL_COST', amount: null } }), 'dealer'));
+  assert.ok(card.includes('Profit pending confirmation')); assert.ok(card.includes('$600.00'));
+  assert.ok(!card.includes('$640.00')); assert.ok(!card.includes('$0.00'));
+});
+test('missing or incomplete service charges remain pending, while a confirmed empty summary means zero', () => {
+  for (const summary of [null, { ...serviceCharges, customerTotalIncomplete: true }, { ...serviceCharges, systemTotalIncomplete: true },
+    { ...serviceCharges, lines: [{ ...serviceLine, needsReview: true }] }]) {
+    const card = profitSection(reportView(estimate({ customerChargesSummary: summary }), 'dealer'));
+    assert.ok(card.includes('Profit pending confirmation')); assert.ok(card.includes('$40.00')); assert.ok(!card.includes('$600.00')); assert.ok(!card.includes('$0.00'));
+  }
+  const card = profitSection(reportView(estimate({ customerChargesSummary: { ...serviceCharges, lines: [], customerTotal: '0', systemTotal: '0' } }), 'dealer'));
+  assert.ok(card.includes('$40.00')); assert.ok(card.includes('$0.00')); assert.ok(!card.includes('Pending'));
+});
+test('network parent keeps its material plan and does not acquire the owning subdealer service increase', () => {
+  const value = estimate({ dealerNetwork: network, customerChargesSummary: serviceCharges });
+  for (const html of [reportView(value, 'dealer'), orderView(order({ estimate: value }), false)]) {
+    assert.ok(profitSection(html, 'Dealer material earnings').includes('$40.00'));
+    assert.equal(profitSection(html), '');
+  }
+});
+test('admin attributes service increases once, to the owning internal subdealer card', () => {
+  const subdealerEarnings = { ...earnings, amount: '17' };
+  const value = estimate({ dealerNetwork: network, customerChargesSummary: serviceCharges, subdealerEarnings });
+  for (const html of [reportView(value, 'admin'), orderView(order({ estimate: value, subdealerEarnings }), true)]) {
+    assert.ok(profitSection(html, 'Dealer material earnings').includes('$40.00'));
+    const card = profitSection(html, 'Subdealer Profit');
+    assert.ok(card.includes('$617.00')); assert.ok(card.includes('$600.00')); assert.equal(profitSection(html), '');
+  }
+});
+test('owning subdealer sees its mapped material plan plus its service increases', () => {
+  const value = estimate({ dealerNetwork: { ...network, viewerIsOwner: true }, customerChargesSummary: serviceCharges, dealerEarnings: { ...earnings, amount: '17' } });
+  assert.ok(profitSection(reportView(value, 'dealer')).includes('$617.00'));
+});
+test('external distributor increases are never assigned to the internal upstream material plans', () => {
+  const subdealerEarnings = { ...earnings, amount: '17' };
+  const value = estimate({ dealerModeSnapshot: 'EXTERNAL', dealerNetwork: { ...network, level: 'DISTRIBUTOR' }, customerChargesSummary: serviceCharges, subdealerEarnings });
+  for (const html of [reportView(value, 'admin'), orderView(order({ dealerModeSnapshot: 'INTERNAL', estimate: value, subdealerEarnings }), true)]) {
+    assert.equal(profitSection(html), ''); assert.equal(profitSection(html, 'Subdealer Profit'), '');
+    assert.ok(profitSection(html, 'Subdealer material earnings').includes('$17.00'));
+  }
+});
+test('customer-facing reports never render dealer earnings or service-profit cards', () => {
+  for (const kind of ['client', 'dealer-customer', 'dealer-customer-total']) {
+    const html = reportView(estimate({ customerChargesSummary: serviceCharges }), kind);
+    assert.equal(profitSection(html), ''); assert.equal(profitSection(html, 'Dealer material earnings'), '');
+  }
+});
 let failures = 0;
 for (const { name, run } of tests) {
   try { run(); console.log(`PASS ${name}`); }
