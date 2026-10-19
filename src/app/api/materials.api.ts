@@ -17,6 +17,7 @@ export type MaterialProduct = {
   id: number; code: string; name: string; description: string | null;
   imageUrl: string | null; brand: string | null; categoryId: number | null; category: MaterialCategory | null;
   baseUnitId: number; baseUnit: MaterialUnit; isActive: boolean; isSaleEnabled: boolean;
+  allowBaseUnitOperations?: boolean;
   version: number; presentations: MaterialPresentation[]; inventoryByStore: MaterialStoreInventory[];
 };
 export type MaterialPage<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -46,7 +47,7 @@ export const uploadMaterialImage = async (file: File) => {
 export const materialProducts = (query?: Query) => get<MaterialPage<MaterialProduct>>("products", query);
 export const materialProduct = (id: number) => get<MaterialProduct>(`products/${id}`);
 export const materialBarcode = (barcode: string) => get<{ product: MaterialProduct; presentation: MaterialPresentation }>(`barcode/${encodeURIComponent(barcode)}`);
-type MaterialCatalogFields = { imageUrl?: string | null; brand?: string | null; categoryId?: number | null };
+type MaterialCatalogFields = { imageUrl?: string | null; brand?: string | null; categoryId?: number | null; allowBaseUnitOperations?: boolean };
 export const createMaterialProduct = (body: { requestKey: string; name: string; description?: string; baseUnitId: number; baseBarcode?: string; purchaseUnitId: number; purchaseMultiplier: number; purchaseBarcode?: string } & MaterialCatalogFields) => post<MaterialProduct>("products", body);
 export const updateMaterialProduct = (id: number, body: { requestKey: string; version: number; name?: string; description?: string; isActive?: boolean; isSaleEnabled?: boolean } & MaterialCatalogFields) => patch<MaterialProduct>(`products/${id}`, body);
 export type MaterialPresentationInput = { requestKey: string; unitId: number; multiplier: number; name?: string; barcode?: string; isPurchase?: boolean; isSaleEnabled?: boolean; salePrice?: number };
@@ -63,6 +64,7 @@ export const materialHistory = (query?: Query) => get<MaterialPage<MaterialMovem
 
 export type MaterialStoreCountProduct = {
   id: number; code: string; name: string; imageUrl: string | null; isActive: boolean; version: number;
+  allowBaseUnitOperations?: boolean;
   baseUnit: { id: number; name: string }; totalBaseQuantity: number; reservedBaseQuantity: number; availableBaseQuantity: number;
   presentations: Array<{ id: number; name: string; barcode: string | null; multiplier: number; isBase: boolean; isActive: boolean; quantity: number; reservedQuantity: number; availableQuantity: number }>;
 };
@@ -103,6 +105,7 @@ export const publicMaterialSale = (token: string) => apiFetch<MaterialSale>(`/ap
 export const publicMaterialCheckout = (token: string) => apiFetch<{ url: string; sessionId: string }>(`/api/materials/public/sales/${encodeURIComponent(token)}/checkout-session`, { method: "POST", body: {}, suppressAuthEvent: true });
 export type MaterialCatalogProduct = {
   id: number; code: string; name: string; description: string | null;
+  allowBaseUnitOperations?: boolean;
   imageUrl: string | null; brand: string | null; category: MaterialCategory | null;
   baseUnit: { id: number; name: string };
   presentations: Array<{ id: number; name: string; multiplier: number; barcode: string | null; salePrice: string; availableQuantity: number; unit: { id: number; name: string } }>;

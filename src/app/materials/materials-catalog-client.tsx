@@ -15,6 +15,7 @@ import { cancelCustomerMaterialOrder, createCustomerMaterialOrder, createMateria
 import type { WarehouseStore } from "@/app/api/warehouse.api";
 import { emptyMaterialSaleCustomer, materialSaleCustomerInput, MaterialSaleCustomerFields } from "@/app/warehouse/materials/material-sale-customer-fields";
 import { errorText, MaterialField, MaterialNotice, MaterialSubmit, materialInputClass, money, quantity, useMaterialAction } from "@/app/warehouse/materials/materials-shared";
+import { allowsMaterialDailyOperation } from "@/app/warehouse/materials/material-operation-policy";
 
 type Product = MaterialCatalog["products"][number];
 type Presentation = Product["presentations"][number];
@@ -99,11 +100,12 @@ export function MaterialsCatalogClient({ initial, initialQuery = {}, viewer, sto
   }
 
   function selected(product: Product) {
-    return product.presentations.find(p => p.id === selections[product.id]) ?? product.presentations[0];
+    const presentations = product.presentations.filter(p => allowsMaterialDailyOperation(product, p));
+    return presentations.find(p => p.id === selections[product.id]) ?? presentations[0];
   }
 
   function add(product: Product, presentation: Presentation, amount: number) {
-    if (locked || !Number.isInteger(amount) || amount < 1 || amount > MAX_QUANTITY) return;
+    if (locked || !allowsMaterialDailyOperation(product, presentation) || !Number.isInteger(amount) || amount < 1 || amount > MAX_QUANTITY) return;
     const currentQuantity = cart.find(line => line.presentationId === presentation.id)?.quantity ?? 0;
     if (currentQuantity + amount > Math.min(presentation.availableQuantity, MAX_QUANTITY) || (!currentQuantity && cart.length >= MAX_CART_LINES)) return;
     setCart(current => {
@@ -227,7 +229,7 @@ export function MaterialsCatalogClient({ initial, initialQuery = {}, viewer, sto
         if (request === querySequence.current) { setCatalog(next); setCatalogError(""); }
         const products = [...next.products, ...(cartCatalog?.products ?? [])];
         setDetail(current => current ? products.find(product => product.id === current.id) ?? current : null);
-        const presentations = new Map((cartCatalog?.products ?? []).flatMap(product => product.presentations).map(p => [p.id, p]));
+        const presentations = new Map((cartCatalog?.products ?? []).flatMap(product => product.presentations.filter(p => allowsMaterialDailyOperation(product, p))).map(p => [p.id, p]));
         setCart(current => current.map(line => {
           const p = presentations.get(line.presentationId);
           return { ...line, availableQuantity: p?.availableQuantity ?? 0, unitPrice: Number(p?.salePrice ?? line.unitPrice) };
@@ -315,7 +317,7 @@ export function MaterialsCatalogClient({ initial, initialQuery = {}, viewer, sto
       <label className="block space-y-1.5 text-sm">
         <span className="font-medium text-slate-600">Package</span>
         <select aria-label={`Package for ${product.name}${suffix}`} className={materialInputClass} value={p.id} disabled={locked} onChange={event => { setSelections(current => ({ ...current, [product.id]: Number(event.target.value) })); setAmounts(current => ({ ...current, [product.id]: 1 })); }}>
-          {product.presentations.map(presentation => <option key={presentation.id} value={presentation.id}>{presentation.name}</option>)}
+          {product.presentations.filter(presentation => allowsMaterialDailyOperation(product, presentation)).map(presentation => <option key={presentation.id} value={presentation.id}>{presentation.name}</option>)}
         </select>
       </label>
       <div className="flex flex-wrap items-baseline gap-x-1.5"><span className="text-2xl font-semibold tracking-tight text-slate-950">{money(p.salePrice)}</span><span className="text-xs text-muted-foreground">/ {p.unit.name.toLowerCase()}</span></div>

@@ -12,6 +12,7 @@ import type { WarehouseStore } from "@/app/api/warehouse.api";
 import { MaterialField, MaterialNotice, MaterialScan, MaterialSubmit, materialInputClass, materialPanelClass, money, useMaterialAction } from "./materials-shared";
 import { materialPublicSaleStatus } from "./material-sale-status";
 import { emptyMaterialSaleCustomer, materialSaleCustomerInput, MaterialSaleCustomerFields } from "./material-sale-customer-fields";
+import { allowsMaterialDailyOperation, materialFullPackagesOnlyMessage } from "./material-operation-policy";
 
 type DraftLine = { presentationId: number; productName: string; presentationName: string; quantity: number; unitPrice: number };
 type SaleBody = { storeId: number; note?: string; lines: { presentationId: number; quantity: number }[] } & MaterialSaleCustomerInput;
@@ -50,6 +51,7 @@ export function MaterialSalesClient({ initial, catalog, stores }: { initial: Mat
       const { product, presentation } = await materialBarcode(code);
       // Closing/reopening the draft or starting a save invalidates an in-flight lookup.
       if (!current()) return;
+      if (!allowsMaterialDailyOperation(product, presentation)) throw new Error(materialFullPackagesOnlyMessage);
       if (!product.isActive || !product.isSaleEnabled || !presentation.isSaleEnabled || !presentation.isActive || presentation.salePrice == null) throw new Error("This presentation is not enabled for sale.");
       add({ presentationId: presentation.id, productName: product.name, presentationName: presentation.name, unitPrice: Number(presentation.salePrice) });
     } catch (error) {
@@ -85,7 +87,7 @@ export function MaterialSalesClient({ initial, catalog, stores }: { initial: Mat
   }
   const subtotal = lines.reduce((sum, l) => sum + Math.round(l.unitPrice * 100) * l.quantity, 0) / 100;
   const tax = Math.round(subtotal * Number(catalog.taxRate)) / 100;
-  const products = catalog.products.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()));
+  const products = catalog.products.map(product => ({ ...product, presentations: product.presentations.filter(p => allowsMaterialDailyOperation(product, p)) })).filter(p => p.presentations.length > 0 && `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()));
   const findOrders = (q: string) => task.read(async () => {
     const query = q.trim();
     const next = await materialSales(query ? { q: query } : undefined);

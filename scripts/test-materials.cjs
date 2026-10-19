@@ -924,6 +924,250 @@ test('API routes encode barcodes and keep confirmed physical delivery distinct f
   assert.equal(calls[7][0], '/api/materials/sales/customers'); assert.deepEqual(calls[7][1].query, { q: 'Registered Buyer' }); assert.notEqual(calls[7][1].suppressAuthEvent, true); assert.equal(calls[7][1].cache, 'no-store');
 });
 
+const policyField = tree => nodes(tree, element => element.type?.name === 'MaterialPackagePolicyField')[0];
+const packagePolicyProduct = (allowBaseUnitOperations = false) => ({
+  ...product, allowBaseUnitOperations,
+  presentations: [{ ...base, barcode: 'MAT-LOOSE', isPurchase: true }, box,
+    { ...box, id: 3, name: 'Bag of 5', multiplier: 5, barcode: 'MAT-BAG5', salePrice: 25 },
+    { ...box, id: 4, name: 'Single-unit alias', multiplier: 1, barcode: 'MAT-ALIAS1', salePrice: 6 }],
+  inventoryByStore: [{ store, totalBaseQuantity: 72, reservedBaseQuantity: 0, availableBaseQuantity: 72,
+    presentations: [{ id: 1, quantity: 2, reservedQuantity: 0, availableQuantity: 72 },
+      { id: 2, quantity: 3, reservedQuantity: 0, availableQuantity: 3 },
+      { id: 3, quantity: 2, reservedQuantity: 0, availableQuantity: 2 },
+      { id: 4, quantity: 0, reservedQuantity: 0, availableQuantity: 0 }] }],
+});
+const policyStoreInventory = () => {
+  const fixture = packagePolicyProduct();
+  return { store, products: [{ ...fixture, ...fixture.inventoryByStore[0],
+    presentations: fixture.presentations.map(p => ({ ...p, ...fixture.inventoryByStore[0].presentations.find(s => s.id === p.id) })) }] };
+};
+const policyCatalogFixture = () => {
+  const fixture = packagePolicyProduct();
+  return { ...catalogFixture(), products: [{ ...fixture,
+    presentations: fixture.presentations.map(p => ({ ...p, salePrice: String(p.salePrice), availableQuantity: fixture.inventoryByStore[0].presentations.find(s => s.id === p.id).availableQuantity })) }] };
+};
+function setStockFields(h, action, presentationId = '2') {
+  const fields = [[action === 'transfer' ? 'From store' : 'Store', '1'], ['Presentation', presentationId],
+    [action === 'adjust' ? 'Actual counted quantity in this presentation' : 'Quantity in this presentation', '1']];
+  if (action === 'receive') fields.push(['Cost per received package', '80']);
+  if (action === 'internal') fields.push(['Received by', 'Installer'], ['Reason / job', 'Installation']);
+  if (action === 'transfer') fields.push(['To store', '2']);
+  if (action === 'adjust') fields.push(['Reason for adjustment', 'Counted damaged units']);
+  for (const [label, value] of fields) field(h.render(), label).props.onChange({ target: { value } });
+  return h.render();
+}
+
+test('package policy preserves legacy behavior and blocks base-unit aliases without affecting packages', () => {
+  const { allowsMaterialDailyOperation } = loader()('app/warehouse/materials/material-operation-policy.ts');
+  for (const policy of [undefined, true]) {
+    assert.equal(allowsMaterialDailyOperation({ allowBaseUnitOperations: policy }, base), true);
+    assert.equal(allowsMaterialDailyOperation({ allowBaseUnitOperations: policy }, { ...box, multiplier: 1 }), true);
+  }
+  assert.equal(allowsMaterialDailyOperation({ allowBaseUnitOperations: false }, base), false);
+  assert.equal(allowsMaterialDailyOperation({ allowBaseUnitOperations: false }, { ...box, multiplier: 1 }), false);
+  assert.equal(allowsMaterialDailyOperation({ allowBaseUnitOperations: false }, box), true);
+});
+
+test('new-product package policy is opt-in and saves the explicit restriction with the chosen conversion', async () => {
+  let saved;
+  const h = controlled('app/warehouse/materials/materials-client.tsx', 'MaterialsClient', { initial: { items: [], total: 0, page: 1, pageSize: 50 }, initialUnits: [unit, boxUnit], admin: true }, { createMaterialProduct: async body => { saved = body; return product; } });
+  nodes(h.render(), e => text(e) === 'New product' && e.props?.onClick)[0].props.onClick();
+  assert.equal(policyField(h.render()).props.checked, false);
+  assert.equal(policyField(h.render()).props.canEnable, false);
+  for (const [label, value] of [['Product name', 'Screws'], ['Base unit', '1'], ['Purchase unit', '2']]) field(h.render(), label).props.onChange({ target: { value } });
+  nodes(h.render(), e => e.props?.label?.startsWith('How many'))[0].props.children.props.onChange({ target: { value: '1000' } });
+  assert.equal(policyField(h.render()).props.canEnable, true);
+  policyField(h.render()).props.onChange(true);
+  const tree = h.render(); assert.equal(policyField(tree).props.checked, true);
+  nodes(tree, e => e.type === 'form' && text(e).includes('Create product with zero stock'))[0].props.onSubmit({ preventDefault() {} }); await tick();
+  assert.equal(saved.allowBaseUnitOperations, false); assert.equal(saved.purchaseMultiplier, 1000);
+  assert.equal(saved.baseUnitId, 1); assert.equal(saved.purchaseUnitId, 2);
+});
+
+test('single-unit purchase cannot retain an enabled full-packages-only checkbox', () => {
+  const h = controlled('app/warehouse/materials/materials-client.tsx', 'MaterialsClient', { initial: { items: [], total: 0, page: 1, pageSize: 50 }, initialUnits: [unit, boxUnit], admin: true }, {});
+  nodes(h.render(), e => text(e) === 'New product' && e.props?.onClick)[0].props.onClick();
+  field(h.render(), 'Base units in each purchase package').props.onChange({ target: { value: '20' } });
+  policyField(h.render()).props.onChange(true);
+  field(h.render(), 'Base units in each purchase package').props.onChange({ target: { value: '1' } });
+  const policy = policyField(h.render()); assert.equal(policy.props.checked, false); assert.equal(policy.props.canEnable, false);
+  const { MaterialPackagePolicyField } = loader()('app/warehouse/materials/material-package-policy-field.tsx');
+  const markup = renderToStaticMarkup(React.createElement(MaterialPackagePolicyField, policy.props));
+  assert.match(markup, /disabled/); assert.match(markup, /more than one base unit/);
+});
+
+test('product settings persist the package restriction without changing base units or stock', async () => {
+  for (const initialPolicy of [undefined, false]) {
+    const initial = { ...product, allowBaseUnitOperations: initialPolicy }; let saved;
+    const h = controlled('app/warehouse/materials/material-detail-client.tsx', 'MaterialDetailClient', { initial, units: [unit, boxUnit], stores: [store], admin: true }, { updateMaterialProduct: async (id, body) => { saved = { id, ...body }; return { ...initial, ...body }; } });
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Product settings')[0].props.onClick();
+    assert.equal(policyField(h.render()).props.checked, initialPolicy === false);
+    policyField(h.render()).props.onChange(initialPolicy !== false);
+    submit(h.render()); await tick();
+    assert.equal(saved.allowBaseUnitOperations, initialPolicy === false); assert.equal(saved.version, product.version);
+    for (const key of ['baseUnitId', 'purchaseMultiplier', 'quantity']) assert.equal(key in saved, false);
+  }
+  const h = controlled('app/warehouse/materials/material-detail-client.tsx', 'MaterialDetailClient', { initial: product, units: [unit, boxUnit], stores: [store], admin: false }, {});
+  assert.equal(nodes(h.render(), e => e.props?.onClick && text(e) === 'Product settings').length, 0);
+});
+
+test('daily presentation selectors and preselected barcode IDs exclude base units and 1x aliases', () => {
+  for (const action of ['receive', 'internal', 'transfer']) {
+    const h = controlled('app/warehouse/materials/material-stock-actions.tsx', 'MaterialStockActions', { product: packagePolicyProduct(), stores: [store], action, initialPresentationId: 1, onSaved: async () => {} }, {});
+    const selector = field(h.render(), 'Presentation');
+    assert.deepEqual(nodes(selector, e => e.type === 'option').map(e => String(e.props.value)), ['', '2', '3']);
+    assert.equal(selector.props.value, '');
+  }
+});
+
+test('refreshing a changed persisted package policy updates settings before a metadata save', async () => {
+  for (const initialPolicy of [undefined, true, false]) {
+    const initial = { ...product, allowBaseUnitOperations: initialPolicy };
+    const nextPolicy = initialPolicy === false;
+    const refreshed = { ...initial, allowBaseUnitOperations: nextPolicy, version: initial.version + 1 };
+    let saved;
+    const h = controlled('app/warehouse/materials/material-detail-client.tsx', 'MaterialDetailClient', { initial, units: [unit, boxUnit], stores: [store], admin: true }, {
+      materialProduct: async () => refreshed,
+      updateMaterialProduct: async (id, body) => { saved = { id, ...body }; return { ...refreshed, ...body }; },
+    }, undefined, { effects: true });
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Internal use')[0].props.onClick();
+    await nodes(h.render(), e => e.type?.name === 'MaterialStockActions')[0].props.onSaved();
+    // Commit the product refresh and then read the next render after effects.
+    h.render();
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Product settings')[0].props.onClick();
+    assert.equal(policyField(h.render()).props.checked, !nextPolicy);
+    field(h.render(), 'Product name').props.onChange({ target: { value: 'Updated display name' } });
+    submit(h.render()); await tick();
+    assert.equal(saved.allowBaseUnitOperations, nextPolicy);
+    assert.equal(saved.version, refreshed.version); assert.equal(saved.name, 'Updated display name');
+  }
+});
+
+test('an unrelated stock refresh preserves an unsaved package-policy choice', async () => {
+  for (const initialPolicy of [true, false]) {
+    const initial = { ...product, allowBaseUnitOperations: initialPolicy };
+    const refreshed = { ...initial, version: initial.version + 1 };
+    let saved;
+    const h = controlled('app/warehouse/materials/material-detail-client.tsx', 'MaterialDetailClient', { initial, units: [unit, boxUnit], stores: [store], admin: true }, {
+      materialProduct: async () => refreshed,
+      updateMaterialProduct: async (id, body) => { saved = body; return { ...refreshed, ...body }; },
+    }, undefined, { effects: true });
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Product settings')[0].props.onClick();
+    policyField(h.render()).props.onChange(initialPolicy);
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Internal use')[0].props.onClick();
+    await nodes(h.render(), e => e.type?.name === 'MaterialStockActions')[0].props.onSaved();
+    h.render();
+    nodes(h.render(), e => e.props?.onClick && text(e) === 'Product settings')[0].props.onClick();
+    assert.equal(policyField(h.render()).props.checked, initialPolicy);
+    submit(h.render()); await tick();
+    assert.equal(saved.allowBaseUnitOperations, !initialPolicy); assert.equal(saved.version, refreshed.version);
+  }
+});
+
+test('daily forms reject forged and stale base-unit selections before sending inventory requests', async () => {
+  for (const action of ['receive', 'internal', 'transfer']) {
+    for (const invalidId of ['1', '4']) {
+      const writes = [], props = { product: packagePolicyProduct(true), stores: [store, { ...store, id: 2 }], action, onSaved: async () => {} };
+      const api = { receiveMaterial: async body => writes.push(body), useMaterialInternally: async body => writes.push(body), transferMaterial: async body => writes.push(body) };
+      const h = controlled('app/warehouse/materials/material-stock-actions.tsx', 'MaterialStockActions', props, api);
+      setStockFields(h, action, invalidId);
+      h.setProps({ ...props, product: packagePolicyProduct(false) });
+      submit(h.render()); await tick(); assert.equal(writes.length, 0);
+      // Even a forged change event on the current select must not bypass the policy.
+      field(h.render(), 'Presentation').props.onChange({ target: { value: invalidId } });
+      submit(h.render()); await tick(); assert.equal(writes.length, 0);
+    }
+  }
+});
+
+test('full boxes and bags remain usable in daily operations with the base unit restricted', async () => {
+  for (const action of ['receive', 'internal', 'transfer']) {
+    for (const presentationId of ['2', '3']) {
+      let saved;
+      const h = controlled('app/warehouse/materials/material-stock-actions.tsx', 'MaterialStockActions', { product: packagePolicyProduct(), stores: [store, { ...store, id: 2 }], action, onSaved: async () => {} }, {
+        receiveMaterial: async body => { saved = body; }, useMaterialInternally: async body => { saved = body; }, transferMaterial: async body => { saved = body; },
+      });
+      submit(setStockFields(h, action, presentationId)); await tick();
+      assert.equal(saved.presentationId, Number(presentationId)); assert.equal(saved.quantity, 1);
+    }
+  }
+});
+
+test('barcode withdrawal rejects loose and 1x codes but accepts a physical package', () => {
+  const { findMaterialWithdrawalPresentation } = loader()('app/warehouse/materials/material-stock-actions.tsx');
+  const fixture = packagePolicyProduct();
+  for (const code of ['MAT-LOOSE', 'MAT-ALIAS1']) assert.throws(() => findMaterialWithdrawalPresentation(fixture, code, 1), /package|base unit/i);
+  assert.equal(findMaterialWithdrawalPresentation(fixture, 'MAT-BOX20', 1).id, 2);
+  assert.equal(findMaterialWithdrawalPresentation(fixture, 'MAT-BAG5', 1).id, 3);
+  assert.equal(findMaterialWithdrawalPresentation({ ...fixture, allowBaseUnitOperations: undefined }, 'MAT-LOOSE', 1).id, 1);
+});
+
+test('admin adjustments and explicit package conversions remain available for restricted materials', async () => {
+  for (const action of ['adjust', 'repack']) {
+    let saved;
+    const h = controlled('app/warehouse/materials/material-stock-actions.tsx', 'MaterialStockActions', { product: packagePolicyProduct(), stores: [store], action, onSaved: async () => {} }, {
+      adjustMaterial: async body => { saved = body; }, repackMaterial: async body => { saved = body; },
+    });
+    const selectedId = action === 'adjust' ? '1' : '2';
+    const options = nodes(field(h.render(), 'Presentation'), e => e.type === 'option').map(e => String(e.props.value));
+    assert.ok(options.includes(selectedId));
+    submit(setStockFields(h, action, selectedId)); await tick();
+    assert.equal(saved.presentationId, Number(selectedId)); assert.equal(saved.quantity, 1);
+    if (action === 'repack') assert.equal(saved.action, 'OPEN');
+  }
+});
+
+test('store batch withdrawal rejects loose counts and scans while preserving package lines and physical counts', () => {
+  const inventory = policyStoreInventory();
+  const { buildMaterialStoreWithdrawal, findMaterialStoreWithdrawalBarcode } = loader()('app/warehouse/stores/store-material-internal-use-client.tsx');
+  for (const id of [1, 4]) assert.throws(() => buildMaterialStoreWithdrawal(inventory, { [`1:${id}`]: '1' }), /package|base unit/i);
+  for (const code of ['MAT-LOOSE', 'MAT-ALIAS1']) assert.throws(() => findMaterialStoreWithdrawalBarcode(inventory, code), /package|base unit/i);
+  const result = buildMaterialStoreWithdrawal(inventory, { '1:2': '1', '1:3': '2' });
+  assert.deepEqual(result.lines, [{ productId: 1, presentationId: 2, quantity: 1 }, { productId: 1, presentationId: 3, quantity: 2 }]);
+  assert.equal(findMaterialStoreWithdrawalBarcode(inventory, 'MAT-BAG5').presentation.id, 3);
+  const { buildMaterialStoreCount } = loader()('app/warehouse/stores/material-store-inventory-client.tsx');
+  const count = buildMaterialStoreCount(inventory, { '1:1': '1' });
+  assert.deepEqual(count.products, [{ productId: 1, version: product.version, counts: [{ presentationId: 1, quantity: 1 }] }]);
+});
+
+test('store batch withdrawal does not render selectable loose-unit rows for package-only products', () => {
+  const account = { ...customerAccount, role: { id: 2, name: 'operator' } }, auth = { ...authenticated(), user: account, revalidate: async () => account };
+  const h = controlled('app/warehouse/stores/store-material-internal-use-client.tsx', 'StoreMaterialInternalUseClient', { initial: policyStoreInventory(), initialIdentity: { id: account.id, role: 'operator' } }, {}, auth);
+  const tree = h.render();
+  for (const name of ['Tube', 'Single-unit alias']) {
+    const matches = nodes(tree, e => e.props?.['aria-label'] === `Withdraw White caulking · ${name}`);
+    assert.ok(!matches.length || matches.every(e => e.props.disabled));
+  }
+  assert.equal(nodes(tree, e => e.props?.['aria-label'] === 'Withdraw White caulking · Box of 20')[0].props.disabled, false);
+});
+
+test('staff sales hide restricted base choices and reject scanned loose codes without adding a line', async () => {
+  let writes = 0;
+  const fixture = packagePolicyProduct();
+  const h = controlled('app/warehouse/materials/material-sales-client.tsx', 'MaterialSalesClient', { initial: [], catalog: policyCatalogFixture(), stores: [store] }, {
+    materialBarcode: async code => ({ product: fixture, presentation: fixture.presentations.find(p => p.barcode === code) }),
+    createMaterialSale: async () => { writes++; return sale; },
+  });
+  nodes(h.render(), e => text(e) === 'New sale' && e.props?.onClick)[0].props.onClick();
+  let tree = h.render();
+  assert.equal(nodes(tree, e => e.props?.onClick && /^(Tube|Single-unit alias) · \$/.test(text(e))).length, 0);
+  assert.equal(nodes(tree, e => e.props?.onClick && text(e) === 'Box of 20 · $100.00').length, 1);
+  for (const code of ['MAT-LOOSE', 'MAT-ALIAS1']) await assert.rejects(nodes(h.render(), e => e.type?.name === 'MaterialScan')[0].props.onScan(code), /package|base unit/i);
+  assert.equal(nodes(h.render(), e => e.props?.['aria-label']?.startsWith('Quantity of ')).length, 0);
+  await nodes(h.render(), e => e.type?.name === 'MaterialScan')[0].props.onScan('MAT-BOX20');
+  tree = h.render(); assert.equal(nodes(tree, e => e.props?.['aria-label'] === 'Quantity of White caulking Box of 20')[0].props.value, 1);
+  assert.equal(writes, 0);
+});
+
+test('customer catalog presents only full packages when base operations are disabled', () => {
+  const h = controlled('app/materials/materials-catalog-client.tsx', 'MaterialsCatalogClient', { initial: policyCatalogFixture() }, {});
+  let tree = h.render();
+  const selector = nodes(tree, e => e.props?.['aria-label'] === 'Package for White caulking')[0];
+  assert.deepEqual(nodes(selector, e => e.type === 'option').map(e => String(e.props.value)), ['2', '3']);
+  nodes(tree, e => e.props?.onClick && text(e) === 'Add to cart')[0].props.onClick();
+  tree = h.render(); assert.equal(nodes(tree, e => e.props?.['aria-label'] === 'Quantity for White caulking Box of 20')[0].props.value, 1);
+});
+
 (async () => {
   // LAN HTTP exposes getRandomValues, but not the secure-context randomUUID API.
   const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
