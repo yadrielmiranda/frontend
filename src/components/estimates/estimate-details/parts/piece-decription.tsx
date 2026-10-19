@@ -2,6 +2,7 @@
 
 import { EstimateWithRelations } from "@/lib/types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
+import { buildEnergyDescription } from "@/lib/energy-ratings";
 
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
@@ -227,6 +228,9 @@ export function buildPieceReportDetails(
       `PSF: ${formatPsf(p.dpPosPsf)} / ${formatPsf(p.dpNegPsf)}`,
     );
   }
+
+  const energyLine = buildEnergyDescription(piece.energySnapshot, piece.prod?.kind);
+  if (energyLine) detailLines.push(energyLine);
 
   return {
     productName,

@@ -305,6 +305,8 @@ export interface CreatePieceMuntinData {
 export type PieceMuntin = CreatePieceMuntinData;
 
 export interface Piece {
+  energyRatingId?: number | null;
+  energySnapshot?: import("./energy-ratings").EnergySnapshot | null;
   regularPrice?: string | number;
   regularCustomerPrice?: string | number;
   promotionSnapshot?: unknown;

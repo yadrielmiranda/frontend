@@ -9,6 +9,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const { createFormControl } = require("react-hook-form");
+const React = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
 
 const filename = path.resolve(__dirname, "../src/components/estimates/piece-form.tsx");
 const source = ts.createSourceFile(filename, fs.readFileSync(filename, "utf8"),
@@ -54,6 +56,7 @@ const guardStatements = statements.filter(node =>
 function compile(code) {
   return ts.transpileModule(code, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
+    jsx: ts.JsxEmit.ReactJSX,
   } }).outputText;
 }
 const handlerCode = compile([
@@ -80,6 +83,29 @@ function loadPureModule(relative) {
 }
 const dimensions = loadPureModule("../src/lib/dimensions.ts");
 const formatters = loadPureModule("../src/lib/formatters.ts");
+const energy = loadPureModule("../src/lib/energy-ratings.ts");
+let energyInput;
+function findEnergyInput(node) {
+  if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "Input"
+    && node.attributes.properties.some(attribute => ts.isJsxAttribute(attribute)
+      && attribute.name.text === "id" && attribute.getText(source).includes('energy-${key}-'))) energyInput = node;
+  ts.forEachChild(node, findEnergyInput);
+}
+findEnergyInput(component);
+assert.ok(energyInput, "Energy results use the real PieceForm fields");
+let energyGrid = energyInput;
+while (energyGrid && !(ts.isBinaryExpression(energyGrid)
+  && energyGrid.left.getText(source) === "!isLinearMaterial")) energyGrid = energyGrid.parent;
+assert.ok(energyGrid, "Energy results respect linear product applicability");
+let resultsSection = energyGrid.parent;
+while (resultsSection && !(ts.isJsxElement(resultsSection)
+  && resultsSection.openingElement.tagName.getText(source) === "AccordionItem")) resultsSection = resultsSection.parent;
+assert.ok(resultsSection?.openingElement.attributes.getText(source).includes('"item-results"'), "Energy fields belong to Results");
+assert.ok(source.text.indexOf("Design Pressures", resultsSection.pos) < energyGrid.pos, "Energy fields follow DP");
+const energyResultsCode = compile([
+  declaration("energySnapshot"), declaration("energySelection"), declaration("hasCurrentEnergyValues"),
+  `return (${energyGrid.getText(source)});`,
+].join("\n"));
 function deferred() {
   let resolve, reject;
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
@@ -94,12 +120,18 @@ const initial = {
   muntin: null, panelCount: null, dealerMarkup: 25, price: 0, subtotal: 0,
   netProfitD: 0, customerPrice: 0, customerSubtotal: 0, total: 0,
   dpPosPsf: null, dpNegPsf: null,
+  energyRatingId: null, energySnapshot: null,
 };
+const energyResponse = (overrides = {}) => ({ schemaVersion: 1, status: "AVAILABLE", ratingId: 11,
+  uFactor: "1.053", shgc: "0.608", vlt: "0.709", capturedAt: "2026-10-18T22:00:00.000Z",
+  selection: Object.fromEntries(["idBrand", "idProd", "idSyst", "idConf", "idCryst", "idTint", "idCoat", "idPrivacy"].map(key => [key, initial[key]])),
+  ...overrides });
 const response = (price = 100) => ({ price, subtotal: price * 2, netProfitD: price / 2,
   customerPrice: price * 1.25, customerSubtotal: price * 2.5,
   regularPrice: price + 10, regularCustomerPrice: (price + 10) * 1.25,
   promotionSnapshot: { label: "Test promotion" }, highBottom: false,
-  highBottomPercent: null, muntin: null, panelCount: 2, dpPosPsf: "70", dpNegPsf: "-80" });
+  highBottomPercent: null, muntin: null, panelCount: 2, dpPosPsf: "70", dpNegPsf: "-80",
+  energyRatingId: 11, energySnapshot: energyResponse() });
 
 function fixture(options = {}) {
   const form = createFormControl({ defaultValues: structuredClone({ ...initial, ...options.values }) });
@@ -171,6 +203,13 @@ function fixture(options = {}) {
     async blur(name) { await field(name).onBlur({ target: { name, value: form.getValues(name) }, type: "blur" }); },
     async resolve(index, value = response()) { requests[index].resolve(value); await flush(); },
     async reject(index) { requests[index].reject(new Error("Simulated calculation failure")); await flush(); },
+    resultsHtml() {
+      return renderToStaticMarkup(evaluate(energyResultsCode, {
+        pieceValues: form.getValues(), isLinearMaterial: Boolean(options.linear), index: 0,
+        formatEnergyValue: energy.formatEnergyValue, require, exports: {},
+        Label: props => React.createElement("label", props), Input: props => React.createElement("input", props),
+      }));
+    },
     disabled() { return evaluate(`return (${submitDisabled});`, state); },
     async submit() {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
@@ -191,6 +230,8 @@ const test = (name, run) => tests.push({ name, run });
 function assertNotApplied(f) {
   assert.equal(f.form.getValues("price"), 0, "Obsolete result must not set price");
   assert.equal(f.form.getValues("customerPrice"), 0, "Obsolete result must not set customer price");
+  assert.equal(f.form.getValues("energySnapshot"), null, "Obsolete result must not set energy values");
+  assert.equal(f.form.getValues("energyRatingId"), null, "Obsolete result must not set the energy rating ID");
   assert.equal(f.state.isLocked, false, "Obsolete result must not lock fields");
   assert.equal(f.disabled(), true, "Obsolete result must not enable Submit");
   assert.deepEqual(f.successes, [], "Obsolete result must not announce success");
@@ -210,6 +251,13 @@ for (const revision of [false, true]) {
     assert.equal(f.form.getValues("price"), 100); assert.equal(f.form.getValues("subtotal"), 200);
     assert.equal(f.form.getValues("customerPrice"), 125); assert.equal(f.form.getValues("total"), 250);
     assert.equal(f.form.getValues("dpPosPsf"), 70); assert.equal(f.form.getValues("dpNegPsf"), -80);
+    const results = f.resultsHtml();
+    for (const [key, value] of [["uFactor", "1.053"], ["shgc", "0.608"], ["vlt", "0.709"]]) {
+      assert.match(results, new RegExp(`id="energy-${key}-0"[^>]*readOnly=""[^>]*value="${value}"`), `${key} is a read-only calculated result`);
+    }
+    for (const label of ["U-factor", "SHGC", "VLT"]) assert.ok(results.includes(`>${label}</label>`));
+    assert.ok(!results.includes("Btu"));
+    assert.equal(f.submissions.length, 0, "Energy values are visible before Submit");
     assert.equal(f.state.isLocked, true); assert.equal(f.disabled(), false);
     assert.equal(f.successes.length, 1); assert.deepEqual(f.errors, []);
     await f.submit(); assert.equal(f.submissions.length, 1); assert.equal(f.submissions[0].price, 100);
@@ -226,14 +274,50 @@ for (const revision of [false, true]) {
     const f = fixture({ revision }); const a = await f.start();
     await f.change("width", "40"); f.render(); const b = await f.start();
     assert.equal(f.requests[0].dto.width, "36"); assert.equal(f.requests[1].dto.width, "40");
-    await f.resolve(1, response(300)); await b.done;
+    await f.resolve(1, { ...response(300), energySnapshot: energyResponse({ uFactor: "0.800", shgc: "0.200", vlt: "0.500" }) }); await b.done;
     const newest = structuredClone(f.form.getValues()); const writeCount = f.writes.length;
     await f.resolve(0, response(100)); await a.done;
     assert.deepEqual(f.form.getValues(), newest); assert.equal(f.writes.length, writeCount);
+    assert.equal(f.form.getValues("energySnapshot.uFactor"), "0.800", "An older response cannot replace newer energy values");
     assert.equal(f.form.getValues("price"), 300); assert.equal(f.state.isLocked, true);
     assert.equal(f.disabled(), false); assert.equal(f.successes.length, 1); f.unmount();
   });
 }
+
+test("changing glass options hides old values and Calculate displays the new combination", async () => {
+  const f = fixture(); const first = await f.start(); await f.resolve(0); await first.done;
+  await f.change("idTint", 12);
+  assert.equal((f.resultsHtml().match(/value="—"/g) ?? []).length, 3, "Do not show old numbers for changed glass options");
+  const next = await f.start();
+  const snapshot = energyResponse({ uFactor: "1.012345", shgc: "0.345678", vlt: "0.456789",
+    selection: { ...energyResponse().selection, idTint: 12 } });
+  await f.resolve(1, { ...response(150), energySnapshot: snapshot }); await next.done;
+  for (const value of ["1.012", "0.346", "0.457"]) assert.ok(f.resultsHtml().includes(`value="${value}"`));
+  assert.deepEqual(f.form.getValues("energySnapshot"), snapshot, "Display rounding never changes stored calculation precision");
+  assert.equal(f.form.getValues("price"), 150); assert.equal(f.form.getValues("dpPosPsf"), 70);
+  assert.equal(f.form.getValues("dpNegPsf"), -80); assert.equal(f.submissions.length, 0); f.unmount();
+});
+for (const status of ["UNAVAILABLE", "AMBIGUOUS"]) {
+  test(`${status} calculation clears visible old energy values without substituting zero`, async () => {
+    const f = fixture({ values: { energySnapshot: energyResponse() } }); const { done } = await f.start();
+    await f.resolve(0, { ...response(), energyRatingId: null, energySnapshot: energyResponse({ status, uFactor: null, shgc: null, vlt: null, ratingId: null }) }); await done;
+    assert.equal((f.resultsHtml().match(/value="—"/g) ?? []).length, 3);
+    assert.ok(!f.resultsHtml().includes('value="0.000"'));
+    assert.equal(f.form.getValues("energyRatingId"), null); assert.equal(f.form.getValues("price"), 100); f.unmount();
+  });
+}
+test("missing energy response removes a previous snapshot instead of reusing it", async () => {
+  const f = fixture({ values: { energySnapshot: energyResponse(), energyRatingId: 11 } }); const { done } = await f.start();
+  const calculated = response(); delete calculated.energySnapshot; delete calculated.energyRatingId;
+  await f.resolve(0, calculated); await done;
+  assert.equal(f.form.getValues("energySnapshot"), null); assert.equal(f.form.getValues("energyRatingId"), null);
+  assert.equal((f.resultsHtml().match(/value="—"/g) ?? []).length, 3); f.unmount();
+});
+test("valid zero SHGC and VLT values remain visible as zero", async () => {
+  const f = fixture(); const { done } = await f.start();
+  await f.resolve(0, { ...response(), energySnapshot: energyResponse({ shgc: "0", vlt: "0" }) }); await done;
+  assert.equal((f.resultsHtml().match(/value="0\.000"/g) ?? []).length, 2); f.unmount();
+});
 
 test("older response arriving first leaves fields editable until the latest succeeds", async () => {
   const f = fixture(); const a = await f.start(); await f.change("height", "60"); const b = await f.start();
@@ -309,7 +393,8 @@ test("normalization, blur and validation notifications do not discard a valid ca
 test("linear material retains its normal calculation without dimensional precheck", async () => {
   const f = fixture({ linear: true }); const { done } = await f.start();
   assert.equal(f.prechecks.length, 0); assert.equal(f.requests[0].dto.idCryst, null);
-  await f.resolve(0); await done; assert.equal(f.disabled(), false); f.unmount();
+  await f.resolve(0); await done; assert.equal(f.disabled(), false);
+  assert.equal(f.resultsHtml(), "", "Linear material does not show irrelevant energy fields"); f.unmount();
 });
 test("current server failure preserves inputs and a retry can succeed", async () => {
   const f = fixture(); const a = await f.start(); await f.reject(0); await a.done;

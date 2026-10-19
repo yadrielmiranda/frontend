@@ -1,4 +1,5 @@
 import { apiFetch } from "./_base";
+import type { EnergySnapshot } from "@/lib/energy-ratings";
 import type {
   EstimateWithRelations,
   CreateEstimateHeaderData,
@@ -11,6 +12,8 @@ import type {
 
 export interface CalculatedPiece extends CreatePieceData {
   id?: number;
+  energyRatingId?: number | null;
+  energySnapshot?: EnergySnapshot | null;
   highBottom?: boolean;
   highBottomPercent?: number | null;
   rate: number;

@@ -15,6 +15,8 @@ import type {
 } from "@/lib/types";
 
 export interface PieceFormValues extends CreatePieceData {
+  energyRatingId?: number | null;
+  energySnapshot?: import("@/lib/energy-ratings").EnergySnapshot | null;
   id?: number;
   rate: number;
   price: number;

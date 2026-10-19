@@ -132,6 +132,13 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
       icon: Layers,
       color: "bg-slate-100 text-slate-700",
     },
+    {
+      title: "Energy Ratings",
+      description: "Manage U-factor, SHGC and VLT by system and glass combination.",
+      href: "/settings/energy-ratings",
+      icon: Sparkles,
+      color: "bg-emerald-50 text-emerald-600",
+    },
   ];
 
   const optionItems: SettingsItem[] = [

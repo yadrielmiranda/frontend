@@ -62,6 +62,7 @@ import {
   formatPsf,
 } from "@/lib/dimensions";
 import { roundMoney } from "@/lib/formatters";
+import { formatEnergyValue, type EnergySelection } from "@/lib/energy-ratings";
 
 import type { PieceFormValues } from "./types";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
@@ -2317,6 +2318,8 @@ export function PieceForm({
 
       setValue("dpPosPsf", dpPos);
       setValue("dpNegPsf", dpNeg);
+      setValue("energyRatingId", calculated.energyRatingId ?? null);
+      setValue("energySnapshot", calculated.energySnapshot ?? null);
 
       if (props.canUseCustomerPricing) {
         setValue("dealerMarkup", Number(currentValues.dealerMarkup || 0));
@@ -2348,6 +2351,16 @@ export function PieceForm({
     pieceValues.dpPosPsf == null ? "—" : formatPsf(pieceValues.dpPosPsf, 1);
   const dpMinusText =
     pieceValues.dpNegPsf == null ? "—" : formatPsf(pieceValues.dpNegPsf, 1);
+  const energySnapshot = pieceValues.energySnapshot;
+  const energySelection = energySnapshot?.selection;
+  const hasCurrentEnergyValues =
+    energySnapshot?.status === "AVAILABLE" &&
+    (!energySelection ||
+      (Object.keys(energySelection) as Array<keyof EnergySelection>).every(
+        (key) =>
+          energySelection[key] ===
+          (pieceValues[key] == null ? null : Number(pieceValues[key])),
+      ));
 
   const currentMuntinPanels = useMemo(
     () =>
@@ -4159,6 +4172,28 @@ export function PieceForm({
                         </div>
                       </div>
                     </div>
+
+                    {!isLinearMaterial && (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {([
+                          ["uFactor", "U-factor"],
+                          ["shgc", "SHGC"],
+                          ["vlt", "VLT"],
+                        ] as const).map(([key, label]) => (
+                          <div key={key}>
+                            <Label htmlFor={`energy-${key}-${index}`} className="mb-2 block">
+                              {label}
+                            </Label>
+                            <Input
+                              id={`energy-${key}-${index}`}
+                              readOnly
+                              value={formatEnergyValue(hasCurrentEnergyValues ? energySnapshot?.[key] : null)}
+                              className="bg-white"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {props.canUseCustomerPricing && (
                       <div className="border-t border-green-200 pt-4 space-y-3">

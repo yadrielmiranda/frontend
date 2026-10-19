@@ -92,6 +92,13 @@ export function SettingsMenuItems({
         </Link>
       </DropdownMenuItem>
 
+      <DropdownMenuItem asChild className={itemClass}>
+        <Link href="/settings/energy-ratings">
+          <Sparkles className={iconClass} />
+          Energy Ratings
+        </Link>
+      </DropdownMenuItem>
+
       <DropdownMenuSeparator />
 
       {/* Options */}

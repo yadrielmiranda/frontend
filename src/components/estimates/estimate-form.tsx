@@ -62,6 +62,8 @@ import { DuplicateEstimateButton } from "./duplicate-estimate-dialog";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
+import { EnergyRefreshButton } from "./energy-refresh-button";
+import { mergePieceEnergySnapshots } from "@/lib/energy-ratings";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -300,6 +302,7 @@ export function EstimateForm({
   const needsRecalculation = expiredPromotion || promotionEstimate?.status?.name === "Expired";
   const [isOpeningDetails, setIsOpeningDetails] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isRefreshingEnergy, setIsRefreshingEnergy] = useState(false);
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
@@ -519,7 +522,7 @@ export function EstimateForm({
   ]);
 
   const handleExit = async () => {
-    if (isExiting) {
+    if (isExiting || isRefreshingEnergy) {
       return;
     }
 
@@ -547,6 +550,27 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
+
+  const canRefreshEnergy = Boolean(estimate?.id && !readOnly && !needsRecalculation &&
+    estimate.status?.name === "Active" && !estimate.order && !estimate.user?.networkSalesBlocked &&
+    !discountData.config?.lockedAt &&
+    !(estimate.payments ?? []).some(payment =>
+      ["PENDING", "PAID", "REFUNDED"].includes(payment.status) || payment.paidAt != null));
+  const prepareEnergyRefresh = async () => {
+    if (!canRefreshEnergy || isPieceModalOpen || isApplyingGeneralMarkupRef.current ||
+      isDeletingPieceRef.current || isApplyingBulkAttributeRef.current) return false;
+    await headerSaveQueueRef.current.catch(() => undefined);
+    return true;
+  };
+  const onEnergyRefreshed = (updated: EstimateWithRelations) => {
+    const current = getValues("pieces");
+    const merged = mergePieceEnergySnapshots(current, updated.pieces);
+    merged.forEach((piece, index) => {
+      if (piece === current[index]) return;
+      setValue(`pieces.${index}.energyRatingId`, piece.energyRatingId, { shouldDirty: false });
+      setValue(`pieces.${index}.energySnapshot`, piece.energySnapshot, { shouldDirty: false });
+    });
+  };
 
   const refreshAfterQuoteApproval = async () => {
     if (!estimate?.id) return;
@@ -1165,6 +1189,8 @@ export function EstimateForm({
       ...pieceToDuplicate,
       id: undefined,
       promotionSnapshot: null,
+      energyRatingId: null,
+      energySnapshot: null,
       regularPrice: undefined,
       regularCustomerPrice: undefined,
       mark: "",
@@ -1518,7 +1544,7 @@ export function EstimateForm({
               variant="outline"
               className="group gap-2 border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900"
               onClick={() => void handleViewDetails()}
-              disabled={isOpeningDetails || isRecalculating || isExiting}
+              disabled={isOpeningDetails || isRecalculating || isExiting || isRefreshingEnergy}
             >
               {isOpeningDetails ? (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
@@ -1535,7 +1561,7 @@ export function EstimateForm({
               variant="blue"
               onClick={() => void handleRecalculateEstimate()}
               disabled={
-                readOnly || isRecalculating || isOpeningDetails || isExiting || estimate?.user?.networkSalesBlocked
+                readOnly || isRecalculating || isOpeningDetails || isExiting || isRefreshingEnergy || estimate?.user?.networkSalesBlocked
               }
               title={
                 readOnly
@@ -1560,7 +1586,7 @@ export function EstimateForm({
               actor={user}
               iconOnly
               beforeOpen={prepareEstimateDuplication}
-              disabled={isOpeningDetails || isRecalculating || isExiting || isApplyingBulkAttribute || isInstallationRequestEditing || discountDirty || discountLoading}
+              disabled={isOpeningDetails || isRecalculating || isExiting || isRefreshingEnergy || isApplyingBulkAttribute || isInstallationRequestEditing || discountDirty || discountLoading}
             />
           </div>
         )}
@@ -1582,7 +1608,7 @@ export function EstimateForm({
               Details
             </h3>
 
-            <fieldset disabled={readOnly || needsRecalculation}>
+            <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy}>
             <EstimateDetailsLeft
               isEditMode={isEditMode}
               estimateNumber={estimate?.number}
@@ -1617,7 +1643,7 @@ export function EstimateForm({
             </fieldset>
 
             {canUseCustomerPricing && (
-              <fieldset disabled={readOnly || needsRecalculation} className="mt-6 min-w-0">
+              <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="mt-6 min-w-0">
                 <CustomerDetailsCard
                   register={register}
                   control={control}
@@ -1629,12 +1655,23 @@ export function EstimateForm({
             )}
           </div>
 
-          <fieldset disabled={readOnly || needsRecalculation} className="min-w-0 space-y-4">
+          <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-semibold">Pieces</h3>
+              <div className="flex flex-wrap gap-2">
+              {canRefreshEnergy && estimate && <EnergyRefreshButton
+                estimateId={estimate.id}
+                beforeRefresh={prepareEnergyRefresh}
+                onBusyChange={setIsRefreshingEnergy}
+                onRefreshed={onEnergyRefreshed}
+                disabled={isOpeningDetails || isRecalculating || isExiting || isApplyingBulkAttribute ||
+                  isPieceModalOpen || showColorUpdateAlert || showTintUpdateAlert || showCoatingUpdateAlert ||
+                  isInstallationRequestEditing || customerChargesBusy || discountDirty || discountLoading || discountError}
+              />}
               <Button type="button" variant="green" onClick={handleAddNewPiece}>
                 + Add Piece
               </Button>
+              </div>
             </div>
 
             {canUseCustomerPricing ? (
@@ -1809,7 +1846,7 @@ export function EstimateForm({
             type="button"
             variant="outline"
             onClick={() => void handleExit()}
-            disabled={isExiting}
+            disabled={isExiting || isRefreshingEnergy}
           >
             {isExiting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 

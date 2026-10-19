@@ -14,6 +14,7 @@ import type {
 } from "@/lib/types";
 import type { PieceFormValues } from "./types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
+import { buildEnergyDescription } from "@/lib/energy-ratings";
 import { PieceDiagram } from "@/components/piece-diagram";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { formatDoorDimensions } from "./piece-dimension-description";
@@ -177,6 +178,7 @@ export function PieceFormDetailsPanel({
 
   const dpPlus = piece.dpPosPsf == null ? null : formatPsf(piece.dpPosPsf, 1);
   const dpMinus = piece.dpNegPsf == null ? null : formatPsf(piece.dpNegPsf, 1);
+  const energyDescription = buildEnergyDescription(piece.energySnapshot, selectedProduct?.kind);
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 border-t bg-slate-50 p-3 text-sm md:grid-cols-2 md:gap-4 md:p-4">
@@ -378,6 +380,13 @@ export function PieceFormDetailsPanel({
             <strong>DP:</strong>{" "}
             {dpPlus || dpMinus ? `${dpPlus ?? "—"} / ${dpMinus ?? "—"}` : "—"}
           </p>
+          {energyDescription && (
+            <p>
+              {energyDescription.startsWith("NFRC: ") ? (
+                <><strong>NFRC:</strong>{" "}{energyDescription.slice("NFRC: ".length)}</>
+              ) : energyDescription}
+            </p>
+          )}
         </div>
       </div>
 
