@@ -48,6 +48,8 @@ function fixture({ admin = true, product = makeProduct(), api, refresh } = {}) {
       if (name === 'lucide-react' || name.startsWith('@/components/ui/')) return ui;
       if (name === '@/app/api/warehouse.api') return { warehouseRequestKey: randomUUID };
       if (name === './material-labels') return { MaterialLabels: 'MaterialLabels' };
+      if (name === './material-barcode-camera') return { MaterialBarcodeCamera: 'MaterialBarcodeCamera' };
+      if (name === './material-barcode-input') return { MaterialBarcodeInput: 'MaterialBarcodeInput' };
       if (name === '@/lib/material-image-upload') return {};
       if (name === './_base') return { apiFetch: async (url, options) => {
         calls.push({ url, ...options });

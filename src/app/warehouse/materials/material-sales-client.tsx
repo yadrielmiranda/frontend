@@ -30,14 +30,35 @@ export function MaterialSalesClient({ initial, catalog, stores }: { initial: Mat
   const pendingStaffId = useRef<number | null>(null);
   const savedSaleRef = useRef<MaterialSale | null>(null);
   const creatingRef = useRef(false);
+  const draftOpen = useRef(false), draftGeneration = useRef(0);
+  const liveStaff = useRef({ id: user?.id, role: user?.role?.name });
+  draftOpen.current = creating;
+  liveStaff.current = { id: user?.id, role: user?.role?.name };
   const locked = task.busy || Boolean(unconfirmedSale) || Boolean(savedSale);
   const update = (key: keyof typeof form, value: string) => setForm(current => ({ ...current, [key]: value }));
   function add(line: Omit<DraftLine, "quantity">) {
     if (creatingRef.current || pendingSale.current || savedSaleRef.current) return;
     setLines(current => current.some(l => l.presentationId === line.presentationId) ? current.map(l => l.presentationId === line.presentationId ? { ...l, quantity: l.quantity + 1 } : l) : [...current, { ...line, quantity: 1 }]);
   }
+  async function scanPresentation(code: string) {
+    if (!draftOpen.current || creatingRef.current || pendingSale.current || savedSaleRef.current) return;
+    const generation = draftGeneration.current, staff = liveStaff.current;
+    const current = () => draftOpen.current && draftGeneration.current === generation
+      && !creatingRef.current && !pendingSale.current && !savedSaleRef.current
+      && liveStaff.current.id === staff.id && liveStaff.current.role === staff.role;
+    try {
+      const { product, presentation } = await materialBarcode(code);
+      // Closing/reopening the draft or starting a save invalidates an in-flight lookup.
+      if (!current()) return;
+      if (!product.isActive || !product.isSaleEnabled || !presentation.isSaleEnabled || !presentation.isActive || presentation.salePrice == null) throw new Error("This presentation is not enabled for sale.");
+      add({ presentationId: presentation.id, productName: product.name, presentationName: presentation.name, unitPrice: Number(presentation.salePrice) });
+    } catch (error) {
+      if (current()) throw error;
+    }
+  }
   function saveSale(body: SaleBody) {
     if (savedSaleRef.current || (pendingSale.current && body !== pendingSale.current)) return;
+    draftGeneration.current++;
     setValidationError("");
     void task.run(body, async requestKey => {
       creatingRef.current = true;
@@ -71,12 +92,12 @@ export function MaterialSalesClient({ initial, catalog, stores }: { initial: Mat
     setSales(next);
     setAppliedOrderSearch(query);
   });
-  return <div className="space-y-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">Material sales</h2><p className="mt-1 text-sm text-muted-foreground">Reserve materials, collect payment and record delivery.</p></div><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/materials" target="_blank">Open catalog</Link></Button><Button asChild variant="outline"><Link href="/warehouse/materials">Materials</Link></Button><Button disabled={locked} onClick={() => { if (creatingRef.current || pendingSale.current || savedSaleRef.current) return; task.clear(); setCreating(!creating); }}>{creating ? "Close new sale" : "New sale"}</Button></div></div><MaterialNotice error={task.error} success={task.success} />
+  return <div className="space-y-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">Material sales</h2><p className="mt-1 text-sm text-muted-foreground">Reserve materials, collect payment and record delivery.</p></div><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/materials" target="_blank">Open catalog</Link></Button><Button asChild variant="outline"><Link href="/warehouse/materials">Materials</Link></Button><Button disabled={locked} onClick={() => { if (creatingRef.current || pendingSale.current || savedSaleRef.current) return; task.clear(); draftGeneration.current++; draftOpen.current = !draftOpen.current; setCreating(draftOpen.current); }}>{creating ? "Close new sale" : "New sale"}</Button></div></div><MaterialNotice error={task.error} success={task.success} />
     {creating && <section className={materialPanelClass}><h3 className="font-semibold">New sale</h3>
       <MaterialNotice error={validationError} />
       {unconfirmedSale && <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>We could not confirm whether this sale was saved. Retry the same sale before starting another one.</p><Button type="button" disabled={task.busy} onClick={() => { if (pendingSale.current) saveSale(pendingSale.current); }}>Retry same sale</Button></div>}
       {savedSale && <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm"><p>Sale {savedSale.code} was saved.</p><Button asChild><Link href={`/warehouse/materials/sales/${savedSale.id}`}>Open saved sale</Link></Button></div>}
-      <MaterialScan disabled={locked} onScan={async code => { const { product, presentation } = await materialBarcode(code); if (!product.isSaleEnabled || !presentation.isSaleEnabled || !presentation.isActive || presentation.salePrice == null) throw new Error("This presentation is not enabled for sale."); add({ presentationId: presentation.id, productName: product.name, presentationName: presentation.name, unitPrice: Number(presentation.salePrice) }); }} />
+      <MaterialScan disabled={locked} onScan={scanPresentation} />
       <form className="space-y-5" onSubmit={event => {
         event.preventDefault(); if (locked || creatingRef.current || pendingSale.current || savedSaleRef.current) return;
         const customerInput = materialSaleCustomerInput(customerSelection);
@@ -98,7 +119,7 @@ export function MaterialSalesClient({ initial, catalog, stores }: { initial: Mat
         <Button type="submit" variant="outline" disabled={task.busy}>Find order</Button>
         {appliedOrderSearch && <Button type="button" variant="ghost" disabled={task.busy} onClick={() => { setOrderSearch(""); void findOrders(""); }}>Clear</Button>}
       </form>
-      <p className="text-xs text-muted-foreground">At pickup, find the customer's order and verify that it is paid and has not already been delivered.</p>
+      <p className="text-xs text-muted-foreground">At pickup, find the customer&apos;s order and verify that it is paid and has not already been delivered.</p>
       <div className="divide-y">{sales.map(sale => <Link key={sale.id} href={`/warehouse/materials/sales/${sale.id}`} className="flex flex-col justify-between gap-3 rounded-lg px-2 py-4 hover:bg-slate-50 sm:flex-row sm:items-center"><div className="min-w-0"><p className="text-sm font-semibold">{sale.code} · {sale.customerName}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(sale.createdAt).toLocaleDateString()} · {materialPublicSaleStatus(sale)} · {sale.paymentStatus}</p></div><div className="text-sm sm:text-right"><p className="font-semibold">{money(sale.total)}</p><p className="text-muted-foreground">Balance: {money(sale.balance)}</p></div></Link>)}</div>
       {!sales.length && <p className="py-5 text-center text-sm text-muted-foreground">{appliedOrderSearch ? "No material orders match your search." : "No material sales yet."}</p>}
     </section>

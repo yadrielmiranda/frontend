@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isApiError } from "@/app/api/_base";
 import { warehouseRequestKey } from "@/app/api/warehouse.api";
 import { countMaterialStore, materialStoreCountInventory, type MaterialStoreCountInput, type MaterialStoreCountInventory, type MaterialStoreCountProduct, type MaterialStoreCountResult } from "@/app/api/materials.api";
-import { errorText, MaterialField, MaterialNotice, quantity } from "../materials/materials-shared";
+import { errorText, MaterialField, MaterialNotice, MaterialScan, quantity } from "../materials/materials-shared";
 
 type Identity = { id: number; role: string };
 type CountEntries = Record<string, string>;
@@ -50,6 +50,7 @@ export function MaterialStoreInventoryClient({ initial, initialIdentity }: { ini
   liveIdentity.current = { id: user?.id, role: user?.role?.name };
   const [inventory, setInventory] = useState(initial), [entries, setEntries] = useState<CountEntries>({}), [note, setNote] = useState("");
   const [search, setSearch] = useState(""), [showZero, setShowZero] = useState(true), [page, setPage] = useState(1);
+  const [scannedMatch, setScannedMatch] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [review, setReview] = useState(false), [discardPrompt, setDiscardPrompt] = useState(false);
   const [pending, setPending] = useState<MaterialStoreCountInput | null>(null), [saved, setSaved] = useState<MaterialStoreCountResult | null>(null), [needsRefresh, setNeedsRefresh] = useState(false);
   const busyRef = useRef(false), pendingRef = useRef<MaterialStoreCountInput | null>(null), savedRef = useRef<MaterialStoreCountResult | null>(null);
@@ -73,7 +74,7 @@ export function MaterialStoreInventoryClient({ initial, initialIdentity }: { ini
     await verifyAccount();
     const next = await materialStoreCountInventory(initial.store.id);
     await verifyAccount();
-    setInventory(next); setEntries({}); setNote(""); setNeedsRefresh(false); setPage(1);
+    setInventory(next); setEntries({}); setNote(""); setNeedsRefresh(false); setPage(1); setScannedMatch("");
   }
   async function refresh() {
     if (busyRef.current || pendingRef.current) return;
@@ -119,7 +120,16 @@ export function MaterialStoreInventoryClient({ initial, initialIdentity }: { ini
     {!canCount && <p className="rounded-lg border bg-slate-50 p-4 text-sm">{!inventory.store.isActive ? "This store is inactive. Inventory is read-only." : "Inventory is read-only. An administrator can record and confirm a physical count."}</p>}
     {pending && <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>We could not confirm whether your count was saved. Retry this same count before making further changes.</p><Button disabled={busy} onClick={() => { void confirmCount(); }}>Retry same count</Button></section>}
     <section className="space-y-4 rounded-xl border bg-white p-5">
-      <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label="Search store materials" placeholder="Search product, code or barcode" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></div>
+      <MaterialScan disabled={busy || Boolean(pending) || needsRefresh || review || discardPrompt} onScan={async code => {
+        if (busyRef.current || pendingRef.current || needsRefresh || review || discardPrompt || !ownerMatches) throw new Error("Finish the current action before finding another material.");
+        const match = inventory.products.flatMap(product => product.presentations.map(presentation => ({ product, presentation }))).find(({ presentation }) => presentation.barcode === code);
+        if (!match) throw new Error("No material in this store has this barcode. Search by name or product code instead.");
+        setSearch(match.product.code); setPage(1);
+        if (match.product.totalBaseQuantity === 0) setShowZero(true);
+        setScannedMatch(`${match.product.name} · ${match.presentation.name}`);
+      }} />
+      <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label="Search store materials" placeholder="Search product, code or barcode" value={search} onChange={event => { setSearch(event.target.value); setPage(1); setScannedMatch(""); }} /></div>
+      {scannedMatch && <p role="status" className="text-sm text-emerald-800">Found: <strong>{scannedMatch}</strong>. Entered counts stay unchanged.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={showZero} onChange={event => { setShowZero(event.target.checked); setPage(1); }} />Include products with zero stock</label><span className="text-muted-foreground">{filtered.length} of {inventory.products.length} products</span></div>
       <p className="text-sm text-slate-600">Count closed boxes and bags separately. For loose units, enter only those outside packages. Include reserved materials that are still physically in the store.</p>
       {canCount && <p className="text-sm font-medium">Leave a field blank if you have not counted it. Enter 0 only when none remain.</p>}

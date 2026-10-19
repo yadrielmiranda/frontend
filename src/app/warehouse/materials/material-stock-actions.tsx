@@ -1,37 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { adjustMaterial, receiveMaterial, repackMaterial, transferMaterial, useMaterialInternally, type MaterialProduct } from "@/app/api/materials.api";
+import { adjustMaterial, receiveMaterial, repackMaterial, transferMaterial, useMaterialInternally as withdrawMaterialInternally, type MaterialProduct } from "@/app/api/materials.api";
 import type { WarehouseStore } from "@/app/api/warehouse.api";
-import { MaterialField, MaterialNotice, MaterialSubmit, materialInputClass, money, quantity, useMaterialAction } from "./materials-shared";
+import { MaterialField, MaterialNotice, MaterialScan, MaterialSubmit, materialInputClass, money, quantity, useMaterialAction } from "./materials-shared";
 import { materialOpeningPreview } from "./material-opening-preview";
 
 export type MaterialStockAction = "receive" | "internal" | "repack" | "transfer" | "adjust";
 const titles: Record<MaterialStockAction, string> = { receive: "Receive a purchase", internal: "Internal use", repack: "Open or prepare packages", transfer: "Transfer between stores", adjust: "Adjust counted stock" };
 
+export function findMaterialWithdrawalPresentation(product: MaterialProduct, code: string, storeId?: number) {
+  const presentation = product.presentations.find(item => item.barcode === code.trim());
+  if (!presentation) throw new Error("This barcode does not belong to a presentation of this material. Your selection has not changed.");
+  if (!product.isActive || !presentation.isActive) throw new Error("This material or presentation is inactive.");
+  if (storeId) {
+    const inventory = product.inventoryByStore.find(item => item.store.id === storeId);
+    const stock = inventory?.presentations.find(item => item.id === presentation.id);
+    if (!inventory?.store.isActive || !stock || stock.availableQuantity < 1) throw new Error(`No ${presentation.name} are available in the selected store. Your selection has not changed.`);
+  }
+  return presentation;
+}
+
 export function MaterialStockActions({ product, stores, action, onSaved, initialPresentationId }: { product: MaterialProduct; stores: WarehouseStore[]; action: MaterialStockAction; onSaved: () => Promise<void>; initialPresentationId?: number }) {
   const task = useMaterialAction();
+  const submitting = useRef(false), scanAllowed = useRef(false);
+  const [scanMatch, setScanMatch] = useState("");
   const presentations = product.presentations.filter(p => p.isActive && (action !== "receive" || p.isPurchase) && (action !== "repack" || !p.isBase));
   const [form, setForm] = useState({ storeId: "", presentationId: presentations.some(p => p.id === initialPresentationId) ? String(initialPresentationId) : "", quantity: "", costPerPackage: "", supplier: "", reference: "", recipient: "", note: "", toStoreId: "", repackAction: "OPEN" });
-  const update = (key: keyof typeof form, value: string) => { task.clear(); setForm(current => ({ ...current, [key]: value })); };
+  const update = (key: keyof typeof form, value: string) => { task.clear(); if (key === "presentationId" || key === "storeId") setScanMatch(""); setForm(current => ({ ...current, [key]: value })); };
   const presentation = product.presentations.find(p => p.id === Number(form.presentationId));
   const inventory = product.inventoryByStore.find(s => s.store.id === Number(form.storeId));
   const stock = inventory?.presentations.find(p => p.id === presentation?.id);
   const loose = inventory?.presentations.find(p => product.presentations.find(presentation => presentation.id === p.id)?.isBase)?.quantity ?? 0;
   const q = Number(form.quantity), baseQty = q * (presentation?.multiplier ?? 0);
   const withdrawal = action === "internal" || action === "transfer";
+  scanAllowed.current = withdrawal && !task.busy && product.isActive;
   const shortLoose = withdrawal && presentation?.isBase && q > loose;
   const opening = materialOpeningPreview(product, Number(form.storeId), Number(form.presentationId), q);
-  return <form className="space-y-4" onSubmit={event => { event.preventDefault(); void task.run({ action, ...form, version: product.version }, async requestKey => {
+  return <form className="space-y-4" onSubmit={event => { event.preventDefault(); if (submitting.current) return; submitting.current = true; void task.run({ action, ...form, version: product.version }, async requestKey => {
     const common = { requestKey, productId: product.id, presentationId: Number(form.presentationId), storeId: Number(form.storeId), quantity: q, note: form.note.trim() || undefined };
     if (action === "receive") await receiveMaterial({ ...common, costPerPackage: Number(form.costPerPackage), supplier: form.supplier.trim() || undefined, reference: form.reference.trim() || undefined });
-    if (action === "internal") await useMaterialInternally({ ...common, recipient: form.recipient.trim(), note: form.note.trim() });
+    if (action === "internal") await withdrawMaterialInternally({ ...common, recipient: form.recipient.trim(), note: form.note.trim() });
     if (action === "repack") await repackMaterial({ ...common, action: form.repackAction as "OPEN" | "PACK" });
     if (action === "transfer") { const { storeId, ...transfer } = common; await transferMaterial({ ...transfer, fromStoreId: storeId, toStoreId: Number(form.toStoreId) }); }
     if (action === "adjust") await adjustMaterial({ ...common, version: product.version, note: form.note.trim() });
     await onSaved(); setForm(current => ({ ...current, quantity: "", costPerPackage: "", note: "", reference: "" }));
-  }, "Stock updated."); }}><h3 className="font-semibold">{titles[action]}</h3>
+  }, "Stock updated.").finally(() => { submitting.current = false; }); }}><h3 className="font-semibold">{titles[action]}</h3>
+    {withdrawal && <div className="space-y-2 rounded-lg border bg-slate-50/60 p-3"><p className="text-sm font-medium">Find a presentation by barcode</p><MaterialScan embedded buttonLabel="Find presentation" disabled={task.busy || !product.isActive} onScan={async code => {
+      if (!scanAllowed.current || submitting.current) throw new Error("Wait until the current action finishes before scanning a presentation.");
+      const match = findMaterialWithdrawalPresentation(product, code, Number(form.storeId) || undefined);
+      update("presentationId", String(match.id));
+      setScanMatch(`Selected ${match.name} · ${quantity(match.multiplier)} ${product.baseUnit.name} each. Enter the quantity and confirm when ready.`);
+    }} /><p className="text-xs text-muted-foreground">Use the camera, a barcode reader or enter the code. You can also select the presentation below. Scanning does not change stock or quantities.</p>{scanMatch && <p role="status" className="text-sm font-medium text-emerald-800">{scanMatch}</p>}</div>}
     <div className="grid gap-4 sm:grid-cols-2"><MaterialField label={action === "transfer" ? "From store" : "Store"}><select required className={materialInputClass} value={form.storeId} onChange={event => update("storeId", event.target.value)}><option value="">Select a store</option>{stores.filter(s => s.isActive).map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select></MaterialField><MaterialField label="Presentation"><select required className={materialInputClass} value={form.presentationId} onChange={event => update("presentationId", event.target.value)}><option value="">Select a presentation</option>{presentations.map(p => <option key={p.id} value={p.id}>{p.name} · {p.multiplier} {product.baseUnit.name}</option>)}</select></MaterialField></div>
     {action === "receive" && presentation && <p className="rounded-lg bg-slate-50 p-3 text-sm">Each {presentation.unit.name.toLowerCase()} contains <strong>{quantity(presentation.multiplier)} {product.baseUnit.name.toLowerCase()}</strong>. Contents are defined in the product.</p>}
     {action === "repack" && <MaterialField label="Operation"><select className={materialInputClass} value={form.repackAction} onChange={event => update("repackAction", event.target.value)}><option value="OPEN">Open packages into loose units</option><option value="PACK">Prepare packages from loose units</option></select></MaterialField>}

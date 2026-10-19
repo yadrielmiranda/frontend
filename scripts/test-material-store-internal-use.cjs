@@ -28,6 +28,7 @@ function loader(hooks, api = {}, auth = { user: staff, revalidate: async () => s
       if (id === '@/app/api/_base' || id === './_base') return { isApiError: error => Number.isInteger(error?.status), apiFetch: api.apiFetch };
       if (id === '@/lib/material-image-upload') return { prepareMaterialImage: async value => value };
       if (id === '@/components/material-product-image') return { MaterialProductImage: 'image' };
+      if (id === './material-barcode-camera') return { MaterialBarcodeCamera: 'MaterialBarcodeCamera' };
       if (id.startsWith('@/components/ui/')) return new Proxy({}, { get: (_, name) => name });
       const base = id.startsWith('@/') ? path.resolve(root, id.slice(2)) : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
       if (!base) return require(id);

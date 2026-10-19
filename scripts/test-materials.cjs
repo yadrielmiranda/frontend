@@ -86,6 +86,95 @@ const store = { id: 1, name: 'Main store', isActive: true, version: 0, onHand: 0
 const product = { id: 1, code: 'MAT-000001', name: 'White caulking', description: '10 oz', baseUnitId: 1, baseUnit: unit, isActive: true, isSaleEnabled: true, version: 2, presentations: [base, box], inventoryByStore: [{ store, totalBaseQuantity: 60, reservedBaseQuantity: 0, availableBaseQuantity: 60, presentations: [{ id: 1, quantity: 0, reservedQuantity: 0, availableQuantity: 60 }, { id: 2, quantity: 3, reservedQuantity: 0, availableQuantity: 3 }] }] };
 const sale = { id: 1, code: 'MS-000001', customerName: 'Test Customer', status: 'CONFIRMED', storeId: 1, store, subtotal: '24.00', taxRate: '7', taxAmount: '1.68', discountAmount: '0.00', total: '25.68', balance: '25.68', paidAmount: '0.00', paymentStatus: 'UNPAID', createdAt: '2026-01-01T12:00:00Z', publicUrl: '/public/material-sales/test-token', lines: [{ id: 1, productId: 1, presentationId: 1, productName: 'White caulking', productCode: 'MAT-000001', presentationName: 'Tube', multiplier: 1, quantity: 4, unitPrice: '6.00', lineTotal: '24.00', storeId: 1 }], payments: [], expiresAt: null, note: 'PRIVATE STAFF NOTE' };
 
+test('material lookup accepts camera, manual input and keyboard readers without submitting an enclosing form', async () => {
+  const codes = []; let release;
+  const props = { embedded: true, onScan: async code => { codes.push(code); await new Promise(resolve => release = resolve); } };
+  const h = controlled('app/warehouse/materials/materials-shared.tsx', 'MaterialScan', props);
+  let tree = h.render();
+  assert.equal(nodes(tree, e => e.type === 'form').length, 0);
+  const camera = nodes(tree, e => e.type?.name === 'MaterialBarcodeCamera')[0];
+  camera.props.onDetected('0035777434642');
+  camera.props.onDetected('0035777434642');
+  assert.deepEqual(codes, ['0035777434642']);
+  assert.equal(nodes(h.render(), e => e.type?.name === 'MaterialBarcodeCamera')[0].props.disabled, true);
+  release(); await tick();
+  tree = h.render(); let prevented = 0, stopped = 0;
+  nodes(tree, e => e.props?.['aria-label'] === 'Scan or enter a material barcode')[0].props.onKeyDown({ key: 'Enter', currentTarget: { value: '10035777434649' }, preventDefault() { prevented++; }, stopPropagation() { stopped++; } });
+  assert.equal(prevented, 1); assert.equal(stopped, 1);
+  assert.deepEqual(codes, ['0035777434642', '10035777434649']);
+  release(); await tick();
+  tree = h.render(); nodes(tree, e => e.props?.['aria-label'] === 'Scan or enter a material barcode')[0].props.onChange({ target: { value: '  MANUAL-1  ' } });
+  tree = h.render(); const find = nodes(tree, e => text(e) === 'Find material' && e.props?.onClick)[0];
+  assert.equal(find.props.type, 'button'); find.props.onClick();
+  assert.equal(codes.at(-1), 'MANUAL-1'); release(); await tick();
+});
+
+test('lookup errors preserve captured code and disabled scanners never dispatch', async () => {
+  let calls = 0;
+  const props = { onScan: async () => { calls++; throw new Error('Unknown material'); } };
+  const h = controlled('app/warehouse/materials/materials-shared.tsx', 'MaterialScan', props);
+  nodes(h.render(), e => e.type?.name === 'MaterialBarcodeCamera')[0].props.onDetected('0000123');
+  await tick(); let tree = h.render();
+  assert.equal(nodes(tree, e => e.props?.['aria-label'] === 'Scan or enter a material barcode')[0].props.value, '0000123');
+  assert.equal(nodes(tree, e => e.type?.name === 'MaterialNotice')[0].props.error, 'Unknown material');
+  h.setProps({ ...props, disabled: true }); tree = h.render();
+  nodes(tree, e => e.type?.name === 'MaterialBarcodeCamera')[0].props.onDetected('OTHER');
+  nodes(tree, e => e.props?.['aria-label'] === 'Scan or enter a material barcode')[0].props.onKeyDown({ key: 'Enter', currentTarget: { value: 'OTHER' }, preventDefault() {}, stopPropagation() {} });
+  assert.equal(calls, 1);
+});
+
+test('barcode capture fields preserve zeroes, block reader Enter and respect disabled state', () => {
+  const values = [];
+  const h = controlled('app/warehouse/materials/material-barcode-input.tsx', 'MaterialBarcodeInput', { value: '', label: 'Package barcode', onChange: value => values.push(value) });
+  let tree = h.render(); let prevented = 0, stopped = 0;
+  nodes(tree, e => e.type?.name === 'MaterialBarcodeCamera')[0].props.onDetected('0035777434642');
+  nodes(tree, e => e.props?.['aria-label'] === 'Package barcode')[0].props.onKeyDown({ key: 'Enter', preventDefault() { prevented++; }, stopPropagation() { stopped++; } });
+  assert.deepEqual(values, ['0035777434642']); assert.equal(prevented, 1); assert.equal(stopped, 1);
+  h.setProps({ value: '', label: 'Package barcode', disabled: true, onChange: value => values.push(value) }); tree = h.render();
+  nodes(tree, e => e.type?.name === 'MaterialBarcodeCamera')[0].props.onDetected('OTHER');
+  assert.equal(values.length, 1);
+});
+
+test('new material cameras fill the intended barcode fields without creating stock or a product', async () => {
+  let saved; const writes = [];
+  const h = controlled('app/warehouse/materials/materials-client.tsx', 'MaterialsClient', { initial: { items: [], total: 0, page: 1, pageSize: 50 }, initialUnits: [unit, boxUnit], admin: true }, { createMaterialProduct: async body => { writes.push(body); saved = body; return product; } });
+  nodes(h.render(), e => text(e) === 'New product' && e.props?.onClick)[0].props.onClick();
+  let tree = h.render();
+  field(tree, 'Base-unit barcode (optional)').props.onChange('035777434642');
+  tree = h.render(); field(tree, 'Purchase-package barcode (optional)').props.onChange('10035777434649');
+  tree = h.render();
+  assert.equal(field(tree, 'Base-unit barcode (optional)').props.value, '035777434642');
+  assert.equal(field(tree, 'Purchase-package barcode (optional)').props.value, '10035777434649');
+  assert.equal(writes.length, 0);
+  for (const [label, value] of [['Product name', 'Caulking'], ['Base unit', '1'], ['Purchase unit', '2']]) { field(tree, label).props.onChange({ target: { value } }); tree = h.render(); }
+  nodes(tree, e => e.props?.label?.startsWith('How many'))[0].props.children.props.onChange({ target: { value: '12' } }); tree = h.render();
+  nodes(tree, e => e.type === 'form' && text(e).includes('Create product with zero stock'))[0].props.onSubmit({ preventDefault() {} }); await tick();
+  assert.equal(saved.baseBarcode, '035777434642'); assert.equal(saved.purchaseBarcode, '10035777434649');
+  assert.equal('quantity' in saved, false); assert.equal(writes.length, 1);
+});
+
+test('a delayed barcode search cannot navigate away from a new product or an unmounted list', async () => {
+  for (const interrupt of ['create', 'unmount']) {
+    let finish;
+    const h = controlled('app/warehouse/materials/materials-client.tsx', 'MaterialsClient', { initial: { items: [], total: 0, page: 1, pageSize: 50 }, initialUnits: [unit, boxUnit], admin: true }, { materialBarcode: () => new Promise(resolve => finish = resolve) }, undefined, { effects: true });
+    const tree = h.render(); const before = calls.length;
+    const pending = nodes(tree, e => e.type?.name === 'MaterialScan')[0].props.onScan('035777434642');
+    if (interrupt === 'create') nodes(tree, e => text(e) === 'New product' && e.props?.onClick)[0].props.onClick();
+    else h.dispose();
+    finish({ product, presentation: base }); await pending;
+    assert.equal(calls.length, before);
+  }
+});
+
+test('presentation camera field only updates the editor until Save presentation', async () => {
+  let saved;
+  const h = controlled('app/warehouse/materials/material-presentations.tsx', 'MaterialPresentations', { product, units: [unit, boxUnit], admin: true, onSaved: async () => {} }, { updateMaterialPresentation: async (id, body) => { saved = { id, ...body }; } });
+  nodes(h.render(), e => text(e) === 'Edit' && e.props?.onClick)[0].props.onClick();
+  let tree = h.render(); field(tree, 'Barcode (optional)').props.onChange('0035777434642');
+  tree = h.render(); assert.equal(saved, undefined); assert.equal(field(tree, 'Barcode (optional)').props.value, '0035777434642');
+  submit(tree); await tick(); assert.equal(saved.barcode, '0035777434642'); assert.equal(saved.id, base.id);
+});
+
 test('creating a Box unit works on LAN HTTP without crypto.randomUUID', async () => {
   assert.equal(typeof globalThis.crypto.randomUUID, 'undefined');
   let saved;
