@@ -52,6 +52,7 @@ export const updateMaterialProduct = (id: number, body: { requestKey: string; ve
 export type MaterialPresentationInput = { requestKey: string; unitId: number; multiplier: number; name?: string; barcode?: string; isPurchase?: boolean; isSaleEnabled?: boolean; salePrice?: number };
 export const createMaterialPresentation = (productId: number, body: MaterialPresentationInput) => post<MaterialProduct>(`products/${productId}/presentations`, body);
 export const updateMaterialPresentation = (id: number, body: Omit<Partial<MaterialPresentationInput>, "barcode"> & { requestKey: string; version: number; isActive?: boolean; barcode?: string | null; generateBarcode?: boolean }) => patch<MaterialProduct>(`presentations/${id}`, body);
+export const deleteMaterialPresentation = (id: number, body: { requestKey: string; version: number }) => apiFetch<{ id: number; productId: number; replayed: boolean }>(`/api/materials/presentations/${id}`, { method: "DELETE", body });
 export type MaterialQuantityInput = { requestKey: string; productId: number; presentationId: number; storeId: number; quantity: number; note?: string };
 export const receiveMaterial = (body: MaterialQuantityInput & { costPerPackage: number; supplier?: string; reference?: string }) => post("receipts", body);
 export const useMaterialInternally = (body: MaterialQuantityInput & { recipient: string; note: string }) => post("internal-use", body);
