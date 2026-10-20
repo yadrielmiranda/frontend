@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isApiError } from "@/app/api/_base";
-import { warehouseRequestKey, type ScanResult } from "@/app/api/warehouse.api";
+import { warehouseRequestKey, type FactoryPartType, type ScanResult } from "@/app/api/warehouse.api";
 import { errorMessage } from "./warehouse-shared";
+import { factoryBarcode } from "./factory-parts";
 
 type Pending = { barcode: string; requestKey: string };
 export function ScanPad<Result = ScanResult>({
@@ -38,6 +39,7 @@ export function ScanPad<Result = ScanResult>({
     [camera, setCamera] = useState(false),
     [paused, setPaused] = useState(false),
     [scanMode, setScanMode] = useState(false);
+  const [partChoice, setPartChoice] = useState<{ lineNumber: string; types: FactoryPartType[] } | null>(null);
   const video = useRef<HTMLVideoElement>(null),
     input = useRef<HTMLInputElement>(null),
     lock = useRef(false);
@@ -92,8 +94,8 @@ export function ScanPad<Result = ScanResult>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, persistent]);
   useEffect(() => {
-    onPendingChange?.(busy || Boolean(pending));
-  }, [busy, pending, onPendingChange]);
+    onPendingChange?.(busy || Boolean(pending) || Boolean(partChoice));
+  }, [busy, pending, partChoice, onPendingChange]);
   useEffect(() => {
     onScanModeChange?.(scanMode);
   }, [scanMode, onScanModeChange]);
@@ -115,6 +117,7 @@ export function ScanPad<Result = ScanResult>({
     lock.current = true;
     setBusy(true);
     setError("");
+    setPartChoice(null);
     stopCameraStream();
     const reading = retry ?? {
       barcode: code,
@@ -154,7 +157,13 @@ export function ScanPad<Result = ScanResult>({
         } catch {
           /* Sin almacenamiento local. */
         }
-        setError(errorMessage(e));
+        const data = e.data as { code?: unknown; types?: unknown } | undefined;
+        const parsed = factoryBarcode(reading.barcode);
+        if (data?.code === "FACTORY_PART_TYPE_REQUIRED" && parsed && Array.isArray(data.types)) {
+          const types = data.types.filter((type): type is FactoryPartType => ["DOOR", "FRAME", "WINDOW"].includes(type));
+          if (types.length) { setPartChoice({ lineNumber: parsed.lineNumber, types }); setError(""); }
+          else setError(errorMessage(e));
+        } else setError(errorMessage(e));
       } else
         setError(
           "The reading could not be confirmed. Retry the same reading; it will be saved only once.",
@@ -165,7 +174,7 @@ export function ScanPad<Result = ScanResult>({
     }
   }
   async function startCamera() {
-    if (busy || pending || disabled || retryOnly) return;
+    if (busy || pending || partChoice || disabled || retryOnly) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError(
         "Camera scanning needs HTTPS. Use your secure website, a barcode reader, or enter the code below.",
@@ -243,7 +252,7 @@ export function ScanPad<Result = ScanResult>({
           type="button"
           variant="outline"
           onClick={camera ? endScanMode : startCamera}
-          disabled={disabled || retryOnly || busy || Boolean(pending)}
+          disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
         >
           <Camera className="mr-2 h-4 w-4" />
           {camera ? "Stop camera" : paused ? "Scan next part" : "Start camera"}
@@ -282,13 +291,13 @@ export function ScanPad<Result = ScanResult>({
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            placeholder="Scan I1029975 or enter the line number"
+            placeholder="Scan 1029975-DOOR, -FRAME, -WINDOW or I1029975"
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
-            disabled={disabled || retryOnly || busy || Boolean(pending)}
+            disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
           />
           <Button
-            disabled={disabled || retryOnly || busy || Boolean(pending) || !barcode.trim()}
+            disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice) || !barcode.trim()}
           >
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -303,6 +312,17 @@ export function ScanPad<Result = ScanResult>({
           a shared barcode, scan each physical part once.
         </p>
       </form>
+      {partChoice && <div role="group" aria-label="Choose the scanned part" className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm font-medium">Line {partChoice.lineNumber}: is this a door panel or its frame?</p>
+        <p className="text-xs text-muted-foreground">The older barcode does not identify the part type. Choose the physical part you scanned.</p>
+        <div className="flex flex-wrap gap-2">
+          {partChoice.types.map(type => <Button key={type} type="button" disabled={disabled || busy}
+            onClick={() => void submit(`${partChoice.lineNumber}-${type}`)}>
+            {type === "DOOR" ? "Door panel" : type === "FRAME" ? "Frame" : "Other piece"}
+          </Button>)}
+          <Button type="button" variant="outline" disabled={disabled || busy} onClick={() => { setPartChoice(null); setError(""); input.current?.focus(); }}>Cancel</Button>
+        </div>
+      </div>}
       {error && (
         <p
           role="alert"

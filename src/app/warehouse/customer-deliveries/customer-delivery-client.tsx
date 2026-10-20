@@ -20,6 +20,8 @@ import { StoreSelect } from "../store-select";
 import { ScanPad } from "../scan-pad";
 import { UnitOrigin } from "../unit-origin";
 import { CustomerDeliveryReceipt, type CustomerDeliveryPreview } from "./customer-delivery-receipt";
+import { FactoryPartQuantity } from "../factory-part-quantity";
+import { displayedFactoryParts, factoryBarcode, factoryPartSource, selectedFactoryParts } from "../factory-parts";
 import {
   customerDeliveryRequest, deliveryAvailable, deliveryItems, deliveryPoSelected, deliveryPoUnits,
   hasDeliverySignature, MAX_DELIVERY_PIECES, selectDeliveryPos,
@@ -79,10 +81,11 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     source, storeId: source === "WAREHOUSE" && storeId !== "unassigned" ? Number(storeId) : null,
     storeName: source === "TRANSIT" ? null : target?.name ?? "Unassigned",
     firstName: firstName.trim(), lastName: lastName.trim(), signatureStrokes: signature,
-    items: chosen.map(({ unit, quantity }) => ({
+    items: chosen.map(({ unit, quantity, parts }) => ({
       lineNumber: unit.lineNumber, barcode: unit.barcode, poNumber: unit.poNumber, source: unit.source,
       orderNumber: unit.orderNumber, mark: unit.mark, description: unit.description, product: unit.product,
       system: unit.system, configuration: unit.configuration, quantity: Number(quantity),
+      ...(unit.partTracking ? { parts: displayedFactoryParts(factoryPartSource(unit.partTracking, source, storeId) ?? {}, Number(quantity), parts) } : {}),
     })).sort((a, b) => a.lineNumber.localeCompare(b.lineNumber)),
     totalPieces: chosen.length, totalParts,
   };
@@ -180,6 +183,9 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   }
   async function readPart(barcode: string) {
     const unit = await warehouseUnit(barcode);
+    const scanned = factoryBarcode(barcode);
+    if (unit.partTracking?.types.includes("FRAME") && !scanned?.type)
+      throw new ApiError("Choose whether this is a door panel or its frame.", 400, { code: "FACTORY_PART_TYPE_REQUIRED", types: unit.partTracking.types });
     const selected = scannerSelection.current[unit.lineNumber];
     if (selected && selected.unit.version !== unit.version)
       throw new ApiError("This piece changed. Remove it from the selection and scan again.", 409);
@@ -188,6 +194,19 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     const quantity = Number(selected?.quantity ?? 0) + 1;
     if (!Number.isInteger(quantity) || quantity > 200 || quantity > deliveryAvailable(unit, source, storeId))
       throw new ApiError("No more parts of this piece are available at the selected location.", 400);
+    const available = factoryPartSource(unit.partTracking, source, storeId);
+    if (available && unit.partTracking) {
+      const type = scanned?.type ?? unit.partTracking.types[0];
+      if (!type || !unit.partTracking.types.includes(type))
+        throw new ApiError("This barcode type does not belong to this piece.", 400);
+      const current = displayedFactoryParts(available, Number(selected?.quantity ?? 0), selected?.parts);
+      const parts = { ...current, [type]: (current[type] ?? 0) + 1 };
+      if ((parts[type] ?? 0) > (unit.partTracking.expected[type] ?? 0))
+        throw new ApiError(`All expected ${type === "FRAME" ? "frames" : type === "DOOR" ? "door panels" : "pieces"} are already selected.`, 400);
+      try { selectedFactoryParts(available, quantity, parts); }
+      catch { throw new ApiError("No more parts of this type are available at the selected location.", 400); }
+      return { unit, quantity: String(quantity), parts };
+    }
     return { unit, quantity: String(quantity) };
   }
   function beginReview() {
@@ -279,7 +298,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       </section>}
       {validSource && <>
         {!embedded && <div className="flex flex-wrap gap-3"><div className="relative min-w-60 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><Input className="pl-9" aria-label="Search delivery POs" placeholder="Search by customer, order or PO (optional)" maxLength={150} value={search} disabled={busy || locked} onChange={(e) => { serial.current++; setSearch(e.target.value); setPage(1); setLoading(true); }} /></div><Button variant="outline" disabled={busy || locked} onClick={() => { setSelection({}); setError(""); void refresh(); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh / clear selection</Button></div>}
-        {!embedded && source === "WAREHOUSE" && <section className="space-y-3"><Button variant="outline" disabled={busy || locked} onClick={() => setScan((value) => !value)}>{scan ? "Hide scanner" : "Select parts by scanning"}</Button>{scan && <div className="rounded-xl border bg-white p-4"><p className="mb-3 text-sm text-muted-foreground">Each reading adds one part to this delivery. Stock changes only after the recipient signs and you confirm.</p><ScanPad<{ unit: WarehouseUnit; quantity: string }> key={`${source}:${storeId}`} scope={`customer-selection:${actorId}:${storeId}`} disabled={loading || selecting || saving || locked} onRead={readPart} onSaved={(entry) => { setSelection((previous) => ({ ...previous, [entry.unit.lineNumber]: entry })); setError(""); }} onPendingChange={setReading} /></div>}</section>}
+        {!embedded && source === "WAREHOUSE" && <section className="space-y-3"><Button variant="outline" disabled={busy || locked} onClick={() => setScan((value) => !value)}>{scan ? "Hide scanner" : "Select parts by scanning"}</Button>{scan && <div className="rounded-xl border bg-white p-4"><p className="mb-3 text-sm text-muted-foreground">Each reading adds one part to this delivery. Stock changes only after the recipient signs and you confirm.</p><ScanPad<DeliverySelection[string]> key={`${source}:${storeId}`} scope={`customer-selection:${actorId}:${storeId}`} disabled={loading || selecting || saving || locked} onRead={readPart} onSaved={(entry) => { setSelection((previous) => ({ ...previous, [entry.unit.lineNumber]: entry })); setError(""); }} onPendingChange={setReading} /></div>}</section>}
         {chosen.length > 0 && <div className="sticky top-24 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white p-4 shadow-sm"><div><p className="text-sm font-semibold">{chosen.length} pieces · {totalParts} physical parts selected</p><p className="text-xs text-muted-foreground">Next: review the receipt and collect the recipient's signature.</p></div><Button disabled={busy || locked || !validSource || Boolean(selectionError) || Boolean(data.activeCountId)} onClick={beginReview}><ClipboardCheck className="mr-2 h-4 w-4" />Deliver to customer</Button></div>}
         <div><h3 className="font-semibold">{embedded ? "Selected PO" : "Available POs"}</h3><p className="mt-1 text-sm text-muted-foreground">Select a PO to include all its available parts at this location. Open Pieces if you need a partial delivery.</p></div>
         {!embedded && <div className="flex flex-wrap items-center gap-4 text-sm"><label className="flex min-h-10 items-center gap-2"><input type="checkbox" className="h-4 w-4" checked={allPage} disabled={busy || locked || !availablePage.length} onChange={(e) => selectPos(availablePage, e.target.checked)} />Select POs on this page</label><Button size="sm" variant="outline" disabled={busy || locked || !data.total} onClick={selectAll}>{selecting ? "Selecting…" : "Select all matching POs"}</Button><span className="text-muted-foreground">Selections stay when you change pages or search.</span></div>}
@@ -302,7 +321,9 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
               return <div key={unit.lineNumber} className="flex flex-wrap items-start gap-3 p-4">
                 <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || locked || available < 1 || (!entry && chosen.length >= MAX_DELIVERY_PIECES)} onChange={(e) => toggle(unit, e.target.checked)} />
                 <div className="min-w-40 flex-1 text-sm"><p className="break-words font-medium">{unit.description || [unit.product, unit.system, unit.configuration].filter(Boolean).join(" · ")}</p>{unit.mark && <p className="text-xs text-muted-foreground">Mark: {unit.mark}</p>}<p className="text-xs text-muted-foreground">Line {unit.lineNumber} · {available} parts available</p>{entry && entry.unit.version !== unit.version && <p className="text-xs text-red-700">Changed. Remove this selection and select again.</p>}</div>
-                <div className="space-y-1"><Label className="text-xs" htmlFor={`delivery-quantity-${unit.lineNumber}`}>Deliver now</Label><Input id={`delivery-quantity-${unit.lineNumber}`} className="w-24" type="number" min={1} max={Math.min(available, 200)} step={1} value={entry?.quantity ?? ""} disabled={busy || locked || !entry} aria-label={`Deliver parts for ${unit.barcode}`} onChange={(e) => setSelection((previous) => ({ ...previous, [unit.lineNumber]: { ...previous[unit.lineNumber], quantity: e.target.value } }))} /></div>
+                <div className="space-y-1"><p className="text-xs">Deliver now</p><FactoryPartQuantity tracking={unit.partTracking} source={source} storeId={storeId} max={available}
+                  quantity={entry?.quantity ?? ""} parts={entry?.parts} disabled={busy || locked || !entry} label={`Deliver parts for ${unit.barcode}`}
+                  onChange={(next) => setSelection((previous) => ({ ...previous, [unit.lineNumber]: { ...previous[unit.lineNumber], ...next } }))} /></div>
               </div>;
             })}</div>}
           </section>;

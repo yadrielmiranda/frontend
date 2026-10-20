@@ -15,6 +15,7 @@ import {
   MovementLocation,
   Pagination,
 } from "../warehouse-shared";
+import { factoryPartsText } from "../factory-parts";
 
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 export function HistoryClient({
@@ -138,6 +139,7 @@ export function HistoryClient({
               </p>
             )}
             <MovementLocation movement={m} />
+            {m.partDetails?.partQuantities && <p className="text-sm text-muted-foreground">{factoryPartsText(m.partDetails.partQuantities)}</p>}
             {m.reason && (
               <p className="break-words text-sm text-muted-foreground">
                 {m.reason}

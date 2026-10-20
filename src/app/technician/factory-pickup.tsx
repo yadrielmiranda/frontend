@@ -35,6 +35,7 @@ import { errorMessage } from "@/app/warehouse/warehouse-shared";
 import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 import { PickupCustomerDelivery } from "./pickup-customer-delivery";
 import { pickupDeliveryContextKey } from "./pickup-customer-delivery-data";
+import { FactoryPartProgress } from "@/app/warehouse/factory-part-quantity";
 
 const reasonOptions: Array<{ value: FactoryPickupPartialReason; label: string }> = [
   { value: "NOT_READY_AT_FACTORY", label: "Not ready at factory" },
@@ -74,6 +75,7 @@ function RemainingList({ lines }: { lines: FactoryPickupLine[] }) {
                 <p className="mt-1 font-mono text-xs text-slate-600">Line {line.lineNumber}</p>
                 <UnitOrigin unit={line} />
                 <ExternalDescription unit={line} />
+                <FactoryPartProgress tracking={line.partTracking} />
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold text-red-700">{line.remaining} missing</p>
@@ -499,6 +501,7 @@ export function FactoryPickup({
         <p className="text-sm text-slate-600">{[last.stock.system, last.stock.configuration].filter(Boolean).join(" · ")}</p>
         <p className="mt-1 font-mono text-xs">Line {last.stock.lineNumber}</p>
         <p className="mt-2 text-sm">This line: <b>{last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.collected ?? 0} / {last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.targetParts ?? last.stock.expectedParts ?? "—"}</b> collected for this pickup.</p>
+        <FactoryPartProgress tracking={last.stock.partTracking} />
         {surface === "warehouse" && canScan && <Button type="button" variant="outline" className="mt-3 min-h-11" disabled={busy || offline || blocked} onClick={() => void undoLastCollection()}>
           <Undo2 className="mr-2 h-4 w-4" />{undoing ? "Reversing…" : "Undo last reading"}
         </Button>}

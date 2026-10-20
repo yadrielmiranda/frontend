@@ -26,7 +26,7 @@ function compile(file, dependencies = {}) {
   }, module, module.exports);
   return module.exports;
 }
-const { CustomerDeliveryReceipt } = compile(receiptFile);
+const { CustomerDeliveryReceipt } = compile(receiptFile, { '../factory-parts': compile(path.join(sourceRoot, 'app/warehouse/factory-parts.ts')) });
 const renderReceipt = (delivery, showSignature = true) => renderToStaticMarkup(React.createElement(CustomerDeliveryReceipt, { delivery, showSignature }));
 const item = (lineNumber, poNumber, quantity, overrides = {}) => ({ lineNumber, barcode: `I${lineNumber}`, poNumber,
   source: 'EXTERNAL', orderNumber: '', mark: '', description: 'French door bronze', product: '', system: '', configuration: '', quantity, ...overrides });
@@ -38,6 +38,12 @@ const fixture = {
     item('1126900', '292759', 2, { source: 'ORDER', orderNumber: 'ORD-TEST-004', description: '', product: 'Sliding door', system: 'Series 600', configuration: 'OXO' })],
   totalPieces: 3, totalParts: 4,
 };
+test('new receipt includes its saved panel/frame breakdown without adding it to old receipts', () => {
+  const typed = structuredClone(fixture);
+  typed.items[0].parts = { FRAME: 1 };
+  assert.match(renderReceipt(typed), /1 frame/);
+  assert.doesNotMatch(renderReceipt(fixture), /type not recorded|1 frame/);
+});
 function renderClient(delivery = fixture) {
   const states = [delivery, '', false, 0]; let state = 0;
   const { CustomerDeliveryReceiptClient } = compile(clientFile, {

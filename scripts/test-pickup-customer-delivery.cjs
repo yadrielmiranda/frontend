@@ -45,6 +45,17 @@ test('admin PO uses only this pickup quantities and never includes other collect
   assert.deepEqual(queried, [12, 'external:1']);
   assert.deepEqual(data.inventory.items[0].units.map(unit => [unit.lineNumber, unit.inTransit]), [['1126830', 2]]);
 });
+test('pickup type availability comes from its own lots, not another crews global stock', async () => {
+  const scoped = structuredClone(options), global = structuredClone(inventory);
+  scoped.items[0].lines[0].partTracking = { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: { DOOR: 2 }, onHand: {}, unassigned: {}, released: {}, stores: [] };
+  global.items[0].units[0].partTracking = { ...scoped.items[0].lines[0].partTracking, inTransit: { DOOR: 2, FRAME: 1, UNKNOWN: 4 } };
+  const { loadPickupCustomerDelivery } = dataLoader({}, {
+    warehousePickupCustomerDeliveryOptions: async () => scoped,
+    warehouseInventoryByPo: async () => global,
+  });
+  const data = await loadPickupCustomerDelivery('warehouse', 12, 'external:1', '292427');
+  assert.deepEqual(data.inventory.items[0].units[0].partTracking.inTransit, { DOOR: 2 });
+});
 test('same printed PO number never selects another internal source and searches later pages', async () => {
   const pages = [];
   const { loadPickupCustomerDelivery } = dataLoader({}, {
@@ -107,6 +118,7 @@ function harness(surface = 'warehouse', overrides = {}) {
     '@/app/api/technician.api': { technicianPickup: pickup, technicianPickupScan: scan, technicianFinishPickup: finish },
     '@/app/api/warehouse.api': { warehousePickup: pickup, warehousePickupScan: scan, warehouseFinishPickup: finish, warehousePickupTechnicians: async () => [] },
     '@/app/warehouse/warehouse-shared': { errorMessage: error => error.message },
+    '@/app/warehouse/factory-part-quantity': { FactoryPartProgress: 'FactoryPartProgress' },
     '@/app/warehouse/scan-pad': { ScanPad: 'ScanPad' },
     '@/app/warehouse/unit-origin': { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' },
     './pickup-customer-delivery': { PickupCustomerDelivery: 'PickupCustomerDelivery' },

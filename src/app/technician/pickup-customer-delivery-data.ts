@@ -39,7 +39,7 @@ export async function loadPickupCustomerDelivery(surface: PickupDeliverySurface,
           if (!unit || unit.version !== line.version || unit.inTransit < line.inTransit)
             throw new Error("The available parts changed. Try again to review the current quantities.");
           // Inventory supplies display details; the server's pickup lots supply the quantities.
-          return { ...unit, inTransit: line.inTransit };
+          return { ...unit, inTransit: line.inTransit, ...(line.partTracking ? { partTracking: line.partTracking } : {}) };
         });
         inventory = { ...result, items: [{ ...group, units }], total: 1, page: 1 };
         break;

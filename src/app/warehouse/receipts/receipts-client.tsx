@@ -12,9 +12,10 @@ import {
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
 import { UnitOrigin } from "../unit-origin";
-import { deliveryPoSelected, selectDeliveryPos } from "../customer-deliveries/customer-delivery-selection";
+import { deliveryItems, deliveryPoSelected, selectDeliveryPos, type DeliverySelection } from "../customer-deliveries/customer-delivery-selection";
+import { FactoryPartQuantity } from "../factory-part-quantity";
 
-type Selection = Record<string, { unit: WarehouseUnit; quantity: string }>;
+type Selection = DeliverySelection;
 const LIMIT = 500;
 
 export function ReceiptsClient({ initial, initialStores }: {
@@ -36,7 +37,8 @@ export function ReceiptsClient({ initial, initialStores }: {
     unit.source === "EXTERNAL" || unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
   const targetValid = delivering ? !invalidInstallation : Boolean(target);
   const totalParts = chosen.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
-  const invalid = chosen.some(({ unit, quantity }) => !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || Number(quantity) > unit.inTransit || Number(quantity) > 200);
+  let invalid = false;
+  try { deliveryItems(selection, "TRANSIT", ""); } catch { invalid = true; }
   const refresh = useCallback(async () => {
     const seq = ++serial.current;
     setLoading(true);
@@ -103,9 +105,7 @@ export function ReceiptsClient({ initial, initialStores }: {
   async function receive() {
     if (saveLock.current || !targetValid || invalid || !chosen.length || chosen.length > LIMIT) return;
     saveLock.current = true; setSaving(true); setError(""); setSuccess("");
-    const items: ReceiptItem[] = chosen.map(({ unit, quantity }) => ({
-      barcode: unit.barcode, version: unit.version, quantity: Number(quantity),
-    })).sort((a, b) => a.barcode.localeCompare(b.barcode));
+    const items: ReceiptItem[] = deliveryItems(selection, "TRANSIT", "");
     const signature = JSON.stringify([destination, delivering ? installation : target!.id, items]);
     if (request.current?.signature !== signature) request.current = { signature, key: warehouseRequestKey() };
     try {
@@ -209,8 +209,9 @@ export function ReceiptsClient({ initial, initialStores }: {
             return <div key={unit.lineNumber} className="flex flex-wrap items-start gap-3 p-4">
               <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} />
               <div className="min-w-40 flex-1 text-sm"><p className="break-words font-medium">{unit.description || [unit.mark, unit.product, unit.system, unit.configuration].filter(Boolean).join(" · ")}</p>{unit.description && unit.mark && unit.mark !== unit.description && <p className="text-xs text-muted-foreground">Mark: {unit.mark}</p>}<p className="text-xs text-muted-foreground">Line {unit.lineNumber} · {unit.inTransit} parts in transit</p><p className="font-mono text-xs text-muted-foreground">{unit.barcode}</p>{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</div>
-              <label className="space-y-1 text-xs"><span className="block">{delivering ? "Deliver now" : "Receive now"}</span><Input type="number" min={1} max={Math.min(unit.inTransit, 200)} step={1} className="w-24" aria-label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} value={entry?.quantity ?? ""}
-                onChange={(e) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: e.target.value } }))} /></label>
+              <div className="space-y-1 text-xs"><span className="block">{delivering ? "Deliver now" : "Receive now"}</span><FactoryPartQuantity tracking={unit.partTracking} source="TRANSIT" storeId="" max={unit.inTransit}
+                label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} quantity={entry?.quantity ?? ""} parts={entry?.parts}
+                onChange={(next) => setSelection((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], ...next } }))} /></div>
             </div>;
           })}</div>}
         </section>;

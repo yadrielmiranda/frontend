@@ -51,6 +51,8 @@ function harness(initial = inventory(), api = {}) {
   return { render() { si = 0; ri = 0; return Component({ initial, initialStores: stores }); } };
 }
 function nodes(element, predicate, result = []) {
+  if (typeof element?.type === 'function' && element.type.name === 'FactoryPartQuantity')
+    return nodes(element.type(element.props), predicate, result);
   if (Array.isArray(element)) { element.forEach(child => nodes(child, predicate, result)); return result; }
   if (!element || typeof element !== 'object') return result;
   if (predicate(element)) result.push(element);
@@ -122,6 +124,19 @@ test('selecting one PO never receives parts of a different PO', async () => {
   const h = harness(inventory([group(pieces), second]), { warehouseReceive: async (_, value) => { items = value; return { parts: 6, units: 2, storeName: 'Store 1' }; } });
   store(h, 1); selectPo(h); click(h, 'Receive selected'); await click(h, 'Confirm receipt');
   assert.deepEqual(items.map(item => item.barcode), ['I1126830', 'I1126835']);
+});
+test('a partial receipt carries the chosen frame instead of an interchangeable total', async () => {
+  let received;
+  const door = unit('1126830', {
+    inTransit: 3,
+    partTracking: { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: { DOOR: 2, FRAME: 1 }, onHand: {}, unassigned: {}, released: {}, stores: [] },
+  });
+  const h = harness(inventory([group([door])]), { warehouseReceive: async (_, items) => { received = items; return { parts: 1, units: 1, storeName: 'Store 1' }; } });
+  store(h, 1); selectPo(h); expand(h);
+  label(h, 'Door panels — Quantity to receive for I1126830').props.onChange({ target: { value: '0' } });
+  click(h, 'Receive selected'); await click(h, 'Confirm receipt');
+  assert.deepEqual(received, [{ barcode: 'I1126830', version: 3, quantity: 1, parts: { FRAME: 1 } }]);
+  assert.equal(door.inTransit, 3);
 });
 test('select-all requests complete POs and visits every PO page', async () => {
   const groups = Array.from({ length: 21 }, (_, i) => group([unit(String(3000000 + i), { externalPoId: i + 1, poNumber: String(290000 + i) })]));

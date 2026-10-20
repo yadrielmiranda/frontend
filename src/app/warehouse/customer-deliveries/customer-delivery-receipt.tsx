@@ -1,4 +1,5 @@
 import type { CustomerDelivery, CustomerDeliveryItem } from "@/app/api/warehouse.api";
+import { factoryPartsText } from "../factory-parts";
 
 export type CustomerDeliveryPreview = Pick<CustomerDelivery,
   "source" | "storeId" | "storeName" | "firstName" | "lastName" |
@@ -63,7 +64,7 @@ export function CustomerDeliveryReceipt({
               <caption className="sr-only">Pieces and physical parts delivered for {group.poNumber ? `PO ${group.poNumber}` : "this order"}</caption>
               <thead className="border-b text-xs text-slate-500"><tr><th scope="col" className="px-3 py-2 font-medium">Piece</th><th scope="col" className="w-24 px-2 py-2 font-medium sm:w-32">Line number</th><th scope="col" className="w-20 px-3 py-2 text-right font-medium">Parts</th></tr></thead>
               <tbody>{group.items.map(item => <tr key={`${item.lineNumber}:${item.barcode}`} className="border-b align-top">
-                <td className="break-words px-3 py-3"><p className="font-medium">{pieceDescription(item)}</p>{item.mark && <p className="mt-1 text-xs text-slate-500">Mark: {item.mark}</p>}</td>
+                <td className="break-words px-3 py-3"><p className="font-medium">{pieceDescription(item)}</p>{item.mark && <p className="mt-1 text-xs text-slate-500">Mark: {item.mark}</p>}{item.parts && <p className="mt-1 text-xs text-slate-500">{factoryPartsText(item.parts)}</p>}</td>
                 <td className="break-words px-2 py-3 font-mono text-xs">{item.lineNumber}</td>
                 <td className="px-3 py-3 text-right font-semibold tabular-nums">{item.quantity.toLocaleString()}</td>
               </tr>)}</tbody>

@@ -16,6 +16,7 @@ import {
 import { ScanPad } from "../../scan-pad";
 import { dateLabel, errorMessage, Pagination, countLocation } from "../../warehouse-shared";
 import { UnitOrigin, ExternalDescription } from "../../unit-origin";
+import { factoryPartLabel, factoryPartTypes } from "../../factory-parts";
 
 export function CountClient({
   initial,
@@ -218,6 +219,13 @@ export function CountClient({
                 {row.stock.customer || row.stock.project}
               </p>
               <ExternalDescription unit={row.stock} />
+              {row.expectedByType && row.countedByType && <div className="mt-2 space-y-1 text-xs">
+                {factoryPartTypes.filter(type => (row.expectedByType?.[type] ?? 0) || (row.countedByType?.[type] ?? 0)).map(type =>
+                  <p key={type} className={(row.expectedByType?.[type] ?? 0) !== (row.countedByType?.[type] ?? 0) ? "text-amber-800" : "text-muted-foreground"}>
+                    {factoryPartLabel[type]}: {row.expectedByType?.[type] ?? 0} recorded · {row.countedByType?.[type] ?? 0} counted
+                  </p>)}
+                {row.partDifference && <p className="font-medium text-amber-800">Part types differ. Review panels and frames separately.</p>}
+              </div>}
             </div>
             <div className="flex gap-5 text-sm">
               <span>
@@ -228,7 +236,7 @@ export function CountClient({
               </span>
               <span
                 className={
-                  row.difference ? "text-amber-700" : "text-emerald-700"
+                  row.difference || row.partDifference ? "text-amber-700" : "text-emerald-700"
                 }
               >
                 Difference{" "}

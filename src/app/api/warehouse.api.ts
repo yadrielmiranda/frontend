@@ -11,6 +11,17 @@ import type {
 } from "./technician.api";
 
 export type WarehouseStoreRef = { id: number; name: string; isActive: boolean };
+export type FactoryPartType = "DOOR" | "FRAME" | "WINDOW";
+export type FactoryPartCounts = Partial<Record<FactoryPartType | "UNKNOWN", number>>;
+export type FactoryPartTracking = {
+  types: FactoryPartType[];
+  expected: FactoryPartCounts;
+  inTransit: FactoryPartCounts;
+  onHand: FactoryPartCounts;
+  unassigned: FactoryPartCounts;
+  released: FactoryPartCounts;
+  stores: { id: number; parts: FactoryPartCounts }[];
+};
 export type InstallationDestination = { id: number; address: string };
 export type WarehouseStore = WarehouseStoreRef & {
   version: number;
@@ -45,6 +56,7 @@ export type WarehouseUnit = {
   version: number;
   updatedAt: string;
   state: string;
+  partTracking?: FactoryPartTracking;
 };
 export type WarehouseMovement = {
   id: number;
@@ -71,6 +83,7 @@ export type WarehouseMovement = {
   customerDeliveryId?: number | null;
   countDelta: number;
   createdAt: string;
+  partDetails?: { partQuantities?: FactoryPartCounts } | null;
 };
 export type WarehouseAction = "COLLECT" | "RECEIVE" | "RELEASE";
 export type ScanResult = {
@@ -122,6 +135,9 @@ export type PhysicalCount = CountInfo &
     expected: number;
     counted: number;
     difference: number;
+    expectedByType?: FactoryPartCounts;
+    countedByType?: FactoryPartCounts;
+    partDifference?: boolean;
   }> & {
     expected: number;
     counted: number;
@@ -233,7 +249,7 @@ export const warehouseUpdateStore = (store: WarehouseStore, name: string, isActi
   apiFetch<WarehouseStoreRef & { version: number }>(`/api/warehouse/stores/${store.id}`, {
     method: "PATCH", body: { name, isActive, version: store.version },
   });
-export type ReceiptItem = { barcode: string; quantity: number; version: number };
+export type ReceiptItem = { barcode: string; quantity: number; version: number; parts?: FactoryPartCounts };
 export type CustomerDeliveryItem = {
   lineNumber: string;
   barcode: string;
@@ -246,6 +262,7 @@ export type CustomerDeliveryItem = {
   system: string;
   configuration: string;
   quantity: number;
+  parts?: FactoryPartCounts;
 };
 export type CustomerDeliveryRequest = {
   requestKey: string;
@@ -310,9 +327,9 @@ export const warehouseReceive = (storeId: number, items: ReceiptItem[], requestK
   });
 export const warehouseTransfer = (
   unit: WarehouseUnit, fromStoreId: number | null, toStoreId: number,
-  quantity: number, requestKey: string,
+  quantity: number, requestKey: string, parts?: FactoryPartCounts,
 ) => post<ScanResult>("transfers", {
-  barcode: unit.barcode, version: unit.version, fromStoreId, toStoreId, quantity, requestKey,
+  barcode: unit.barcode, version: unit.version, fromStoreId, toStoreId, quantity, requestKey, ...(parts ? { parts } : {}),
 });
 
 // getRandomValues funciona también en el HTTP local usado con lectores físicos.

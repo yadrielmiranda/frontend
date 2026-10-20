@@ -1,5 +1,5 @@
 import { apiFetch } from "./_base";
-import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult, CustomerDelivery, CustomerDeliveryRequest } from "./warehouse.api";
+import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult, CustomerDelivery, CustomerDeliveryRequest, FactoryPartTracking } from "./warehouse.api";
 
 export type TechnicianUnit = {
   lineNumber: string; barcode: string; mark: string;
@@ -10,6 +10,7 @@ export type TechnicianUnit = {
   expectedParts: number | null; inTransit: number; onHand: number;
   pending: number | null; version: number;
   installation: InstallationDestination | null;
+  partTracking?: FactoryPartTracking;
 };
 export type TechnicianState = {
   stores: WarehouseStoreRef[];

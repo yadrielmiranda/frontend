@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '../src');
 const clientPath = 'app/warehouse/customer-deliveries/customer-delivery-client.tsx';
 const tests = [], test = (name, run) => tests.push({ name, run });
 let nextKey = 0;
-class ApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
+class ApiError extends Error { constructor(message, status, data) { super(message); this.status = status; this.data = data; } }
 const storage = new Map();
 global.sessionStorage = {
   getItem(key) { return storage.get(key) ?? null; },
@@ -49,6 +49,7 @@ function loader(hooks = {}, api = {}, navigation = {}, auth = { user: { id: 10, 
   return load;
 }
 const helpers = loader()('app/warehouse/customer-deliveries/customer-delivery-selection.ts');
+const factoryParts = loader()('app/warehouse/factory-parts.ts');
 function unit(lineNumber, overrides = {}) {
   return { lineNumber, barcode: `I${lineNumber}`, source: 'EXTERNAL', externalPoId: 1, pieceId: null, description: `Description ${lineNumber}`, product: 'French Door', system: '600', configuration: 'X', mark: '', orderNumber: '', poNumber: '292427', customer: 'Santos', project: '', installation: null, inTransit: 2, onHand: 7, unassigned: 1, stores: [{ id: 1, name: 'Store 1', isActive: true, onHand: 2 }, { id: 2, name: 'Store 2', isActive: true, onHand: 4 }], expectedParts: 10, released: 0, version: 3, ...overrides };
 }
@@ -57,6 +58,12 @@ function group(units, overrides = {}) {
   return { key: first.source === 'EXTERNAL' ? `external:${first.externalPoId}` : `order:${first.orderId ?? 1}`, source: first.source, externalPoId: first.externalPoId, orderId: first.orderId ?? null, orderNumber: first.orderNumber, poNumber: first.poNumber, customer: first.customer, project: first.project, units, ...overrides };
 }
 const parts = [unit('1126830'), unit('1126835', { poNumber: '292759', source: 'ORDER', orderNumber: 'SO-2' })];
+test('barcode parsing accepts both real formats and rejects hybrid and unknown suffixes', () => {
+  for (const code of ['I00123', '123', ' 123-DOOR ', '123-frame', '123-WINDOW'])
+    assert.equal(factoryParts.factoryBarcode(code).lineNumber, '123');
+  for (const code of ['I123-DOOR', '123-PANEL', '0-FRAME', '123-DOOR-FRAME'])
+    assert.equal(factoryParts.factoryBarcode(code), null);
+});
 const signature = [[{ x: 0.1, y: 0.5 }, { x: 0.2, y: 0.3 }, { x: 0.3, y: 0.5 }, { x: 0.4, y: 0.3 }, { x: 0.5, y: 0.5 }]];
 const props = (extra = {}) => ({ actorId: 10, actorRole: 'admin', initial: { items: structuredClone(parts.map(item => group([item]))), total: 2, page: 1, pageSize: 20, activeCountId: null, summary: {} }, initialStores: [{ id: 1, name: 'Store 1', isActive: true }], initialSource: 'TRANSIT', initialStoreId: '', ...extra });
 function harness(initial = props(), api = {}, navigation = {}, auth) {
@@ -74,6 +81,8 @@ function harness(initial = props(), api = {}, navigation = {}, auth) {
 function nodes(element, predicate, result = []) {
   if (Array.isArray(element)) { element.forEach(child => nodes(child, predicate, result)); return result; }
   if (!element || typeof element !== 'object') return result;
+  if (typeof element.type === 'function' && element.type.name === 'FactoryPartQuantity')
+    return nodes(element.type(element.props), predicate, result);
   if (predicate(element)) result.push(element);
   nodes(element.props?.children, predicate, result); return result;
 }
@@ -228,6 +237,38 @@ test('warehouse scan only stages a part and never records a release before signi
   expand(h, 'I1126830');
   assert.equal(label(h, 'Deliver parts for I1126830').props.value, '2');
   await assert.rejects(() => byType(h, 'ScanPad').props.onRead('I1126830'), /No more parts/);
+});
+
+function typedDoor(overrides = {}) {
+  return unit('1126830', {
+    inTransit: 0, onHand: 3, unassigned: 0, expectedParts: 3,
+    stores: [{ id: 1, name: 'Store 1', isActive: true, onHand: 3 }],
+    partTracking: { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: {}, onHand: { DOOR: 2, FRAME: 1 }, unassigned: {}, released: {}, stores: [{ id: 1, parts: { DOOR: 2, FRAME: 1 } }] },
+    ...overrides,
+  });
+}
+test('door scans retain the panel/frame breakdown and a third panel cannot complete the selection', async () => {
+  const door = typedDoor();
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', initial: { ...props().initial, items: [group([door])], total: 1 } }), { warehouseUnit: async () => door });
+  click(h, 'Select parts by scanning');
+  await assert.rejects(() => byType(h, 'ScanPad').props.onRead('I1126830'), error => error.data.code === 'FACTORY_PART_TYPE_REQUIRED');
+  for (const code of ['1126830-DOOR', '1126830-DOOR']) {
+    const scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead(code));
+  }
+  await assert.rejects(() => byType(h, 'ScanPad').props.onRead('1126830-DOOR'), /door panels.*already selected/);
+  const scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead('1126830-FRAME'));
+  click(h, 'Review delivery');
+  assert.deepEqual(byType(h, 'CustomerDeliveryReceipt').props.delivery.items[0].parts, { DOOR: 2, FRAME: 1 });
+  assert.equal(door.onHand, 3);
+});
+test('partial typed deliveries require the actual components and preserve earlier untyped quantities', () => {
+  const door = typedDoor();
+  assert.throws(() => helpers.deliveryItems({ [door.lineNumber]: { unit: door, quantity: '1' } }, 'WAREHOUSE', '1'), /Choose how many/);
+  assert.deepEqual(helpers.deliveryItems({ [door.lineNumber]: { unit: door, quantity: '1', parts: { FRAME: 1 } } }, 'WAREHOUSE', '1')[0].parts, { FRAME: 1 });
+  const earlier = typedDoor({ partTracking: { ...door.partTracking, onHand: { UNKNOWN: 3 }, stores: [{ id: 1, parts: { UNKNOWN: 3 } }] } });
+  assert.deepEqual(helpers.deliveryItems({ [earlier.lineNumber]: { unit: earlier, quantity: '3', parts: { DOOR: 2, FRAME: 1 } } }, 'WAREHOUSE', '1')[0].parts, { DOOR: 2, FRAME: 1 });
+  assert.deepEqual(earlier.partTracking.onHand, { UNKNOWN: 3 });
+  assert.throws(() => helpers.deliveryItems({ [earlier.lineNumber]: { unit: earlier, quantity: '3', parts: { DOOR: 2, FRAME: 1, UNKNOWN: 1 } } }, 'WAREHOUSE', '1'), /available quantities/);
 });
 test('editing recipient identity clears their signature and receipt acceptance', () => {
   const h = harness(); reviewed(h);

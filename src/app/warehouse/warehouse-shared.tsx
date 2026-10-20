@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { WarehouseUnit, WarehouseMovement, CountInfo } from "@/app/api/warehouse.api";
 import { UnitOrigin, ExternalDescription } from "./unit-origin";
+import { FactoryPartProgress } from "./factory-part-quantity";
 
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Unable to complete this operation.";
@@ -120,6 +121,7 @@ export function UnitSummary({ unit }: { unit: WarehouseUnit }) {
         ))}
       </div>
       {unit.onHand > 0 && <p className="text-sm text-muted-foreground">Locations · {storeBreakdown(unit)}</p>}
+      <FactoryPartProgress tracking={unit.partTracking} />
     </div>
   );
 }

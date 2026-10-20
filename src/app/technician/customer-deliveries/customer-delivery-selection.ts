@@ -28,6 +28,7 @@ export function technicianCustomerDeliveryPreview(selection: TechnicianPoSelecti
       lineNumber: line.lineNumber, barcode: line.barcode, poNumber: line.poNumber, source: line.source,
       orderNumber: line.orderNumber, mark: line.mark, description: line.description,
       product: line.product, system: line.system, configuration: line.configuration, quantity: line.inTransit,
+      ...(line.partTracking ? { parts: line.partTracking.inTransit } : {}),
     })),
     totalPieces: lines.length, totalParts: lines.reduce((sum, line) => sum + line.inTransit, 0),
   };

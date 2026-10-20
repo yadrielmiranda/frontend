@@ -1,8 +1,9 @@
-import type { CustomerDeliveryRequest, WarehousePoGroup, WarehouseUnit } from "@/app/api/warehouse.api";
+import type { CustomerDeliveryRequest, FactoryPartCounts, WarehousePoGroup, WarehouseUnit } from "@/app/api/warehouse.api";
 import type { SignatureStrokes } from "@/app/api/contracts.api";
+import { factoryPartSource, selectedFactoryParts } from "../factory-parts";
 
 export type DeliverySource = "TRANSIT" | "WAREHOUSE";
-export type DeliverySelection = Record<string, { unit: WarehouseUnit; quantity: string }>;
+export type DeliverySelection = Record<string, { unit: WarehouseUnit; quantity: string; parts?: FactoryPartCounts }>;
 export const MAX_DELIVERY_PIECES = 500;
 
 export function deliveryAvailable(unit: WarehouseUnit, source: DeliverySource, storeId: string) {
@@ -42,11 +43,12 @@ export function deliveryItems(selection: DeliverySelection, source: DeliverySour
     throw new Error(`Select between 1 and ${MAX_DELIVERY_PIECES} pieces.`);
   if (source === "WAREHOUSE" && storeId !== "unassigned" && !/^[1-9]\d*$/.test(storeId))
     throw new Error("Choose the source store.");
-  return chosen.map(({ unit, quantity }) => {
+  return chosen.map(({ unit, quantity, parts }) => {
     const count = Number(quantity);
     if (!Number.isInteger(count) || count < 1 || count > 200 || count > deliveryAvailable(unit, source, storeId))
       throw new Error(`Enter an available whole number of parts for line ${unit.lineNumber}.`);
-    return { barcode: unit.barcode, version: unit.version, quantity: count };
+    const selected = selectedFactoryParts(factoryPartSource(unit.partTracking, source, storeId), count, parts);
+    return { barcode: unit.barcode, version: unit.version, quantity: count, ...(selected ? { parts: selected } : {}) };
   }).sort((a, b) => a.barcode.localeCompare(b.barcode));
 }
 

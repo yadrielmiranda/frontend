@@ -63,6 +63,8 @@ function harness(initial = props(), api = {}, auth = standardAuth()) {
   return { auth, effects, render() { si = 0; ri = 0; ei = 0; const tree = Component(initial); if (!mounted) { mounted = true; initialEffect(); return this.render(); } return tree; } };
 }
 function nodes(element, predicate, result = []) {
+  if (typeof element?.type === 'function' && element.type.name === 'FactoryPartQuantity')
+    return nodes(element.type(element.props), predicate, result);
   if (Array.isArray(element)) { element.forEach(child => nodes(child, predicate, result)); return result; }
   if (!element || typeof element !== 'object') return result;
   if (predicate(element)) result.push(element);
