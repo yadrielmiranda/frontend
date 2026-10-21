@@ -557,6 +557,9 @@ export function PieceDiagram({
     const commonFixedProps = {
       width: dimensions.width,
       height: dimensions.height,
+      panelCount: resolvedSpec.shape === "PICTURE_WINDOW" && dimensionMode === "WINDOW_WALL"
+        ? positiveInteger(normalizedPiece?.panelCount) ?? 0
+        : undefined,
       frameColorHex: frameColor,
       glassTintHex,
       hasCoating,

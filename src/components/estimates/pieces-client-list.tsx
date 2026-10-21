@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
 import { InlinePieceMarkInput } from "./inline-piece-mark-input";
-import { formatDimensionPair, formatDoorDimensions } from "./piece-dimension-description";
+import { formatDimensionPair, formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-description";
 
 interface PiecesClientListProps {
   fields: { id: string }[];
@@ -167,7 +167,7 @@ export function PiecesClientList({
               const requiresWindowHeight =
                 selectedSysConf?.config?.requiresWindowHeight === true;
 
-              const widthToken = selectedSysConf?.requiresDoorWidth
+              const widthToken = usesOpeningWidth(selectedSysConf)
                 ? "Open W"
                 : "W";
 

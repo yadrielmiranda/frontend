@@ -465,6 +465,7 @@ const rendererTestContext = { test, load, render, panel, resolved, bars, panels,
 require('./muntin-french-door-cases.cjs')(rendererTestContext);
 require('./french-door-panel-count-cases.cjs')(rendererTestContext);
 require('./muntin-fixed-casement-cases.cjs')(rendererTestContext);
+require('./picture-window-dimension-cases.cjs')(rendererTestContext);
 require('./muntin-sliding-window-wall-cases.cjs')(rendererTestContext);
 require('./vertical-dimension-cases.cjs')(rendererTestContext);
 

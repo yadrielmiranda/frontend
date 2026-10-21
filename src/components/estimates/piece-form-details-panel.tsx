@@ -17,7 +17,7 @@ import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { buildEnergyDescription } from "@/lib/energy-ratings";
 import { PieceDiagram } from "@/components/piece-diagram";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
-import { formatDoorDimensions } from "./piece-dimension-description";
+import { formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, muntinPatternRequiresType } from "./muntin-availability";
 
 interface PieceFormDetailsPanelProps {
@@ -80,7 +80,7 @@ export function PieceFormDetailsPanel({
   const requiresWindowHeight =
     selectedSysConf?.config?.requiresWindowHeight === true;
 
-  const widthLabel = selectedSysConf?.requiresDoorWidth
+  const widthLabel = usesOpeningWidth(selectedSysConf)
     ? "Opening Width"
     : "Width";
 

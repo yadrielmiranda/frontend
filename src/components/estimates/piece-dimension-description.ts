@@ -1,6 +1,14 @@
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
+import type { DimensionMode } from "@/lib/types";
 
 type Dimension = string | number | null | undefined;
+
+export function usesOpeningWidth(config?: {
+  dimensionMode?: DimensionMode;
+  requiresDoorWidth?: boolean;
+} | null): boolean {
+  return config?.dimensionMode === "WINDOW_WALL" || config?.requiresDoorWidth === true;
+}
 
 function dimensionText(value: Dimension): string {
   if (typeof value === "string" && !value.trim()) return "";

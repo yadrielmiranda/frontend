@@ -50,7 +50,9 @@ module.exports = function register(ctx) {
     return { width, height, ...(secondaryHeight === undefined ? {} : { legHeight: secondaryHeight }) };
   }
 
-  for (const shape of FIXED_WINDOW_SHAPE_KEYS) {
+  // The rectangular picture window follows its real dimensions and has its
+  // own geometry regressions in picture-window-dimension-cases.cjs.
+  for (const shape of FIXED_WINDOW_SHAPE_KEYS.filter(shape => shape !== 'PICTURE_WINDOW')) {
     test(`Fixed ${shape} clips Colonial to its exact glass mask, preserves O and leaves Full View unchanged`, () => {
       const props = fixedProps(shape);
       const baseline = render(FixedWindowShapeDiagram, props);

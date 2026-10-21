@@ -15,6 +15,7 @@ import {
   VerticalDimensionText,
 } from "../dimension-text";
 import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
+import { PictureWindowArtwork, pictureWindowLayout } from "./picture-window-artwork";
 import runtimeConfig from "./fixed-window-shapes-c073.json";
 
 export const FIXED_WINDOW_SHAPE_KEYS = [
@@ -90,6 +91,8 @@ export interface FixedWindowShapeSpec {
 
 interface CommonProps {
   width: FixedWindowDimension;
+  // Supplied only when width describes a whole opening of equal fixed panels.
+  panelCount?: number;
   frameColorHex?: string;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -461,9 +464,36 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
     throw new Error("idNamespace cannot be empty");
   }
 
-  const spec = getFixedWindowShapeSpec(props.shape);
+  const sourceSpec = getFixedWindowShapeSpec(props.shape);
   const width = parsePositiveDimension(props.width, "width");
   const height = parsePositiveDimension(props.height, "height");
+  const sourceBounds = GLASS_AND_INDICATOR_BOUNDS[props.shape];
+  const sourceGlass = assetBoundsRect(sourceBounds.glass);
+  const [sourceLeft, sourceTop, sourceRight, sourceBottom] = sourceSpec.frameBBox;
+  const sourceFrame = { x: sourceLeft, y: sourceTop, width: sourceRight - sourceLeft, height: sourceBottom - sourceTop };
+  const pictureLayout = props.shape === "PICTURE_WINDOW"
+    ? pictureWindowLayout(width, height, sourceFrame, sourceGlass, sourceSpec.sampleDimensionsInches.width)
+    : null;
+  const requestedPanelCount = props.panelCount ?? 1;
+  const picturePanelCount = Number.isSafeInteger(requestedPanelCount) && requestedPanelCount > 0
+    ? requestedPanelCount : 0;
+  const picturePanelLayout = pictureLayout && picturePanelCount > 0
+    ? pictureWindowLayout(width / picturePanelCount, height, sourceFrame, sourceGlass, sourceSpec.sampleDimensionsInches.width)
+    : null;
+  const sharedGrid = props.muntin?.panels[0];
+  const pictureMuntin = props.panelCount === undefined ? props.muntin
+    : sharedGrid && props.muntin?.panels.every(panel =>
+      panel.horizontalLites === sharedGrid.horizontalLites && panel.verticalLites === sharedGrid.verticalLites)
+      ? { ...props.muntin, panels: [{ ...sharedGrid, panelIndex: 1, panelCode: "O", panelLabel: "Center" }] }
+      : null;
+  const spec: FixedWindowShapeSpec = pictureLayout ? {
+    ...sourceSpec,
+    frameBBox: [0, 0, pictureLayout.frame.width, pictureLayout.frame.height],
+    dimensionGeometry: [
+      { axis: "W", tipStart: [0, pictureLayout.frame.height + 72], tipEnd: [pictureLayout.frame.width, pictureLayout.frame.height + 72], label: "" },
+      { axis: "H", side: "LEFT", tipStart: [-78, 0], tipEnd: [-78, pictureLayout.frame.height], label: "" },
+    ],
+  } : sourceSpec;
   const providedSecondaryHeight = (props as { secondaryHeight?: FixedWindowDimension }).secondaryHeight;
   let secondaryHeight: number | null = null;
   if (spec.requiresSecondaryHeight) {
@@ -494,8 +524,8 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   const bounds = GLASS_AND_INDICATOR_BOUNDS[spec.shapeKey];
   const glass = assetBoundsRect(bounds.glass);
   const [frameLeft, frameTop, frameRight, frameBottom] = spec.frameBBox;
-  // Fixed-shape artwork keeps its approved proportions. Render the grid in
-  // inches, then map each axis to that artwork so both bar widths remain 1in.
+  // Curved/angled reference shapes retain their own grid mapping. Rectangular
+  // picture windows use physical geometry and fixed profile depths below.
   const scaleX = (frameRight - frameLeft) / width;
   const scaleY = (frameBottom - frameTop) / height;
   const glassInches = {
@@ -504,9 +534,17 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
     width: glass.width / scaleX,
     height: glass.height / scaleY,
   };
-  const label = `Fixed Window ${spec.displayName}, width ${formatDimension(width)}, height ${formatDimension(height)}${
+  const label = `Fixed Window ${spec.displayName}, ${pictureLayout && props.panelCount !== undefined ? `${picturePanelCount} equal panels, opening ` : ""}width ${formatDimension(width)}, height ${formatDimension(height)}${
     secondaryHeight === null ? "" : `, secondary height ${formatDimension(secondaryHeight)}`
   }`;
+
+  // Incomplete typing can leave less room than the unchanged profiles need.
+  // Do not shrink the frame or emit negative glass dimensions in that state.
+  if (pictureLayout && (!picturePanelLayout || picturePanelLayout.glass.width <= 0 || picturePanelLayout.glass.height <= 0)) {
+    return <div className={props.className} data-diagram-state="unavailable">
+      Complete the piece details to see the preview.
+    </div>;
+  }
 
   return (
     <svg
@@ -584,6 +622,31 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
           />
         </mask>
       </defs>
+      {pictureLayout && picturePanelLayout ? (
+        <g data-part="picture-window-opening" data-panel-count={picturePanelCount}
+          data-width={pictureLayout.frame.width} data-height={pictureLayout.frame.height}>
+          {Array.from({ length: picturePanelCount }, (_, index) => (
+            <g key={index} data-part="picture-window-panel" data-panel-index={index + 1}
+              data-width={picturePanelLayout.frame.width} data-height={picturePanelLayout.frame.height}
+              transform={`translate(${index * picturePanelLayout.frame.width} 0)`}>
+              <PictureWindowArtwork
+                layout={picturePanelLayout}
+                sourceFrame={sourceFrame}
+                sourceGlass={sourceGlass}
+                sourceIndicator={assetBoundsRect(sourceBounds.indicator, 2)}
+                href={`${assetBasePath}/${sourceSpec.structuralAsset}`}
+                frameMaskId={frameMaskId}
+                frameColorHex={frameColor}
+                glassTintHex={props.glassTintHex}
+                hasCoating={props.hasCoating}
+                hasPrivacy={props.hasPrivacy}
+                muntin={pictureMuntin}
+                idNamespace={`${idPrefix}-panel-${index + 1}`}
+              />
+            </g>
+          ))}
+        </g>
+      ) : <>
       <image
         href={`${assetBasePath}/${spec.structuralAsset}`}
         x={0}
@@ -643,6 +706,7 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
           </g>
         </>
       ) : null}
+      </>}
       {showDimensions
         ? spec.dimensionGeometry.map((geometry) => {
             const dynamicLabel = dimensionLabel(

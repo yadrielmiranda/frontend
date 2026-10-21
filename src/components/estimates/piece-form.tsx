@@ -66,6 +66,7 @@ import { formatEnergyValue, type EnergySelection } from "@/lib/energy-ratings";
 
 import type { PieceFormValues } from "./types";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
+import { usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
 import { buildWindowWallMuntinLayout, hasAmbiguousWindowWallMuntinPanels, syncWindowWallMuntinPanels } from "./window-wall-muntin";
 
@@ -1118,7 +1119,10 @@ export function PieceForm({
   const requiresWindowHeight =
     dimensionRequirements.requiresWindowHeight === true;
 
-  const widthLabel = dimensionRequirements.requiresDoorWidth
+  const widthLabel = usesOpeningWidth({
+    dimensionMode,
+    requiresDoorWidth: dimensionRequirements.requiresDoorWidth,
+  })
     ? "Opening Width"
     : "Width";
 
