@@ -13,6 +13,7 @@ type PieceWithRelations = EstimateWithRelations["pieces"][number];
 type PieceReportCardProps = {
   piece: PieceWithRelations;
   displayMark: string;
+  showDealerMarkup?: boolean;
 } & (
   | {
       showPrices: false;
@@ -105,6 +106,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
   const { piece, displayMark } = props;
   const details = buildPieceReportDetails(piece);
   const showPrices = props.showPrices !== false;
+  const dealerMarkup = piece.dealerMarkup == null ? null : Number(piece.dealerMarkup);
 
   return (
     <article
@@ -157,6 +159,16 @@ export function PieceReportCard(props: PieceReportCardProps) {
                   />
                 }
               />
+              {props.showDealerMarkup ? (
+                <PriceRow
+                  label="Markup"
+                  value={
+                    dealerMarkup !== null && Number.isFinite(dealerMarkup)
+                      ? `${(dealerMarkup * 100).toFixed(2)}%`
+                      : "—"
+                  }
+                />
+              ) : null}
               <PriceRow
                 label="Subtotal"
                 value={

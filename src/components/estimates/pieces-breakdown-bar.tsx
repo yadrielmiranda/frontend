@@ -20,6 +20,7 @@ export function PiecesBreakdownBar({
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">Qty</Label>
           <Input
+            aria-label="Total pieces"
             value={totalUnits}
             readOnly
             className="font-bold text-center cursor-not-allowed border-dashed bg-white w-20 h-8"

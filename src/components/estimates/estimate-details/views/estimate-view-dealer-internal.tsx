@@ -15,6 +15,7 @@ export function EstimateViewDealerInternal({
     <>
       <PiecesTable
         pieces={estimate.pieces}
+        showDealerMarkup
         getUnitPrice={(p: Piece) => Number(p.price) || 0}
         getOriginalUnitPrice={(p: Piece) =>
           p.promotionSnapshot && p.regularPrice != null

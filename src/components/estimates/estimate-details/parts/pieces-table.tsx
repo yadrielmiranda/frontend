@@ -1,12 +1,14 @@
 "use client";
 
 import { EstimateWithRelations } from "@/lib/types";
+import { PiecesBreakdownBar } from "../../pieces-breakdown-bar";
 import { PieceReportCard } from "./piece-report-card";
 
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
 type PiecesTableProps = {
   pieces: PieceWithRelations[];
+  showDealerMarkup?: boolean;
 } & (
   | {
       showPrices: false;
@@ -24,6 +26,12 @@ type PiecesTableProps = {
 
 export function PiecesTable(props: PiecesTableProps) {
   const { pieces } = props;
+  const totalPieces = pieces.reduce((total, piece) => total + piece.qty, 0);
+  const pieceBreakdown = pieces.reduce<Record<string, number>>((breakdown, piece) => {
+    const productName = piece.prod?.name?.trim() || "Product";
+    breakdown[productName] = (breakdown[productName] ?? 0) + piece.qty;
+    return breakdown;
+  }, Object.create(null));
 
   return (
     <section className="mt-8">
@@ -54,6 +62,7 @@ export function PiecesTable(props: PiecesTableProps) {
                 key={piece.id}
                 piece={piece}
                 displayMark={displayMark}
+                showDealerMarkup={props.showDealerMarkup}
                 unitPrice={props.getUnitPrice(piece)}
                 originalUnitPrice={props.getOriginalUnitPrice?.(piece)}
                 subtotal={props.getSubtotal(piece)}
@@ -65,6 +74,13 @@ export function PiecesTable(props: PiecesTableProps) {
             No products included.
           </div>
         )}
+      </div>
+
+      <div className="mt-6 break-inside-avoid">
+        <PiecesBreakdownBar
+          totalUnits={totalPieces}
+          pieceBreakdown={pieceBreakdown}
+        />
       </div>
     </section>
   );

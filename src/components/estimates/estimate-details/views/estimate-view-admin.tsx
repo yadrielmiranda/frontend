@@ -1,6 +1,7 @@
 "use client";
 
 import { EstimateWithRelations } from "@/lib/types";
+import { isDealerRole } from "@/lib/rbac";
 import { PiecesTable } from "../parts/pieces-table";
 import { ReportFinancialSummary } from "../parts/report-financial-summary";
 
@@ -17,6 +18,7 @@ export function EstimateViewAdmin({
     <>
       <PiecesTable
         pieces={estimate.pieces}
+        showDealerMarkup={isDealerRole(estimate.user?.role?.name)}
         getUnitPrice={(piece: Piece) => Number(piece.price) || 0}
         getOriginalUnitPrice={(piece: Piece) =>
           piece.promotionSnapshot && piece.regularPrice != null
