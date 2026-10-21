@@ -1454,6 +1454,11 @@ export type EstimateWithRelations = Estimate & {
   user: User;
   branding?: Branding | null;
   companyBranding?: Branding | null;
+  externalDealerPresentation?: {
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
   installationSummary?: EstimateInstallationReportSummary | null;
   customerChargesSummary?: EstimateCustomerChargeSummary | null;
   publicPricingMode?: "detailed" | "total";

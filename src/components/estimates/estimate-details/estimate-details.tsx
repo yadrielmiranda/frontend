@@ -562,6 +562,7 @@ export function EstimateDetails({
 
         <EstimateReportShell
           estimate={estimate}
+          showExternalDealerPresentation
           reportLabel={REPORT_LABELS[reportMode]}
           internal={reportMode !== "customer"}
         >

@@ -58,13 +58,21 @@ export function EstimateReportShell({
   children,
   reportLabel,
   internal = false,
+  showExternalDealerPresentation = false,
 }: {
   estimate: EstimateWithRelations;
   children: ReactNode;
   reportLabel?: string;
   internal?: boolean;
+  showExternalDealerPresentation?: boolean;
 }) {
   const b = buildBrandingModel(estimate);
+  const issuer = showExternalDealerPresentation
+    ? estimate.externalDealerPresentation
+    : null;
+  const headerName = issuer ? issuer.name : b.brandingName;
+  const headerPhone = issuer ? issuer.phone : b.brandingPhone;
+  const headerEmail = issuer ? issuer.email : b.brandingEmail;
   const hideDealerPromotions = !internal && !customerCanSeePromotions(estimate);
   const termsPreservedAfterPayment = Boolean(
     estimate.promotionLockedAt || estimate.termsPreservedAfterPayment || estimate.manualDiscount?.lockedAt || estimate.manualDiscountSummary?.lockedAt,
@@ -150,7 +158,9 @@ export function EstimateReportShell({
             ) : null}
           </div>
 
-          <div className="flex min-h-36 items-center justify-center lg:min-w-72">
+          <div className={issuer
+            ? "flex min-h-36 flex-col items-center justify-center lg:min-w-72"
+            : "flex min-h-36 items-center justify-center lg:min-w-72"}>
             {b.logoSrc ? (
               <img
                 src={b.logoSrc}
@@ -158,24 +168,34 @@ export function EstimateReportShell({
                 className="h-40 w-72 object-contain"
               />
             ) : null}
+            {issuer ? (
+              <p className="mt-1 text-center text-[10px] text-slate-500">
+                Generated with Authentic Evolution
+              </p>
+            ) : null}
           </div>
 
-          <div className="text-left lg:text-right">
-            {b.brandingName ? (
+          <div className={issuer
+            ? "min-w-0 break-words text-left lg:text-right"
+            : "text-left lg:text-right"}>
+            {headerName ? (
               <h2 className="text-xl font-bold text-[var(--report-brand-color)]">
-                {b.brandingName}
+                {headerName}
               </h2>
             ) : null}
-            {b.brandingPhone ? (
-              <p className="mt-1 text-xs text-black">{b.brandingPhone}</p>
+            {issuer ? (
+              <p className="mt-1 text-xs text-slate-500">Independent Distributor</p>
             ) : null}
-            {b.brandingEmail ? (
-              <p className="mt-1 text-xs text-black">{b.brandingEmail}</p>
+            {headerPhone ? (
+              <p className="mt-1 text-xs text-black">{headerPhone}</p>
             ) : null}
-            {b.brandingAddressLine ? (
+            {headerEmail ? (
+              <p className="mt-1 text-xs text-black">{headerEmail}</p>
+            ) : null}
+            {!issuer && b.brandingAddressLine ? (
               <p className="mt-2 text-xs text-black">{b.brandingAddressLine}</p>
             ) : null}
-            {b.brandingWebsite ? (
+            {!issuer && b.brandingWebsite ? (
               <p className="mt-1 text-xs text-black">{b.brandingWebsite}</p>
             ) : null}
           </div>
@@ -224,7 +244,25 @@ export function EstimateReportShell({
 
         {children}
 
-        <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-[11px] text-black">
+        <footer className={issuer
+          ? "mt-10 text-center text-[11px] text-black"
+          : "mt-10 border-t border-slate-200 pt-5 text-center text-[11px] text-black"}>
+          {issuer ? (
+            <>
+              <p className="mb-2 break-words text-slate-500">
+                This estimate is issued by {issuer.name}, an independent distributor.
+              </p>
+              <p className="border-t border-slate-200 py-3 text-slate-500">
+                Generated with Authentic Evolution |{" "}
+                <a
+                  href="http://www.authenticevolutionco.com"
+                  className="underline underline-offset-2"
+                >
+                  www.authenticevolutionco.com
+                </a>
+              </p>
+            </>
+          ) : null}
           <p>
             {termsPreservedAfterPayment
               ? hideDealerPromotions || !estimate.promotionLockedAt
