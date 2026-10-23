@@ -64,10 +64,10 @@ async function scan(h, code) {
   await settle();
 }
 const tests = [], test = (name, run) => tests.push({ name, run });
-test('new suffixed labels pass through unchanged', async () => {
+for (const barcode of ['12345-FRAME', '12345-SIDELITE']) test(`${barcode} passes through unchanged`, async () => {
   const calls = [], h = harness(async (barcode, requestKey) => { calls.push({ barcode, requestKey }); return { ok: true }; });
-  await scan(h, '12345-FRAME');
-  assert.equal(calls[0].barcode, '12345-FRAME');
+  await scan(h, barcode);
+  assert.equal(calls[0].barcode, barcode);
   assert.equal(h.saved.length, 1);
   assert.equal(button(h, 'Door panel'), undefined);
 });
@@ -87,16 +87,17 @@ test('old door label prompts for the physical type before retrying', async () =>
   assert.notEqual(calls[1].requestKey, calls[0].requestKey);
   assert.equal(h.saved.length, 1);
 });
-test('uncertain typed scan preserves its exact barcode and retry key', async () => {
+for (const barcode of ['12345-DOOR', '12345-SIDELITE']) test(`uncertain ${barcode} preserves its exact barcode and retry key`, async () => {
   const calls = [], h = harness(async (barcode, requestKey) => {
     calls.push({ barcode, requestKey });
     if (calls.length === 1) throw new Error('Connection lost');
     return { ok: true };
   }, true);
-  await scan(h, '12345-DOOR');
+  await scan(h, barcode);
   assert.equal(h.saved.length, 0);
   assert.equal(button(h, 'Frame'), undefined);
   assert.equal(storage.size, 1);
+  assert.equal(calls[0].barcode, barcode);
   button(h, 'Retry same reading').props.onClick();
   await settle();
   assert.deepEqual(calls[1], calls[0]);

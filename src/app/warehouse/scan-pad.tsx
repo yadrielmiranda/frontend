@@ -291,7 +291,7 @@ export function ScanPad<Result = ScanResult>({
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            placeholder="Scan 1029975-DOOR, -FRAME, -WINDOW or I1029975"
+            placeholder="Scan 1029975-DOOR, -SIDELITE, -FRAME, -WINDOW or I1029975"
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}

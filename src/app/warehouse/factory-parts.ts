@@ -7,11 +7,13 @@ export const factoryPartLabel: Record<(typeof factoryPartTypes)[number], string>
 export const factoryPartsTotal = (parts: FactoryPartCounts) =>
   factoryPartTypes.reduce((sum, type) => sum + (parts[type] ?? 0), 0);
 export function factoryBarcode(value: string) {
-  const match = value.trim().match(/^(?:[Ii](\d{1,50})|(\d{1,50})(?:-(DOOR|FRAME|WINDOW))?)$/i);
+  const match = value.trim().match(/^(?:[Ii](\d{1,50})|(\d{1,50})(?:-(DOOR|SIDELITE|FRAME|WINDOW))?)$/i);
   if (!match) return null;
   const lineNumber = match[1] ?? match[2];
   if (/^0+$/.test(lineNumber)) return null;
-  return { lineNumber: lineNumber.replace(/^0+(?=\d)/, ""), type: match[3]?.toUpperCase() as FactoryPartType | undefined };
+  const suffix = match[3]?.toUpperCase();
+  // Sidelites share the existing door-panel allowance; frames remain separate.
+  return { lineNumber: lineNumber.replace(/^0+(?=\d)/, ""), type: (suffix === "SIDELITE" ? "DOOR" : suffix) as FactoryPartType | undefined };
 }
 export function factoryPartSource(tracking: FactoryPartTracking | undefined, source: "TRANSIT" | "WAREHOUSE", storeId: string) {
   if (!tracking) return undefined;

@@ -59,10 +59,19 @@ function group(units, overrides = {}) {
 }
 const parts = [unit('1126830'), unit('1126835', { poNumber: '292759', source: 'ORDER', orderNumber: 'SO-2' })];
 test('barcode parsing accepts both real formats and rejects hybrid and unknown suffixes', () => {
-  for (const code of ['I00123', '123', ' 123-DOOR ', '123-frame', '123-WINDOW'])
+  for (const code of ['I00123', '123', ' 123-DOOR ', '123-SIDELITE', '123-frame', '123-WINDOW'])
     assert.equal(factoryParts.factoryBarcode(code).lineNumber, '123');
-  for (const code of ['I123-DOOR', '123-PANEL', '0-FRAME', '123-DOOR-FRAME'])
+  for (const code of ['I123-DOOR', 'I123-SIDELITE', '123-PANEL', '0-FRAME', '0-SIDELITE', '123-DOOR-FRAME'])
     assert.equal(factoryParts.factoryBarcode(code), null);
+});
+test('sidelite labels normalize to the existing door-panel type', () => {
+  for (const code of ['123-SIDELITE', ' 00123-sidelite ', '123-SideLite'])
+    assert.deepEqual(factoryParts.factoryBarcode(code), { lineNumber: '123', type: 'DOOR' });
+  assert.deepEqual(factoryParts.factoryBarcode('123-DOOR'), { lineNumber: '123', type: 'DOOR' });
+  assert.deepEqual(factoryParts.factoryBarcode('123-FRAME'), { lineNumber: '123', type: 'FRAME' });
+  assert.deepEqual(factoryParts.factoryBarcode('123-WINDOW'), { lineNumber: '123', type: 'WINDOW' });
+  for (const code of ['I00123', '123'])
+    assert.deepEqual(factoryParts.factoryBarcode(code), { lineNumber: '123', type: undefined });
 });
 const signature = [[{ x: 0.1, y: 0.5 }, { x: 0.2, y: 0.3 }, { x: 0.3, y: 0.5 }, { x: 0.4, y: 0.3 }, { x: 0.5, y: 0.5 }]];
 const props = (extra = {}) => ({ actorId: 10, actorRole: 'admin', initial: { items: structuredClone(parts.map(item => group([item]))), total: 2, page: 1, pageSize: 20, activeCountId: null, summary: {} }, initialStores: [{ id: 1, name: 'Store 1', isActive: true }], initialSource: 'TRANSIT', initialStoreId: '', ...extra });
@@ -260,6 +269,27 @@ test('door scans retain the panel/frame breakdown and a third panel cannot compl
   click(h, 'Review delivery');
   assert.deepEqual(byType(h, 'CustomerDeliveryReceipt').props.delivery.items[0].parts, { DOOR: 2, FRAME: 1 });
   assert.equal(door.onHand, 3);
+});
+
+for (const codes of [['DOOR', 'SIDELITE'], ['SIDELITE', 'DOOR'], ['SIDELITE', 'SIDELITE']])
+test(`${codes.join(' + ')} share the panel limit while FRAME remains available`, async () => {
+  const door = typedDoor(), original = structuredClone(door), lookups = [];
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', initial: { ...props().initial, items: [group([door])], total: 1 } }), {
+    warehouseUnit: async barcode => { lookups.push(barcode); return door; },
+  });
+  click(h, 'Select parts by scanning');
+  for (const suffix of codes) {
+    const scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead(`1126830-${suffix}`));
+  }
+  assert.deepEqual(lookups, codes.map(suffix => `1126830-${suffix}`));
+  for (const suffix of ['DOOR', 'SIDELITE'])
+    await assert.rejects(() => byType(h, 'ScanPad').props.onRead(`1126830-${suffix}`), /door panels.*already selected/);
+  const scanner = byType(h, 'ScanPad'); scanner.props.onSaved(await scanner.props.onRead('1126830-FRAME'));
+  click(h, 'Review delivery');
+  const receipt = byType(h, 'CustomerDeliveryReceipt').props.delivery;
+  assert.deepEqual(receipt.items[0].parts, { DOOR: 2, FRAME: 1 });
+  assert.equal(receipt.totalParts, 3);
+  assert.deepEqual(door, original);
 });
 test('partial typed deliveries require the actual components and preserve earlier untyped quantities', () => {
   const door = typedDoor();
