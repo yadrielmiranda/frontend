@@ -8,6 +8,10 @@ const root = path.resolve(__dirname, '../src');
 const file = 'app/warehouse/stores/store-material-internal-use-client.tsx';
 const tests = [], test = (name, run) => tests.push({ name, run });
 let key = 0;
+const storage = new Map();
+global.sessionStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+global.window = { addEventListener() {}, removeEventListener() {} };
+Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true });
 const staff = { id: 10, role: { name: 'admin' } };
 const identity = { id: 10, role: 'admin' };
 function loader(hooks, api = {}, auth = { user: staff, revalidate: async () => staff }) {
@@ -22,6 +26,7 @@ function loader(hooks, api = {}, auth = { user: staff, revalidate: async () => s
       if (id === 'react/jsx-runtime') return require(id);
       if (id === 'next/link') return { default: 'a', __esModule: true };
       if (id === 'lucide-react') return new Proxy({}, { get: (_, name) => name });
+      if (id === '@/app/api/technician-warehouse.api' || id === '@/app/api/technician.api') return api;
       if (id === '@/contexts/AuthContext') return { useAuth: () => auth };
       if (id === '@/app/api/materials.api') return api;
       if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `issue-${++key}` };
@@ -42,13 +47,14 @@ function loader(hooks, api = {}, auth = { user: staff, revalidate: async () => s
   return load;
 }
 function controlled(props, api = {}, auth = { user: staff, revalidate: async () => staff }) {
-  const states = [], refs = []; let si = 0, ri = 0;
+  const states = [], refs = []; let si = 0, ri = 0, ei = 0, mounted = false, initialEffect;
   const hooks = {
+    useEffect(callback) { if (ei++ === 0 && !mounted) initialEffect = callback; },
     useState(initial) { const i = si++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
     useRef(initial) { const i = ri++; if (!(i in refs)) refs[i] = { current: initial }; return refs[i]; },
   };
   const component = loader(hooks, api, auth)(file).StoreMaterialInternalUseClient;
-  return { auth, render() { si = 0; ri = 0; return component(props); } };
+  return { auth, render() { si = 0; ri = 0; ei = 0; const tree = component(props); if (!mounted) { mounted = true; initialEffect(); return this.render(); } return tree; } };
 }
 function nodes(element, predicate, results = []) {
   if (Array.isArray(element)) { element.forEach(child => nodes(child, predicate, results)); return results; }
@@ -196,5 +202,39 @@ test('store issue API sends one store-scoped POST', async () => {
   assert.equal(calls[0][0], '/api/materials/stores/7/internal-use'); assert.equal(calls[0][1].method, 'POST'); assert.deepEqual(calls[0][1].body, body);
 });
 
-(async () => { for (const { name, run } of tests) { await run(); console.log(`PASS ${name}`); } console.log(`${tests.length} material store internal use checks passed.`); })().catch(error => { console.error(error); process.exitCode = 1; });
+test('technician withdrawal requires quantities only and automatically shows installation', async () => {
+  const user = { id: 20, firstName: 'Alex', lastName: 'Tech', username: 'alex', role: { name: 'technician' } }, writes = [];
+  const h = controlled({ initial: inventory, initialIdentity: { id: 20, role: 'technician' }, technician: true }, {
+    technicianWithdrawMaterials: async (...args) => { writes.push(args); return { ...result, recipient: 'Alex Tech', note: 'Installation' }; },
+    technicianMaterialInventory: async () => inventory,
+    useMaterialStoreInternally: async () => { throw Error('Admin endpoint used'); },
+  }, { user, revalidate: async () => user });
+  assert.equal(nodes(h.render(), n => n.props?.label === 'Received by' || n.props?.label === 'Reason / job').length, 0);
+  enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); assert.match(text(h.render()), /Alex Tech/); assert.match(text(h.render()), /Installation/);
+  click(h, 'Confirm withdrawal'); await tick();
+  assert.equal(writes.length, 1); assert.equal(writes[0][0], 1); assert.equal(writes[0][1].lines[0].quantity, 4); assert.equal(storage.size, 0);
+  for (const link of nodes(h.render(), n => n.type === 'a')) assert.match(link.props.href, /^\/technician/);
+});
+
+test('technician pending material withdrawal survives reload and can recover from a now-inactive store', async () => {
+  const user = { id: 20, role: { name: 'technician' } }, auth = { user, revalidate: async () => user }, writes = [];
+  const input = { initial: inventory, initialIdentity: { id: 20, role: 'technician' }, technician: true };
+  const api = { technicianWithdrawMaterials: async (_, body) => { writes.push(structuredClone(body)); if (writes.length === 1) throw Error('Lost response'); return result; }, technicianMaterialInventory: async () => inventory };
+  const h = controlled(input, api, auth); enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); click(h, 'Confirm withdrawal'); await tick();
+  assert.ok(storage.has('technician-material-withdrawal:20:1'));
+  const restored = controlled({ ...input, initial: { ...inventory, store: { ...inventory.store, isActive: false } } }, api, auth);
+  click(restored, 'Retry same withdrawal'); await tick(); assert.equal(writes.length, 2); assert.deepEqual(writes[0], writes[1]); assert.equal(storage.size, 0);
+});
+
+test('technician material API sends only request key and quantities, and inventory retains PO identification', async () => {
+  const calls = [], api = loader(undefined, { apiFetch: async (...args) => { calls.push(args); return args[0].includes('/units/') ? { lineNumber: '123', orderId: 8, customer: 'Test customer', project: 'Test job' } : { items: [{ orderId: 8, customer: 'Test customer', project: 'Test job', units: [{ lineNumber: '123' }] }] }; } })('app/api/technician-warehouse.api.ts');
+  const body = { requestKey: 'test', lines: [{ productId: 1, presentationId: 2, quantity: 3 }], recipient: 'Spoofed', note: 'Spoofed' };
+  await api.technicianWithdrawMaterials(7, body);
+  assert.equal(calls[0][0], '/api/technician/materials/stores/7/internal-use'); assert.deepEqual(calls[0][1].body, { requestKey: body.requestKey, lines: body.lines });
+  const data = await api.technicianWarehouseInventoryByPo({ storeId: 7 });
+  assert.equal(data.items[0].units[0].orderId, 8); assert.equal(data.items[0].units[0].customer, 'Test customer');
+  const scanned = await api.technicianWarehouseUnit('123-DOOR'); assert.equal(scanned.orderId, 8); assert.equal(scanned.customer, 'Test customer'); assert.equal(scanned.project, 'Test job');
+});
+
+(async () => { for (const { name, run } of tests) { storage.clear(); await run(); console.log(`PASS ${name}`); } console.log(`${tests.length} material store internal use checks passed.`); })().catch(error => { console.error(error); process.exitCode = 1; });
 

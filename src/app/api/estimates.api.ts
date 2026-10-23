@@ -214,6 +214,30 @@ export function getEstimate(id: number) {
   return apiFetch<EstimateWithRelations>(`/api/estimates/${id}`);
 }
 
+export type EstimateInternalNoteResponse = {
+  internalNote: {
+    text: string;
+    version: number;
+    updatedAt: string;
+    updatedBy: { id: number | null; name: string };
+  } | null;
+  canEdit: boolean;
+};
+
+export function getEstimateInternalNote(estimateId: number) {
+  return apiFetch<EstimateInternalNoteResponse>(`/api/estimates/${estimateId}/internal-note`);
+}
+
+export function updateEstimateInternalNote(
+  estimateId: number,
+  data: { text: string; expectedVersion: number },
+) {
+  return apiFetch<EstimateInternalNoteResponse>(`/api/estimates/${estimateId}/internal-note`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
 export function getEstimates() {
   return apiFetch<EstimateWithRelations[]>(`/api/estimates`);
 }

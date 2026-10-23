@@ -5,6 +5,7 @@ import { MaterialRevisionAccess } from "@/components/estimates/material-revision
 import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
 import { EstimateLifecycleButton } from '../estimate-lifecycle-actions';
+import { EstimateInternalNote } from '../estimate-internal-note';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { DealerMode, EstimateWithRelations } from "@/lib/types";
@@ -559,6 +560,12 @@ export function EstimateDetails({
             </div>
           )}
         </div>
+
+        {reportMode !== "customer" && (
+          <div className="mb-6 print:hidden">
+            <EstimateInternalNote estimateId={estimate.id} userRole={userRole} />
+          </div>
+        )}
 
         <EstimateReportShell
           estimate={estimate}

@@ -311,6 +311,13 @@ test('own receipt loads through the technician API and contains no warehouse nav
   assert.deepEqual(reads, [41]); assert.ok(byType(h, 'CustomerDeliveryReceipt'));
   for (const link of nodes(h.render(), node => node.type === 'a')) assert.match(link.props.href, /^\/technician/);
 });
+test('warehouse signed receipt opens and offers another warehouse delivery', async () => {
+  const h = receiptHarness({ technicianCustomerDelivery: async () => ({ id: 41, source: 'WAREHOUSE' }) });
+  h.render(); await new Promise(done => setImmediate(done));
+  assert.ok(byType(h, 'CustomerDeliveryReceipt'));
+  assert.equal(nodes(h.render(), node => node.type === 'a' && text(node) === 'Another delivery')[0].props.href, '/technician/warehouse/customer-deliveries');
+});
+
 test('unauthorized or missing receipt displays a scoped error and no signature', async () => {
   const h = receiptHarness({ technicianCustomerDelivery: async () => { throw new ApiError('Not found', 404); } });
   h.render(); await new Promise(done => setImmediate(done));

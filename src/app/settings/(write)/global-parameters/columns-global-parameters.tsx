@@ -11,8 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
 
+const materialOnlyThresholdKey = "MATERIAL_ONLY_UPFRONT_THRESHOLD";
+
 function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
   const router = useRouter();
+  const isMaterialOnlyThreshold = parameter.key === materialOnlyThresholdKey;
 
   const initialDisplayValue =
     parameter.unit === "%"
@@ -32,6 +35,13 @@ function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
   }, [initialDisplayValue]);
 
   const handleSave = async () => {
+    if (isMaterialOnlyThreshold && (
+      !/^\d+(?:\.\d{1,2})?$/.test(value.trim()) ||
+      !Number.isFinite(Number(value)) || Number(value) > 999999.99
+    )) {
+      toast.error("Enter a USD amount from 0 to 999,999.99 with at most two decimal places. Set 0 to disable.");
+      return;
+    }
     setIsLoading(true);
 
     let numericValue = parseFloat(value);
@@ -64,6 +74,9 @@ function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
       <Input
         type="number"
         step="0.01"
+        min={isMaterialOnlyThreshold ? "0" : undefined}
+        max={isMaterialOnlyThreshold ? "999999.99" : undefined}
+        aria-label={parameter.key}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         className="w-32"
@@ -83,7 +96,7 @@ function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
         onClick={handleSave}
         disabled={isLoading}
         className="h-8 w-8"
-        aria-label="Save value"
+        aria-label={`Save ${parameter.key}`}
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -98,7 +111,7 @@ function EditableValueCell({ parameter }: { parameter: GlobalParameter }) {
 export const columns: ColumnDef<GlobalParameter>[] = [
   {
     accessorKey: "key",
-    header: "Parameter Key",
+    header: "Parameter",
     cell: ({ row }) => (
       <div className="font-mono bg-gray-100 px-2 py-1 rounded dark:bg-gray-800">
         {row.original.key}

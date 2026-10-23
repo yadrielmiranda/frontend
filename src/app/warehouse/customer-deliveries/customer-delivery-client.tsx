@@ -13,8 +13,10 @@ import type { SignatureStrokes } from "@/app/api/contracts.api";
 import { ApiError, isApiError } from "@/app/api/_base";
 import {
   warehouseDeliverToCustomer, warehouseInventoryByPo, warehouseRequestKey, warehouseStores, warehouseUnit,
-  type CustomerDelivery, type CustomerDeliveryRequest, type WarehousePoGroup, type WarehousePoInventory, type WarehouseStore, type WarehouseUnit,
+  type CustomerDelivery, type CustomerDeliveryRequest, type WarehousePoGroup, type WarehousePoInventory, type WarehouseStoreRef, type WarehouseUnit,
 } from "@/app/api/warehouse.api";
+import { technicianWarehouseInventoryByPo, technicianWarehouseStores, technicianWarehouseUnit } from "@/app/api/technician-warehouse.api";
+import { technicianDeliverToCustomer } from "@/app/api/technician.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
 import { ScanPad } from "../scan-pad";
@@ -30,12 +32,17 @@ import {
 
 type PendingDelivery = { body: CustomerDeliveryRequest; receipt: CustomerDeliveryPreview };
 
-export function CustomerDeliveryClient({ actorId, actorRole, initial, initialStores, initialSource, initialStoreId, initialSearch = "", initialPoKey = "", autoReviewPo = false, embedded }: {
-  actorId: number; actorRole: string; initial: WarehousePoInventory; initialStores: WarehouseStore[];
+export function CustomerDeliveryClient({ actorId, actorRole, initial, initialStores, initialSource, initialStoreId, initialSearch = "", initialPoKey = "", autoReviewPo = false, embedded, technician = false }: {
+  actorId: number; actorRole: string; initial: WarehousePoInventory; initialStores: WarehouseStoreRef[]; technician?: boolean;
   initialSource: DeliverySource; initialStoreId: string; initialSearch?: string; initialPoKey?: string;
   autoReviewPo?: boolean;
   embedded?: { pickupRunId: number; blocked?: boolean; onClose: () => void; onComplete: (delivery: CustomerDelivery) => void };
 }) {
+  const inventoryApi = technician ? technicianWarehouseInventoryByPo : warehouseInventoryByPo;
+  const storesApi = technician ? technicianWarehouseStores : warehouseStores;
+  const unitApi = technician ? technicianWarehouseUnit : warehouseUnit;
+  const deliverApi = technician ? technicianDeliverToCustomer : warehouseDeliverToCustomer;
+  const receiptBase = technician ? "/technician/customer-deliveries" : "/warehouse/customer-deliveries";
   const router = useRouter();
   const { user, revalidate } = useAuth();
   const liveIdentity = useRef({ id: user?.id, role: user?.role?.name });
@@ -68,7 +75,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   const serial = useRef(0), saveLock = useRef(false), scannerSelection = useRef(selection);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   scannerSelection.current = selection;
-  const storageKey = `warehouse-customer-delivery:${actorId}`;
+  const storageKey = `${technician ? "technician-store" : "warehouse"}-customer-delivery:${actorId}`;
   const chosen = Object.values(selection), totalParts = chosen.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
   const target = stores.find((store) => String(store.id) === storeId);
   const validSource = source === "TRANSIT" || storeId === "unassigned" || Boolean(target);
@@ -95,7 +102,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       const saved = sessionStorage.getItem(storageKey);
       if (saved) {
         const value = JSON.parse(saved) as PendingDelivery;
-        if (!value.body?.requestKey || !Array.isArray(value.body.items) || !value.receipt?.items)
+        if (!value.body?.requestKey || (technician && value.body.source !== "WAREHOUSE") || !Array.isArray(value.body.items) || !value.receipt?.items)
           throw new Error("Invalid pending delivery");
         setPending(value); setSource(value.body.source);
         setStoreId(value.body.source === "WAREHOUSE" ? value.body.storeId === null ? "unassigned" : String(value.body.storeId) : "");
@@ -107,7 +114,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     } catch {
       setError("The pending delivery could not be loaded. Keep this page open and contact an administrator before recording another delivery.");
     }
-  }, [storageKey]);
+  }, [storageKey, technician]);
 
   useEffect(() => {
     const connection = () => setOffline(!navigator.onLine);
@@ -122,13 +129,13 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     setLoading(true);
     try {
       const [next, nextStores] = await Promise.all([
-        warehouseInventoryByPo({ view: source === "TRANSIT" ? "in_transit" : "on_hand", storeId: source === "WAREHOUSE" ? storeId : undefined, search, page, completePo: true, pageSize: 20 }),
-        warehouseStores(),
+        inventoryApi({ view: source === "TRANSIT" ? "in_transit" : "on_hand", storeId: source === "WAREHOUSE" ? storeId : undefined, search, page, completePo: true, pageSize: 20 }),
+        storesApi(),
       ]);
       if (sequence === serial.current) { setData(next); setStores(nextStores); }
     } catch (e) { if (sequence === serial.current) setError(errorMessage(e)); }
     finally { if (sequence === serial.current) setLoading(false); }
-  }, [embedded, ownerMatches, ready, review, pending, savedId, source, storeId, search, page]);
+  }, [embedded, ownerMatches, ready, review, pending, savedId, source, storeId, search, page, inventoryApi, storesApi]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => { clearTimeout(timer); serial.current++; };
@@ -168,7 +175,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       let total: number | undefined;
       let received = 0;
       for (let current = 1; ; current++) {
-        const result = await warehouseInventoryByPo({ view: source === "TRANSIT" ? "in_transit" : "on_hand", storeId: source === "WAREHOUSE" ? storeId : undefined, search, page: current, pageSize: 20, completePo: true });
+        const result = await inventoryApi({ view: source === "TRANSIT" ? "in_transit" : "on_hand", storeId: source === "WAREHOUSE" ? storeId : undefined, search, page: current, pageSize: 20, completePo: true });
         if (total !== undefined && total !== result.total)
           throw new Error("The available POs changed. Refresh and select again.");
         total = result.total;
@@ -182,7 +189,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     finally { setSelecting(false); }
   }
   async function readPart(barcode: string) {
-    const unit = await warehouseUnit(barcode);
+    const unit = await unitApi(barcode);
     const scanned = factoryBarcode(barcode);
     if (unit.partTracking?.types.includes("FRAME") && !scanned?.type)
       throw new ApiError("Choose whether this is a door panel or its frame.", 400, { code: "FACTORY_PART_TYPE_REQUIRED", types: unit.partTracking.types });
@@ -227,7 +234,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       const account = await revalidate();
       if (!account || account.id !== actorId || account.role?.name !== actorRole ||
           liveIdentity.current.id !== actorId || liveIdentity.current.role !== actorRole ||
-          !["admin", "operator"].includes(actorRole))
+          !(technician ? actorRole === "technician" : ["admin", "operator"].includes(actorRole)))
         throw new Error("Your account has changed. Sign in with the original account and reopen this delivery before continuing.");
       verified = true;
       if (!attempt) {
@@ -240,11 +247,11 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
         attempt = proposed;
         setPending(attempt);
       }
-      const result = await warehouseDeliverToCustomer(attempt.body);
+      const result = await deliverApi(attempt.body);
       setSavedId(result.id); setSavedDelivery(result); setPending(null);
       if (!embedded) {
         try { sessionStorage.removeItem(storageKey); } catch { /* Retrying this saved request will return the same receipt. */ }
-        router.replace(`/warehouse/customer-deliveries/${result.id}`);
+        router.replace(`${receiptBase}/${result.id}`);
       }
     } catch (e) {
       if (!verified) setError(errorMessage(e));
@@ -270,14 +277,15 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   const allPage = availablePage.length > 0 && availablePage.every((group) => deliveryPoSelected(group, selection, source, storeId));
   if (!ownerMatches) return <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Your account has changed. Sign in with the original account and reopen this delivery before continuing.</p>;
   return <div className="space-y-5">
+    {technician && !locked && !saving && <Button asChild variant="outline"><Link href="/technician">Technician home</Link></Button>}
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="text-xl font-semibold">Customer delivery</h2><p className="mt-1 text-sm text-muted-foreground">{embedded ? "Review the collected parts with the recipient and collect their signature." : "Choose the POs being handed over, then review the receipt with the recipient and collect their signature."}</p></div>
-      {embedded ? savedId === null && <Button variant="outline" disabled={busy || locked} onClick={() => { if (!busy && !locked) embedded.onClose(); }}>Back to pickup</Button> : !locked && !saving && <Button asChild variant="outline"><Link href={source === "TRANSIT" ? "/warehouse/receipts" : "/warehouse"}>Back to {source === "TRANSIT" ? "pending receipt" : "inventory"}</Link></Button>}
+      {embedded ? savedId === null && <Button variant="outline" disabled={busy || locked} onClick={() => { if (!busy && !locked) embedded.onClose(); }}>Back to pickup</Button> : !technician && !locked && !saving && <Button asChild variant="outline"><Link href={source === "TRANSIT" ? "/warehouse/receipts" : "/warehouse"}>Back to {source === "TRANSIT" ? "pending receipt" : "inventory"}</Link></Button>}
     </div>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {embedded && blocked && savedId === null && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">A physical count is open. New deliveries are paused until it is closed.</p>}
     {offline && savedId === null && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">You are offline. Reconnect before confirming this delivery.</p>}
-    {savedId !== null ? <div className="space-y-5"><div role="status" className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="font-medium">Delivery recorded. The receipt is saved.</p>{embedded && savedDelivery ? <div className="flex flex-wrap gap-3"><Button disabled={saving} onClick={continuePickup}>Continue pickup</Button><Button asChild variant="outline"><Link href={`/warehouse/customer-deliveries/${savedId}`} target="_blank" rel="noopener noreferrer">Open signed receipt</Link></Button></div> : <Button asChild><Link href={`/warehouse/customer-deliveries/${savedId}`}>Open signed receipt</Link></Button>}</div>{embedded && savedDelivery && <CustomerDeliveryReceipt delivery={savedDelivery} />}</div> : review ? <div className="space-y-5">
+    {savedId !== null ? <div className="space-y-5"><div role="status" className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="font-medium">Delivery recorded. The receipt is saved.</p>{embedded && savedDelivery ? <div className="flex flex-wrap gap-3"><Button disabled={saving} onClick={continuePickup}>Continue pickup</Button><Button asChild variant="outline"><Link href={`${receiptBase}/${savedId}`} target="_blank" rel="noopener noreferrer">Open signed receipt</Link></Button></div> : <Button asChild><Link href={`${receiptBase}/${savedId}`}>Open signed receipt</Link></Button>}</div>{embedded && savedDelivery && <CustomerDeliveryReceipt delivery={savedDelivery} />}</div> : review ? <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><h3 ref={reviewHeading} tabIndex={-1} className="scroll-mt-28 text-lg font-semibold outline-none">Review with the recipient</h3>{(!embedded || !needsReview) && <Button variant="outline" disabled={saving || locked} onClick={() => { setReview(false); setSignature([]); setAccepted(false); setError(""); }}>Back to selection</Button>}</div>
       <CustomerDeliveryReceipt delivery={preview} showSignature={false} />
       <section className="space-y-5 rounded-xl border bg-white p-5">
@@ -291,10 +299,10 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
         <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{preview.totalPieces} pieces · {preview.totalParts} physical parts</p><Button disabled={saving || !ready || offline || (!pending && (blocked || needsReview || !firstName.trim() || !lastName.trim() || !hasDeliverySignature(signature) || !accepted))} onClick={confirmDelivery}><CheckCircle2 className="mr-2 h-4 w-4" />{saving ? "Saving…" : pending ? "Check delivery" : "Confirm signed delivery"}</Button></div>
       </section>
     </div> : <>
-      <CountNotice id={data.activeCountId} />
+      {technician ? data.activeCountId && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A physical count is in progress. Deliveries are paused until it is closed.</p> : <CountNotice id={data.activeCountId} />}
       {!embedded && <section className="space-y-4 rounded-xl border bg-white p-4">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery source">{(["WAREHOUSE", "TRANSIT"] as const).map((value) => <Button key={value} variant={source === value ? "default" : "outline"} aria-pressed={source === value} disabled={busy || locked} onClick={() => changeSource(value)}>{value === "WAREHOUSE" ? "From warehouse" : "Directly from factory"}</Button>)}</div>
-        {source === "TRANSIT" ? <p className="text-sm text-muted-foreground">Choose parts already collected and scanned at the factory. No second scan is required. The delivered parts leave transit without entering a warehouse.</p> : <div className="max-w-sm space-y-2"><p className="text-sm font-medium">Source store</p><StoreSelect stores={stores} value={storeId} onChange={(value) => changeSource("WAREHOUSE", value)} disabled={busy || locked} allowUnassigned includeInactive label="Customer delivery source store" /></div>}
+        {!technician && <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery source">{(["WAREHOUSE", "TRANSIT"] as const).map((value) => <Button key={value} variant={source === value ? "default" : "outline"} aria-pressed={source === value} disabled={busy || locked} onClick={() => changeSource(value)}>{value === "WAREHOUSE" ? "From warehouse" : "Directly from factory"}</Button>)}</div>}
+        {source === "TRANSIT" ? <p className="text-sm text-muted-foreground">Choose parts already collected and scanned at the factory. No second scan is required. The delivered parts leave transit without entering a warehouse.</p> : <div className="max-w-sm space-y-2"><p className="text-sm font-medium">Source store</p><StoreSelect stores={stores} value={storeId} onChange={(value) => changeSource("WAREHOUSE", value)} disabled={busy || locked} allowUnassigned includeInactive={!technician} label="Customer delivery source store" /></div>}
       </section>}
       {validSource && <>
         {!embedded && <div className="flex flex-wrap gap-3"><div className="relative min-w-60 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><Input className="pl-9" aria-label="Search delivery POs" placeholder="Search by customer, order or PO (optional)" maxLength={150} value={search} disabled={busy || locked} onChange={(e) => { serial.current++; setSearch(e.target.value); setPage(1); setLoading(true); }} /></div><Button variant="outline" disabled={busy || locked} onClick={() => { setSelection({}); setError(""); void refresh(); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh / clear selection</Button></div>}

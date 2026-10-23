@@ -11,8 +11,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isApiError } from "@/app/api/_base";
 import {
   warehouseRelease, warehouseInventoryByPo, warehouseStores, warehouseRequestKey,
-  type WarehousePoGroup, type WarehousePoInventory, type WarehouseStore, type WarehouseUnit, type WarehouseReleaseResult,
+  type WarehousePoGroup, type WarehousePoInventory, type WarehouseStoreRef, type WarehouseUnit, type WarehouseReleaseResult,
 } from "@/app/api/warehouse.api";
+import { technicianWarehouseInventoryByPo, technicianWarehouseStores, technicianWarehouseRelease } from "@/app/api/technician-warehouse.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
 import { UnitOrigin } from "../unit-origin";
@@ -20,10 +21,15 @@ import { deliveryAvailable, deliveryItems, deliveryPoSelected, deliveryPoUnits, 
 import { parsePendingRelease, prepareRelease, releasePoTotals, type PendingRelease } from "./release-selection";
 import { FactoryPartQuantity } from "../factory-part-quantity";
 
-export function ReleaseClient({ actorId, actorRole, initial, initialStores, initialStoreId, initialSearch = "", initialPoKey = "" }: {
-  actorId: number; actorRole: string; initial: WarehousePoInventory; initialStores: WarehouseStore[];
+export function ReleaseClient({ actorId, actorRole, initial, initialStores, initialStoreId, initialSearch = "", initialPoKey = "", technician = false }: {
+  actorId: number; actorRole: string; initial: WarehousePoInventory; initialStores: WarehouseStoreRef[]; technician?: boolean;
   initialStoreId: string; initialSearch?: string; initialPoKey?: string;
 }) {
+  const inventoryApi = technician ? technicianWarehouseInventoryByPo : warehouseInventoryByPo;
+  const storesApi = technician ? technicianWarehouseStores : warehouseStores;
+  const releaseApi = technician ? technicianWarehouseRelease : warehouseRelease;
+  const homeHref = technician ? "/technician" : "/warehouse";
+  const historyHref = technician ? "/technician/warehouse/history" : "/warehouse/history";
   const { user, revalidate } = useAuth();
   const identity = useRef({ id: user?.id, role: user?.role?.name });
   identity.current = { id: user?.id, role: user?.role?.name };
@@ -43,7 +49,7 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
   const [saved, setSaved] = useState<WarehouseReleaseResult | null>(null), [error, setError] = useState(initialChoice.error), [offline, setOffline] = useState(false);
   const serial = useRef(0), saveLock = useRef(false), prefill = useRef(Boolean(initialPoKey && !initialStoreId));
   const pageSnapshot = useRef({ query: JSON.stringify([initialStoreId, initialSearch, 1]), units: initial.items.flatMap((group) => group.units) });
-  const storageKey = `warehouse-installation-release:${actorId}`;
+  const storageKey = `${technician ? "technician" : "warehouse"}-installation-release:${actorId}`;
   const target = stores.find((store) => String(store.id) === storeId);
   const validSource = storeId === "unassigned" || Boolean(target);
   const storeName = target?.name ?? "Unassigned";
@@ -83,7 +89,7 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
     if (clearSelection) { setSelection({}); setExpanded({}); }
     try {
       const [next, nextStores] = await Promise.all([
-        warehouseInventoryByPo({ view: "on_hand", storeId, search, page, completePo: true, pageSize: 20 }), warehouseStores(),
+        inventoryApi({ view: "on_hand", storeId, search, page, completePo: true, pageSize: 20 }), storesApi(),
       ]);
       if (sequence !== serial.current) return;
       setData(next); setStores(nextStores);
@@ -102,7 +108,7 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
       }
     } catch (e) { if (sequence === serial.current) { setSelection({}); setError(errorMessage(e)); } }
     finally { if (sequence === serial.current) setLoading(false); }
-  }, [ownerMatches, ready, pending, saved, storeId, search, page, initialPoKey]);
+  }, [ownerMatches, ready, pending, saved, storeId, search, page, initialPoKey, inventoryApi, storesApi]);
   useEffect(() => {
     if (confirm) return;
     const requests = serial;
@@ -151,7 +157,7 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
     try {
       const account = await revalidate();
       if (!account || account.id !== actorId || account.role?.name !== actorRole ||
-        identity.current.id !== actorId || identity.current.role !== actorRole || !["admin", "operator"].includes(actorRole))
+        identity.current.id !== actorId || identity.current.role !== actorRole || !(technician ? actorRole === "technician" : ["admin", "operator"].includes(actorRole)))
         throw new Error("Your account has changed. Sign in with the original account and reopen this release before continuing.");
       verified = true;
       if (!attempt) {
@@ -160,7 +166,7 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
         catch { throw new Error("Browser storage is unavailable. Enable site storage before confirming the release. Nothing was sent."); }
         attempt = proposed; setPending(proposed);
       }
-      const result = await warehouseRelease(attempt.body);
+      const result = await releaseApi(attempt.body);
       setSaved(result); setPending(null); setSelection({}); setConfirm(false);
       try { sessionStorage.removeItem(storageKey); } catch { /* A reload can safely recover this same release. */ }
     } catch (e) {
@@ -185,18 +191,18 @@ export function ReleaseClient({ actorId, actorRole, initial, initialStores, init
   return <div className="space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="text-xl font-semibold">Release to installation</h2><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Choose the source store and the parts leaving the warehouse for installation. Review the quantities before confirming.</p></div>
-      {!locked && !saving && <Button asChild variant="outline"><Link href="/warehouse">Back to inventory</Link></Button>}
+      {!locked && !saving && <Button asChild variant="outline"><Link href={homeHref}>{technician ? "Technician home" : "Back to inventory"}</Link></Button>}
     </div>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {offline && !saved && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">You are offline. Reconnect before confirming this release.</p>}
-    {saved ? <section role="status" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" /><div><h3 className="font-semibold text-emerald-900">Release recorded</h3><p className="mt-1 text-sm text-emerald-900">{saved.parts} physical parts across {saved.units} pieces released from {saved.storeName ?? "Unassigned"}.{saved.replayed ? " This release was already recorded; no duplicate was added." : ""}</p></div></div><div className="flex flex-wrap gap-3"><Button asChild><Link href="/warehouse">Back to inventory</Link></Button><Button asChild variant="outline"><Link href="/warehouse/history">View history</Link></Button></div></section> : <>
-      <CountNotice id={data.activeCountId} />
+    {saved ? <section role="status" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" /><div><h3 className="font-semibold text-emerald-900">Release recorded</h3><p className="mt-1 text-sm text-emerald-900">{saved.parts} physical parts across {saved.units} pieces released from {saved.storeName ?? "Unassigned"}.{saved.replayed ? " This release was already recorded; no duplicate was added." : ""}</p></div></div><div className="flex flex-wrap gap-3"><Button asChild><Link href={homeHref}>{technician ? "Technician home" : "Back to inventory"}</Link></Button><Button asChild variant="outline"><Link href={historyHref}>View history</Link></Button></div></section> : <>
+      {technician ? data.activeCountId && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A physical count is in progress. Releases are paused until it is closed.</p> : <CountNotice id={data.activeCountId} />}
       <section className="space-y-4 rounded-xl border bg-white p-4 sm:p-5">
         <div className="grid gap-4 sm:grid-cols-[minmax(200px,1fr)_minmax(200px,2fr)]">
-          <div className="space-y-2"><Label>Source store</Label><StoreSelect stores={stores} value={storeId} onChange={(value) => changeFilters({ storeId: value })} allowUnassigned includeInactive label="Source store" disabled={!ready || saving || locked || confirm} /></div>
+          <div className="space-y-2"><Label>Source store</Label><StoreSelect stores={stores} value={storeId} onChange={(value) => changeFilters({ storeId: value })} allowUnassigned includeInactive={!technician} label="Source store" disabled={!ready || saving || locked || confirm} /></div>
           <div className="space-y-2"><Label htmlFor="release-search">Find a PO or customer</Label><div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input id="release-search" className="pl-9" aria-label="Search release POs" placeholder="PO, customer, order or barcode" maxLength={150} value={search} disabled={!ready || saving || locked || confirm} onChange={(event) => changeFilters({ search: event.target.value })} /></div></div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Only parts currently in the selected store are shown.</p><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" disabled={busy || locked || confirm || !validSource} onClick={() => { setError(""); void refresh(true); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>{!locked && !confirm && <Button asChild variant="outline" size="sm"><Link href={`/warehouse/scan?${scanParams}`}><ScanLine className="mr-2 h-4 w-4" />Release by scanning</Link></Button>}</div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Only parts currently in the selected store are shown.</p><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" disabled={busy || locked || confirm || !validSource} onClick={() => { setError(""); void refresh(true); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>{!locked && !confirm && <Button asChild variant="outline" size="sm"><Link href={`${technician ? "/technician/warehouse/releases/scan" : "/warehouse/scan"}?${scanParams}`}><ScanLine className="mr-2 h-4 w-4" />Release by scanning</Link></Button>}</div></div>
       </section>
       {!validSource ? <p className="rounded-xl border bg-slate-50 px-5 py-12 text-center text-sm text-muted-foreground">Choose the source store to see its available parts.</p> : <>
         <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Available POs</h3><label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" aria-label="Select all visible POs" checked={allVisible} disabled={busy || locked || confirm || !visible.length} onChange={(event) => selectPos(visible, event.target.checked)} />Select all visible POs</label></div>

@@ -21,7 +21,7 @@ export function TechnicianCustomerDeliveryReceiptClient({ id, actorId }: { id: n
     setLoading(true); setError(""); setDelivery(null);
     void technicianCustomerDelivery(id).then(result => {
       if (canceled) return;
-      if (result.id !== id || result.source !== "TRANSIT") throw new Error("The delivery receipt could not be verified.");
+      if (result.id !== id || !["TRANSIT", "WAREHOUSE"].includes(result.source)) throw new Error("The delivery receipt could not be verified.");
       setDelivery(result);
     }).catch(reason => {
       if (canceled) return;
@@ -33,7 +33,7 @@ export function TechnicianCustomerDeliveryReceiptClient({ id, actorId }: { id: n
   if (isLoading) return <p role="status">Verifying your session…</p>;
   if (!sameAccount) return <p role="alert" className="rounded-xl border bg-amber-50 p-4">Your account has changed. <Link href="/technician" className="underline">Return to technician home</Link> to continue.</p>;
   return <div className="space-y-5">
-    <header className="space-y-3"><h1 className="text-2xl font-semibold">Delivery #{id}</h1><div className="flex flex-wrap gap-2"><Button asChild variant="outline" className="min-h-11"><Link href="/technician">Technician home</Link></Button><Button asChild variant="outline" className="min-h-11"><Link href="/technician/customer-deliveries/new">Another delivery</Link></Button><Button className="min-h-11" disabled={loading || !delivery} onClick={() => window.print()}><Printer className="mr-2 size-4" />Print / Save PDF</Button></div></header>
+    <header className="space-y-3"><h1 className="text-2xl font-semibold">Delivery #{id}</h1><div className="flex flex-wrap gap-2"><Button asChild variant="outline" className="min-h-11"><Link href="/technician">Technician home</Link></Button>{delivery && <Button asChild variant="outline" className="min-h-11"><Link href={delivery.source === "WAREHOUSE" ? "/technician/warehouse/customer-deliveries" : "/technician/customer-deliveries/new"}>Another delivery</Link></Button>}<Button className="min-h-11" disabled={loading || !delivery} onClick={() => window.print()}><Printer className="mr-2 size-4" />Print / Save PDF</Button></div></header>
     {loading && <p role="status">Loading signed receipt…</p>}
     {error && <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><Button variant="outline" className="min-h-11" onClick={() => setAttempt(value => value + 1)}>Try again</Button></div>}
     {delivery && <><p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">Delivery recorded. These parts have been handed over to the recipient.</p><div data-customer-delivery-print><CustomerDeliveryReceipt delivery={delivery} /></div><style>{`

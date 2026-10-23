@@ -27,6 +27,7 @@ function loader(hooks = {}, api = {}, navigation = {}, auth = { user: { id: 10, 
       if (id === 'react/jsx-runtime') return require(id);
       if (id === 'next/link') return { default: 'a', __esModule: true };
       if (id === 'next/navigation') return { useRouter: () => ({ replace: navigation.replace ?? (() => {}) }) };
+      if (id === '@/app/api/technician-warehouse.api' || id === '@/app/api/technician.api') return api;
       if (id === '@/contexts/AuthContext') return { useAuth: () => auth };
       if (id === 'lucide-react' || id.startsWith('@/components/ui/')) return new Proxy({}, { get: (_, name) => name });
       if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `request-${++nextKey}`, ...api };
@@ -510,6 +511,23 @@ test('reloading a saved embedded receipt recovers the same delivery before conti
   click(reloaded, 'Continue pickup');
   assert.equal(completed.id, 81);
   assert.equal(storage.size, 0);
+});
+
+test('technician warehouse handoff keeps selection, signature and replay on technician endpoints', async () => {
+  const user = { id: 10, role: { name: 'technician' } }, writes = [], redirects = [];
+  const auth = { user, revalidate: async () => user };
+  const api = { technicianDeliverToCustomer: async body => { writes.push(structuredClone(body)); if (writes.length === 1) throw new Error('Lost response'); return { id: 92, source: 'WAREHOUSE' }; }, warehouseDeliverToCustomer: async () => { throw new Error('Admin endpoint used'); } };
+  const input = props({ technician: true, actorRole: 'technician', initialSource: 'WAREHOUSE', initialStoreId: '1' });
+  const h = harness(input, api, { replace: value => redirects.push(value) }, auth);
+  assert.equal(button(h, 'Directly from factory'), undefined);
+  for (const link of nodes(h.render(), node => node.type === 'a')) assert.match(link.props.href, /^\/technician/);
+  select(h, 'I1126830'); click(h, 'Review delivery'); sign(h);
+  await click(h, 'Confirm signed delivery');
+  assert.ok(storage.has('technician-store-customer-delivery:10'));
+  const restored = harness(input, api, { replace: value => redirects.push(value) }, auth);
+  await click(restored, 'Check delivery');
+  assert.deepEqual(writes[0], writes[1]); assert.equal(writes[0].source, 'WAREHOUSE'); assert.equal(writes[0].storeId, 1); assert.deepEqual(writes[0].signatureStrokes, signature);
+  assert.deepEqual(redirects, ['/technician/customer-deliveries/92']);
 });
 
 (async () => {

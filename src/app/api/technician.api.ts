@@ -22,7 +22,7 @@ export type TechnicianScanResult = {
   stock: TechnicianUnit; replayed: boolean;
   movement: { id: number; type: string; quantity: number; createdAt: string; toStore: WarehouseStoreRef | null };
 };
-export type TechnicianAction = "RECEIVE";
+export type TechnicianAction = "RECEIVE" | "RELEASE";
 
 export type FactoryPickupPoPreview = {
   key: string;
@@ -131,9 +131,9 @@ export const technicianLogin = (identifier: string, password: string) =>
 export const technicianState = () => apiFetch<TechnicianState>("/api/technician/state", { cache: "no-store" });
 export const technicianPending = (query: { search?: string; page?: number; pageSize?: number }) =>
   apiFetch<Paged<TechnicianUnit>>("/api/technician/pending", { query, cache: "no-store" });
-export const technicianScan = (barcode: string, action: TechnicianAction, requestKey: string, storeId?: number) =>
+export const technicianScan = (barcode: string, action: TechnicianAction, requestKey: string, storeId?: number | null) =>
   apiFetch<TechnicianScanResult>("/api/technician/scan", {
-    method: "POST", body: { barcode, action, requestKey, ...(action === "RECEIVE" ? { storeId } : {}) }, timeoutMs: 30000,
+    method: "POST", body: { barcode, action, requestKey, storeId }, timeoutMs: 30000,
   });
 export const technicianReceive = (storeId: number, items: ReceiptItem[], requestKey: string) =>
   apiFetch<ReceiptResult>("/api/technician/receipts", {

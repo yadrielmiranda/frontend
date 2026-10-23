@@ -22,6 +22,7 @@ function loader(hooks = {}, api = {}, auth = standardAuth()) {
       if (id === 'react') return { ...React, ...hooks };
       if (id === 'react/jsx-runtime') return require(id);
       if (id === 'next/link') return { default: 'a', __esModule: true };
+      if (id === '@/app/api/technician-warehouse.api' || id === '@/app/api/technician.api') return api;
       if (id === '@/contexts/AuthContext') return { useAuth: () => auth };
       if (id === 'lucide-react' || id.startsWith('@/components/ui/')) return new Proxy({}, { get: (_, name) => name });
       if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `request-${++nextKey}`, ...api };
@@ -290,6 +291,27 @@ test('transit navigation offers only signed customer delivery and no warehouse r
   const url = new URL(links[0].props.href, 'https://local.invalid');
   assert.equal(url.pathname, '/warehouse/customer-deliveries/new'); assert.equal(url.searchParams.get('source'), 'TRANSIT');
   assert.equal(url.searchParams.has('storeId'), false); assert.equal(url.searchParams.get('poKey'), 'order:2');
+});
+
+test('technician releases use their scoped API and portal navigation, preserving exact retry data', async () => {
+  const user = { id: 10, role: { name: 'technician' } }, auth = { user, revalidate: async () => user }, writes = [];
+  const api = { technicianWarehouseRelease: async body => { writes.push(structuredClone(body)); if (writes.length === 1) throw new Error('Lost response'); return { units: 1, parts: 2, storeName: 'Store 1', replayed: true }; }, warehouseRelease: async () => { throw new Error('Admin API must not be used'); } };
+  const input = props({ technician: true, actorRole: 'technician' });
+  const h = harness(input, api, auth); reviewed(h);
+  await click(h, 'Confirm release');
+  assert.ok(storage.has('technician-installation-release:10')); assert.ok(!storage.has('warehouse-installation-release:10'));
+  const restored = harness(input, api, auth);
+  await click(restored, 'Check release');
+  assert.equal(writes.length, 2); assert.deepEqual(writes[0], writes[1]); assert.equal(writes[0].storeId, 1);
+  for (const link of nodes(restored.render(), node => node.type === 'a')) assert.match(link.props.href, /^\/technician/);
+});
+
+test('technician installation scan link stays inside the portal', () => {
+  const user = { id: 10, role: { name: 'technician' } };
+  const h = harness(props({ technician: true, actorRole: 'technician' }), {}, { user, revalidate: async () => user });
+  const scan = nodes(h.render(), node => node.type === 'a' && text(node).includes('Release by scanning'))[0];
+  assert.match(scan.props.href, /^\/technician\/warehouse\/releases\/scan\?/); assert.match(scan.props.href, /storeId=1/);
+  assert.equal(byType(h, 'StoreSelect').props.includeInactive, false);
 });
 
 (async () => {
