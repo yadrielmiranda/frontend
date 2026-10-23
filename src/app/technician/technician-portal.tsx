@@ -22,6 +22,28 @@ import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 type View = { operation: "HOME" | "COLLECT" | "RECEIVE" | "INSTALLATION_DELIVERY"; mode: "scan" | "select"; storeId: string };
 const home: View = { operation: "HOME", mode: "scan", storeId: "" };
 const message = (e: unknown) => e instanceof Error ? e.message : "The operation could not be completed.";
+const operationColors = {
+  collect: {
+    card: "border-orange-200 border-l-orange-500 hover:bg-orange-50/60 focus-visible:ring-orange-600",
+    icon: "bg-orange-50 text-orange-700 ring-orange-100",
+    arrow: "text-orange-700",
+  },
+  receive: {
+    card: "border-sky-200 border-l-sky-500 hover:bg-sky-50/60 focus-visible:ring-sky-600",
+    icon: "bg-sky-50 text-sky-700 ring-sky-100",
+    arrow: "text-sky-700",
+  },
+  customer: {
+    card: "border-emerald-200 border-l-emerald-500 hover:bg-emerald-50/60 focus-visible:ring-emerald-600",
+    icon: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    arrow: "text-emerald-700",
+  },
+  installation: {
+    card: "border-violet-200 border-l-violet-500 hover:bg-violet-50/60 focus-visible:ring-violet-600",
+    icon: "bg-violet-50 text-violet-700 ring-violet-100",
+    arrow: "text-violet-700",
+  },
+};
 
 export function TechnicianPortal() {
   const { user, isLoading } = useAuth();
@@ -140,42 +162,42 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800"><p>{error}</p><Button variant="outline" className="mt-3 min-h-11" onClick={() => void refresh()}>Retry connection</Button></div>}
     {!restored ? <p role="status">Loading workspace…</p> : view.operation === "HOME" ? <>
       <h1 className="pt-1 text-2xl font-semibold tracking-tight text-slate-950">Choose an operation</h1>
-      <section aria-labelledby="factory-operations" className="space-y-3 rounded-2xl border border-red-100 bg-red-50/40 p-3 sm:p-4">
-        <h2 id="factory-operations" className="flex items-center gap-2 text-lg font-semibold text-red-900"><Factory className="h-5 w-5 shrink-0" aria-hidden="true" />Factory pickup &amp; direct delivery</h2>
-      <button type="button" onClick={() => changeView({ operation: "COLLECT", mode: "scan", storeId: "" })} className="group flex min-h-24 w-full items-center gap-3 rounded-xl border border-red-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><Factory className="h-7 w-7" aria-hidden="true" /></span>
+      <section aria-labelledby="factory-operations" className="space-y-3 rounded-2xl border border-slate-200 bg-slate-100/60 p-3 sm:p-4">
+        <h2 id="factory-operations" className="flex items-center gap-2 text-lg font-semibold text-slate-950"><Factory className="h-5 w-5 shrink-0" aria-hidden="true" />Factory pickup &amp; direct delivery</h2>
+      <button type="button" onClick={() => changeView({ operation: "COLLECT", mode: "scan", storeId: "" })} className={`group flex min-h-24 w-full items-center gap-3 rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${operationColors.collect.card}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-14 sm:w-14 ${operationColors.collect.icon}`}><Factory className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h3 className="text-lg font-semibold text-slate-950">Collect from factory</h3><p className="mt-1 text-sm text-slate-600">Open your assigned pickups and scan the pieces you collect.</p></div>
-        <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
+        <ChevronRight className={`hidden h-5 w-5 shrink-0 sm:block ${operationColors.collect.arrow}`} aria-hidden="true" />
       </button>
-      <Link href="/technician/customer-deliveries/new" className="group flex min-h-24 w-full items-center gap-3 rounded-xl border border-red-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><ClipboardCheck className="h-7 w-7" aria-hidden="true" /></span>
+      <Link href="/technician/customer-deliveries/new" className={`group flex min-h-24 w-full items-center gap-3 rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${operationColors.customer.card}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-14 sm:w-14 ${operationColors.customer.icon}`}><ClipboardCheck className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h3 className="text-lg font-semibold text-slate-950">Factory → customer</h3><p className="mt-1 text-sm text-slate-600">Deliver collected pieces directly to the customer and record their signature.</p></div>
-        <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
+        <ChevronRight className={`hidden h-5 w-5 shrink-0 sm:block ${operationColors.customer.arrow}`} aria-hidden="true" />
       </Link>
-      <button type="button" onClick={() => changeView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" })} className="group flex min-h-24 w-full items-center gap-3 rounded-xl border border-red-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-red-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 sm:h-14 sm:w-14"><Wrench className="h-7 w-7" aria-hidden="true" /></span>
+      <button type="button" onClick={() => changeView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" })} className={`group flex min-h-24 w-full items-center gap-3 rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${operationColors.installation.card}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-14 sm:w-14 ${operationColors.installation.icon}`}><Wrench className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h3 className="text-lg font-semibold text-slate-950">Factory → installation</h3><p className="mt-1 text-sm text-slate-600">Confirm factory-collected pieces have arrived at the job site.</p></div>
-        <ChevronRight className="hidden h-5 w-5 shrink-0 text-red-600 sm:block" aria-hidden="true" />
+        <ChevronRight className={`hidden h-5 w-5 shrink-0 sm:block ${operationColors.installation.arrow}`} aria-hidden="true" />
       </button>
       </section>
-      <section aria-labelledby="warehouse-receiving" className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/40 p-3 sm:p-4">
-        <h2 id="warehouse-receiving" className="flex items-center gap-2 text-lg font-semibold text-sky-900"><ArrowDownToLine className="h-5 w-5 shrink-0" aria-hidden="true" />Warehouse receiving</h2>
-      <button type="button" onClick={() => changeView({ operation: "RECEIVE", mode: "select", storeId: "" })} className="group flex min-h-24 w-full items-center gap-3 rounded-xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-sky-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100 sm:h-14 sm:w-14"><Warehouse className="h-7 w-7" aria-hidden="true" /></span>
+      <section aria-labelledby="warehouse-receiving" className="space-y-3 rounded-2xl border border-slate-200 bg-slate-100/60 p-3 sm:p-4">
+        <h2 id="warehouse-receiving" className="flex items-center gap-2 text-lg font-semibold text-slate-950"><ArrowDownToLine className="h-5 w-5 shrink-0" aria-hidden="true" />Warehouse receiving</h2>
+      <button type="button" onClick={() => changeView({ operation: "RECEIVE", mode: "select", storeId: "" })} className={`group flex min-h-24 w-full items-center gap-3 rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${operationColors.receive.card}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-14 sm:w-14 ${operationColors.receive.icon}`}><Warehouse className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h3 className="text-lg font-semibold text-slate-950">Receive pieces into warehouse</h3><p className="mt-1 text-sm text-slate-600">Record pieces arriving at a store, by selection or scan.</p></div>
-        <ChevronRight className="hidden h-5 w-5 shrink-0 text-sky-700 sm:block" aria-hidden="true" />
+        <ChevronRight className={`hidden h-5 w-5 shrink-0 sm:block ${operationColors.receive.arrow}`} aria-hidden="true" />
       </button>
       </section>
       <section aria-labelledby="warehouse-releases" className="space-y-3 rounded-2xl border border-slate-200 bg-slate-100/60 p-3 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="warehouse-releases" className="flex items-center gap-2 text-lg font-semibold text-slate-950"><ArrowUpFromLine className="h-5 w-5 shrink-0" aria-hidden="true" />Warehouse releases</h2><Button asChild variant="outline" className="min-h-11"><Link href="/technician/warehouse/history">My warehouse releases</Link></Button></div>
       {[
-        { href: "/technician/warehouse/releases", title: "Warehouse → installation", description: "Take pieces out of a store for installation, by selection or scan.", icon: Wrench },
-        { href: "/technician/warehouse/customer-deliveries", title: "Warehouse → customer", description: "Hand over pieces from a store and record the recipient’s signature.", icon: ClipboardCheck },
-        { href: "/technician/warehouse/materials", title: "Withdraw installation materials", description: "Take materials out of a store for installation.", icon: Package },
-      ].map(({ icon: Icon, ...option }) => <Link key={option.href} href={option.href} className="group flex min-h-24 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 ring-1 ring-slate-200 sm:h-14 sm:w-14"><Icon className="h-7 w-7" aria-hidden="true" /></span>
+        { href: "/technician/warehouse/releases", title: "Warehouse → installation", description: "Take pieces out of a store for installation, by selection or scan.", icon: Wrench, colors: operationColors.installation },
+        { href: "/technician/warehouse/customer-deliveries", title: "Warehouse → customer", description: "Hand over pieces from a store and record the recipient’s signature.", icon: ClipboardCheck, colors: operationColors.customer },
+        { href: "/technician/warehouse/materials", title: "Withdraw installation materials", description: "Take materials out of a store for installation.", icon: Package, colors: operationColors.collect },
+      ].map(({ icon: Icon, ...option }) => <Link key={option.href} href={option.href} className={`group flex min-h-24 w-full items-center gap-3 rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${option.colors.card}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-14 sm:w-14 ${option.colors.icon}`}><Icon className="h-7 w-7" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1"><h3 className="text-lg font-semibold text-slate-950">{option.title}</h3><p className="mt-1 text-sm text-slate-600">{option.description}</p></div>
-        <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-500 sm:block" aria-hidden="true" />
+        <ChevronRight className={`hidden h-5 w-5 shrink-0 sm:block ${option.colors.arrow}`} aria-hidden="true" />
       </Link>)}
       </section>
     </> : <>
