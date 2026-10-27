@@ -14,6 +14,7 @@ import type { PieceFormValues } from "./types";
 import { Button } from "@/components/ui/button";
 import { formatInchesFromEighthStep } from "@/lib/dimensions";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
+import { garageDesignDescription, pieceFrameColor } from "./piece-garage-design";
 import { InlinePieceMarkInput } from "./inline-piece-mark-input";
 import { formatDimensionPair, formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-description";
 import type {
@@ -285,8 +286,11 @@ export function PiecesDealerTable({
                 );
               }
 
-              if (frameColor?.color) descriptionParts.push(frameColor.color);
+              const effectiveFrame = pieceFrameColor(currentPieceData, frameColor, selectedSystem);
+              if (effectiveFrame.color) descriptionParts.push(effectiveFrame.color);
 
+              const designDescription = garageDesignDescription(currentPieceData, selectedSystem);
+              if (designDescription) descriptionParts.push(designDescription);
               const description =
                 descriptionParts.join(" - ") || "Piece description";
 

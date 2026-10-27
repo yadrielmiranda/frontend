@@ -17,6 +17,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 type FormData = {
   name: string;
@@ -24,6 +25,7 @@ type FormData = {
   isActive: boolean;
   kind: ProductKind;
   diagramFamily: DiagramFamily;
+  allowMuntin: boolean;
 };
 
 const DIAGRAM_FAMILY_OPTIONS: ReadonlyArray<{
@@ -95,6 +97,7 @@ export function ProductForm({ product }: { product?: Product }) {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     defaultValues: {
@@ -103,10 +106,12 @@ export function ProductForm({ product }: { product?: Product }) {
       isActive: product?.isActive ?? true,
       kind: product?.kind ?? "GLAZED_UNIT",
       diagramFamily: product?.diagramFamily ?? "GENERIC",
+      allowMuntin: product?.kind === "LINEAR_MATERIAL" ? false : product?.allowMuntin ?? true,
     },
   });
 
   const selectedKind = watch("kind");
+  const allowMuntin = watch("allowMuntin");
 
   const pricingMode = useMemo(
     () => getPricingModeFromKind(selectedKind),
@@ -121,6 +126,7 @@ export function ProductForm({ product }: { product?: Product }) {
         kind: data.kind,
         pricingMode: getPricingModeFromKind(data.kind),
         diagramFamily: data.diagramFamily,
+        allowMuntin: data.kind !== "LINEAR_MATERIAL" && data.allowMuntin,
       };
 
       if (isEdit) {
@@ -247,6 +253,20 @@ export function ProductForm({ product }: { product?: Product }) {
             Selects the renderer used to draw pieces for this product. Generic
             uses the basic fallback diagram.
           </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+          <div>
+            <Label htmlFor="allowMuntin">Allow muntin</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {selectedKind === "LINEAR_MATERIAL"
+                ? "Muntins are unavailable for linear materials."
+                : "Allow muntin options for this product and its systems."}
+            </p>
+          </div>
+          <Switch id="allowMuntin" checked={selectedKind !== "LINEAR_MATERIAL" && allowMuntin}
+            disabled={selectedKind === "LINEAR_MATERIAL" || showLoadingState}
+            onCheckedChange={(checked) => setValue("allowMuntin", checked, { shouldDirty: true })} />
         </div>
 
         {isEdit && (

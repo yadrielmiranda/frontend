@@ -15,6 +15,7 @@ import type {
 import type { PieceFormValues } from "./types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { buildEnergyDescription } from "@/lib/energy-ratings";
+import { pieceFrameColor, pieceGarageDesign, pieceHasSolidGarageDesign } from "./piece-garage-design";
 import { PieceDiagram } from "@/components/piece-diagram";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-description";
@@ -64,8 +65,11 @@ export function PieceFormDetailsPanel({
     null;
 
   const productName = selectedProduct?.name ?? null;
+  const muntinAllowed = selectedProduct?.kind !== "LINEAR_MATERIAL" && selectedProduct?.allowMuntin !== false;
 
   const system = systemsWithConfigs.find((s) => s.id === Number(piece.idSyst));
+  const hasSolidDesign = pieceHasSolidGarageDesign(piece, system);
+  const selectedDesign = pieceGarageDesign(piece, system);
   const systemName = system?.name ?? null;
   const brandName = system?.brandProduct?.brand?.name ?? null;
 
@@ -104,13 +108,14 @@ export function PieceFormDetailsPanel({
   const selectedFrameColor =
     frameColors.find((fc) => fc.id === Number(piece.idFC)) ?? null;
 
-  const frameColor = selectedFrameColor?.color ?? null;
-  const frameColorHex = selectedFrameColor?.hexCode ?? null;
+  const effectiveFrame = pieceFrameColor(piece, selectedFrameColor, system);
+  const frameColor = effectiveFrame.color;
+  const frameColorHex = effectiveFrame.hexCode;
   const glass = findNameById(crystals, piece.idCryst, (c) => c.glass);
   const selectedTint = tints.find((t) => t.id === Number(piece.idTint)) ?? null;
 
   const tint = selectedTint?.color ?? null;
-  const glassTintHex = selectedTint?.hexCode ?? null;
+  const glassTintHex = hasSolidDesign ? null : selectedTint?.hexCode ?? null;
   const selectedCoating =
     coatings.find((c) => c.id === Number(piece.idCoat)) ?? null;
 
@@ -118,7 +123,7 @@ export function PieceFormDetailsPanel({
   const selectedCoatingAssociation = selectedCoating?.brandCoatings?.find(
     (association) => association.idBrand === Number(piece.idBrand),
   );
-  const hasCoating = selectedCoatingAssociation?.surchargeEnabled === true;
+  const hasCoating = !hasSolidDesign && selectedCoatingAssociation?.surchargeEnabled === true;
 
   const selectedPrivacy =
     privacies.find((privacy) => privacy.id === Number(piece.idPrivacy)) ?? null;
@@ -126,7 +131,7 @@ export function PieceFormDetailsPanel({
   const selectedPrivacyAssociation = selectedPrivacy?.brandPrivacies?.find(
     (association) => association.idBrand === Number(piece.idBrand),
   );
-  const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
+  const hasPrivacy = !hasSolidDesign && selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const activeName =
     selectedSysConf?.activeOptions?.find(
@@ -178,7 +183,7 @@ export function PieceFormDetailsPanel({
 
   const dpPlus = piece.dpPosPsf == null ? null : formatPsf(piece.dpPosPsf, 1);
   const dpMinus = piece.dpNegPsf == null ? null : formatPsf(piece.dpNegPsf, 1);
-  const energyDescription = buildEnergyDescription(piece.energySnapshot, selectedProduct?.kind);
+  const energyDescription = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, selectedProduct?.kind);
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 border-t bg-slate-50 p-3 text-sm md:grid-cols-2 md:gap-4 md:p-4">
@@ -293,14 +298,14 @@ export function PieceFormDetailsPanel({
             <strong>Qty:</strong> {piece.qty}
           </p>
 
-          <p>
+          {!hasSolidDesign && <p>
             <strong>Glass:</strong>{" "}
             {[glass, tint, coating].filter(Boolean).join(" + ") || "—"}
-          </p>
+          </p>}
 
-          <p>
+          {!hasSolidDesign && <p>
             <strong>Privacy:</strong> {privacy ?? "—"}
-          </p>
+          </p>}
 
           <p>
             <strong>Screen:</strong> {piece.screen ? "Yes" : "No"}
@@ -310,6 +315,16 @@ export function PieceFormDetailsPanel({
             <p>
               <strong>High Bottom:</strong> Yes
             </p>
+          )}
+          {selectedDesign && (
+            <>
+              <p>
+                <strong>Design:</strong> {selectedDesign.design.name}
+              </p>
+              <p>
+                <strong>Design Color:</strong> {selectedDesign.color.name}
+              </p>
+            </>
           )}
 
           {activeName && (
@@ -336,11 +351,11 @@ export function PieceFormDetailsPanel({
             </p>
           )}
 
-          <p>
+          {muntinAllowed && <p>
             <strong>Muntin Pattern:</strong> {pattern?.name ?? "—"}
-          </p>
+          </p>}
 
-          {getMuntinInputMode(pattern) !== "NONE" && (
+          {muntinAllowed && getMuntinInputMode(pattern) !== "NONE" && (
             <>
               {muntinPatternRequiresType(pattern) && <p>
                 <strong>Muntin Type:</strong> {muntinType?.name ?? "—"}
@@ -406,7 +421,9 @@ export function PieceFormDetailsPanel({
               diagramSpec={selectedSysConf?.config?.diagramSpec}
               dimensionMode={selectedSysConf?.dimensionMode}
               piece={piece}
-              muntin={resolveFormMuntinForDiagram(piece.muntin, muntinPatterns, muntinTypes)}
+              garageDesign={selectedDesign}
+              garageMaxSectionHeightIn={system?.garageMaxSectionHeightIn == null ? undefined : Number(system.garageMaxSectionHeightIn)}
+              muntin={muntinAllowed ? resolveFormMuntinForDiagram(piece.muntin, muntinPatterns, muntinTypes) : null}
               frameColorHex={frameColorHex}
               glassTintHex={glassTintHex}
               hasCoating={hasCoating}

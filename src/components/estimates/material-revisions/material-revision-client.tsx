@@ -11,6 +11,7 @@ import type { PieceFormValues } from "../types";
 import type { CreatePieceData } from "@/lib/types";
 import { BackLink } from "@/components/navigation/back-link";
 import { revisionPieceForm, revisionPieceInput } from "./piece-values";
+import { garageDesignDescription, pieceFrameColor, pieceHasSolidGarageDesign } from "../piece-garage-design";
 import {
   beginMaterialRevision, calculateMaterialRevisionPiece, decideMaterialRevision, getMaterialRevisions,
   removeMaterialRevisionItem, saveMaterialRevisionPiece, submitMaterialRevision,
@@ -49,6 +50,7 @@ function Totals({ before, after, dealerPricing }: { before: MaterialRevisionSumm
 
 function Specifications({ input, catalogs }: { input: CreatePieceData; catalogs: Catalogs }) {
   const system = catalogs.systemsWithConfigs.find(item => item.id === input.idSyst);
+  const hasSolidDesign = pieceHasSolidGarageDesign(input, system);
   const configuration = system?.sysconfs.find(item => item.idConfig === input.idConf);
   const product = catalogs.productsWithBrands.find(item => item.id === input.idProd);
   const brand = product?.brandProducts.find(item => item.brand.id === input.idBrand)?.brand;
@@ -65,11 +67,12 @@ function Specifications({ input, catalogs }: { input: CreatePieceData; catalogs:
     <p>{product?.name ?? "Product"}{brand ? ` · ${brand.name}` : ""}{configuration ? ` · Config: ${configuration.config.conf}` : ""}</p>
     <p>Quantity: {input.qty}{input.mark ? ` · Mark: ${input.mark}` : ""}{system ? ` · ${system.name}` : ""}</p>
     <p>{dimensions.map(([label, value]) => `${label}: ${value} in`).join(" · ")}</p>
-    <p>Frame color: {catalogs.frameColors.find(item => item.id === input.idFC)?.color ?? "—"}{input.idTint ? ` · Glass color: ${catalogs.tints.find(item => item.id === input.idTint)?.color ?? "—"}` : ""}</p>
-    {input.idCoat != null && <p>Coating: {catalogs.coatings.find(item => item.id === input.idCoat)?.name ?? "—"} · Privacy: {catalogs.privacies.find(item => item.id === input.idPrivacy)?.name ?? "—"}</p>}
+    <p>Frame color: {pieceFrameColor(input, catalogs.frameColors.find(item => item.id === input.idFC), system).color ?? "—"}{!hasSolidDesign && input.idTint ? ` · Glass color: ${catalogs.tints.find(item => item.id === input.idTint)?.color ?? "—"}` : ""}</p>
+    {!hasSolidDesign && input.idCoat != null && <p>Coating: {catalogs.coatings.find(item => item.id === input.idCoat)?.name ?? "—"} · Privacy: {catalogs.privacies.find(item => item.id === input.idPrivacy)?.name ?? "—"}</p>}
     {options.filter(([, id]) => id != null).map(([name, id, list]) => <p key={name}>{name}: {list?.find(link => link.optionId === id)?.option.name ?? `Option #${id}`}</p>)}
     {input.highBottom && <p>High bottom: Yes</p>}
-    {!!input.idCryst && <p>Glass: {catalogs.crystals.find(item => item.id === input.idCryst)?.glass ?? "—"} · Screen: {input.screen ? "Yes" : "No"}</p>}
+    {garageDesignDescription(input, system) && <p>{garageDesignDescription(input, system)}</p>}
+    {!!input.idCryst && <p>{!hasSolidDesign && <>Glass: {catalogs.crystals.find(item => item.id === input.idCryst)?.glass ?? "—"} · </>}Screen: {input.screen ? "Yes" : "No"}</p>}
     {input.leftPanels != null || input.rightPanels != null || input.panelCount != null ? <p>Panels: {input.panelCount ?? "—"} · Left: {input.leftPanels ?? "—"} · Right: {input.rightPanels ?? "—"}</p> : null}
     {input.horizontalHeights?.length ? <p>Horizontal heights: {input.horizontalHeights.join(", ")} in</p> : null}
     {input.muntin && <p>Grid: {catalogs.muntinPatterns.find(item => item.id === input.muntin?.idPattern)?.name ?? "Selected pattern"}{input.muntin.panels.map(part => ` · ${part.panelLabel}: ${part.horizontalLites} × ${part.verticalLites}`).join("")}</p>}
@@ -173,6 +176,7 @@ export function MaterialRevisionClient({ initialData, ...catalogs }: Catalogs & 
       <div className="mt-4 space-y-4"><p className="whitespace-pre-wrap text-sm">{revision.reason}</p>{revision.items.map(item => itemCard(item, false))}<Totals before={revision.original} after={revision.revised} dealerPricing={data.dealerPricing} /></div>
     </details>)}</section>}
     {editor && current?.canEdit && <PieceModal {...catalogs} open onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor.originalPieceId ? "Revise Piece" : "Add Piece to revision"} pieceKey={editor.key} initialData={editor.initialData} index={0} onSave={savePiece} onCancel={() => { if (!busy) setEditor(null); }} canUseCustomerPricing={data.dealerPricing} estimateId={data.estimateId} startUnlocked lockQuantity={!!editor.originalPieceId} lockDealerMarkup={!!editor.originalPieceId}
+      existingDesignContext={editor.originalPieceId ? data.pieces.find(piece => piece.id === editor.originalPieceId)?.input : undefined}
       onCalculate={values => calculateMaterialRevisionPiece(data.estimateId, current.id, { originalPieceId: editor.originalPieceId, itemKey: editor.itemKey, piece: revisionPieceInput(values, catalogs.productsWithBrands) })} />}
   </div>;
 }

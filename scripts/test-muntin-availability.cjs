@@ -81,6 +81,7 @@ const fixtureCode = compile([
   declaration('syncMuntinWithConfigLayout', source.statements),
   declaration('latestCalculationRef'), declaration('calculationValuesVersionRef'),
   effect('useLayoutEffect', 'calculationValuesVersionRef'),
+  declaration('muntinAllowed'),
   declaration('selectedSysConf'), declaration('isWindowWall'), declaration('windowWallMuntinLayout'),
   declaration('hasMuntinLayout'), declaration('muntinOptions'),
   declaration('activeMuntinPatterns'), declaration('activeMuntinTypes'),
@@ -123,18 +124,19 @@ const rule = (patternId = 20, allowedTypeIds = null, crystalId = 7) => ({
   ruleId: patternId, crystalId, patternId, availability: allowedTypeIds === null ? 'ALL' : 'SELECTED', allowedTypeIds: allowedTypeIds ?? [],
 });
 const policy = (...rules) => ({ muntinRules: rules });
-const options = (settings, selected = 20, crystal = 7, hasLayout = true) => getMuntinOptions(settings, patterns, types, hasLayout, crystal, selected);
+const options = (settings, selected = 20, crystal = 7, hasLayout = true, allowMuntin = true) => getMuntinOptions(settings, patterns, types, hasLayout, crystal, selected, allowMuntin);
 function fixture(settings = {}, selection = colonial(), overrides = {}) {
   const initialData = { id: 17, idSyst: 1, idConf: 2, idCryst: 7 };
   const form = createFormControl({ defaultValues: { ...initialData, muntin: structuredClone(selection), price: 125, screen: false, ...overrides.formValues } });
   const stop = form.subscribe({ formState: { values: true }, callback() {} });
   Object.keys(form.getValues()).forEach(name => form.register(name));
   const writes = [], refs = [], hooks = [];
-  const state = { isLocked: true, isSubmitting: false, hasPendingDealerMarkup: false, accordion: ['item-options', 'item-results'], notice: null };
+  const state = { isLocked: true, isSubmitting: false, hasPendingDealerMarkup: false, designSelectionError: null, accordion: ['item-options', 'item-results'], notice: null };
   let refIndex = 0, hookIndex = 0, values;
   const scope = {
     ...helper.exports, initialData,
     selectedConfig: { id: 2, muntinLayout: layout }, availableSysConfs: [],
+    selectedProduct: { allowMuntin: true },
     props: { muntinPatterns: patterns, muntinTypes: types },
     isLinearMaterial: false, fixedPanelCount: null, screenAllowed: false,
     hasOptionsSection: true, hasInitialResults: true,
@@ -187,6 +189,14 @@ test('ALL permits only active types for its exact crystal and pattern', () => {
   assert.deepEqual(ids(options(policy(rule())).patterns), [10, 20]);
   assert.deepEqual(ids(options(policy(rule()), 40).types), []);
 });
+
+test('A disabled product has no muntin options, including Full View and presets', () => {
+  const available = options(policy(rule(), rule(50, [61]), rule(60, [])), 20, 7, true, false);
+  assert.deepEqual(available.patterns, []); assert.deepEqual(available.types, []);
+  assert.equal(available.typesByPattern.size, 0); assert.equal(available.fullViewPattern, null);
+  assert.equal(normalizeMuntinSelection(colonial(), available), null);
+  assert.equal(normalizeMuntinSelection(fullView(), available), null);
+});
 test('Different patterns have independent type sets for the same crystal', () => {
   const settings = policy(rule(20, [61]), rule(40, [62]));
   assert.deepEqual(ids(options(settings, 20).types), [61]);
@@ -216,6 +226,41 @@ test('Full View clears type and panels; PRESET keeps its type without lites', ()
 test('Opening and rerendering an allowed calculated piece preserves values and Submit', () => {
   const f = fixture(); f.render();
   assert.deepEqual(f.writes, []); assert.equal(f.disabled(), false); assert.equal(f.state.notice, null); f.close();
+});
+
+test('Opening a disabled product clears its form selection and requires recalculation without changing the saved source', () => {
+  for (const saved of [colonial(), fullView()]) {
+    const original = structuredClone(saved);
+    const f = fixture(policy(rule()), saved, { selectedProduct: { allowMuntin: false } });
+    assert.equal(f.form.getValues('muntin'), null); assert.deepEqual(saved, original);
+    assert.equal(f.disabled(), true); assert.equal(f.state.notice, null);
+    assert.equal(f.state.accordion.includes('item-results'), false);
+    assert.deepEqual(f.values().patterns, []); assert.deepEqual(f.values().types, []);
+    f.render(); assert.equal(f.form.getValues('muntin'), null);
+    assert.equal(f.state.accordion.includes('item-results'), false); f.close();
+  }
+});
+
+test('Disabling a product invalidates the old calculation and context changes cannot restore a default', () => {
+  const f = fixture(); const version = f.values().calculationValuesVersionRef.current;
+  f.scope.selectedProduct = { allowMuntin: false }; f.render();
+  assert.equal(f.form.getValues('muntin'), null); assert.equal(f.disabled(), true);
+  assert.ok(f.values().calculationValuesVersionRef.current > version);
+  assert.equal(f.state.notice, null); assert.equal(f.state.accordion.includes('item-results'), false);
+  f.series(policy(rule())); f.config(policy(rule())); f.render();
+  assert.equal(f.form.getValues('muntin'), null); assert.deepEqual(f.values().patterns, []);
+  assert.equal(f.state.notice, null); f.close();
+});
+
+test('Disabling a product clears stale muntin even before its configuration resolves', () => {
+  const f = fixture(policy(rule()), colonial(), { selectedProduct: { allowMuntin: false }, selectedConfig: null });
+  assert.equal(f.form.getValues('muntin'), null); assert.equal(f.disabled(), true); f.close();
+});
+
+test('A legacy product without the new flag retains existing muntin behavior', () => {
+  const f = fixture(policy(rule()), colonial(), { selectedProduct: {} });
+  assert.deepEqual(f.form.getValues('muntin'), colonial()); assert.equal(f.disabled(), false);
+  assert.deepEqual(ids(f.values().patterns), [10, 20]); f.close();
 });
 test('Opening unsupported historical details preserves values, warns and cannot submit an obsolete calculation', () => {
   const saved = colonial(62), f = fixture(policy(rule(20, [61])), saved);

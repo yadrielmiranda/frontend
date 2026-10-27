@@ -62,9 +62,13 @@ function compile(code) {
 const handlerCode = compile([
   declaration("withoutInactiveDimensions", source.statements),
   declaration("MIN_HORIZONTAL_HEIGHT_IN", source.statements),
+  declaration("muntinAllowed"),
   ...guardStatements.map(node => node.getText(source)),
+  ...statements.filter(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && node.expression.expression.getText(source) === 'useLayoutEffect' && node.getText(source).includes('garageFrameSelection.idFrameColor')).map(node => node.getText(source)),
   declaration("handleCalculate"), declaration("handleUnlock"),
-  "return { calculate: handleCalculate, unlock: handleUnlock };",
+  declaration("changeGarageDesign"),
+  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign };",
 ].join("\n"));
 const forbiddenNetwork = () => { throw new Error("Network access is forbidden in calculation tests"); };
 globalThis.fetch = forbiddenNetwork;
@@ -78,12 +82,18 @@ function evaluate(code, scope) {
 }
 function loadPureModule(relative) {
   const exports = {};
-  evaluate(compile(fs.readFileSync(path.resolve(__dirname, relative), "utf8")), { exports });
+  evaluate(compile(fs.readFileSync(path.resolve(__dirname, relative), "utf8")), { exports,
+    require(name) {
+      if (name === "@/lib/garage-design-templates") return loadPureModule("../src/lib/garage-design-templates.ts");
+      throw new Error(`Unexpected pure module dependency: ${name}`);
+    },
+  });
   return exports;
 }
 const dimensions = loadPureModule("../src/lib/dimensions.ts");
 const formatters = loadPureModule("../src/lib/formatters.ts");
 const energy = loadPureModule("../src/lib/energy-ratings.ts");
+const garageDesign = loadPureModule("../src/components/estimates/piece-garage-design.ts");
 let energyInput;
 function findEnergyInput(node) {
   if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "Input"
@@ -95,7 +105,7 @@ findEnergyInput(component);
 assert.ok(energyInput, "Energy results use the real PieceForm fields");
 let energyGrid = energyInput;
 while (energyGrid && !(ts.isBinaryExpression(energyGrid)
-  && energyGrid.left.getText(source) === "!isLinearMaterial")) energyGrid = energyGrid.parent;
+  && energyGrid.left.getText(source) === "!isLinearMaterial && !hasSolidGarageDesign")) energyGrid = energyGrid.parent;
 assert.ok(energyGrid, "Energy results respect linear product applicability");
 let resultsSection = energyGrid.parent;
 while (resultsSection && !(ts.isJsxElement(resultsSection)
@@ -121,12 +131,13 @@ const initial = {
   netProfitD: 0, customerPrice: 0, customerSubtotal: 0, total: 0,
   dpPosPsf: null, dpNegPsf: null,
   energyRatingId: null, energySnapshot: null,
+  idDesign: null, idDesignColor: null, designSnapshot: null,
 };
 const energyResponse = (overrides = {}) => ({ schemaVersion: 1, status: "AVAILABLE", ratingId: 11,
   uFactor: "1.053", shgc: "0.608", vlt: "0.709", capturedAt: "2026-10-18T22:00:00.000Z",
   selection: Object.fromEntries(["idBrand", "idProd", "idSyst", "idConf", "idCryst", "idTint", "idCoat", "idPrivacy"].map(key => [key, initial[key]])),
   ...overrides });
-const response = (price = 100) => ({ price, subtotal: price * 2, netProfitD: price / 2,
+const response = (price = 100) => ({ idFC: initial.idFC, price, subtotal: price * 2, netProfitD: price / 2,
   customerPrice: price * 1.25, customerSubtotal: price * 2.5,
   regularPrice: price + 10, regularCustomerPrice: (price + 10) * 1.25,
   promotionSnapshot: { label: "Test promotion" }, highBottom: false,
@@ -137,13 +148,14 @@ function fixture(options = {}) {
   const form = createFormControl({ defaultValues: structuredClone({ ...initial, ...options.values }) });
   const stopForm = form.subscribe({ formState: { values: true }, callback() {} });
   const registered = new Map();
-  const field = name => { if (!registered.has(name)) registered.set(name, form.register(name)); return registered.get(name); };
+  const field = name => { if (!registered.has(name)) registered.set(name, form.register(name,
+    options.requireGlassOptions && ["idTint", "idCoat", "idPrivacy"].includes(name) ? { required: true, min: 1 } : undefined)); return registered.get(name); };
   Object.keys(form.getValues()).forEach(field);
-  const requests = [], prechecks = [], validations = [], writes = [], errors = [], successes = [], submissions = [];
+  const requests = [], prechecks = [], validations = [], validatedFields = [], writes = [], errors = [], successes = [], submissions = [];
   const refs = [], effects = [];
   let refIndex = 0, effectIndex = 0, subscriptions = 0, mounted = true;
   const state = { isLocked: options.locked ?? false, hasPendingDealerMarkup: options.pendingMarkup ?? false,
-    activeAccordionItems: [], isSubmitting: false };
+    activeAccordionItems: [], isSubmitting: false, designEnabled: Boolean(options.values?.idDesign || options.values?.idDesignColor), designSelectionError: null };
   const requirements = { requiresWidth: true, requiresHeight: !options.linear, ...options.requirements };
   const calculateMock = kind => (dto, ...context) => {
     const pending = deferred();
@@ -156,6 +168,7 @@ function fixture(options = {}) {
     ...dimensions, ...formatters, props, initialData: { id: initial.id },
     selectedConfigUnavailable: false, selectedCrystalUnavailable: false,
     selectedConfig: { id: 4 }, isLinearMaterial: Boolean(options.linear),
+    selectedProduct: { allowMuntin: options.allowMuntin },
     reinforcementRequired: false, dimensionRequirements: requirements,
     widthLabel: "Width", heightLabel: "Height", fixedPanelCount: undefined,
     requiresManualPanelCount: false, highBottomAllowed: true,
@@ -167,6 +180,7 @@ function fixture(options = {}) {
       return { unsubscribe() { subscriptions--; subscription.unsubscribe(); } };
     },
     trigger: async names => {
+      validatedFields.push([...names]);
       const result = await form.trigger(names);
       if (!options.deferValidation) return result;
       const pending = deferred(); validations.push(pending); return pending.promise;
@@ -179,6 +193,7 @@ function fixture(options = {}) {
     calculatePiece: calculateMock("estimate"),
     toast: { error: message => errors.push(message), success: message => successes.push(message) },
     setIsLocked: value => { state.isLocked = value; },
+    setDesignEnabled: value => { state.designEnabled = value; },
     setResultsScrollRequest: value => { state.resultsScrollRequest = value; },
     setHasPendingDealerMarkup: value => { state.hasPendingDealerMarkup = value; },
     setActiveAccordionItems: update => { state.activeAccordionItems = typeof update === "function" ? update(state.activeAccordionItems) : update; },
@@ -192,12 +207,21 @@ function fixture(options = {}) {
   let handlers;
   const render = () => {
     refIndex = 0; effectIndex = 0;
-    handlers = evaluate(handlerCode, { ...scope, activeAccordionItems: state.activeAccordionItems });
+    state.designSelectionError = garageDesign.garageDesignSelectionError({ enabled: state.designEnabled,
+      piece: form.getValues(), initial: { ...initial, ...options.values, ...(options.duplicate ? { id: undefined } : {}) },
+      diagramFamily: options.diagramFamily ?? 'GARAGE_DOOR', system: options.designSystem });
+    const garageFrameSelection = garageDesign.garageDesignFrameSelection({ enabled: state.designEnabled,
+      piece: form.getValues(), system: options.designSystem, frameColors: options.frameColors ?? [{ id: 5 }, { id: 37 }] });
+    state.designSelectionError ??= garageFrameSelection.error;
+    handlers = evaluate(handlerCode, { ...scope, ...state, garageFrameSelection, pieceValues: form.getValues(),
+      hasSolidGarageDesign: state.designEnabled && garageDesign.pieceHasSolidGarageDesign(form.getValues(), options.designSystem),
+    });
   };
   render();
   return {
-    form, state, requests, prechecks, validations, writes, errors, successes, submissions, props,
+    form, state, requests, prechecks, validations, validatedFields, writes, errors, successes, submissions, props,
     calculate() { return handlers.calculate(); }, render,
+    changeDesign(enabled, idDesign, idDesignColor) { handlers.changeDesign(enabled, idDesign, idDesignColor); render(); },
     async start() { const done = handlers.calculate(); await flush(); return { done }; },
     async change(name, value) { await field(name).onChange({ target: { name, value }, type: "change" }); },
     async blur(name) { await field(name).onBlur({ target: { name, value: form.getValues(name) }, type: "blur" }); },
@@ -206,6 +230,7 @@ function fixture(options = {}) {
     resultsHtml() {
       return renderToStaticMarkup(evaluate(energyResultsCode, {
         pieceValues: form.getValues(), isLinearMaterial: Boolean(options.linear), index: 0,
+        hasSolidGarageDesign: state.designEnabled && garageDesign.pieceHasSolidGarageDesign(form.getValues(), options.designSystem),
         formatEnergyValue: energy.formatEnergyValue, require, exports: {},
         Label: props => React.createElement("label", props), Input: props => React.createElement("input", props),
       }));
@@ -214,7 +239,8 @@ function fixture(options = {}) {
     async submit() {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
       const callback = evaluate(compile(declaration("withoutInactiveDimensions", source.statements) + `\nreturn (${submitCallback});`),
-        { handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements });
+        { handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
+          designSelectionError: state.designSelectionError, toast: scope.toast });
       await callback();
     },
     unmount() {
@@ -239,6 +265,19 @@ function assertNotApplied(f) {
 
 for (const revision of [false, true]) {
   const route = revision ? "material revision" : "estimate";
+  for (const allowMuntin of [false, true]) {
+    test(`${route}: a product with muntin ${allowMuntin ? "enabled" : "disabled"} sends and saves the permitted selection`, async () => {
+      const muntin = { idPattern: 1, idType: 2, panels: [{ panelIndex: 1, horizontalLites: 2, verticalLites: 3 }] };
+      const expected = allowMuntin ? muntin : null;
+      const f = fixture({ revision, allowMuntin, values: { muntin } });
+      const { done } = await f.start();
+      assert.equal(f.requests.length, 1); assert.deepEqual(f.requests[0].dto.muntin, expected);
+      await f.resolve(0, { ...response(), muntin: expected }); await done;
+      assert.deepEqual(f.form.getValues("muntin"), expected); assert.equal(f.disabled(), false);
+      await f.submit(); assert.deepEqual(f.submissions[0].muntin, expected);
+      assert.deepEqual(muntin.panels, [{ panelIndex: 1, horizontalLites: 2, verticalLites: 3 }]); f.unmount();
+    });
+  }
   test(`${route}: unchanged calculation applies results, locks and submits normally`, async () => {
     const f = fixture({ revision }); const { done } = await f.start();
     assert.equal(f.state.isLocked, false, "Fields remain editable while calculating");
@@ -444,6 +483,128 @@ test("ordinary rerenders with unchanged context keep a pending calculation valid
   f.render(); f.render(); await f.resolve(0); await done;
   assert.equal(f.form.getValues("price"), 100); assert.equal(f.disabled(), false);
   assert.equal(f.subscriptions(), 1); f.unmount();
+});
+
+const designSnapshot = { version: 1, systemId: 3,
+  design: { id: 21, name: "Horizontal", imageUrl: null },
+  color: { id: 31, name: "Walnut", hexCode: "#614126", idFrameColor: 37 } };
+
+test("a saved design is sent as IDs and receives its snapshot only from calculation", async () => {
+  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot } });
+  const { done } = await f.start();
+  assert.equal(f.requests[0].dto.idDesign, 21); assert.equal(f.requests[0].dto.idDesignColor, 31);
+  assert.equal(f.requests[0].dto.idFC, 37, 'The actual linked frame reaches pricing');
+  assert.equal(Object.hasOwn(f.requests[0].dto, "designSnapshot"), false, "Snapshots must not authorize calculation");
+  const serverSnapshot = { ...designSnapshot, design: { ...designSnapshot.design, name: "Captured original" } };
+  await f.resolve(0, { ...response(), idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot: serverSnapshot }); await done;
+  assert.deepEqual(f.form.getValues("designSnapshot"), serverSnapshot);
+  await f.submit(); assert.deepEqual(f.submissions[0].designSnapshot, serverSnapshot);
+  assert.equal(f.submissions[0].idFC, 37, 'The server-confirmed frame is persisted with the price'); f.unmount();
+});
+
+test("unlinked design blocks calculation instead of using an unrelated frame", async () => {
+  const unlinked = { ...designSnapshot, color: { ...designSnapshot.color, idFrameColor: null } };
+  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot: unlinked } });
+  await f.calculate(); assert.equal(f.requests.length, 0);
+  assert.equal(f.form.getValues('idFC'), 0); assert.equal(f.disabled(), true);
+  assert.match(f.errors[0], /Link this Design Color to a Frame Color/); f.unmount();
+});
+
+test("turning design on without an available default invalidates a pending calculation and blocks calculate/submit", async () => {
+  const f = fixture(); const { done } = await f.start();
+  f.changeDesign(true, null, null);
+  await f.resolve(0); await done; assertNotApplied(f);
+  await f.calculate(); assert.equal(f.requests.length, 1);
+  assert.match(f.errors[0], /both a design and a design color/); f.unmount();
+});
+
+test("removing design while calculation is pending cannot restore the old server snapshot", async () => {
+  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot } });
+  const { done } = await f.start(); f.changeDesign(false, null, null);
+  await f.resolve(0, { ...response(), idDesign: 21, idDesignColor: 31, designSnapshot }); await done;
+  assertNotApplied(f); assert.equal(f.form.getValues("idDesign"), null);
+  assert.equal(f.form.getValues("idDesignColor"), null); assert.equal(f.form.getValues("designSnapshot"), null);
+  const next = await f.start(); assert.equal(f.requests[1].dto.idDesign, null);
+  await f.resolve(1); await next.done; assert.equal(f.disabled(), false); f.unmount();
+});
+
+test("a duplicated retired design cannot calculate just because it carries an old snapshot", async () => {
+  const f = fixture({ duplicate: true, values: { idDesign: 21, idDesignColor: 31, designSnapshot } });
+  await f.calculate(); assert.equal(f.requests.length, 0); assert.equal(f.disabled(), true);
+  assert.match(f.errors[0], /not available/); f.unmount();
+});
+
+const solidSnapshot = { ...designSnapshot, design: { ...designSnapshot.design, name: "Any solid pattern",
+  template: { version: 1, columns: [1], rows: [0.5, 0.5], cells: [["slat"], ["slat"]] } } };
+
+test("solid designs preserve base crystal and omit validation for missing glass options", async () => {
+  const f = fixture({ requireGlassOptions: true, values: {
+    idDesign: 21, idDesignColor: 31, designSnapshot: solidSnapshot, idTint: 0, idCoat: null, idPrivacy: 0,
+  } });
+  const { done } = await f.start();
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].dto.idCryst, initial.idCryst);
+  assert.equal(f.prechecks[0].dto.idCryst, initial.idCryst);
+  assert.ok(f.validatedFields[0].includes("idCryst"));
+  for (const key of ["idTint", "idCoat", "idPrivacy"]) {
+    assert.ok(!f.validatedFields[0].includes(key));
+    assert.equal(f.requests[0].dto[key], null);
+  }
+  assert.equal(f.form.getValues("idTint"), 0, "Hidden choices are retained locally");
+  assert.equal(f.resultsHtml(), "", "Internal glass energy properties are not displayed");
+  await f.resolve(0, { ...response(), idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot: solidSnapshot });
+  await done;
+  assert.equal(f.disabled(), false); assert.deepEqual(f.errors, []);
+  f.changeDesign(false, null, null);
+  await f.calculate();
+  assert.equal(f.requests.length, 1, "Removing design restores required glass-option validation");
+  for (const key of ["idTint", "idCoat", "idPrivacy"]) assert.ok(f.validatedFields[1].includes(key));
+  f.unmount();
+});
+
+test("solid designs retain existing glass selections and still require the internal base crystal", async () => {
+  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot: solidSnapshot } });
+  const { done } = await f.start();
+  for (const key of ["idTint", "idCoat", "idPrivacy"]) assert.equal(f.requests[0].dto[key], initial[key]);
+  await f.resolve(0, { ...response(), idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot: solidSnapshot }); await done;
+  f.changeDesign(false, null, null);
+  for (const key of ["idTint", "idCoat", "idPrivacy", "idCryst"]) assert.equal(f.form.getValues(key), initial[key]);
+  f.unmount();
+  const missing = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot: solidSnapshot, idCryst: 0 } });
+  await missing.calculate(); assert.equal(missing.requests.length, 0); assert.match(missing.errors[0], /base pricing selection/i); missing.unmount();
+});
+
+test("glass controls are hidden only for confirmed solid templates", () => {
+  for (const name of ["idTint", "idCoat", "idPrivacy", "idCryst"]) {
+    let controller;
+    function visit(node) {
+      if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "Controller"
+        && node.attributes.properties.some(prop => ts.isJsxAttribute(prop) && prop.name.text === "name" && prop.initializer?.text === name)) controller = node;
+      ts.forEachChild(node, visit);
+    }
+    visit(component); assert.ok(controller);
+    let condition = controller.parent;
+    while (condition && !(ts.isBinaryExpression(condition) && condition.left.getText(source).includes("hasSolidGarageDesign"))) condition = condition.parent;
+    assert.ok(condition, `${name} must be controlled by template applicability`);
+    const visibility = condition.left.getText(source);
+    assert.equal(evaluate(`return (${visibility});`, { isLinearMaterial: false, hasSolidGarageDesign: true }), false);
+    assert.equal(evaluate(`return (${visibility});`, { isLinearMaterial: false, hasSolidGarageDesign: false }), true);
+  }
+});
+
+test("hidden glass options are retained while the internal base crystal still gets its default", () => {
+  const glassDefaults = statements.find(node => ts.isExpressionStatement(node) && node.getText(source).includes("const currentTintId"));
+  const crystalDefaults = statements.find(node => ts.isExpressionStatement(node) && node.getText(source).includes("const defaultCrystalId"));
+  assert.ok(glassDefaults && crystalDefaults);
+  const values = { idTint: 81, idCoat: 82, idPrivacy: 83, idCryst: 0 };
+  const scope = { brandId: 2, isLinearMaterial: false, hasSolidGarageDesign: true, systemId: 3, idConf: 4,
+    isLocked: false, isLoadingDimensionPolicies: false, reinforcementRequired: false, selectedReinforcementOptionId: null,
+    availableTints: [], availableCoatings: [], availablePrivacies: [], availableCrystals: [{ id: 6 }], selectedSystem: { defaultCrystalId: 6 },
+    getValues: key => values[key], setValue: (key, value) => { values[key] = value; }, useEffect: callback => callback(),
+  };
+  evaluate(compile(glassDefaults.getText(source)), scope);
+  evaluate(compile(crystalDefaults.getText(source)), scope);
+  assert.deepEqual(values, { idTint: 81, idCoat: 82, idPrivacy: 83, idCryst: 6 });
 });
 
 (async () => {

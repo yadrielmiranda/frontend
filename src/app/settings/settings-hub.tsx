@@ -143,6 +143,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
 
   const optionItems: SettingsItem[] = [
     {
+      title: "Garage Designs",
+      description: "Manage garage door design patterns and colors.",
+      href: "/settings/garage-designs",
+      icon: Palette,
+      color: "bg-indigo-50 text-indigo-600",
+      show: isAdmin,
+    },
+    {
       title: "Active Options",
       description: "Manage active panel options.",
       href: "/settings/active-options",

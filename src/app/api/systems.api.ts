@@ -80,6 +80,9 @@ export type UpdateSystemFrameColorsData = {
     frameColorId: number;
     sortOrder: number;
     isDefault: boolean;
+    modifierEnabled: boolean;
+    basePriceMultiplier: string;
+    basePriceDeduction: string;
   }>;
 };
 
@@ -111,6 +114,9 @@ export type SystemFrameColorsManage = {
     idFrameColor: number;
     sortOrder: number;
     isDefault: boolean;
+    modifierEnabled?: boolean;
+    basePriceMultiplier?: string;
+    basePriceDeduction?: string;
   }>;
   frameColorsCatalog: FrameColor[];
 };

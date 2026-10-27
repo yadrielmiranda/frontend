@@ -1094,6 +1094,9 @@ export function EstimateForm({
       idSyst: Number(piece.idSyst),
       idConf: Number(piece.idConf),
       idFC: Number(piece.idFC),
+      idDesign: piece.idDesign == null ? null : Number(piece.idDesign),
+      idDesignColor: piece.idDesignColor == null ? null : Number(piece.idDesignColor),
+      designSnapshot: piece.designSnapshot ?? null,
 
       width: piece.width ? String(piece.width) : null,
       height: piece.height ? String(piece.height) : null,
@@ -1134,9 +1137,9 @@ export function EstimateForm({
         : null,
 
       idCryst: isLinearMaterial ? null : Number(piece.idCryst),
-      idTint: isLinearMaterial ? null : Number(piece.idTint),
-      idCoat: isLinearMaterial ? null : Number(piece.idCoat),
-      idPrivacy: isLinearMaterial ? null : Number(piece.idPrivacy),
+      idTint: isLinearMaterial || piece.idTint == null ? null : Number(piece.idTint),
+      idCoat: isLinearMaterial || piece.idCoat == null ? null : Number(piece.idCoat),
+      idPrivacy: isLinearMaterial || piece.idPrivacy == null ? null : Number(piece.idPrivacy),
       screen: isLinearMaterial ? false : Boolean(piece.screen),
       highBottom: isLinearMaterial ? false : piece.highBottom === true,
 
@@ -1164,7 +1167,7 @@ export function EstimateForm({
           ? Number(piece.idReinforcementOption)
           : null,
 
-      muntin: isLinearMaterial ? null : (piece.muntin ?? null),
+      muntin: isLinearMaterial || product?.allowMuntin === false ? null : (piece.muntin ?? null),
 
       qty: Number(piece.qty),
 
@@ -1192,6 +1195,7 @@ export function EstimateForm({
       promotionSnapshot: null,
       energyRatingId: null,
       energySnapshot: null,
+      designSnapshot: null,
       regularPrice: undefined,
       regularCustomerPrice: undefined,
       mark: "",

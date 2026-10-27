@@ -1,0 +1,52 @@
+[
+  {
+    "name": "SRL36",
+    "template": { "version": 1, "columns": [0.28, 0.44, 0.28], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["slat", "glass", "slat"], ["slat", "glass", "slat"], ["slat", "glass", "slat"], ["slat", "glass", "slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/srl36.svg"
+  },
+  {
+    "name": "GRL36",
+    "template": { "version": 1, "columns": [0.28, 0.44, 0.28], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["glass", "slat", "glass"], ["glass", "slat", "glass"], ["glass", "slat", "glass"], ["glass", "slat", "glass"]] },
+    "sourceFile": "public/garage-designs/templates/v1/grl36.svg"
+  },
+  {
+    "name": "SR36",
+    "template": { "version": 1, "columns": [0.7, 0.3], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["glass", "slat"], ["glass", "slat"], ["glass", "slat"], ["glass", "slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/sr36.svg"
+  },
+  {
+    "name": "SL36",
+    "template": { "version": 1, "columns": [0.3, 0.7], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["slat", "glass"], ["slat", "glass"], ["slat", "glass"], ["slat", "glass"]] },
+    "sourceFile": "public/garage-designs/templates/v1/sl36.svg"
+  },
+  {
+    "name": "GR36",
+    "template": { "version": 1, "columns": [0.7, 0.3], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["slat", "glass"], ["slat", "glass"], ["slat", "glass"], ["slat", "glass"]] },
+    "sourceFile": "public/garage-designs/templates/v1/gr36.svg"
+  },
+  {
+    "name": "GL36",
+    "template": { "version": 1, "columns": [0.3, 0.7], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["glass", "slat"], ["glass", "slat"], ["glass", "slat"], ["glass", "slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/gl36.svg"
+  },
+  {
+    "name": "GT",
+    "template": { "version": 1, "columns": [1], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["glass"], ["slat"], ["slat"], ["slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/gt.svg"
+  },
+  {
+    "name": "SF",
+    "template": { "version": 1, "columns": [1], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["slat"], ["slat"], ["slat"], ["slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/sf.svg"
+  },
+  {
+    "name": "GS50/50",
+    "template": { "version": 1, "columns": [0.5, 0.5], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["slat", "glass"], ["slat", "glass"], ["slat", "glass"], ["slat", "glass"]] },
+    "sourceFile": "public/garage-designs/templates/v1/gs50-50.svg"
+  },
+  {
+    "name": "SG50/50",
+    "template": { "version": 1, "columns": [0.5, 0.5], "rows": [0.25, 0.25, 0.25, 0.25], "cells": [["glass", "slat"], ["glass", "slat"], ["glass", "slat"], ["glass", "slat"]] },
+    "sourceFile": "public/garage-designs/templates/v1/sg50-50.svg"
+  }
+]

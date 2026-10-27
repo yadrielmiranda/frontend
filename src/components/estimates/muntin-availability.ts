@@ -23,8 +23,10 @@ export function getMuntinOptions(
   hasLayout: boolean,
   crystalId: number,
   selectedPatternId?: number,
+  allowMuntin = true,
 ): MuntinOptions {
   const typesByPattern = new Map<number, MuntinType[]>();
+  if (!allowMuntin) return { patterns: [], types: [], typesByPattern, fullViewPattern: null };
   const availablePatterns = patterns.filter((pattern) => {
     if (!pattern.isActive) return false;
     const mode = getMuntinInputMode(pattern);

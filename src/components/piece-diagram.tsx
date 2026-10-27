@@ -1,6 +1,8 @@
 import React from "react";
 
 import type { DiagramFamily, DiagramSpec, DimensionMode } from "@/lib/types";
+import { validateGarageDesignTemplate } from "@/lib/garage-design-templates";
+import { GarageDoorDiagram } from "./piece-diagram/renderers/garage-door/garage-door-diagram";
 
 import {
   PieceDiagram as LegacyPieceDiagram,
@@ -38,7 +40,9 @@ export interface PieceDiagramProps {
   configuration?: string;
   diagramSpec?: DiagramSpec | null;
   dimensionMode?: DimensionMode;
-  piece?: PieceDiagramData;
+  piece?: PieceDiagramData & { designSnapshot?: { design?: { name?: string; template?: unknown }; color?: { hexCode?: string | null } } | null };
+  garageDesign?: { design: { name: string; imageUrl?: string | null; template?: unknown }; color: { hexCode?: string | null } } | null;
+  garageMaxSectionHeightIn?: number | string | null;
   frameColorHex?: string | null;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -268,6 +272,8 @@ export function PieceDiagram({
   diagramSpec,
   dimensionMode = "STANDARD",
   piece,
+  garageDesign,
+  garageMaxSectionHeightIn,
   frameColorHex,
   glassTintHex,
   hasCoating = false,
@@ -282,6 +288,45 @@ export function PieceDiagram({
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
   const rendererClasses = "h-full w-full";
+  const selectedGarageDesign = garageDesign === undefined ? piece?.designSnapshot : garageDesign;
+  const garageTemplate = validateGarageDesignTemplate(selectedGarageDesign?.design?.template);
+  const garageWidth = positiveDimensionNumber(normalizedPiece?.width);
+  const garageHeight = positiveDimensionNumber(normalizedPiece?.height);
+  if (
+    diagramFamily === "GARAGE_DOOR" &&
+    garageWidth !== null && garageHeight !== null &&
+    (!selectedGarageDesign?.design || garageTemplate)
+  ) {
+    return (
+      <DiagramShell
+        width={garageWidth}
+        height={garageHeight}
+        variant={variant}
+        className={className}
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": "GARAGE_DOOR",
+          "data-diagram-renderer": "GARAGE_DOOR_DYNAMIC",
+          "data-garage-mode": garageTemplate ? "DESIGN" : "GF",
+        }}
+      >
+        <GarageDoorDiagram
+          width={garageWidth}
+          height={garageHeight}
+          template={garageTemplate}
+          designName={selectedGarageDesign?.design?.name}
+          designColorHex={selectedGarageDesign?.color?.hexCode}
+          maxSectionHeightIn={positiveDimensionNumber(garageMaxSectionHeightIn) ?? 24}
+          frameColorHex={safeFrameColor(frameColorHex)}
+          glassTintHex={glassTintHex}
+          hasCoating={hasCoating}
+          hasPrivacy={hasPrivacy}
+          showDimensions={showDimensions}
+          className={rendererClasses}
+        />
+      </DiagramShell>
+    );
+  }
   // Solo estas cuatro configuraciones de Mullion utilizan las referencias nuevas.
   const mullionSpec = diagramFamily === "LINEAR_MATERIAL"
     ? resolveMullionSpec({ configuration, systemName })

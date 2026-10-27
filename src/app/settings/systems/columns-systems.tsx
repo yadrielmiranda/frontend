@@ -169,7 +169,7 @@ export function getSystemColumns({
                   </Link>
                 </DropdownMenuItem>
               )}
-              {!isLinearMaterial && (
+              {!isLinearMaterial && system.brandProduct?.product?.allowMuntin !== false && (
                 <DropdownMenuItem asChild>
                   <Link href={`/settings/systems/${system.id}/muntins`}>
                     Manage Muntins
@@ -181,6 +181,14 @@ export function getSystemColumns({
                   {isLinearMaterial ? "Manage Colors" : "Manage Frame Colors"}
                 </Link>
               </DropdownMenuItem>
+
+              {system.brandProduct?.product?.diagramFamily === "GARAGE_DOOR" && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/settings/systems/${system.id}/designs`}>
+                    Manage Designs
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuSeparator />
 

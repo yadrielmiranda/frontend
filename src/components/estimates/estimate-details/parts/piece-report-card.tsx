@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import type { EstimateWithRelations } from "@/lib/types";
 
 import { buildPieceReportDetails } from "./piece-decription";
+import { pieceHasSolidGarageDesign } from "../../piece-garage-design";
 
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
@@ -37,6 +38,7 @@ function PieceReportDiagram({
   displayMark: string;
 }) {
   const diagramMetadata = piece.diagramMetadata;
+  const hasSolidDesign = pieceHasSolidGarageDesign(piece, piece.syst);
 
   return (
     <div
@@ -53,11 +55,12 @@ function PieceReportDiagram({
           diagramSpec={piece.conf?.diagramSpec}
           dimensionMode={diagramMetadata?.dimensionMode ?? "STANDARD"}
           piece={piece}
+          garageMaxSectionHeightIn={diagramMetadata?.garageMaxSectionHeightIn ?? piece.syst?.garageMaxSectionHeightIn}
           muntin={resolveMuntinForDiagram(piece.pieceMuntin)}
           frameColorHex={piece.fColor?.hexCode}
-          glassTintHex={piece.tin?.hexCode}
-          hasCoating={diagramMetadata?.hasCoating ?? false}
-          hasPrivacy={diagramMetadata?.hasPrivacy ?? false}
+          glassTintHex={hasSolidDesign ? null : piece.tin?.hexCode}
+          hasCoating={!hasSolidDesign && (diagramMetadata?.hasCoating ?? false)}
+          hasPrivacy={!hasSolidDesign && (diagramMetadata?.hasPrivacy ?? false)}
           screenEnabled={Boolean(piece.screen)}
           activeOptionName={piece.activeOption?.name}
           preparationOptionName={piece.preparationOption?.name}

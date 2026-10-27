@@ -72,6 +72,7 @@ export interface Product {
   kind: ProductKind;
   pricingMode: PricingMode;
   diagramFamily: DiagramFamily;
+  allowMuntin?: boolean;
 }
 
 export type ProductKind = "GLAZED_UNIT" | "LINEAR_MATERIAL";
@@ -116,6 +117,11 @@ export interface BrandProduct {
 }
 
 export interface System {
+  allowDesign?: boolean;
+  garageMaxSectionHeightIn?: number | string;
+  defaultDesignId?: number | null;
+  defaultDesignColorId?: number | null;
+  designOptions?: import("./garage-designs").SystemDesignOption[];
   id: number;
   name: string;
   sortOrder: number;
@@ -305,6 +311,9 @@ export interface CreatePieceMuntinData {
 export type PieceMuntin = CreatePieceMuntinData;
 
 export interface Piece {
+  idDesign?: number | null;
+  idDesignColor?: number | null;
+  designSnapshot?: import("./garage-designs").GarageDesignSnapshot | null;
   energyRatingId?: number | null;
   energySnapshot?: import("./energy-ratings").EnergySnapshot | null;
   regularPrice?: string | number;
@@ -1356,6 +1365,7 @@ export interface PieceDiagramMetadata {
   dimensionMode: DimensionMode;
   hasCoating: boolean;
   hasPrivacy: boolean;
+  garageMaxSectionHeightIn?: number;
 }
 
 export interface PieceWithRelations extends Piece {
@@ -1486,6 +1496,7 @@ export type CreateProductData = {
   kind?: ProductKind;
   pricingMode?: PricingMode;
   diagramFamily?: DiagramFamily;
+  allowMuntin?: boolean;
 };
 
 export type UpdateProductData = {
@@ -1495,6 +1506,7 @@ export type UpdateProductData = {
   kind?: ProductKind;
   pricingMode?: PricingMode;
   diagramFamily?: DiagramFamily;
+  allowMuntin?: boolean;
 };
 
 export type CreateBrandData = {
@@ -1570,6 +1582,9 @@ export type UpdatePrivacyData = {
 };
 
 export interface CreatePieceData {
+  idDesign?: number | null;
+  idDesignColor?: number | null;
+  designSnapshot?: import("./garage-designs").GarageDesignSnapshot | null;
   mark: string;
   idProd: number;
   idBrand: number;

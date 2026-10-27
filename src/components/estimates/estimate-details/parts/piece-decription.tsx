@@ -3,6 +3,7 @@
 import { EstimateWithRelations } from "@/lib/types";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { buildEnergyDescription } from "@/lib/energy-ratings";
+import { garageDesignDescription, pieceFrameColor, pieceHasSolidGarageDesign } from "../../piece-garage-design";
 
 type PieceWithRelations = EstimateWithRelations["pieces"][number];
 
@@ -172,6 +173,7 @@ export function buildPieceReportDetails(
 ): PieceReportDetails {
   const p = piece as any;
   const productName = piece.prod?.name?.trim() || "Product";
+  const hasSolidDesign = pieceHasSolidGarageDesign(piece, piece.syst);
   const systemLine = [piece.bran?.name, piece.syst?.name]
     .filter(Boolean)
     .join(" - ");
@@ -192,10 +194,12 @@ export function buildPieceReportDetails(
       value.trim().toLowerCase() !== "none",
   );
   const detailLines: string[] = [
-    `Frame Color: ${p.fColor?.color?.trim() || "Not specified"}`,
+    `Frame Color: ${pieceFrameColor(piece, p.fColor, piece.syst).color?.trim() || "Not specified"}`,
   ];
+  const designLine = garageDesignDescription(piece, piece.syst);
+  if (designLine) detailLines.push(designLine);
 
-  if (glassTokens.length > 0) {
+  if (!hasSolidDesign && glassTokens.length > 0) {
     detailLines.push(`Glass: ${glassTokens.join(" + ")}`);
   }
 
@@ -218,7 +222,7 @@ export function buildPieceReportDetails(
   const optionParts = [
     `Screen: ${piece.screen ? "Yes" : "No"}`,
     buildGridLine(piece),
-    `Privacy: ${piece.privacyOption?.name ?? "None"}`,
+    ...(!hasSolidDesign ? [`Privacy: ${piece.privacyOption?.name ?? "None"}`] : []),
   ];
   if (piece.highBottom) optionParts.push("High Bottom: Yes");
   detailLines.push(optionParts.join(" | "));
@@ -229,7 +233,7 @@ export function buildPieceReportDetails(
     );
   }
 
-  const energyLine = buildEnergyDescription(piece.energySnapshot, piece.prod?.kind);
+  const energyLine = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, piece.prod?.kind);
   if (energyLine) detailLines.push(energyLine);
 
   return {

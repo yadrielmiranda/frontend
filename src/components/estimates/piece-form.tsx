@@ -65,6 +65,8 @@ import { roundMoney } from "@/lib/formatters";
 import { formatEnergyValue, type EnergySelection } from "@/lib/energy-ratings";
 
 import type { PieceFormValues } from "./types";
+import { GarageDesignFields } from "./garage-design-fields";
+import { availableGarageDesignOptions, defaultGarageDesignPair, garageDesignPairForColor, garageDesignPairForDesign, garageDesignSelectionError, garageDesignFrameSelection, isRetainedGarageDesign, pieceGarageDesign, pieceHasSolidGarageDesign, type ExistingGarageDesignContext } from "./piece-garage-design";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
@@ -303,6 +305,7 @@ export interface PieceFormProps {
   startUnlocked?: boolean;
   lockQuantity?: boolean;
   lockDealerMarkup?: boolean;
+  existingDesignContext?: ExistingGarageDesignContext;
 }
 
 export function PieceForm({
@@ -333,6 +336,9 @@ export function PieceForm({
       idProd: initialData.idProd,
       idBrand: initialData.idBrand,
       idSyst: initialData.idSyst,
+      idDesign: initialData.idDesign ?? null,
+      idDesignColor: initialData.idDesignColor ?? null,
+      designSnapshot: initialData.designSnapshot ?? null,
       width: initialData.width ?? "",
       height: initialData.height ?? "",
       heightLeft: initialData.heightLeft ?? "",
@@ -366,6 +372,7 @@ export function PieceForm({
 
   const latestCalculationRef = useRef(0);
   const calculationValuesVersionRef = useRef(0);
+  const [designEnabled, setDesignEnabled] = useState(Boolean(initialData.idDesign || initialData.idDesignColor));
 
   useLayoutEffect(() => {
     // Observe real value changes, including nested setValue edits and changes
@@ -399,6 +406,7 @@ export function PieceForm({
     props.privacies,
     props.muntinPatterns,
     props.muntinTypes,
+    props.existingDesignContext,
   ]);
 
   const [isLocked, setIsLocked] = useState(
@@ -492,11 +500,19 @@ export function PieceForm({
   }, [idProd, props.productsWithBrands]);
 
   const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
+  const muntinAllowed = !isLinearMaterial && selectedProduct?.allowMuntin !== false;
 
   const [brandId, systemId] = useWatch({
     control,
     name: ["idBrand", "idSyst"],
   });
+
+  const initialDesignSelection = props.existingDesignContext
+    ? { ...initialData, ...props.existingDesignContext, preserveExistingDesign: true }
+    : initialData;
+  const currentDesignSelection = { idProd: Number(idProd), idBrand: Number(brandId), idSyst: Number(systemId),
+    idDesign: pieceValues.idDesign, idDesignColor: pieceValues.idDesignColor, designSnapshot: getValues("designSnapshot") };
+  const retainedGarageDesign = isRetainedGarageDesign(currentDesignSelection, initialDesignSelection);
 
   const availableBrands = useMemo(() => {
     if (!idProd) return [];
@@ -520,7 +536,7 @@ export function PieceForm({
   }, [idProd, props.productsWithBrands, props.systemsWithConfigs]);
 
   useEffect(() => {
-    if (isLocked || !selectedProduct) return;
+    if (isLocked || !selectedProduct || retainedGarageDesign) return;
 
     const currentBrandId = Number(brandId || 0);
     const currentBrandIsAvailable = availableBrands.some(
@@ -545,7 +561,7 @@ export function PieceForm({
     });
     setValue("idSyst", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
-  }, [isLocked, selectedProduct, brandId, availableBrands, setValue]);
+  }, [isLocked, selectedProduct, brandId, availableBrands, setValue, retainedGarageDesign]);
 
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
@@ -566,7 +582,7 @@ export function PieceForm({
   }, [idProd, brandId, props.systemsWithConfigs]);
 
   useEffect(() => {
-    if (isLocked || !idProd || !brandId) return;
+    if (isLocked || !idProd || !brandId || retainedGarageDesign) return;
 
     const currentSystemId = Number(systemId || 0);
     const currentSystemIsAvailable = availableSystems.some(
@@ -589,7 +605,7 @@ export function PieceForm({
     setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idCryst", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idReinforcementOption", null, { shouldDirty: true });
-  }, [isLocked, idProd, brandId, systemId, availableSystems, setValue]);
+  }, [isLocked, idProd, brandId, systemId, availableSystems, setValue, retainedGarageDesign]);
 
   const selectedSystem = useMemo(() => {
     if (!systemId) return null;
@@ -598,6 +614,32 @@ export function PieceForm({
       props.systemsWithConfigs.find((s) => s.id === Number(systemId)) ?? null
     );
   }, [systemId, props.systemsWithConfigs]);
+
+  const garageDesignAllowed = selectedProduct?.diagramFamily === "GARAGE_DOOR" && selectedSystem?.allowDesign === true;
+  const garageDesignOptions = availableGarageDesignOptions(selectedSystem);
+  const designPairError = garageDesignSelectionError({
+    enabled: designEnabled, piece: currentDesignSelection, initial: initialDesignSelection,
+    diagramFamily: selectedProduct?.diagramFamily, system: selectedSystem,
+  });
+  const selectedGarageDesign = pieceGarageDesign({
+    ...currentDesignSelection,
+    designSnapshot: currentDesignSelection.designSnapshot ?? (retainedGarageDesign ? initialDesignSelection.designSnapshot : null),
+  }, selectedSystem);
+  const hasSolidGarageDesign = designEnabled && pieceHasSolidGarageDesign({
+    ...currentDesignSelection,
+    designSnapshot: currentDesignSelection.designSnapshot ?? (retainedGarageDesign ? initialDesignSelection.designSnapshot : null),
+  }, selectedSystem);
+
+  const changeGarageDesign = (enabled: boolean, idDesign: number | null, idDesignColor: number | null) => {
+    latestCalculationRef.current++;
+    setDesignEnabled(enabled);
+    setValue("idDesign", idDesign, { shouldDirty: true });
+    setValue("idDesignColor", idDesignColor, { shouldDirty: true });
+    setValue("designSnapshot", null, { shouldDirty: true });
+    setIsLocked(false);
+    setResultsScrollRequest(0);
+    setActiveAccordionItems(items => items.filter(item => item !== "item-results"));
+  };
 
   const availableFrameColors = useMemo(() => {
     return [...(selectedSystem?.systemFrameColors ?? [])]
@@ -611,8 +653,40 @@ export function PieceForm({
       .filter(Boolean);
   }, [selectedSystem]);
 
+  const garageFrameSelection = garageDesignFrameSelection({
+    enabled: designEnabled,
+    piece: { ...currentDesignSelection,
+      designSnapshot: currentDesignSelection.designSnapshot ?? (retainedGarageDesign ? initialDesignSelection.designSnapshot : null) },
+    system: selectedSystem,
+    frameColors: availableFrameColors,
+  });
+  const designSelectionError = designPairError ?? garageFrameSelection.error;
+
+  // The linked frame is the actual pricing/persistence selection, including
+  // legacy pieces whose earlier design snapshot did not capture a frame ID.
+  useLayoutEffect(() => {
+    if (!designEnabled) return;
+    const nextFrameColorId = garageFrameSelection.idFrameColor ?? 0;
+    if (Number(getValues("idFC")) === nextFrameColorId) return;
+    latestCalculationRef.current++;
+    setValue("idFC", nextFrameColorId, { shouldDirty: true, shouldValidate: true });
+    setIsLocked(false);
+    setResultsScrollRequest(0);
+    setActiveAccordionItems(items => items.filter(item => item !== "item-results"));
+  }, [designEnabled, garageFrameSelection.idFrameColor, pieceValues.idFC, getValues, setValue]);
+
+  // Catalog refreshes invalidate a calculation when its design or linked frame
+  // is no longer available instead of substituting an unrelated pricing color.
   useEffect(() => {
-    if (isLocked || !selectedSystem) return;
+    if (!designSelectionError) return;
+    latestCalculationRef.current++;
+    setIsLocked(false);
+    setResultsScrollRequest(0);
+    setActiveAccordionItems(items => items.includes("item-results") ? items.filter(item => item !== "item-results") : items);
+  }, [designSelectionError]);
+
+  useEffect(() => {
+    if (isLocked || !selectedSystem || designEnabled) return;
 
     const currentFrameColorId = Number(getValues("idFC") || 0);
     const currentFrameColorIsAvailable = availableFrameColors.some(
@@ -649,6 +723,7 @@ export function PieceForm({
     });
   }, [
     isLocked,
+    designEnabled,
     selectedSystem,
     availableFrameColors,
     initialData.idFC,
@@ -745,7 +820,7 @@ export function PieceForm({
 
   useEffect(() => {
     const selectedBrandId = Number(brandId || 0);
-    if (!selectedBrandId || isLinearMaterial) return;
+    if (!selectedBrandId || isLinearMaterial || hasSolidGarageDesign) return;
 
     const currentTintId = Number(getValues("idTint") || 0);
     const currentTintIsAvailable = availableTints.some(
@@ -806,6 +881,7 @@ export function PieceForm({
   }, [
     brandId,
     isLinearMaterial,
+    hasSolidGarageDesign,
     availableTints,
     availableCoatings,
     availablePrivacies,
@@ -813,10 +889,13 @@ export function PieceForm({
     setValue,
   ]);
 
-  const selectedFrameColorHex =
+  const selectedFrameColor =
     availableFrameColors.find(
       (frameColor) => frameColor.id === Number(pieceValues.idFC),
-    )?.hexCode ?? null;
+    ) ?? props.frameColors.find((frameColor) => frameColor.id === Number(pieceValues.idFC)) ?? null;
+  const selectedFrameColorHex = designEnabled
+    ? selectedGarageDesign?.color.hexCode ?? null
+    : selectedFrameColor?.hexCode ?? null;
 
   const selectedTintHex =
     props.tints.find((tint) => tint.id === Number(pieceValues.idTint))
@@ -831,7 +910,7 @@ export function PieceForm({
     (association) => association.idBrand === Number(brandId || 0),
   );
 
-  const hasCoating = selectedCoatingAssociation?.surchargeEnabled === true;
+  const hasCoating = !hasSolidGarageDesign && selectedCoatingAssociation?.surchargeEnabled === true;
 
   const selectedPrivacy =
     props.privacies.find(
@@ -842,7 +921,7 @@ export function PieceForm({
     (association) => association.idBrand === Number(brandId || 0),
   );
 
-  const hasPrivacy = selectedPrivacyAssociation?.surchargeEnabled === true;
+  const hasPrivacy = !hasSolidGarageDesign && selectedPrivacyAssociation?.surchargeEnabled === true;
 
   const availableSysConfs = useMemo<SystemConfigLink[]>(() => {
     return [
@@ -1004,8 +1083,8 @@ export function PieceForm({
 
   const muntinOptions = useMemo(
     () => getMuntinOptions(selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout,
-      Number(pieceValues.idCryst || 0), Number(currentMuntin?.idPattern || 0)),
-    [selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout, pieceValues.idCryst, currentMuntin?.idPattern],
+      Number(pieceValues.idCryst || 0), Number(currentMuntin?.idPattern || 0), muntinAllowed),
+    [selectedSysConf, props.muntinPatterns, props.muntinTypes, hasMuntinLayout, pieceValues.idCryst, currentMuntin?.idPattern, muntinAllowed],
   );
   const activeMuntinPatterns = muntinOptions.patterns;
   const activeMuntinTypes = muntinOptions.types;
@@ -1444,7 +1523,7 @@ export function PieceForm({
 
   const hasOptionsSection =
     !isLinearMaterial &&
-    (highBottomAllowed ||
+    (garageDesignAllowed || designEnabled || highBottomAllowed ||
       screenAllowed ||
       availableActiveOptions.length > 0 ||
       availablePreparationOptions.length > 0 ||
@@ -1467,8 +1546,18 @@ export function PieceForm({
   const initialMuntinAdjustedRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (!selectedConfig || !selectedSysConf || isLinearMaterial) return;
     const current = getValues("muntin");
+    if (!muntinAllowed) {
+      setMuntinAvailabilityNotice(null);
+      if (current) {
+        setValue("muntin", null, { shouldDirty: true });
+        initialMuntinAdjustedRef.current = true;
+        setIsLocked(false);
+        setActiveAccordionItems((items) => items.filter((item) => item !== "item-results"));
+      }
+      return;
+    }
+    if (!selectedConfig || !selectedSysConf || isLinearMaterial) return;
     const context = `${Number(systemId || 0)}:${Number(idConf || 0)}:${Number(pieceValues.idCryst || 0)}`;
     if (previousMuntinContextRef.current !== context) muntinContextChangedRef.current = true;
     previousMuntinContextRef.current = context;
@@ -1504,7 +1593,7 @@ export function PieceForm({
     setIsLocked(false);
     setActiveAccordionItems((items) => items.includes("item-results")
       ? items.filter((item) => item !== "item-results") : items);
-  }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, isWindowWall,
+  }, [currentMuntin, selectedConfig, selectedSysConf, isLinearMaterial, isWindowWall, muntinAllowed,
     windowWallMuntinLayout, muntinOptions, getValues, setValue, systemId, idConf, pieceValues.idCryst]);
 
   const dealerMarkupField = register("dealerMarkup", {
@@ -1622,7 +1711,7 @@ export function PieceForm({
     const fallbackPatternId =
       defaultFullViewPattern?.id ?? defaultMuntinPattern?.id;
 
-    if (fallbackPatternId) {
+    if (muntinAllowed && fallbackPatternId) {
       const syncedMuntin = syncMuntinWithConfigLayout(
         getValues("muntin"),
         selectedConfig,
@@ -1669,6 +1758,7 @@ export function PieceForm({
     isLinearMaterial,
     screenAllowed,
     hasMuntinLayout,
+    muntinAllowed,
     defaultMuntinPattern?.id,
     defaultFullViewPattern?.id,
     muntinOptions,
@@ -1786,6 +1876,10 @@ export function PieceForm({
       valuesVersion === calculationValuesVersionRef.current;
 
     try {
+      if (designSelectionError) {
+        toast.error(designSelectionError);
+        return;
+      }
       if (selectedConfigUnavailable) {
         toast.error(
           "The selected configuration is currently unavailable in estimates.",
@@ -1794,7 +1888,9 @@ export function PieceForm({
       }
       if (!isLinearMaterial && selectedCrystalUnavailable) {
         toast.error(
-          "The selected glass is currently unavailable. Select another glass before recalculating.",
+          hasSolidGarageDesign
+            ? "The base pricing configuration is unavailable for this piece. Review the series settings before recalculating."
+            : "The selected glass is currently unavailable. Select another glass before recalculating.",
         );
         return;
       }
@@ -1808,7 +1904,9 @@ export function PieceForm({
       ];
 
       if (!isLinearMaterial) {
-        fieldsToValidate.push("idCryst", "idTint", "idCoat", "idPrivacy");
+        fieldsToValidate.push("idCryst");
+        if (!hasSolidGarageDesign)
+          fieldsToValidate.push("idTint", "idCoat", "idPrivacy");
       }
 
       if (!isLinearMaterial && reinforcementRequired) {
@@ -2134,7 +2232,9 @@ export function PieceForm({
         idBrand: Number(currentValues.idBrand),
         idSyst: Number(currentValues.idSyst),
         idConf: Number(currentValues.idConf),
-        idFC: Number(currentValues.idFC),
+        idFC: designEnabled ? Number(garageFrameSelection.idFrameColor) : Number(currentValues.idFC),
+        idDesign: designEnabled ? Number(currentValues.idDesign) : null,
+        idDesignColor: designEnabled ? Number(currentValues.idDesignColor) : null,
         width: widthNorm !== undefined ? String(widthNorm) : undefined,
         height: heightNorm !== undefined ? String(heightNorm) : undefined,
         heightLeft:
@@ -2173,9 +2273,9 @@ export function PieceForm({
           ? horizontalHeightsNorm
           : undefined,
         idCryst: isLinearMaterial ? null : Number(currentValues.idCryst),
-        idTint: isLinearMaterial ? null : Number(currentValues.idTint),
-        idCoat: isLinearMaterial ? null : Number(currentValues.idCoat),
-        idPrivacy: isLinearMaterial ? null : Number(currentValues.idPrivacy),
+        idTint: isLinearMaterial || (hasSolidGarageDesign && !(Number(currentValues.idTint) > 0)) ? null : Number(currentValues.idTint),
+        idCoat: isLinearMaterial || (hasSolidGarageDesign && !(Number(currentValues.idCoat) > 0)) ? null : Number(currentValues.idCoat),
+        idPrivacy: isLinearMaterial || (hasSolidGarageDesign && !(Number(currentValues.idPrivacy) > 0)) ? null : Number(currentValues.idPrivacy),
         screen: isLinearMaterial ? false : Boolean(currentValues.screen),
         highBottom:
           !isLinearMaterial && highBottomAllowed
@@ -2203,7 +2303,7 @@ export function PieceForm({
             ? Number(currentValues.idReinforcementOption)
             : undefined,
 
-        muntin: isLinearMaterial ? null : (currentValues.muntin ?? null),
+        muntin: muntinAllowed ? (currentValues.muntin ?? null) : null,
         qty: Number(currentValues.qty),
         dealerMarkup: props.canUseCustomerPricing
           ? Number(currentValues.dealerMarkup || 0)
@@ -2218,7 +2318,9 @@ export function PieceForm({
         const idCrystForPreview = Number(pieceDtoToSend.idCryst);
 
         if (!Number.isFinite(idCrystForPreview) || idCrystForPreview <= 0) {
-          toast.error("Please select a valid glass type.");
+          toast.error(hasSolidGarageDesign
+            ? "A base pricing selection is required. Review the series settings before calculating."
+            : "Please select a valid glass type.");
           return;
         }
 
@@ -2324,6 +2426,11 @@ export function PieceForm({
       setValue("dpNegPsf", dpNeg);
       setValue("energyRatingId", calculated.energyRatingId ?? null);
       setValue("energySnapshot", calculated.energySnapshot ?? null);
+      setValue("idFC", Number(calculated.idFC));
+      setValue("idDesign", calculated.idDesign ?? null);
+      setValue("idDesignColor", calculated.idDesignColor ?? null);
+      setValue("designSnapshot", calculated.designSnapshot ?? null);
+      setDesignEnabled(Boolean(calculated.idDesign || calculated.idDesignColor));
 
       if (props.canUseCustomerPricing) {
         setValue("dealerMarkup", Number(currentValues.dealerMarkup || 0));
@@ -2441,9 +2548,10 @@ export function PieceForm({
   return (
     <form
       className="relative flex min-h-0 flex-1 flex-col"
-      onSubmit={handleSubmit((values) =>
-        onSubmit(withoutInactiveDimensions(values, dimensionRequirements)),
-      )}
+      onSubmit={handleSubmit((values) => {
+        if (designSelectionError) { toast.error(designSelectionError); return; }
+        return onSubmit(withoutInactiveDimensions(values, dimensionRequirements));
+      })}
     >
       <div ref={scrollContainerRef} className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto p-1 pb-40 sm:pb-24 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="min-w-0">
@@ -2475,6 +2583,8 @@ export function PieceForm({
                         <Select
                           disabled={isLocked}
                           onValueChange={(v) => {
+                            if (Number(v) === Number(field.value)) return;
+                            changeGarageDesign(false, null, null);
                             field.onChange(Number(v));
                             setValue("idBrand", 0);
                             setValue("idSyst", 0);
@@ -2529,6 +2639,8 @@ export function PieceForm({
                         <Select
                           disabled={isLocked || !idProd}
                           onValueChange={(v) => {
+                            if (Number(v) === Number(field.value)) return;
+                            changeGarageDesign(false, null, null);
                             field.onChange(Number(v));
                             setValue("idSyst", 0);
                             setValue("idConf", 0);
@@ -2545,6 +2657,11 @@ export function PieceForm({
                             <SelectValue placeholder="Select brand" />
                           </SelectTrigger>
                           <SelectContent>
+                            {retainedGarageDesign && Number(field.value) > 0 && !availableBrands.some(brand => brand.id === Number(field.value)) && (
+                              <SelectItem value={String(field.value)} disabled>
+                                {selectedProduct?.brandProducts.find(link => link.brand.id === Number(field.value))?.brand.name ?? `Brand #${field.value}`} (saved)
+                              </SelectItem>
+                            )}
                             {availableBrands.map((b) => (
                               <SelectItem key={b.id} value={String(b.id)}>
                                 {b.name}
@@ -2572,6 +2689,8 @@ export function PieceForm({
                           disabled={isLocked || !brandId}
                           onValueChange={(v) => {
                             const nextSystemId = Number(v);
+                            if (nextSystemId === Number(field.value)) return;
+                            changeGarageDesign(false, null, null);
 
                             field.onChange(nextSystemId);
 
@@ -2597,6 +2716,9 @@ export function PieceForm({
                             <SelectValue placeholder="Select system" />
                           </SelectTrigger>
                           <SelectContent>
+                            {retainedGarageDesign && Number(field.value) > 0 && !availableSystems.some(system => system.id === Number(field.value)) && (
+                              <SelectItem value={String(field.value)} disabled>{selectedSystem?.name ?? `System #${field.value}`} (saved)</SelectItem>
+                            )}
                             {availableSystems.map((s) => (
                               <SelectItem key={s.id} value={String(s.id)}>
                                 {s.name}
@@ -2697,11 +2819,23 @@ export function PieceForm({
 
                   <div>
                     <Label className={fieldLabelClass}>Frame Color</Label>
+                    {designEnabled && (
+                      <div data-frame-color-source="DESIGN">
+                        <div className={`${selectTriggerClass} flex items-center bg-slate-50`} aria-label="Frame color matches design color">
+                          <ColorSelectOption
+                            label={pieceValues.idDesignColor ? selectedGarageDesign?.color.name ?? "Select a design color" : "Select a design color"}
+                            hexCode={selectedGarageDesign?.color.hexCode ?? "transparent"}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">Matches Design Color.</p>
+                        {garageFrameSelection.error && <p className="mt-1 text-xs text-red-500">{garageFrameSelection.error}</p>}
+                      </div>
+                    )}
                     <Controller
                       name="idFC"
                       control={control}
                       rules={{ required: true, min: 1 }}
-                      render={({ field }) => (
+                      render={({ field }) => designEnabled ? <></> : (
                         <Select
                           disabled={isLocked || !selectedSystem}
                           onValueChange={(v) => field.onChange(Number(v))}
@@ -2711,7 +2845,7 @@ export function PieceForm({
                               : undefined
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger className={selectTriggerClass} aria-label="Frame Color">
                             <SelectValue placeholder="Select frame color" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2734,7 +2868,7 @@ export function PieceForm({
                     )}
                   </div>
 
-                  {!isLinearMaterial && (
+                  {!isLinearMaterial && !hasSolidGarageDesign && (
                     <>
                       <div>
                         <Label className={fieldLabelClass}>Glass Color</Label>
@@ -3605,8 +3739,8 @@ export function PieceForm({
                   <div
                     className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                      {!isLinearMaterial && (
+                    {((!isLinearMaterial && !hasSolidGarageDesign) || availableActiveOptions.length > 0 || availablePreparationOptions.length > 0) && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {!isLinearMaterial && !hasSolidGarageDesign && (
                         <div>
                           <Label className={fieldLabelClass}>Glass Type</Label>
                           <Controller
@@ -3783,7 +3917,24 @@ export function PieceForm({
                           )}
                         </div>
                       )}
-                    </div>
+                    </div>}
+
+                    <GarageDesignFields index={index} allowed={garageDesignAllowed} enabled={designEnabled}
+                      locked={isLocked} retained={retainedGarageDesign} idDesign={pieceValues.idDesign}
+                      idDesignColor={pieceValues.idDesignColor} options={garageDesignOptions}
+                      selected={selectedGarageDesign} error={designSelectionError}
+                      onToggle={enabled => {
+                        const pair = enabled ? defaultGarageDesignPair(selectedSystem) : { idDesign: null, idDesignColor: null };
+                        changeGarageDesign(enabled, pair.idDesign, pair.idDesignColor);
+                      }}
+                      onDesignChange={id => {
+                        const pair = garageDesignPairForDesign(garageDesignOptions, id, pieceValues.idDesignColor ?? null);
+                        changeGarageDesign(true, pair.idDesign, pair.idDesignColor);
+                      }}
+                      onColorChange={id => {
+                        const pair = garageDesignPairForColor(garageDesignOptions, pieceValues.idDesign ?? null, id);
+                        changeGarageDesign(true, pair.idDesign, pair.idDesignColor);
+                      }} />
 
                     {highBottomAllowed && (
                       <div className="flex flex-col gap-2">
@@ -3960,7 +4111,7 @@ export function PieceForm({
                         )}
                       </div>
                     )}
-                    {!isLinearMaterial && (
+                    {muntinAllowed && (
                       <div className="pb-4 text-sm">
                         {!selectedConfig ? (
                           <div>
@@ -4177,7 +4328,7 @@ export function PieceForm({
                       </div>
                     </div>
 
-                    {!isLinearMaterial && (
+                    {!isLinearMaterial && !hasSolidGarageDesign && (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         {([
                           ["uFactor", "U-factor"],
@@ -4292,7 +4443,9 @@ export function PieceForm({
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
-                muntin={resolveFormMuntinForDiagram(pieceValues.muntin, props.muntinPatterns, props.muntinTypes)}
+                garageDesign={designEnabled ? selectedGarageDesign : null}
+                garageMaxSectionHeightIn={selectedSystem?.garageMaxSectionHeightIn == null ? undefined : Number(selectedSystem.garageMaxSectionHeightIn)}
+                muntin={muntinAllowed ? resolveFormMuntinForDiagram(pieceValues.muntin, props.muntinPatterns, props.muntinTypes) : null}
                 frameColorHex={selectedFrameColorHex}
                 glassTintHex={selectedTintHex}
                 hasCoating={hasCoating}
@@ -4339,7 +4492,7 @@ export function PieceForm({
         <Button
           type="submit"
           variant="green"
-          disabled={!isLocked || isSubmitting || hasPendingDealerMarkup}
+          disabled={!isLocked || isSubmitting || hasPendingDealerMarkup || Boolean(designSelectionError)}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Submit

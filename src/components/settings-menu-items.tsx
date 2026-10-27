@@ -106,6 +106,15 @@ export function SettingsMenuItems({
         Options
       </DropdownMenuLabel>
 
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/garage-designs">
+            <Palette className={iconClass} />
+            Garage Designs
+          </Link>
+        </DropdownMenuItem>
+      )}
+
       <DropdownMenuSub>
         <DropdownMenuSubTrigger className="cursor-pointer gap-2 rounded-lg">
           <SlidersHorizontal className={iconClass} />

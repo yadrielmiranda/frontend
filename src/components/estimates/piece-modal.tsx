@@ -52,6 +52,7 @@ interface PieceModalProps {
   startUnlocked?: boolean;
   lockQuantity?: boolean;
   lockDealerMarkup?: boolean;
+  existingDesignContext?: PieceFormProps["existingDesignContext"];
 }
 
 export function PieceModal({
@@ -78,6 +79,7 @@ export function PieceModal({
   startUnlocked = false,
   lockQuantity = false,
   lockDealerMarkup = false,
+  existingDesignContext,
 }: PieceModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,6 +113,7 @@ export function PieceModal({
             startUnlocked={startUnlocked}
             lockQuantity={lockQuantity}
             lockDealerMarkup={lockDealerMarkup}
+            existingDesignContext={existingDesignContext}
           />
         </div>
       </DialogContent>

@@ -5,13 +5,8 @@ import { getSystemFrameColorsForManage } from "@/app/api/systems.api";
 import { SystemFrameColorsClient } from "./system-frame-colors-client";
 
 import { BackLink } from "@/components/navigation/back-link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ContentCard } from "@/components/layout/content-card";
+import { PageContainer } from "@/components/layout/page-container";
 
 export default async function ManageSystemFrameColorsPage({
   params,
@@ -27,36 +22,41 @@ export default async function ManageSystemFrameColorsPage({
   if (!data) notFound();
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="max-w-4xl mx-auto mb-4">
-        <BackLink href="/settings/systems" label="Back to Systems" />
+    <PageContainer size="default">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div>
+          <BackLink href="/settings/systems" label="Back to Systems" />
 
-        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Settings</span>
-          <span>/</span>
+          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Settings</span>
+            <span>/</span>
 
-          <Link href="/settings/systems" className="hover:text-foreground">
-            Systems
-          </Link>
+            <Link href="/settings/systems" className="hover:text-foreground">
+              Systems
+            </Link>
 
-          <span>/</span>
-          <span className="text-foreground">{data.system.name}</span>
+            <span>/</span>
+            <span className="text-foreground">{data.system.name}</span>
+          </div>
         </div>
+
+        <ContentCard className="overflow-hidden p-0">
+          <div className="border-b bg-slate-50/70 px-6 py-5">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {data.system.name} Frame Colors
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage associated Frame Colors, the default color and their base
+              price modifiers. Product:{" "}
+              <span className="font-medium">{data.system.product.name}</span>
+            </p>
+          </div>
+
+          <div className="p-6">
+            <SystemFrameColorsClient data={data} />
+          </div>
+        </ContentCard>
       </div>
-
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle>{data.system.name}</CardTitle>
-          <CardDescription>
-            Manage the frame colors available for this system. Product:{" "}
-            <span className="font-medium">{data.system.product.name}</span>
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <SystemFrameColorsClient data={data} />
-        </CardContent>
-      </Card>
-    </div>
+    </PageContainer>
   );
 }

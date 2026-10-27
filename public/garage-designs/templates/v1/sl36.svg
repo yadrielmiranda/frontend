@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="280" viewBox="0 0 375 280" role="img" aria-labelledby="garage-title" data-template-version="1" data-slat-color="#A1612F">
+  <title id="garage-title">SL36</title>
+  <defs>
+    <linearGradient id="slat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A96E40"/><stop offset="1" stop-color="#794923"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D4E9F0"/><stop offset="1" stop-color="#B7D6E1"/></linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="372" height="277" fill="#ECEEF0" stroke="#B9C0C7"/>
+  <g data-row="1"><rect data-column="1" data-material="slat" x="3" y="3" width="110.4" height="67.75" fill="url(#slat)" stroke="#794923" stroke-width="0.35"/><rect data-column="2" data-material="glass" x="114.4" y="3" width="257.6" height="67.75" fill="url(#glass)" stroke="#8D9EAF" stroke-width="0.35"/></g>
+  <g data-row="2"><rect data-column="1" data-material="slat" x="3" y="71.75" width="110.4" height="67.75" fill="url(#slat)" stroke="#794923" stroke-width="0.35"/><rect data-column="2" data-material="glass" x="114.4" y="71.75" width="257.6" height="67.75" fill="url(#glass)" stroke="#8D9EAF" stroke-width="0.35"/></g>
+  <g data-row="3"><rect data-column="1" data-material="slat" x="3" y="140.5" width="110.4" height="67.75" fill="url(#slat)" stroke="#794923" stroke-width="0.35"/><rect data-column="2" data-material="glass" x="114.4" y="140.5" width="257.6" height="67.75" fill="url(#glass)" stroke="#8D9EAF" stroke-width="0.35"/></g>
+  <g data-row="4"><rect data-column="1" data-material="slat" x="3" y="209.25" width="110.4" height="67.75" fill="url(#slat)" stroke="#794923" stroke-width="0.35"/><rect data-column="2" data-material="glass" x="114.4" y="209.25" width="257.6" height="67.75" fill="url(#glass)" stroke="#8D9EAF" stroke-width="0.35"/></g>
+</svg>

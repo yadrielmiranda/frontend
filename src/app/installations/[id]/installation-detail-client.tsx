@@ -198,9 +198,8 @@ function pieceForPersistence(
   piece: PieceFormValues,
   products: ProductWithBrands[],
 ): CreatePieceData {
-  const isLinear =
-    products.find((product) => product.id === Number(piece.idProd))?.kind ===
-    "LINEAR_MATERIAL";
+  const product = products.find((product) => product.id === Number(piece.idProd));
+  const isLinear = product?.kind === "LINEAR_MATERIAL";
   const text = (value: unknown) =>
     value == null || value === "" ? null : String(value);
   return {
@@ -210,6 +209,9 @@ function pieceForPersistence(
     idSyst: Number(piece.idSyst),
     idConf: Number(piece.idConf),
     idFC: Number(piece.idFC),
+    idDesign: piece.idDesign == null ? null : Number(piece.idDesign),
+    idDesignColor: piece.idDesignColor == null ? null : Number(piece.idDesignColor),
+    designSnapshot: piece.designSnapshot ?? null,
     width: text(piece.width),
     height: text(piece.height),
     heightLeft: text(piece.heightLeft),
@@ -228,9 +230,9 @@ function pieceForPersistence(
       ? piece.horizontalHeights.map(Number)
       : null,
     idCryst: isLinear ? null : Number(piece.idCryst),
-    idTint: isLinear ? null : Number(piece.idTint),
-    idCoat: isLinear ? null : Number(piece.idCoat),
-    idPrivacy: isLinear ? null : Number(piece.idPrivacy),
+    idTint: isLinear || piece.idTint == null ? null : Number(piece.idTint),
+    idCoat: isLinear || piece.idCoat == null ? null : Number(piece.idCoat),
+    idPrivacy: isLinear || piece.idPrivacy == null ? null : Number(piece.idPrivacy),
     screen: isLinear ? false : Boolean(piece.screen),
     highBottom: isLinear ? false : Boolean(piece.highBottom),
     idActiveOption:
@@ -245,7 +247,7 @@ function pieceForPersistence(
       isLinear || !piece.idReinforcementOption
         ? null
         : Number(piece.idReinforcementOption),
-    muntin: isLinear ? null : (piece.muntin ?? null),
+    muntin: isLinear || product?.allowMuntin === false ? null : (piece.muntin ?? null),
     qty: 1,
     dealerMarkup: Number(piece.dealerMarkup || 0),
   };
