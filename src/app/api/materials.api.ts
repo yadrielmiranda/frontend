@@ -22,7 +22,7 @@ export type MaterialProduct = {
 };
 export type MaterialPage<T> = { items: T[]; total: number; page: number; pageSize: number };
 export type MaterialMovement = {
-  id: number; productId: number; product?: { name: string; code: string }; presentation?: MaterialPresentation | null;
+  id: number; productId: number; product?: { id?: number; name: string; code: string; baseUnit?: { id: number; name: string } }; presentation?: MaterialPresentation | null;
   store?: { id: number; name: string }; kind: string; quantity: number; deltaBaseUnits: number; baseUnitsAfter: number;
   costPerPackage: string | null; totalCost: string | null; supplier: string | null; reference: string | null;
   note: string | null; recipient: string | null; actorId: number | null; actor?: string | null;
@@ -66,7 +66,7 @@ export type MaterialStoreCountProduct = {
   id: number; code: string; name: string; imageUrl: string | null; isActive: boolean; version: number;
   allowBaseUnitOperations?: boolean;
   baseUnit: { id: number; name: string }; totalBaseQuantity: number; reservedBaseQuantity: number; availableBaseQuantity: number;
-  presentations: Array<{ id: number; name: string; barcode: string | null; multiplier: number; isBase: boolean; isActive: boolean; quantity: number; reservedQuantity: number; availableQuantity: number }>;
+  presentations: Array<{ id: number; name: string; unit?: { id: number; name: string }; barcode: string | null; multiplier: number; isBase: boolean; isActive: boolean; quantity: number; reservedQuantity: number; availableQuantity: number }>;
 };
 export type MaterialStoreCountInventory = { store: { id: number; name: string; isActive: boolean }; products: MaterialStoreCountProduct[] };
 export type MaterialStoreCountInput = { requestKey: string; note: string; products: Array<{ productId: number; version: number; counts: Array<{ presentationId: number; quantity: number }> }> };

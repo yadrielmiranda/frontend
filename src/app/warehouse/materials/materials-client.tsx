@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, ShoppingCart, Ruler } from "lucide-react";
+import { Plus, Search, ShoppingCart, Ruler, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -36,7 +36,7 @@ export function MaterialsClient({ initial, initialUnits, initialCategories = [],
   async function refresh(page = 1) { setData(await materialProducts({ search: search.trim(), page })); }
 
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">Materials</h2><p className="mt-1 text-sm text-muted-foreground">Products, packages and available quantities across your stores.</p></div><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/warehouse/materials/sales"><ShoppingCart className="mr-2 h-4 w-4" />Material sales</Link></Button>{admin && <><Button variant="outline" onClick={() => { lookupGeneration.current++; action.clear(); setOpen("units"); }}><Ruler className="mr-2 h-4 w-4" />Units of measure</Button><MaterialCategoryManager categories={categories} onChange={setCategories} disabled={action.busy || photoUploading} /><Button onClick={() => { lookupGeneration.current++; action.clear(); setOpen("product"); }}><Plus className="mr-2 h-4 w-4" />New product</Button></>}</div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">Materials</h2><p className="mt-1 text-sm text-muted-foreground">Products, packages and available quantities across your stores.</p></div><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/warehouse/materials/history"><History className="mr-2 h-4 w-4" />Material history</Link></Button><Button asChild variant="outline"><Link href="/warehouse/materials/sales"><ShoppingCart className="mr-2 h-4 w-4" />Material sales</Link></Button>{admin && <><Button variant="outline" onClick={() => { lookupGeneration.current++; action.clear(); setOpen("units"); }}><Ruler className="mr-2 h-4 w-4" />Units of measure</Button><MaterialCategoryManager categories={categories} onChange={setCategories} disabled={action.busy || photoUploading} /><Button onClick={() => { lookupGeneration.current++; action.clear(); setOpen("product"); }}><Plus className="mr-2 h-4 w-4" />New product</Button></>}</div></div>
     <MaterialScan onScan={async code => { const generation = lookupGeneration.current; const match = await materialBarcode(code); if (generation !== lookupGeneration.current) return; router.push(`/warehouse/materials/${match.product.id}?presentation=${match.presentation.id}`); }} />
     <form className="flex gap-2" onSubmit={event => { event.preventDefault(); void action.read(async () => refresh()); }}><Input aria-label="Search materials" placeholder="Search by name or product code" value={search} onChange={event => setSearch(event.target.value)} /><Button variant="outline" disabled={action.busy}><Search className="mr-2 h-4 w-4" />Search</Button></form>
     {!open && <MaterialNotice error={action.error} success={action.success} />}

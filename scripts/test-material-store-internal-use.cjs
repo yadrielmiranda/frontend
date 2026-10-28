@@ -64,7 +64,7 @@ function nodes(element, predicate, results = []) {
 }
 const text = element => typeof element === 'string' || typeof element === 'number' ? String(element) : Array.isArray(element) ? element.map(text).join('') : element?.props ? text(element.props.children) : '';
 const byLabel = (tree, label) => nodes(tree, n => n.props?.['aria-label'] === label)[0];
-const button = (tree, label) => nodes(tree, n => n.props?.onClick && text(n) === label)[0];
+const button = (tree, label) => nodes(tree, n => n.props?.onClick && (n.props['aria-label'] === label || text(n) === label))[0];
 const click = (h, label) => { const b = button(h.render(), label); assert.ok(b, `Missing button: ${label}`); assert.ok(!b.props.disabled, `Disabled button: ${label}`); return b.props.onClick(); };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const products = Array.from({ length: 25 }, (_, index) => ({ id: index + 1, code: `MAT-${index + 1}`, name: `Caulking ${index + 1}`, isActive: true, version: 3, imageUrl: null, baseUnit: { id: 1, name: 'Tube' }, totalBaseQuantity: 120, reservedBaseQuantity: 12, availableBaseQuantity: 108, presentations: [
@@ -210,6 +210,7 @@ test('technician withdrawal requires quantities only and automatically shows ins
     useMaterialStoreInternally: async () => { throw Error('Admin endpoint used'); },
   }, { user, revalidate: async () => user });
   assert.equal(nodes(h.render(), n => n.props?.label === 'Received by' || n.props?.label === 'Reason / job').length, 0);
+  click(h, 'Choose without scanning'); byLabel(h.render(), 'Add Caulking 1 · Tube').props.onClick();
   enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); assert.match(text(h.render()), /Alex Tech/); assert.match(text(h.render()), /Installation/);
   click(h, 'Confirm withdrawal'); await tick();
   assert.equal(writes.length, 1); assert.equal(writes[0][0], 1); assert.equal(writes[0][1].lines[0].quantity, 4); assert.equal(storage.size, 0);
@@ -220,7 +221,7 @@ test('technician pending material withdrawal survives reload and can recover fro
   const user = { id: 20, role: { name: 'technician' } }, auth = { user, revalidate: async () => user }, writes = [];
   const input = { initial: inventory, initialIdentity: { id: 20, role: 'technician' }, technician: true };
   const api = { technicianWithdrawMaterials: async (_, body) => { writes.push(structuredClone(body)); if (writes.length === 1) throw Error('Lost response'); return result; }, technicianMaterialInventory: async () => inventory };
-  const h = controlled(input, api, auth); enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); click(h, 'Confirm withdrawal'); await tick();
+  const h = controlled(input, api, auth); click(h, 'Choose without scanning'); byLabel(h.render(), 'Add Caulking 1 · Tube').props.onClick(); enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); click(h, 'Confirm withdrawal'); await tick();
   assert.ok(storage.has('technician-material-withdrawal:20:1'));
   const restored = controlled({ ...input, initial: { ...inventory, store: { ...inventory.store, isActive: false } } }, api, auth);
   click(restored, 'Retry same withdrawal'); await tick(); assert.equal(writes.length, 2); assert.deepEqual(writes[0], writes[1]); assert.equal(storage.size, 0);
