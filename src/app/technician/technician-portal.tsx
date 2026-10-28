@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { InstallApp } from "./install-app";
-import { TechnicianReceipts, pendingReceiptKey, pendingInstallationDeliveryKey } from "./technician-receipts";
+import { TechnicianReceipts, pendingReceiptKey, pendingInstallationDeliveryKey, isPendingInstallationDelivery } from "./technician-receipts";
 import { FactoryPickups } from "./factory-pickups";
 import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 
@@ -117,7 +117,7 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
       if (receipt && Number.isSafeInteger(receipt.storeId)) {
         setView({ operation: "RECEIVE", mode: "select", storeId: String(receipt.storeId) });
-      } else if (delivery && Number.isSafeInteger(delivery.installation?.id)) {
+      } else if (isPendingInstallationDelivery(delivery)) {
         setView({ operation: "INSTALLATION_DELIVERY", mode: "select", storeId: "" });
       } else if (saved && ["HOME", "COLLECT", "RECEIVE", "INSTALLATION_DELIVERY"].includes(saved.operation) &&
         ["scan", "select"].includes(saved.mode) && typeof saved.storeId === "string") setView(saved);

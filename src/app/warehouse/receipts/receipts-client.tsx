@@ -17,6 +17,8 @@ import { FactoryPartQuantity } from "../factory-part-quantity";
 
 type Selection = DeliverySelection;
 const LIMIT = 500;
+const deliverySourceKey = (unit: WarehouseUnit) => unit.source === "EXTERNAL"
+  ? `external:${unit.externalPoId ?? unit.lineNumber}` : `order:${unit.orderId ?? (unit.orderNumber || unit.lineNumber)}`;
 
 export function ReceiptsClient({ initial, initialStores }: {
   initial: WarehousePoInventory; initialStores: WarehouseStore[];
@@ -33,9 +35,12 @@ export function ReceiptsClient({ initial, initialStores }: {
   const chosen = Object.values(selection), busy = loading || saving || selecting;
   const target = stores.find((s) => String(s.id) === storeId && s.isActive);
   const installation = chosen[0]?.unit.installation;
-  const invalidInstallation = !installation?.address || chosen.some(({ unit }) =>
-    unit.source === "EXTERNAL" || unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
-  const targetValid = delivering ? !invalidInstallation : Boolean(target);
+  const firstUnit = chosen[0]?.unit;
+  const deliveryLabel = firstUnit ? `PO ${firstUnit.poNumber || firstUnit.orderNumber || firstUnit.lineNumber}` : "";
+  const invalidDeliverySelection = !firstUnit || chosen.some(({ unit }) =>
+    deliverySourceKey(unit) !== deliverySourceKey(firstUnit) ||
+    unit.installation?.id !== installation?.id || unit.installation?.address !== installation?.address);
+  const targetValid = delivering ? !invalidDeliverySelection : Boolean(target);
   const totalParts = chosen.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
   let invalid = false;
   try { deliveryItems(selection, "TRANSIT", ""); } catch { invalid = true; }
@@ -75,7 +80,7 @@ export function ReceiptsClient({ initial, initialStores }: {
     });
   }
   function eligibleGroups(groups: WarehousePoGroup[]) {
-    return groups.map((group) => ({ ...group, units: group.units.filter((unit) => unit.inTransit > 0 && (!delivering || (unit.source !== "EXTERNAL" && Boolean(unit.installation?.address)))) })).filter((group) => group.units.length > 0);
+    return groups.map((group) => ({ ...group, units: group.units.filter((unit) => unit.inTransit > 0) })).filter((group) => group.units.length > 0);
   }
   function selectPos(groups: WarehousePoGroup[], checked: boolean) {
     setSuccess(""); setError("");
@@ -110,8 +115,9 @@ export function ReceiptsClient({ initial, initialStores }: {
     if (request.current?.signature !== signature) request.current = { signature, key: warehouseRequestKey() };
     try {
       if (delivering) {
-        const result = await warehouseDeliverToInstallation({ installationJobId: installation!.id, installationAddress: installation!.address, items, requestKey: request.current!.key });
-        setSuccess(`${result.parts} parts delivered to installation #${result.installation.id} at ${result.installation.address}.${result.replayed ? " Already recorded; no duplicate was added." : ""}`);
+        const result = await warehouseDeliverToInstallation({ ...(installation ? { installationJobId: installation.id, installationAddress: installation.address } : {}), items, requestKey: request.current!.key });
+        const destinationText = result.installation ? ` · Installation #${result.installation.id}${result.installation.address ? ` · ${result.installation.address}` : ""}` : "";
+        setSuccess(`${result.parts} parts delivered for ${deliveryLabel}${destinationText}.${result.replayed ? " Already recorded; no duplicate was added." : ""}`);
       } else {
         const result = await warehouseReceive(target!.id, items, request.current!.key);
         setSuccess(`${result.parts} parts across ${result.units} units received into ${result.storeName}.${result.replayed ? " This receipt was already recorded; no duplicate was added." : ""}`);
@@ -176,8 +182,8 @@ export function ReceiptsClient({ initial, initialStores }: {
           </Button>
         </div>
         {!delivering && !stores.some((s) => s.isActive) && <p className="text-sm text-amber-800">An administrator must create an active store in <Link href="/warehouse/stores" className="underline">Stores</Link> first.</p>}
-        {delivering && <p className="text-sm text-muted-foreground">Select parts for one installation. Confirm only the quantities that have physically arrived at the job site.</p>}
-        {delivering && chosen.length > 0 && (invalidInstallation ? <p role="alert" className="text-sm text-amber-800">Select parts for one installation with a confirmed address. Filter by order or PO.</p> : <p className="text-sm">Order #{chosen[0].unit.orderNumber} · <Link href={`/installations/${installation!.id}`} className="underline">Installation #{installation!.id}</Link><br />{installation!.address}</p>)}
+        {delivering && <p className="text-sm text-muted-foreground">Select one PO at a time. Confirm only the quantities that have physically arrived at the job site.</p>}
+        {delivering && chosen.length > 0 && (invalidDeliverySelection ? <p role="alert" className="text-sm text-amber-800">Select parts from one PO at a time. Filter by order or PO.</p> : <p className="text-sm">{deliveryLabel}{firstUnit?.orderNumber && ` · Order #${firstUnit.orderNumber}`}{installation && <> · <Link href={`/installations/${installation.id}`} className="underline">Installation #{installation.id}</Link>{installation.address && <><br />{installation.address}</>}</>}</p>)}
         {!delivering && chosen.length > 0 && <p className="text-xs text-muted-foreground">To split a PO between stores, open Pieces and enter only the parts for this store. Receive the remaining parts into another store afterward.</p>}
       </section>
       {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{success}</p>}
@@ -199,7 +205,7 @@ export function ReceiptsClient({ initial, initialStores }: {
           <div className="flex flex-wrap items-center gap-4 p-4">
             <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
               <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" aria-label={`Select PO ${group.poNumber || group.orderNumber || group.key}`} aria-checked={all ? true : some ? "mixed" : false} checked={all} disabled={busy || confirm || !eligible} onChange={(e) => selectPos([group], e.target.checked)} />
-              <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{group.units.length} pieces · {parts} physical parts in transit</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial quantities selected"}</span>}{delivering && !eligible && <span className="block text-xs text-muted-foreground">{group.source === "EXTERNAL" ? "External POs can be received at a warehouse or delivered directly to a customer." : "A confirmed installation address is required."}</span>}</span>
+              <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{group.units.length} pieces · {parts} physical parts in transit</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial quantities selected"}</span>}</span>
             </label>
             <Button variant="outline" size="sm" aria-label={`${open ? "Hide" : "Show"} pieces for PO ${group.poNumber || group.orderNumber || group.key}`} aria-expanded={open} disabled={busy || confirm} onClick={() => setExpanded((previous) => ({ ...previous, [group.key]: !open }))}>{open ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4" />}Pieces</Button>
           </div>
@@ -207,7 +213,7 @@ export function ReceiptsClient({ initial, initialStores }: {
             const entry = selection[unit.lineNumber];
             const stale = entry && entry.unit.version !== unit.version;
             return <div key={unit.lineNumber} className="flex flex-wrap items-start gap-3 p-4">
-              <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} />
+              <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-label={`Select ${unit.barcode}`} checked={Boolean(entry)} disabled={busy || confirm || (!entry && chosen.length >= LIMIT)} onChange={(e) => toggle(unit, e.target.checked)} />
               <div className="min-w-40 flex-1 text-sm"><p className="break-words font-medium">{unit.description || [unit.mark, unit.product, unit.system, unit.configuration].filter(Boolean).join(" · ")}</p>{unit.description && unit.mark && unit.mark !== unit.description && <p className="text-xs text-muted-foreground">Mark: {unit.mark}</p>}<p className="text-xs text-muted-foreground">Line {unit.lineNumber} · {unit.inTransit} parts in transit</p><p className="font-mono text-xs text-muted-foreground">{unit.barcode}</p>{stale && <p className="text-xs text-red-700">Changed. Deselect and select again.</p>}</div>
               <div className="space-y-1 text-xs"><span className="block">{delivering ? "Deliver now" : "Receive now"}</span><FactoryPartQuantity tracking={unit.partTracking} source="TRANSIT" storeId="" max={unit.inTransit}
                 label={`Quantity to ${delivering ? "deliver" : "receive"} for ${unit.barcode}`} disabled={busy || confirm || !entry} quantity={entry?.quantity ?? ""} parts={entry?.parts}
@@ -219,8 +225,8 @@ export function ReceiptsClient({ initial, initialStores }: {
       <Pagination {...data} label="POs" onPage={(next) => { serial.current++; setLoading(true); setPage(next); }} disabled={busy || confirm} />
       <Dialog open={confirm} onOpenChange={(open) => { if (!saving) setConfirm(open); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{delivering ? "Confirm delivery to installation" : "Confirm warehouse receipt"}</DialogTitle><DialogDescription>{delivering ? "Only confirm parts that are physically present at this installation address." : "Only confirm parts that are physically present at the selected store."}</DialogDescription></DialogHeader>
-          {delivering ? <div className="space-y-2 text-sm"><p>Deliver <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> for <b>Order #{chosen[0]?.unit.orderNumber}</b>.</p><p className="font-semibold">Installation #{installation?.id} · {installation?.address}</p></div> : <p className="text-sm">Receive <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> into <b>{target?.name ?? "the selected store"}</b>. These quantities will leave transit and enter that store.</p>}
+          <DialogHeader><DialogTitle>{delivering ? "Confirm delivery to installation" : "Confirm warehouse receipt"}</DialogTitle><DialogDescription>{delivering ? "Only confirm parts that have physically arrived at the job site." : "Only confirm parts that are physically present at the selected store."}</DialogDescription></DialogHeader>
+          {delivering ? <div className="space-y-2 text-sm"><p>Deliver <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> for <b>{deliveryLabel}</b>.</p>{installation && <p className="font-semibold">Installation #{installation.id}{installation.address && ` · ${installation.address}`}</p>}</div> : <p className="text-sm">Receive <b>{totalParts} physical parts</b> across <b>{chosen.length} units</b> into <b>{target?.name ?? "the selected store"}</b>. These quantities will leave transit and enter that store.</p>}
           <div className="max-h-56 overflow-y-auto rounded-lg border px-3 text-sm">{[...selectedPos.entries()].map(([key, po]) => <div key={key} className="border-b py-3 last:border-0"><p className="font-medium">PO {po.poNumber || "—"}{po.orderNumber ? ` · Order #${po.orderNumber}` : ""}</p>{po.customer && <p className="text-xs text-muted-foreground">{po.customer}</p>}<p className="text-xs">{po.pieces} pieces · {po.parts} physical parts</p></div>)}</div>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button><Button disabled={saving || !targetValid || invalid || !chosen.length} onClick={receive}>{saving ? "Saving…" : delivering ? "Confirm delivery" : "Confirm receipt"}</Button></DialogFooter>

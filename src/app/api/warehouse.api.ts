@@ -311,11 +311,11 @@ export const warehouseRelease = (body: WarehouseReleaseRequest) =>
     method: "POST", body, timeoutMs: 90000,
   });
 export type InstallationDeliveryRequest = {
-  installationJobId: number; installationAddress: string;
+  installationJobId?: number; installationAddress?: string;
   items: ReceiptItem[]; requestKey: string;
 };
 export type InstallationDeliveryResult = {
-  units: number; parts: number; installation: InstallationDestination; replayed: boolean;
+  units: number; parts: number; installation: InstallationDestination | null; replayed: boolean;
 };
 export const warehouseDeliverToInstallation = (body: InstallationDeliveryRequest) =>
   apiFetch<InstallationDeliveryResult>("/api/warehouse/installation-deliveries", {

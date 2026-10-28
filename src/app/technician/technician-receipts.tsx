@@ -11,9 +11,26 @@ import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
 export const pendingReceiptKey = (actorId: number) => `technician-receipt:${actorId}`;
 export const pendingInstallationDeliveryKey = (actorId: number) => `technician-installation-delivery:${actorId}`;
 type Selected = Record<string, { unit: TechnicianUnit; quantity: string }>;
-type PendingReceipt = { storeId: number; storeName: string; items: ReceiptItem[]; requestKey: string; installation?: InstallationDestination };
+type PendingReceipt = { storeId: number; storeName: string; items: ReceiptItem[]; requestKey: string; installation?: InstallationDestination; sourceLabel?: string };
 const LIMIT = 500;
 const errorMessage = (e: unknown) => e instanceof Error ? e.message : "The receipt could not be completed.";
+
+export function isPendingInstallationDelivery(value: unknown): value is PendingReceipt {
+  if (!value || typeof value !== "object") return false;
+  const saved = value as Partial<PendingReceipt>;
+  return typeof saved.requestKey === "string" && Boolean(saved.requestKey) &&
+    (saved.sourceLabel === undefined || typeof saved.sourceLabel === "string") &&
+    (saved.installation == null || (Number.isSafeInteger(saved.installation.id) && saved.installation.id > 0 &&
+      typeof saved.installation.address === "string" && saved.installation.address.length <= 500)) &&
+    Array.isArray(saved.items) && saved.items.length > 0 && saved.items.length <= LIMIT && saved.items.every((item) =>
+      item && typeof item.barcode === "string" && Number.isSafeInteger(item.version) && item.version >= 0 &&
+      Number.isSafeInteger(item.quantity) && item.quantity > 0 && item.quantity <= 200);
+}
+
+const deliverySource = (unit: TechnicianUnit) => unit.source === "EXTERNAL"
+  ? `external:${unit.externalPoId ?? unit.lineNumber}`
+  : `order:${unit.orderNumber || unit.poNumber || unit.lineNumber}`;
+const deliverySourceLabel = (unit: TechnicianUnit) => [unit.poNumber ? `PO ${unit.poNumber}` : "", unit.orderNumber ? `Order #${unit.orderNumber}` : ""].filter(Boolean).join(" · ") || `Line ${unit.lineNumber}`;
 
 export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offline, onBusy, onSaved, delivering = false }: {
   actorId: number; storeId: number | null; storeName: string; blocked: boolean; offline: boolean;
@@ -30,8 +47,8 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
   const key = delivering ? pendingInstallationDeliveryKey(actorId) : pendingReceiptKey(actorId);
   const chosen = Object.values(selected);
   const installation = chosen[0]?.unit.installation;
-  const invalidInstallation = !installation?.address || chosen.some(({ unit }) =>
-    unit.source === "EXTERNAL" || unit.installation?.id !== installation.id || unit.installation?.address !== installation.address);
+  const invalidInstallation = chosen.some(({ unit }) => deliverySource(unit) !== deliverySource(chosen[0].unit) ||
+    unit.installation?.id !== installation?.id || unit.installation?.address !== installation?.address);
   const parts = chosen.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const staleSelection = chosen.some(({ unit }) => {
     const current = data.items.find((item) => item.lineNumber === unit.lineNumber);
@@ -44,7 +61,7 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "null") as PendingReceipt | null;
       const destinationValid = delivering
-        ? saved?.installation && Number.isSafeInteger(saved.installation.id) && saved.installation.id > 0 && typeof saved.installation.address === "string" && Boolean(saved.installation.address.trim())
+        ? isPendingInstallationDelivery(saved)
         : saved && Number.isSafeInteger(saved.storeId) && saved.storeId > 0;
       if (saved && typeof saved.requestKey === "string" && destinationValid &&
         Array.isArray(saved.items) && saved.items.length > 0 && saved.items.length <= LIMIT && saved.items.every((i) =>
@@ -100,7 +117,7 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
         if (current * 100 >= result.total) break;
       }
       if (Object.keys(next).length !== total) throw new Error("Pending units changed. Refresh and select again.");
-      setSelected(delivering ? Object.fromEntries(Object.entries(next).filter(([, entry]) => entry.unit.source !== "EXTERNAL" && entry.unit.installation?.address)) : next);
+      setSelected(next);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSelecting(false); }
   }
@@ -109,7 +126,7 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
     if (!pending && (blocked || (!delivering && !storeId) || invalid || !chosen.length || chosen.length > LIMIT)) return;
     const request: PendingReceipt = pending ?? {
       storeId: delivering ? 0 : storeId!, storeName, requestKey: warehouseRequestKey(),
-      ...(delivering ? { installation: installation! } : {}),
+      ...(delivering ? { sourceLabel: deliverySourceLabel(chosen[0].unit), ...(installation ? { installation } : {}) } : {}),
       items: chosen.map(({ unit, quantity }) => ({ barcode: unit.barcode, version: unit.version, quantity: Number(quantity) })).sort((a, b) => a.barcode.localeCompare(b.barcode)),
     };
     saveLock.current = true; setSaving(true); setPending(request); setError(""); setSuccess("");
@@ -121,11 +138,11 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
     }
     try {
       const result = delivering
-        ? await technicianDeliverToInstallation({ installationJobId: request.installation!.id, installationAddress: request.installation!.address, items: request.items, requestKey: request.requestKey })
+        ? await technicianDeliverToInstallation({ ...(request.installation ? { installationJobId: request.installation.id, installationAddress: request.installation.address } : {}), items: request.items, requestKey: request.requestKey })
         : await technicianReceive(request.storeId, request.items, request.requestKey);
       try { localStorage.removeItem(key); } catch { /* El servidor sigue siendo idempotente. */ }
       setPending(null); setConfirm(false); setSelected({});
-      setSuccess(`${result.parts} parts ${"installation" in result ? `delivered to installation #${result.installation.id} at ${result.installation.address}` : `received into ${result.storeName}`}.${result.replayed ? " Already recorded; no duplicate added." : ""}`);
+      setSuccess(`${result.parts} parts ${"installation" in result ? `delivered to installation${result.installation ? ` #${result.installation.id}${result.installation.address ? ` at ${result.installation.address}` : ""}` : ""}` : `received into ${result.storeName}`}.${result.replayed ? " Already recorded; no duplicate added." : ""}`);
       onSaved(); await refresh();
     } catch (e) {
       if (isApiError(e) && e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status)) {
@@ -142,14 +159,15 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
   const pendingUnits = pending?.items.length ?? chosen.length;
   const targetName = pending?.storeName || storeName;
   const deliveryTarget = pending?.installation ?? installation;
+  const sourceLabel = pending?.sourceLabel || (chosen[0] ? deliverySourceLabel(chosen[0].unit) : "Selected PO");
   return <div className="space-y-4">
-    <p className="text-sm text-slate-600">{delivering ? "Select only the parts that have arrived at one installation. Reduce a quantity for a partial delivery. No second scan is required." : "Select only the parts that have arrived. No second scan is required. Reduce a quantity to split the unit between stores."}</p>
+    <p className="text-sm text-slate-600">{delivering ? "Select one order or external PO and the parts that have arrived at the job site. Reduce a quantity for a partial delivery. No second scan is required." : "Select only the parts that have arrived. No second scan is required. Reduce a quantity to split the unit between stores."}</p>
     {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{success}</p>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {confirm && <section className="space-y-4 rounded-xl border-2 border-slate-900 bg-white p-5">
       <h2 className="text-lg font-semibold">{pending ? "Check pending confirmation" : delivering ? "Confirm delivery to installation" : "Confirm warehouse receipt"}</h2>
-      {delivering ? <><p>Deliver <b>{pendingParts} physical parts</b> across <b>{pendingUnits} units</b> to <b>installation #{deliveryTarget?.id}</b>.</p><p className="font-semibold">{deliveryTarget?.address}</p></> : <p>Receive <b>{pendingParts} physical parts</b> across <b>{pendingUnits} units</b> into <b>{targetName}</b>.</p>}
-      <p className="text-sm text-slate-600">{delivering ? "Confirm only after the parts are physically present at this installation address." : "Confirm only after the parts are physically present in this store."}</p>
+      {delivering ? <><p>Deliver <b>{pendingParts} physical parts</b> across <b>{pendingUnits} units</b> for <b>{sourceLabel}</b>.</p>{deliveryTarget && <p className="font-semibold">Installation #{deliveryTarget.id}{deliveryTarget.address ? ` · ${deliveryTarget.address}` : ""}</p>}</> : <p>Receive <b>{pendingParts} physical parts</b> across <b>{pendingUnits} units</b> into <b>{targetName}</b>.</p>}
+      <p className="text-sm text-slate-600">{delivering ? "Confirm only after the parts are physically present at the job site." : "Confirm only after the parts are physically present in this store."}</p>
       <div className="flex gap-3">
         {!pending && <Button variant="outline" className="min-h-12" disabled={saving} onClick={() => setConfirm(false)}>Cancel</Button>}
         <Button className="min-h-12 flex-1" disabled={saving || offline || (!pending && blocked)} onClick={() => void receive()}>{saving ? "Saving…" : pending ? "Retry same confirmation" : delivering ? "Confirm delivery" : "Confirm receipt"}</Button>
@@ -166,8 +184,8 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
       <p className="text-sm"><b>{chosen.length}</b> units selected · <b>{parts}</b> physical parts</p>
       <Button className="min-h-12 w-full" disabled={loading || locked || blocked || (!delivering && !storeId) || invalid || chosen.length > LIMIT} onClick={() => { setError(""); setConfirm(true); }}>{delivering ? "Deliver selected" : `Receive selected${storeName ? ` into ${storeName}` : ""}`}</Button>
       {!delivering && !storeId && <p className="text-xs text-amber-800">Choose the destination store above.</p>}
-      {delivering && !invalidInstallation && <p className="text-sm">Order #{chosen[0].unit.orderNumber} · Installation #{installation!.id}<br />{installation!.address}</p>}
-      {invalid && <p className="text-xs text-red-700">{delivering && invalidInstallation ? "Select parts for one installation with a confirmed address. Filter by order or PO." : staleSelection ? "A selected unit changed. Deselect and select it again before confirming." : "Enter a whole quantity between 1 and the available parts."}</p>}
+      {delivering && !invalidInstallation && <p className="text-sm">{sourceLabel}{installation ? ` · Installation #${installation.id}` : ""}{installation?.address && <><br />{installation.address}</>}</p>}
+      {invalid && <p className="text-xs text-red-700">{delivering && invalidInstallation ? "Select parts from one order or external PO. Filter by order or PO." : staleSelection ? "A selected unit changed. Deselect and select it again before confirming." : "Enter a whole quantity between 1 and the available parts."}</p>}
     </section>}
     {loading && <p role="status" className="text-sm text-slate-600">Updating pending parts…</p>}
     {data.items.map((unit) => {
@@ -175,11 +193,10 @@ export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offli
       const stale = entry && entry.unit.version !== unit.version;
       return <section key={unit.lineNumber} className={`rounded-xl border bg-white p-4 ${entry ? "ring-1 ring-slate-800" : ""}`}>
         <label className="flex cursor-pointer items-start gap-3 py-1">
-          <input type="checkbox" className="mt-1 h-6 w-6 shrink-0" checked={Boolean(entry)} disabled={locked || loading || (delivering && (unit.source === "EXTERNAL" || !unit.installation?.address)) || (!entry && chosen.length >= LIMIT)} onChange={(event) => toggle(unit, event.target.checked)} />
+          <input type="checkbox" aria-label={`Select ${unit.barcode}`} className="mt-1 h-6 w-6 shrink-0" checked={Boolean(entry)} disabled={locked || loading || (!entry && chosen.length >= LIMIT)} onChange={(event) => toggle(unit, event.target.checked)} />
           <div className="min-w-0 space-y-1"><p className="font-semibold">{unit.mark || "No mark"} · {unit.product}</p><p className="text-sm"><UnitOrigin unit={unit} />{unit.poNumber ? ` · PO ${unit.poNumber}` : ""}</p><p className="text-xs text-slate-500">{[unit.system, unit.configuration].filter(Boolean).join(" · ")}</p><p className="font-mono text-xs">{unit.barcode}</p><p className="text-sm">In transit: <b>{unit.inTransit}</b></p></div>
         </label>
         <ExternalDescription unit={unit} />
-        {delivering && unit.source === "EXTERNAL" && <p className="mt-2 text-xs text-slate-500">Receive this external PO at a warehouse.</p>}
         {entry && <div className="mt-3 flex items-center justify-between gap-4 border-t pt-3"><label htmlFor={`quantity-${unit.lineNumber}`} className="text-sm font-medium">{delivering ? "Parts to deliver" : "Parts to receive"}</label><Input id={`quantity-${unit.lineNumber}`} className="h-12 w-28 text-base" type="number" inputMode="numeric" min={1} max={unit.inTransit} step={1} disabled={locked || loading} value={entry.quantity} onChange={(event) => setSelected((prev) => ({ ...prev, [unit.lineNumber]: { ...prev[unit.lineNumber], quantity: event.target.value } }))} /></div>}
         {stale && <p className="mt-2 text-xs text-red-700">This unit changed. Deselect and select again before receiving.</p>}
       </section>;

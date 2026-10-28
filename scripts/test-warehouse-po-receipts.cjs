@@ -151,14 +151,86 @@ test('select-all requests complete POs and visits every PO page', async () => {
   click(h, 'Receive selected'); await click(h, 'Confirm receipt');
   assert.equal(items.length, 21);
 });
-test('installation delivery still excludes external POs and multiple destinations', () => {
+test('installation delivery accepts external POs but keeps confirmations within one source', () => {
   const order = id => group([unit(String(4000000 + id), { source: 'ORDER', externalPoId: null, orderId: id, orderNumber: `SO-${id}`, poNumber: String(290000 + id), installation: { id, address: `Address ${id}` } })]);
   const h = harness(inventory([group(pieces), order(1), order(2)]));
   click(h, 'Deliver to installation');
-  assert.equal(label(h, 'Select PO 292427').props.disabled, true);
+  assert.equal(label(h, 'Select PO 292427').props.disabled, false);
   selectPo(h, '290001'); assert.equal(button(h, 'Deliver selected').props.disabled, false);
   selectPo(h, '290002'); assert.equal(button(h, 'Deliver selected').props.disabled, true);
-  assert.match(text(h.render()), /Select parts for one installation/);
+  assert.match(text(h.render()), /Select parts from one PO/);
+});
+
+test('external PO delivery records its selected parts without requiring an installation or store', async () => {
+  let request;
+  const h = harness(inventory(), { warehouseDeliverToInstallation: async value => {
+    request = value; return { parts: 6, units: 2, installation: null, replayed: false };
+  } });
+  click(h, 'Deliver to installation'); selectPo(h); expand(h);
+  assert.equal(label(h, 'Select I1126830').props.disabled, false);
+  assert.equal(byType(h, 'StoreSelect'), undefined);
+  click(h, 'Deliver selected'); await click(h, 'Confirm delivery');
+  assert.equal('installationJobId' in request, false);
+  assert.equal('installationAddress' in request, false);
+  assert.deepEqual(request.items, [
+    { barcode: 'I1126830', version: 3, quantity: 4 },
+    { barcode: 'I1126835', version: 3, quantity: 2 },
+  ]);
+  assert.match(text(h.render()), /6 parts delivered for PO 292427/);
+  assert.doesNotMatch(text(h.render()), /installation #undefined|at undefined|confirmed installation address/);
+});
+
+test('an internal installation without an address or without a job can still be delivered', async () => {
+  for (const installation of [{ id: 9, address: '' }, null]) {
+    let request;
+    const order = group([unit('4000001', { source: 'ORDER', externalPoId: null, orderId: 2, orderNumber: 'ORD-1002', poNumber: '293540', installation })]);
+    const h = harness(inventory([order]), { warehouseDeliverToInstallation: async value => {
+      request = value; return { parts: 4, units: 1, installation, replayed: false };
+    } });
+    click(h, 'Deliver to installation'); selectPo(h, '293540');
+    click(h, 'Deliver selected'); await click(h, 'Confirm delivery');
+    assert.equal(request.installationJobId, installation?.id);
+    assert.equal(request.installationAddress, installation?.address);
+    assert.match(text(h.render()), /4 parts delivered for PO 293540/);
+    if (installation) assert.match(text(h.render()), /Installation #9/);
+  }
+});
+
+test('a known destination is shown and sent with the same reviewed quantities', async () => {
+  let request;
+  const installation = { id: 9, address: '123 Example Street, Miami, FL 33101' };
+  const order = group([unit('4000001', { source: 'ORDER', externalPoId: null, orderId: 2, orderNumber: 'ORD-1002', poNumber: '293540', installation })]);
+  const h = harness(inventory([order]), { warehouseDeliverToInstallation: async value => { request = value; return { parts: 4, units: 1, installation }; } });
+  click(h, 'Deliver to installation'); selectPo(h, '293540'); click(h, 'Deliver selected');
+  assert.match(text(h.render()), /123 Example Street/);
+  await click(h, 'Confirm delivery');
+  assert.equal(request.installationJobId, 9); assert.equal(request.installationAddress, installation.address);
+});
+
+test('matching numeric internal and external IDs do not combine two source POs', () => {
+  const order = group([unit('4000001', { source: 'ORDER', externalPoId: null, orderId: 1, orderNumber: 'ORD-1', poNumber: '293540' })]);
+  const h = harness(inventory([group(pieces), order]));
+  click(h, 'Deliver to installation'); selectPo(h); selectPo(h, '293540');
+  assert.equal(button(h, 'Deliver selected').props.disabled, true);
+  assert.match(text(h.render()), /Select parts from one PO/);
+});
+
+test('partial external delivery preserves frame quantities and retries the same confirmation', async () => {
+  const calls = [];
+  const door = unit('1126830', { inTransit: 3,
+    partTracking: { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: { DOOR: 2, FRAME: 1 }, onHand: {}, unassigned: {}, released: {}, stores: [] },
+  });
+  const h = harness(inventory([group([door])]), { warehouseDeliverToInstallation: async value => {
+    calls.push(structuredClone(value));
+    if (calls.length === 1) throw new Error('Lost response');
+    return { parts: 1, units: 1, installation: null, replayed: true };
+  } });
+  click(h, 'Deliver to installation'); selectPo(h); expand(h);
+  label(h, 'Door panels — Quantity to deliver for I1126830').props.onChange({ target: { value: '0' } });
+  click(h, 'Deliver selected'); await click(h, 'Confirm delivery'); await click(h, 'Confirm delivery');
+  assert.deepEqual(calls[0], calls[1]);
+  assert.deepEqual(calls[0].items, [{ barcode: 'I1126830', version: 3, quantity: 1, parts: { FRAME: 1 } }]);
+  assert.match(text(h.render()), /Already recorded; no duplicate was added/);
 });
 test('invalid partial quantities cannot be confirmed', () => {
   const h = harness(); store(h, 1); selectPo(h); expand(h);
