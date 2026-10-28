@@ -94,6 +94,34 @@ function RemainingList({ lines }: { lines: FactoryPickupLine[] }) {
   );
 }
 
+const pieceCollectionStyles = {
+  COMPLETE: { label: "Collected", card: "border-emerald-300 bg-emerald-50", badge: "bg-emerald-100 text-emerald-800" },
+  PARTIAL: { label: "Partially collected", card: "border-orange-300 bg-orange-50", badge: "bg-orange-100 text-orange-900" },
+  PENDING: { label: "Not collected", card: "border-red-300 bg-red-50", badge: "bg-red-100 text-red-800" },
+} as const;
+
+function PickupPieceList({ lines }: { lines: FactoryPickupLine[] }) {
+  return <ul className="space-y-2" aria-label="Pieces in this pickup">
+    {lines.map((line) => {
+      const style = pieceCollectionStyles[line.collectionState];
+      return <li key={line.lineNumber} className={`rounded-xl border border-l-4 p-3 ${style.card}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Mark {line.mark || "—"}</p>
+          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${style.badge}`}>{style.label}</span>
+        </div>
+        <p className="mt-1 break-words font-semibold text-slate-950">{line.product}</p>
+        <p className="text-xs text-slate-600">{[line.system, line.configuration].filter(Boolean).join(" · ")}</p>
+        <p className="mt-1 font-mono text-xs text-slate-600">Line {line.lineNumber}</p>
+        <ExternalDescription unit={line} />
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-800">
+          <p><b>{line.collected} / {line.targetParts}</b> parts collected</p>
+          {line.remaining > 0 && <p>{line.remaining} remaining</p>}
+        </div>
+      </li>;
+    })}
+  </ul>;
+}
+
 export function FactoryPickup({
   actorId,
   offline,
@@ -475,6 +503,8 @@ export function FactoryPickup({
         scope={`${surface}:${actorId}:pickup:${run.id}`}
         persistent
         mobileFocus
+        prominent={surface === "technician"}
+        cameraDialog={surface === "technician"}
         disabled={offline || blocked || working}
         retryOnly={!canScan}
         onPendingChange={setScanBusy}
@@ -509,8 +539,20 @@ export function FactoryPickup({
 
       <section className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-slate-950">PO progress</h3><span className="text-xs text-slate-500">Any scan order</span></div>
+        <p className="text-sm text-slate-600">Tap a PO to view its pieces in this pickup.</p>
         {run.orders.map((order) => <div key={order.key} className="rounded-xl border bg-slate-50 p-3">
-          <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} /> · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div><div className="text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div></div>
+          <details className="group/po">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+              <ChevronDown className="h-5 w-5 shrink-0 text-slate-600 transition-transform group-open/po:rotate-180" aria-hidden="true" />
+              <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                <div className="min-w-0"><p className="break-words font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} /> · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div>
+                <div className="shrink-0 text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div>
+              </div>
+            </summary>
+            <div className="mt-3 border-t border-slate-200 pt-3">
+              <PickupPieceList lines={run.lines.filter((line) => line.key === order.key)} />
+            </div>
+          </details>
           {run.lines.some(line => line.key === order.key && line.collected > 0 && line.inTransit > 0) && <Button className="mt-3 min-h-12 w-full" disabled={busy || offline || blocked || Boolean(candidate) || finishing || editingAssignments || accessLost} onClick={() => openCustomerDelivery(order.key)}>Deliver to customer</Button>}
         </div>)}
       </section>

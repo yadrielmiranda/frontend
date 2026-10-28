@@ -9,6 +9,7 @@ import { isApiError } from "@/app/api/_base";
 import { warehouseRequestKey, type FactoryPartType, type ScanResult } from "@/app/api/warehouse.api";
 import { errorMessage } from "./warehouse-shared";
 import { factoryBarcode } from "./factory-parts";
+import { FactoryBarcodeCamera } from "./factory-barcode-camera";
 
 type Pending = { barcode: string; requestKey: string };
 export function ScanPad<Result = ScanResult>({
@@ -21,6 +22,8 @@ export function ScanPad<Result = ScanResult>({
   onPendingChange,
   mobileFocus = false,
   onScanModeChange,
+  prominent = false,
+  cameraDialog = false,
 }: {
   scope: string;
   persistent?: boolean;
@@ -31,6 +34,8 @@ export function ScanPad<Result = ScanResult>({
   onPendingChange?: (pending: boolean) => void;
   mobileFocus?: boolean;
   onScanModeChange?: (active: boolean) => void;
+  prominent?: boolean;
+  cameraDialog?: boolean;
 }) {
   const [barcode, setBarcode] = useState(""),
     [busy, setBusy] = useState(false),
@@ -245,23 +250,33 @@ export function ScanPad<Result = ScanResult>({
   return (
     <section
       data-mobile-scan-focused={focusedMobile ? "true" : undefined}
-      className={`space-y-4 rounded-xl border bg-white p-4 sm:p-6 ${focusedMobile ? "max-sm:rounded-none max-sm:border-0 max-sm:p-0" : ""}`}
+      className={`space-y-4 p-4 sm:p-6 ${prominent ? "rounded-2xl border-2 border-orange-200 bg-orange-50 shadow-sm" : "rounded-xl border bg-white"} ${focusedMobile ? "max-sm:rounded-none max-sm:border-0 max-sm:p-0" : ""}`}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
+      {prominent && <div className={focusedMobile ? "max-sm:hidden" : undefined}>
+        <h3 className="text-xl font-bold text-orange-950">Scan your parts</h3>
+        <p className="mt-1 text-sm text-orange-900">Scan each physical part once.</p>
+      </div>}
+      <div className={prominent ? "grid gap-3" : "flex flex-wrap items-center gap-3"}>
+        {cameraDialog ? <FactoryBarcodeCamera
+          prominent={prominent}
+          label={paused ? "Scan next part" : "Scan with camera"}
+          disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
+          onDetected={(code) => { setBarcode(code); setPaused(true); void submit(code); }}
+        /> : <Button
           type="button"
-          variant="outline"
+          variant={prominent && !camera ? "default" : "outline"}
+          className={prominent ? `h-16 w-full gap-3 rounded-xl px-5 text-lg font-bold shadow-sm focus-visible:ring-orange-600/50 focus-visible:ring-offset-2 ${camera ? "border-orange-300 bg-white text-orange-950 hover:bg-orange-100" : "bg-orange-700 text-white hover:bg-orange-800"}` : undefined}
           onClick={camera ? endScanMode : startCamera}
           disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
         >
-          <Camera className="mr-2 h-4 w-4" />
-          {camera ? "Stop camera" : paused ? "Scan next part" : "Start camera"}
-        </Button>
-        <span className={`text-sm text-muted-foreground ${focusedMobile ? "max-sm:hidden" : ""}`}>
+          <Camera className={prominent ? "size-7" : "mr-2 h-4 w-4"} aria-hidden="true" />
+          {camera ? "Stop camera" : paused ? "Scan next part" : prominent ? "Scan with camera" : "Start camera"}
+        </Button>}
+        {!prominent && <span className={`text-sm text-muted-foreground ${focusedMobile ? "max-sm:hidden" : ""}`}>
           One reading records one physical part.
-        </span>
+        </span>}
       </div>
-      <div
+      {!cameraDialog && <div
         hidden={!camera}
         className={`overflow-hidden rounded-lg bg-slate-950 ${focusedMobile ? "max-sm:rounded-xl" : ""}`}
       >
@@ -275,7 +290,7 @@ export function ScanPad<Result = ScanResult>({
         <p className="p-3 text-center text-sm text-white">
           Keep the full barcode in view. The camera pauses after one reading.
         </p>
-      </div>
+      </div>}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -283,7 +298,7 @@ export function ScanPad<Result = ScanResult>({
         }}
         className="space-y-2"
       >
-        <Label htmlFor="warehouse-barcode">Barcode or line number</Label>
+        <Label htmlFor="warehouse-barcode">{prominent ? "Or scan / type the barcode" : "Barcode or line number"}</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             ref={input}
@@ -291,12 +306,15 @@ export function ScanPad<Result = ScanResult>({
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            placeholder="Scan 1029975-DOOR, -SIDELITE, -FRAME, -WINDOW or I1029975"
+            placeholder={prominent ? "Scan or enter a barcode" : "Scan 1029975-DOOR, -SIDELITE, -FRAME, -WINDOW or I1029975"}
+            className={prominent ? "h-12 bg-white text-base focus-visible:border-orange-500 focus-visible:ring-orange-500/30" : undefined}
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
           />
           <Button
+            variant={prominent ? "outline" : "default"}
+            className={prominent ? "h-12 border-orange-200 bg-white text-orange-950 hover:bg-orange-100" : undefined}
             disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice) || !barcode.trim()}
           >
             {busy ? (

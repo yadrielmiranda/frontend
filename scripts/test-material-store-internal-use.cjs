@@ -75,6 +75,7 @@ const inventory = { store: { id: 1, name: 'Main store', isActive: true }, produc
 const result = { storeId: 1, storeName: 'Main store', recipient: 'Alex', note: 'Smith installation', productCount: 1, lineCount: 1, movementIds: [7], issuedAt: '2026-10-12T12:00:00Z', replayed: false };
 const defaults = () => ({ initial: structuredClone(inventory), initialIdentity: identity });
 function enter(h, productId, presentation, value) { const field = byLabel(h.render(), `Withdraw Caulking ${productId} · ${presentation}`); assert.ok(field); field.props.onChange({ target: { value } }); }
+async function scan(h, barcode) { const scanner = nodes(h.render(), node => node.type?.name === 'MaterialScan')[0]; assert.ok(scanner && !scanner.props.disabled, 'Scanner is unavailable'); await scanner.props.onScan(barcode); }
 function details(h) { for (const [label, value] of [['Received by', 'Alex'], ['Reason / job', 'Smith installation']]) nodes(h.render(), n => n.props?.label === label)[0].props.children.props.onChange({ target: { value } }); }
 const build = loader()(file).buildMaterialStoreWithdrawal;
 
@@ -210,8 +211,8 @@ test('technician withdrawal requires quantities only and automatically shows ins
     useMaterialStoreInternally: async () => { throw Error('Admin endpoint used'); },
   }, { user, revalidate: async () => user });
   assert.equal(nodes(h.render(), n => n.props?.label === 'Received by' || n.props?.label === 'Reason / job').length, 0);
-  click(h, 'Choose without scanning'); byLabel(h.render(), 'Add Caulking 1 · Tube').props.onClick();
-  enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); assert.match(text(h.render()), /Alex Tech/); assert.match(text(h.render()), /Installation/);
+  await scan(h, 'BOX-0');
+  enter(h, 1, 'Box (12 Tube)', '4'); click(h, 'Review withdrawal'); assert.match(text(h.render()), /Alex Tech/); assert.match(text(h.render()), /Installation/);
   click(h, 'Confirm withdrawal'); await tick();
   assert.equal(writes.length, 1); assert.equal(writes[0][0], 1); assert.equal(writes[0][1].lines[0].quantity, 4); assert.equal(storage.size, 0);
   for (const link of nodes(h.render(), n => n.type === 'a')) assert.match(link.props.href, /^\/technician/);
@@ -221,7 +222,7 @@ test('technician pending material withdrawal survives reload and can recover fro
   const user = { id: 20, role: { name: 'technician' } }, auth = { user, revalidate: async () => user }, writes = [];
   const input = { initial: inventory, initialIdentity: { id: 20, role: 'technician' }, technician: true };
   const api = { technicianWithdrawMaterials: async (_, body) => { writes.push(structuredClone(body)); if (writes.length === 1) throw Error('Lost response'); return result; }, technicianMaterialInventory: async () => inventory };
-  const h = controlled(input, api, auth); click(h, 'Choose without scanning'); byLabel(h.render(), 'Add Caulking 1 · Tube').props.onClick(); enter(h, 1, 'Tube', '4'); click(h, 'Review withdrawal'); click(h, 'Confirm withdrawal'); await tick();
+  const h = controlled(input, api, auth); await scan(h, 'BOX-0'); enter(h, 1, 'Box (12 Tube)', '4'); click(h, 'Review withdrawal'); click(h, 'Confirm withdrawal'); await tick();
   assert.ok(storage.has('technician-material-withdrawal:20:1'));
   const restored = controlled({ ...input, initial: { ...inventory, store: { ...inventory.store, isActive: false } } }, api, auth);
   click(restored, 'Retry same withdrawal'); await tick(); assert.equal(writes.length, 2); assert.deepEqual(writes[0], writes[1]); assert.equal(storage.size, 0);

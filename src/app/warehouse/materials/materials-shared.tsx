@@ -25,7 +25,7 @@ export function MaterialSubmit({ busy, children, disabled }: { busy: boolean; ch
   return <Button type="submit" disabled={busy || disabled}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{children}</Button>;
 }
 
-export function MaterialScan({ onScan, disabled, embedded = false, buttonLabel = "Find material" }: { onScan: (code: string) => Promise<void>; disabled?: boolean; embedded?: boolean; buttonLabel?: string }) {
+export function MaterialScan({ onScan, disabled, embedded = false, buttonLabel = "Find material", showButton = true, prominent = false }: { onScan: (code: string) => Promise<void>; disabled?: boolean; embedded?: boolean; buttonLabel?: string; showButton?: boolean; prominent?: boolean }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,19 +37,23 @@ export function MaterialScan({ onScan, disabled, embedded = false, buttonLabel =
     try { await onScan(value.trim()); setCode(""); } catch (e) { setError(errorText(e)); }
     finally { lock.current = false; setBusy(false); }
   }
-  const controls = <>
-    <Input aria-label="Scan or enter a material barcode" placeholder="Scan or enter a barcode" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={120} value={code} disabled={busy || disabled} onChange={event => setCode(event.target.value)} onKeyDown={event => {
+  const barcodeInput = <Input aria-label="Scan or enter a material barcode" placeholder="Scan or enter a barcode" className={prominent ? "h-12 bg-white text-base focus-visible:border-blue-500 focus-visible:ring-blue-500/30" : undefined} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={120} value={code} disabled={busy || disabled} onChange={event => setCode(event.target.value)} onKeyDown={event => {
       // Keyboard readers often finish with Enter. Never submit an enclosing stock form.
       if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void find(event.currentTarget.value); }
-    }} />
-    <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-      <MaterialBarcodeCamera disabled={busy || disabled} onDetected={value => { void find(value); }} />
-      <Button type="button" disabled={busy || disabled || !code.trim()} onClick={() => { void find(code); }}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{buttonLabel}</Button>
-    </div>
+    }} />;
+  const camera = <MaterialBarcodeCamera disabled={busy || disabled} prominent={prominent} onDetected={value => { void find(value); }} />;
+  const action = showButton && <Button type="button" disabled={busy || disabled || !code.trim()} onClick={() => { void find(code); }}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{buttonLabel}</Button>;
+  const controls = prominent ? <>
+    {camera}
+    <div className="space-y-2"><label className="block space-y-2"><span className="text-sm font-medium text-blue-950">Or scan / type the barcode</span>{barcodeInput}</label>{action}</div>
+  </> : <>
+    {barcodeInput}
+    <div className="flex flex-wrap gap-2 sm:flex-nowrap">{camera}{action}</div>
   </>;
+  const layout = prominent ? "grid gap-4 sm:grid-cols-2 sm:items-end" : "flex flex-col gap-2 sm:flex-row";
   return <div className="space-y-2">{embedded
-    ? <div className="flex flex-col gap-2 sm:flex-row">{controls}</div>
-    : <form className="flex flex-col gap-2 sm:flex-row" onSubmit={event => { event.preventDefault(); event.stopPropagation(); void find(code); }}>{controls}</form>
+    ? <div className={layout}>{controls}</div>
+    : <form className={layout} onSubmit={event => { event.preventDefault(); event.stopPropagation(); void find(code); }}>{controls}</form>
   }<MaterialNotice error={error} /></div>;
 }
 

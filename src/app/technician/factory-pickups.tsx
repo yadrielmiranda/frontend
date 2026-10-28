@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowRight, ScanBarcode } from "lucide-react";
 import { technicianPickups, type FactoryPickupListItem } from "@/app/api/technician.api";
 import { warehousePickups } from "@/app/api/warehouse.api";
 import { Button } from "@/components/ui/button";
@@ -25,18 +26,23 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const autoOpenOnEntry = useRef(surface === "technician");
   const list = surface === "warehouse" ? warehousePickups : technicianPickups;
   const storageKey = `${surface}-selected-pickup:${actorId}`;
 
   useEffect(() => {
     try {
       const saved = Number(localStorage.getItem(storageKey));
-      if (Number.isSafeInteger(saved) && saved > 0) setSelection(saved);
+      if (Number.isSafeInteger(saved) && saved > 0) {
+        autoOpenOnEntry.current = false;
+        setSelection(saved);
+      }
     } catch { /* Permite abrir manualmente una recogida si no hay almacenamiento. */ }
     setRestored(true);
   }, [storageKey]);
 
   const choose = useCallback((next: number | "new" | null) => {
+    autoOpenOnEntry.current = false;
     setSelection(next); setBusy(false); onBusy(false); onScanModeChange?.(false);
     try {
       if (typeof next === "number") localStorage.setItem(storageKey, String(next));
@@ -57,14 +63,23 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
       pending = true;
       try {
         const result = await list({ status, page, pageSize: 20 });
-        if (!canceled) { setItems(result.items); setTotal(result.total); setError(""); }
+        if (!canceled) {
+          setItems(result.items); setTotal(result.total); setError("");
+          if (autoOpenOnEntry.current && surface === "technician" && status === "ACTIVE" && page === 1) {
+            // Evaluate only the first successful load; polling must not navigate away from the list.
+            autoOpenOnEntry.current = false;
+            if (result.total === 1 && result.items.length === 1 && result.items[0].status === "ACTIVE") {
+              choose(result.items[0].id);
+            }
+          }
+        }
       } catch (e) { if (!canceled) setError(errorMessage(e)); }
       finally { pending = false; if (!canceled) setLoading(false); }
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), 5000);
     return () => { canceled = true; window.clearInterval(timer); };
-  }, [restored, selection, offline, list, status, page, revision]);
+  }, [restored, selection, offline, list, status, page, revision, surface, choose]);
 
   if (!restored) return <p role="status">Loading pickups…</p>;
   if (selection !== null) return <section className="space-y-4">
@@ -78,26 +93,36 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
   return <section className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-semibold">{surface === "warehouse" ? "Factory pickups" : "Assigned factory pickups"}</h2>
-        <p className="text-sm text-slate-600">Open a pickup to see who has collected parts and continue scanning together.</p></div>
+        <p className="text-sm text-slate-600">{surface === "warehouse" ? "Open a pickup to see who has collected parts and continue scanning together." : status === "ACTIVE" ? "Choose your pickup below to start or continue scanning." : "View your closed pickups and collected parts."}</p></div>
       {surface === "warehouse" && <Button disabled={offline || blocked} onClick={() => choose("new")}>Create pickup</Button>}
     </div>
     <div className="flex flex-wrap gap-2">
-      {(["ACTIVE", "CLOSED"] as const).map((value) => <Button key={value} variant={status === value ? "default" : "outline"} aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1); setItems([]); }}>{value === "ACTIVE" ? "Active" : "Closed"}</Button>)}
-      <Button variant="outline" disabled={offline} onClick={() => setRevision((value) => value + 1)}>Refresh</Button>
+      {(["ACTIVE", "CLOSED"] as const).map((value) => <Button key={value}
+        variant={surface === "technician" ? "outline" : status === value ? "default" : "outline"}
+        className={surface === "technician" ? `min-h-11 ${status === value ? "border-slate-300 bg-slate-200 text-slate-950 hover:bg-slate-300" : "text-slate-600"}` : undefined}
+        aria-pressed={status === value}
+        onClick={() => { autoOpenOnEntry.current = false; setStatus(value); setPage(1); setItems([]); }}>{value === "ACTIVE" ? "Active" : "Closed"}</Button>)}
+      <Button variant="outline" className={surface === "technician" ? "min-h-11 text-slate-600" : undefined} disabled={offline} onClick={() => { autoOpenOnEntry.current = false; setRevision((value) => value + 1); }}>Refresh</Button>
     </div>
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {offline && <p role="status">Connect to load the latest pickup progress.</p>}
     {loading && !offline && <p role="status">Loading pickups…</p>}
     {!loading && !items.length && !error && <p className="rounded-xl border border-dashed bg-white p-5 text-slate-600">{surface === "technician" && status === "ACTIVE" ? "No active pickups assigned to you. An administrator can assign you to a pickup." : "No pickups in this view."}</p>}
-    {items.map((run) => <article key={run.id} className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm">
+    {items.map((run) => <article key={run.id} className={`space-y-3 rounded-2xl border bg-white p-4 shadow-sm ${surface === "technician" && run.status === "ACTIVE" ? "border-orange-200" : ""}`}>
       <div className="flex items-start justify-between gap-3"><h3 className="font-semibold">Pickup #{run.id}</h3><span className="text-sm">{run.status === "ACTIVE" ? "Active" : run.status === "PARTIAL" ? "Partial · Closed" : "Completed"}</span></div>
       <p className="font-medium">PO {run.orders.map((order) => order.poNumber).join(", ")}</p>
       <p className="text-sm">{run.collectedParts} / {run.expectedParts} parts collected · {run.remainingParts} remaining</p>
       <p className="text-sm text-slate-600">Assigned: {run.technicians.map((person) => person.name).join(", ") || "No technicians assigned"}</p>
       <p className="text-sm text-slate-600">{run.collectors.length ? `Collected by ${run.collectors.map((person) => `${person.name} (${person.parts})`).join(", ")}` : "No parts scanned yet."}</p>
       {run.closedBy && <p className="text-sm text-slate-600">Closed by {run.closedBy.name}{run.finishedAt ? ` · ${new Date(run.finishedAt).toLocaleString()}` : ""}</p>}
-      <Button variant="outline" disabled={offline} onClick={() => choose(run.id)}>{run.status === "ACTIVE" ? "Open pickup" : "View pickup"}</Button>
+      {surface === "technician" && run.status === "ACTIVE" ? <Button
+        className="h-14 w-full gap-3 rounded-xl bg-orange-700 px-4 text-lg font-bold text-white shadow-sm hover:bg-orange-800 focus-visible:ring-orange-600/50 focus-visible:ring-offset-2"
+        disabled={offline} onClick={() => choose(run.id)}>
+        <ScanBarcode className="size-6" aria-hidden="true" />
+        {run.collectedParts > 0 ? "Continue scanning" : "Start scanning"}
+        <ArrowRight className="ml-auto size-5" aria-hidden="true" />
+      </Button> : <Button variant="outline" disabled={offline} onClick={() => choose(run.id)}>{run.status === "ACTIVE" ? "Open pickup" : "View pickup"}</Button>}
     </article>)}
-    {total > 20 && <div className="flex items-center justify-between"><Button variant="outline" disabled={page === 1 || loading} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {page} of {Math.ceil(total / 20)}</span><Button variant="outline" disabled={page * 20 >= total || loading} onClick={() => setPage((value) => value + 1)}>Next</Button></div>}
+    {total > 20 && <div className="flex items-center justify-between"><Button variant="outline" disabled={page === 1 || loading} onClick={() => { autoOpenOnEntry.current = false; setPage((value) => value - 1); }}>Previous</Button><span>Page {page} of {Math.ceil(total / 20)}</span><Button variant="outline" disabled={page * 20 >= total || loading} onClick={() => { autoOpenOnEntry.current = false; setPage((value) => value + 1); }}>Next</Button></div>}
   </section>;
 }

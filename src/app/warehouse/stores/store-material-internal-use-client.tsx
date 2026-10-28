@@ -93,7 +93,6 @@ export function StoreMaterialInternalUseClient({ initial, initialIdentity, techn
   liveIdentity.current = { id: user?.id, role: user?.role?.name };
   const [inventory, setInventory] = useState(initial), [entries, setEntries] = useState<Entries>({});
   const entriesRef = useRef<Entries>({});
-  const [chooseManually, setChooseManually] = useState(false);
   const [recipient, setRecipient] = useState(""), [note, setNote] = useState("");
   const [search, setSearch] = useState(""), [inStock, setInStock] = useState(true), [page, setPage] = useState(1);
   const [scanMatch, setScanMatch] = useState<{ key: string; productName: string; presentationName: string } | null>(null);
@@ -157,7 +156,7 @@ export function StoreMaterialInternalUseClient({ initial, initialIdentity, techn
     await verifyAccount();
     const next = await (technician ? technicianMaterialInventory : materialStoreCountInventory)(initial.store.id);
     await verifyAccount();
-    setInventory(next); entriesRef.current = {}; setEntries({}); setRecipient(""); setNote(""); setNeedsRefresh(false); setPage(1); setScanMatch(null); setActiveEntryKey(null); setChooseManually(false);
+    setInventory(next); entriesRef.current = {}; setEntries({}); setRecipient(""); setNote(""); setNeedsRefresh(false); setPage(1); setScanMatch(null); setActiveEntryKey(null);
   }
   async function refresh() {
     if (busyRef.current || pendingRef.current) return;
@@ -185,7 +184,6 @@ export function StoreMaterialInternalUseClient({ initial, initialIdentity, techn
     entriesRef.current = next; setEntries(next); setSaved(null); setError("");
     setScanMatch({ key: entryKey(product.id, presentation.id), productName: product.name, presentationName: presentation.name });
     setActiveEntryKey(entryKey(product.id, presentation.id));
-    setChooseManually(false);
   }
   function toggleTechnicianEntry(key: string) {
     if (!scanAllowed.current || busyRef.current || pendingRef.current || liveIdentity.current.id !== owner.id || liveIdentity.current.role !== owner.role || !Object.prototype.hasOwnProperty.call(entriesRef.current, key)) return;
@@ -248,28 +246,14 @@ export function StoreMaterialInternalUseClient({ initial, initialIdentity, techn
     {!canWithdraw && <p className="rounded-lg border bg-slate-50 p-4 text-sm">This store is inactive. Materials are read-only.</p>}
     {pending && <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>We could not confirm whether your withdrawal was saved. Retry this same withdrawal before making further changes.</p><Button disabled={busy || !ready || (technician && offline)} onClick={() => { void confirmWithdrawal(); }}>Retry same withdrawal</Button></section>}
     {technician && <>
-      <section className="space-y-4 rounded-xl border bg-white p-4 sm:p-5">
-        <div><h3 className="font-semibold">1. Scan your material</h3><p className="mt-1 text-sm text-muted-foreground">Scan the box or unit you are taking. We will add one to your list.</p></div>
-        <MaterialScan disabled={scanLocked} buttonLabel="Add scanned material" onScan={async code => {
+      <section className="space-y-4 rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 shadow-sm sm:p-5" aria-label="Scan your material">
+        <div><h3 className="text-xl font-bold text-blue-950">1. Scan your material</h3><p className="mt-1 text-sm text-blue-900">Scan the box or unit you are taking. We will add 1 to your list automatically.</p></div>
+        <MaterialScan disabled={scanLocked} showButton={false} prominent onScan={async code => {
           if (!scanAllowed.current || busyRef.current || pendingRef.current || liveIdentity.current.id !== owner.id || liveIdentity.current.role !== owner.role) throw new Error("Finish or close the current action before scanning a material.");
           const match = findMaterialStoreWithdrawalBarcode(inventory, code);
           addTechnicianPresentation(match.product, match.presentation);
         }} />
         {scanMatch && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"><strong>{scanMatch.productName} · {scanMatch.presentationName}</strong> is in your list. Use + or − to change its quantity.</p>}
-        <Button type="button" variant="outline" className="min-h-11" disabled={scanLocked} aria-expanded={chooseManually} onClick={() => setChooseManually(value => !value)}>{chooseManually ? "Close material list" : "Choose without scanning"}</Button>
-        {chooseManually && <div className="space-y-3 border-t pt-4">
-          <Input aria-label="Search store materials" placeholder="Search by material name or code" value={search} disabled={scanLocked} onChange={event => { setSearch(event.target.value); setPage(1); }} />
-          {visible.map(product => <div key={product.id} className="space-y-3 rounded-lg border p-3">
-            <p className="break-words font-medium">{product.name}</p>
-            {product.presentations.filter(p => editable(product, p) && allowsMaterialDailyOperation(product, p)).map(presentation => {
-              const selected = Object.prototype.hasOwnProperty.call(entries, entryKey(product.id, presentation.id));
-              const maximum = technicianMaterialWithdrawalMaximum(product, presentation, entries);
-              return <div key={presentation.id} className="flex flex-wrap items-center justify-between gap-3 text-sm"><div className="min-w-0"><p className="break-words font-medium">{presentation.name}</p><p className="text-muted-foreground">{quantity(maximum)} available</p></div><Button type="button" variant="outline" className="min-h-11" aria-label={`Add ${product.name} · ${presentation.name}`} disabled={scanLocked || selected || maximum < 1} onClick={() => { try { addTechnicianPresentation(product, presentation); } catch (e) { setError(errorText(e)); } }}>{selected ? "In your list" : "Add"}</Button></div>;
-            })}
-          </div>)}
-          {!visible.length && <p className="py-4 text-sm text-muted-foreground">No available materials match your search.</p>}
-          {pages > 1 && <nav aria-label="Internal use material pages" className="flex flex-wrap items-center justify-between gap-2"><Button variant="outline" disabled={scanLocked || currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Button><span className="text-sm">Page {currentPage} of {pages}</span><Button variant="outline" disabled={scanLocked || currentPage === pages} onClick={() => setPage(currentPage + 1)}>Next</Button></nav>}
-        </div>}
       </section>
       <section className="space-y-3" aria-label="Materials to take">
         <div><h3 className="font-semibold">2. Check your quantities</h3><p className="mt-1 text-sm text-muted-foreground">Tap a material to change its quantity or remove it.</p></div>

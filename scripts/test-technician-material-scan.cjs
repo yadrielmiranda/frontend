@@ -253,9 +253,12 @@ test('typed quantities cannot exceed stock and a cleared quantity blocks review 
   assert.equal(h.calls.length, 0); h.dispose();
 });
 
-test('manual selection remains available without scanning and adds only the chosen presentation', () => {
-  const h = harness(); click(h, 'Choose without scanning');
-  clickLabel(h, 'Add White caulking · Box of 12');
+test('technicians add exact presentations by barcode without a manual product chooser', async () => {
+  const h = harness();
+  assert.equal(namedButton(h.render(), 'Choose without scanning'), undefined);
+  assert.equal(byLabel(h.render(), 'Search store materials'), undefined);
+  assert.equal(nodes(h.render(), node => String(node.props?.['aria-label']).startsWith('Add ')).length, 0);
+  await scan(h, 'BOX-12');
   assert.equal(field(h, 'White caulking', 'Box of 12').props.value, '1');
   assert.equal(field(h, 'White caulking', 'Tube'), undefined);
   assert.equal(h.calls.length, 0); h.dispose();

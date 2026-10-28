@@ -87,10 +87,11 @@ function MaterialCameraPreview({ onDetected, onClose, stopCapture }: { onDetecte
   );
 }
 
-export function MaterialBarcodeCamera({ onDetected, disabled = false, label = "Scan with camera" }: {
+export function MaterialBarcodeCamera({ onDetected, disabled = false, label = "Scan with camera", prominent = false }: {
   onDetected: (code: string) => void;
   disabled?: boolean;
   label?: string;
+  prominent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const blocked = useRef(disabled);
@@ -107,7 +108,7 @@ export function MaterialBarcodeCamera({ onDetected, disabled = false, label = "S
   return (
     <Dialog open={open && !disabled} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" disabled={disabled} className="shrink-0"><Camera className="mr-2 h-4 w-4" aria-hidden="true" />{label}</Button>
+        <Button type="button" variant={prominent ? "default" : "outline"} disabled={disabled} className={prominent ? "h-16 w-full gap-3 rounded-xl bg-blue-700 px-5 text-lg font-bold text-white shadow-sm hover:bg-blue-800 focus-visible:ring-blue-600/50 focus-visible:ring-offset-2" : "shrink-0"}><Camera className={prominent ? "size-7" : "mr-2 h-4 w-4"} aria-hidden="true" />{label}</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
