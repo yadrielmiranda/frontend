@@ -14,6 +14,9 @@ const text = node => Array.isArray(node) ? node.map(text).join('') : node && typ
   ? text(node.props?.children) : node == null || typeof node === 'boolean' ? '' : String(node);
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
+class ApiError extends Error {
+  constructor(message, status, data) { super(message); this.status = status; this.data = data; }
+}
 const suggestions = [
   { placeId: 'place-one', text: '100 Example Road, El Portal, FL', mainText: '100 Example Road', secondaryText: 'El Portal, FL' },
   { placeId: 'place-two', text: '100 Example Road, Miami, FL', mainText: '100 Example Road', secondaryText: 'Miami, FL' },
@@ -31,6 +34,7 @@ function load(relative, mocks, globals = {}) {
     if (id in mocks) return mocks[id];
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === '@/components/ui/input') return { Input: 'Input' };
+    if (id === '@/app/api/_base') return { isApiError: error => error instanceof ApiError };
     throw new Error(`Unexpected dependency: ${id}`);
   }, module, module.exports, ...Object.values(globals));
   return module.exports;
@@ -185,6 +189,27 @@ test('unmount discards a pending selection', async () => {
   const details = deferred(); const f = fixture({ getPlaceAddress: () => details.promise });
   f.focus(); f.type('100 Example'); await f.tick(); f.key('Enter'); f.unmount();
   details.resolve(address); await flush(); assert.equal(f.selections.length, 0);
+});
+
+test('incomplete selection keeps the entered fields and explains how to continue', async () => {
+  const f = fixture({ getPlaceAddress: () => Promise.reject(new ApiError('Select a complete address.', 400,
+    { code: 'ADDRESS_SUGGESTION_INCOMPLETE' })) });
+  f.focus(); f.type('1307 SW 57 av'); await f.tick(); f.key('Enter'); await flush();
+  assert.match(text(f.render()), /does not include a complete street address/);
+  assert.doesNotMatch(text(f.render()), /suggestions are unavailable/);
+  assert.equal(f.props.value, '1307 SW 57 av');
+  assert.equal(f.props.contextKey, 'El Portal|FL|33138');
+  assert.equal(f.selections.length, 0);
+  f.type('1307 SW 57th Ave'); await f.tick();
+  assert.equal(f.options().length, 2, 'The user can search again');
+});
+
+test('provider failures still show unavailable instead of claiming an incomplete address', async () => {
+  const f = fixture({ getPlaceAddress: () => Promise.reject(new ApiError('Provider unavailable', 503)) });
+  f.focus(); f.type('1307 SW 57 av'); await f.tick(); f.key('Enter'); await flush();
+  assert.match(text(f.render()), /suggestions are unavailable/);
+  assert.doesNotMatch(text(f.render()), /does not include a complete street address/);
+  assert.equal(f.selections.length, 0);
 });
 
 test('HTTP LAN browsers generate a valid UUIDv4 without crypto.randomUUID', async () => {

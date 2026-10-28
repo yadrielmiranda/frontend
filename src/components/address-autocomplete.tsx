@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { isApiError } from "@/app/api/_base";
 import {
   autocompleteAddress,
   getPlaceAddress,
@@ -22,7 +23,7 @@ type AddressAutocompleteProps = Omit<
   access?: PlacesAccess;
 };
 
-type Status = "idle" | "searching" | "results" | "empty" | "unavailable" | "resolving";
+type Status = "idle" | "searching" | "results" | "empty" | "incomplete" | "unavailable" | "resolving";
 
 function createSessionToken() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -154,8 +155,13 @@ export function AddressAutocomplete({
       if (!isCurrent(request, street, context)) return;
       setStatus("idle");
       latest.current.onAddressSelect(address);
-    } catch {
-      if (isCurrent(request, street, context)) setStatus("unavailable");
+    } catch (error) {
+      if (!isCurrent(request, street, context)) return;
+      const data = isApiError(error) ? error.data : undefined;
+      const incomplete = isApiError(error) && error.status === 400 &&
+        data !== null && typeof data === "object" && "code" in data &&
+        data.code === "ADDRESS_SUGGESTION_INCOMPLETE";
+      setStatus(incomplete ? "incomplete" : "unavailable");
     }
   }
 
@@ -163,7 +169,8 @@ export function AddressAutocomplete({
   const message = status === "searching" ? "Searching addresses…"
     : status === "resolving" ? "Loading address…"
       : status === "empty" ? "No matching addresses. You can enter the address manually."
-        : status === "unavailable" ? "Address suggestions are unavailable. You can enter the address manually."
+        : status === "incomplete" ? "This suggestion does not include a complete street address. Choose another suggestion or finish entering the address."
+          : status === "unavailable" ? "Address suggestions are unavailable. You can enter the address manually."
           : null;
 
   return (
