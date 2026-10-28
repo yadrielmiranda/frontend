@@ -48,6 +48,7 @@ interface PieceModalProps {
   muntinTypes: MuntinType[];
   canUseCustomerPricing: boolean;
   estimateId?: number;
+  estimateFrameColorId?: number | null;
   onCalculate?: PieceFormProps["onCalculate"];
   startUnlocked?: boolean;
   lockQuantity?: boolean;
@@ -75,6 +76,7 @@ export function PieceModal({
   muntinTypes,
   canUseCustomerPricing,
   estimateId,
+  estimateFrameColorId,
   onCalculate,
   startUnlocked = false,
   lockQuantity = false,
@@ -109,6 +111,7 @@ export function PieceModal({
             muntinTypes={muntinTypes}
             canUseCustomerPricing={canUseCustomerPricing}
             estimateId={estimateId}
+            estimateFrameColorId={estimateFrameColorId}
             onCalculate={onCalculate}
             startUnlocked={startUnlocked}
             lockQuantity={lockQuantity}

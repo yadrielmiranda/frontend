@@ -313,6 +313,7 @@ export type PieceMuntin = CreatePieceMuntinData;
 export interface Piece {
   idDesign?: number | null;
   idDesignColor?: number | null;
+  frameColorBeforeDesignId?: number | null;
   designSnapshot?: import("./garage-designs").GarageDesignSnapshot | null;
   energyRatingId?: number | null;
   energySnapshot?: import("./energy-ratings").EnergySnapshot | null;
@@ -1584,6 +1585,7 @@ export type UpdatePrivacyData = {
 export interface CreatePieceData {
   idDesign?: number | null;
   idDesignColor?: number | null;
+  frameColorBeforeDesignId?: number | null;
   designSnapshot?: import("./garage-designs").GarageDesignSnapshot | null;
   mark: string;
   idProd: number;

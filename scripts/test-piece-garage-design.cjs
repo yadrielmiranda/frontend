@@ -231,11 +231,12 @@ for (const scenario of muntinCases) {
   else assert.equal(diagram.props.muntin, null, 'Disabled products cannot draw a stale grid');
 }
 let duplicate;
-evaluateDeclaration('components/estimates/estimate-form.tsx', 'handleDuplicatePiece', { getValues: () => piece,
+evaluateDeclaration('components/estimates/estimate-form.tsx', 'handleDuplicatePiece', { getValues: () => ({ ...piece, frameColorBeforeDesignId: 73 }),
   setEditingPieceIndex() {}, setDuplicatingPieceData: value => { duplicate = value; }, setIsPieceModalOpen() {}, toast: { info() {} },
 })(0);
 assert.equal(duplicate.id, undefined); assert.equal(duplicate.idDesign, 21); assert.equal(duplicate.idDesignColor, 31);
 assert.equal(duplicate.designSnapshot, null); assert.equal(duplicate.price, 0);
+assert.equal(duplicate.frameColorBeforeDesignId, 73, 'Duplicating a design piece retains the remembered ordinary frame');
 
 // Material comes from the validated captured template, never from a design name.
 const { garageDesignHasGlass } = load('lib/garage-design-templates.ts');
@@ -289,6 +290,11 @@ for (const mapper of [
   const payload = mapper({ ...solidPiece, idTint: null, idCoat: null, idPrivacy: null });
   assert.equal(payload.idCryst, 41, 'Save keeps the internal pricing crystal');
   for (const key of ['idTint', 'idCoat', 'idPrivacy']) assert.equal(payload[key], null, 'Missing glass options stay null rather than becoming a zero catalog ID');
+  assert.equal(payload.frameColorBeforeDesignId, null, 'Legacy pieces have no guessed pre-design frame');
+  const remembered = mapper({ ...solidPiece, frameColorBeforeDesignId: 73 });
+  assert.equal(remembered.frameColorBeforeDesignId, 73, 'Estimate, revision and installation saves retain the remembered frame');
+  const cleared = mapper({ ...solidPiece, idDesign: null, idDesignColor: null, frameColorBeforeDesignId: null });
+  assert.equal(cleared.frameColorBeforeDesignId, null, 'Removing a design can clear the remembered frame without converting null to zero');
 }
 
 // Material revision cards share the same omission rule.

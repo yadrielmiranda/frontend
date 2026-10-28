@@ -211,6 +211,7 @@ function pieceForPersistence(
     idFC: Number(piece.idFC),
     idDesign: piece.idDesign == null ? null : Number(piece.idDesign),
     idDesignColor: piece.idDesignColor == null ? null : Number(piece.idDesignColor),
+    frameColorBeforeDesignId: piece.frameColorBeforeDesignId == null ? null : Number(piece.frameColorBeforeDesignId),
     designSnapshot: piece.designSnapshot ?? null,
     width: text(piece.width),
     height: text(piece.height),

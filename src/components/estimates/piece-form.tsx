@@ -67,6 +67,7 @@ import { formatEnergyValue, type EnergySelection } from "@/lib/energy-ratings";
 import type { PieceFormValues } from "./types";
 import { GarageDesignFields } from "./garage-design-fields";
 import { availableGarageDesignOptions, defaultGarageDesignPair, garageDesignPairForColor, garageDesignPairForDesign, garageDesignSelectionError, garageDesignFrameSelection, isRetainedGarageDesign, pieceGarageDesign, pieceHasSolidGarageDesign, type ExistingGarageDesignContext } from "./piece-garage-design";
+import { positiveFrameColorId, restoreFrameColorAfterDesign } from "./piece-frame-restore";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
@@ -301,6 +302,7 @@ export interface PieceFormProps {
 
   canUseCustomerPricing: boolean;
   estimateId?: number;
+  estimateFrameColorId?: number | null;
   onCalculate?: (data: CalculatePiecePayload) => Promise<CalculatedPiece>;
   startUnlocked?: boolean;
   lockQuantity?: boolean;
@@ -338,6 +340,7 @@ export function PieceForm({
       idSyst: initialData.idSyst,
       idDesign: initialData.idDesign ?? null,
       idDesignColor: initialData.idDesignColor ?? null,
+      frameColorBeforeDesignId: initialData.frameColorBeforeDesignId ?? null,
       designSnapshot: initialData.designSnapshot ?? null,
       width: initialData.width ?? "",
       height: initialData.height ?? "",
@@ -555,13 +558,14 @@ export function PieceForm({
 
     if (currentBrandId === nextBrandId) return;
 
+    if (designEnabled) changeGarageDesign(false, null, null, true);
     setValue("idBrand", nextBrandId, {
       shouldDirty: true,
       shouldValidate: true,
     });
     setValue("idSyst", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
-  }, [isLocked, selectedProduct, brandId, availableBrands, setValue, retainedGarageDesign]);
+  }, [isLocked, selectedProduct, brandId, availableBrands, setValue, retainedGarageDesign, designEnabled]);
 
   const availableSystems = useMemo(() => {
     if (!idProd || !brandId) return [];
@@ -598,6 +602,7 @@ export function PieceForm({
 
     if (currentSystemId === nextSystemId) return;
 
+    if (designEnabled) changeGarageDesign(false, null, null, true);
     setValue("idSyst", nextSystemId, {
       shouldDirty: true,
       shouldValidate: true,
@@ -605,7 +610,7 @@ export function PieceForm({
     setValue("idConf", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idCryst", 0, { shouldDirty: true, shouldValidate: false });
     setValue("idReinforcementOption", null, { shouldDirty: true });
-  }, [isLocked, idProd, brandId, systemId, availableSystems, setValue, retainedGarageDesign]);
+  }, [isLocked, idProd, brandId, systemId, availableSystems, setValue, retainedGarageDesign, designEnabled]);
 
   const selectedSystem = useMemo(() => {
     if (!systemId) return null;
@@ -630,8 +635,27 @@ export function PieceForm({
     designSnapshot: currentDesignSelection.designSnapshot ?? (retainedGarageDesign ? initialDesignSelection.designSnapshot : null),
   }, selectedSystem);
 
-  const changeGarageDesign = (enabled: boolean, idDesign: number | null, idDesignColor: number | null) => {
+  const changeGarageDesign = (enabled: boolean, idDesign: number | null, idDesignColor: number | null, resetContext = false) => {
     latestCalculationRef.current++;
+    if (resetContext) {
+      setValue("frameColorBeforeDesignId", null, { shouldDirty: true });
+      // A different product or series must select its own available ordinary frame.
+      if (designEnabled) setValue("idFC", 0, { shouldDirty: true, shouldValidate: true });
+    } else if (enabled && !designEnabled) {
+      setValue("frameColorBeforeDesignId", positiveFrameColorId(getValues("idFC")), { shouldDirty: true });
+    } else if (!enabled && designEnabled) {
+      const restored = restoreFrameColorAfterDesign({
+        previousFrameColorId: getValues("frameColorBeforeDesignId"),
+        estimateFrameColorId: props.estimateFrameColorId,
+        systemDefaultFrameColorId: selectedSystem?.systemFrameColors?.find(item => item.isDefault)?.idFrameColor,
+        availableFrameColors,
+      });
+      setValue("idFC", restored?.id ?? 0, { shouldDirty: true, shouldValidate: true });
+      setValue("frameColorBeforeDesignId", null, { shouldDirty: true });
+      toast.info(restored
+        ? `Design removed. Frame color is now ${restored.color}. Recalculate the piece.`
+        : "Design removed. Select a frame color before calculating.");
+    }
     setDesignEnabled(enabled);
     setValue("idDesign", idDesign, { shouldDirty: true });
     setValue("idDesignColor", idDesignColor, { shouldDirty: true });
@@ -650,7 +674,7 @@ export function PieceForm({
           left.idFrameColor - right.idFrameColor,
       )
       .map((item) => item.frameColor)
-      .filter(Boolean);
+      .filter((color) => color && color.isActive !== false);
   }, [selectedSystem]);
 
   const garageFrameSelection = garageDesignFrameSelection({
@@ -696,24 +720,11 @@ export function PieceForm({
     // No sobrescribimos el default del Estimate ni una selección manual válida.
     if (currentFrameColorIsAvailable) return;
 
-    const estimateFrameColorId = Number(initialData.idFC || 0);
-    const estimateFrameColorIsAvailable = availableFrameColors.some(
-      (frameColor) => frameColor.id === estimateFrameColorId,
-    );
-    const systemDefaultFrameColorId = Number(
-      selectedSystem.systemFrameColors?.find(
-        (association) => association.isDefault === true,
-      )?.idFrameColor || 0,
-    );
-    const systemDefaultIsAvailable = availableFrameColors.some(
-      (frameColor) => frameColor.id === systemDefaultFrameColorId,
-    );
-
-    const nextFrameColorId = estimateFrameColorIsAvailable
-      ? estimateFrameColorId
-      : systemDefaultIsAvailable
-        ? systemDefaultFrameColorId
-        : 0;
+    const nextFrameColorId = restoreFrameColorAfterDesign({
+      estimateFrameColorId: props.estimateFrameColorId,
+      systemDefaultFrameColorId: selectedSystem.systemFrameColors?.find(item => item.isDefault)?.idFrameColor,
+      availableFrameColors,
+    })?.id ?? 0;
 
     if (currentFrameColorId === nextFrameColorId) return;
 
@@ -726,7 +737,7 @@ export function PieceForm({
     designEnabled,
     selectedSystem,
     availableFrameColors,
-    initialData.idFC,
+    props.estimateFrameColorId,
     getValues,
     setValue,
   ]);
@@ -2235,6 +2246,7 @@ export function PieceForm({
         idFC: designEnabled ? Number(garageFrameSelection.idFrameColor) : Number(currentValues.idFC),
         idDesign: designEnabled ? Number(currentValues.idDesign) : null,
         idDesignColor: designEnabled ? Number(currentValues.idDesignColor) : null,
+        frameColorBeforeDesignId: designEnabled ? positiveFrameColorId(currentValues.frameColorBeforeDesignId) : null,
         width: widthNorm !== undefined ? String(widthNorm) : undefined,
         height: heightNorm !== undefined ? String(heightNorm) : undefined,
         heightLeft:
@@ -2429,6 +2441,7 @@ export function PieceForm({
       setValue("idFC", Number(calculated.idFC));
       setValue("idDesign", calculated.idDesign ?? null);
       setValue("idDesignColor", calculated.idDesignColor ?? null);
+      setValue("frameColorBeforeDesignId", calculated.frameColorBeforeDesignId ?? null);
       setValue("designSnapshot", calculated.designSnapshot ?? null);
       setDesignEnabled(Boolean(calculated.idDesign || calculated.idDesignColor));
 
@@ -2584,7 +2597,7 @@ export function PieceForm({
                           disabled={isLocked}
                           onValueChange={(v) => {
                             if (Number(v) === Number(field.value)) return;
-                            changeGarageDesign(false, null, null);
+                            changeGarageDesign(false, null, null, true);
                             field.onChange(Number(v));
                             setValue("idBrand", 0);
                             setValue("idSyst", 0);
@@ -2640,7 +2653,7 @@ export function PieceForm({
                           disabled={isLocked || !idProd}
                           onValueChange={(v) => {
                             if (Number(v) === Number(field.value)) return;
-                            changeGarageDesign(false, null, null);
+                            changeGarageDesign(false, null, null, true);
                             field.onChange(Number(v));
                             setValue("idSyst", 0);
                             setValue("idConf", 0);
@@ -2690,7 +2703,7 @@ export function PieceForm({
                           onValueChange={(v) => {
                             const nextSystemId = Number(v);
                             if (nextSystemId === Number(field.value)) return;
-                            changeGarageDesign(false, null, null);
+                            changeGarageDesign(false, null, null, true);
 
                             field.onChange(nextSystemId);
 

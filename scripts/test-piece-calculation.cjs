@@ -94,6 +94,7 @@ const dimensions = loadPureModule("../src/lib/dimensions.ts");
 const formatters = loadPureModule("../src/lib/formatters.ts");
 const energy = loadPureModule("../src/lib/energy-ratings.ts");
 const garageDesign = loadPureModule("../src/components/estimates/piece-garage-design.ts");
+const frameRestore = loadPureModule("../src/components/estimates/piece-frame-restore.ts");
 let energyInput;
 function findEnergyInput(node) {
   if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "Input"
@@ -131,7 +132,7 @@ const initial = {
   netProfitD: 0, customerPrice: 0, customerSubtotal: 0, total: 0,
   dpPosPsf: null, dpNegPsf: null,
   energyRatingId: null, energySnapshot: null,
-  idDesign: null, idDesignColor: null, designSnapshot: null,
+  idDesign: null, idDesignColor: null, designSnapshot: null, frameColorBeforeDesignId: null,
 };
 const energyResponse = (overrides = {}) => ({ schemaVersion: 1, status: "AVAILABLE", ratingId: 11,
   uFactor: "1.053", shgc: "0.608", vlt: "0.709", capturedAt: "2026-10-18T22:00:00.000Z",
@@ -151,7 +152,7 @@ function fixture(options = {}) {
   const field = name => { if (!registered.has(name)) registered.set(name, form.register(name,
     options.requireGlassOptions && ["idTint", "idCoat", "idPrivacy"].includes(name) ? { required: true, min: 1 } : undefined)); return registered.get(name); };
   Object.keys(form.getValues()).forEach(field);
-  const requests = [], prechecks = [], validations = [], validatedFields = [], writes = [], errors = [], successes = [], submissions = [];
+  const requests = [], prechecks = [], validations = [], validatedFields = [], writes = [], errors = [], successes = [], notices = [], submissions = [];
   const refs = [], effects = [];
   let refIndex = 0, effectIndex = 0, subscriptions = 0, mounted = true;
   const state = { isLocked: options.locked ?? false, hasPendingDealerMarkup: options.pendingMarkup ?? false,
@@ -163,9 +164,12 @@ function fixture(options = {}) {
     return pending.promise;
   };
   const props = { estimateId: 41, canUseCustomerPricing: true,
+    estimateFrameColorId: options.estimateFrameColorId,
     onCalculate: options.revision ? calculateMock("revision") : undefined };
   const scope = {
-    ...dimensions, ...formatters, props, initialData: { id: initial.id },
+    ...dimensions, ...formatters, ...frameRestore, props, initialData: { id: initial.id },
+    selectedSystem: options.designSystem ?? { systemFrameColors: [{ idFrameColor: 5, isDefault: true }] },
+    availableFrameColors: options.frameColors ?? [{ id: 5, color: "Original" }, { id: 37, color: "Walnut" }],
     selectedConfigUnavailable: false, selectedCrystalUnavailable: false,
     selectedConfig: { id: 4 }, isLinearMaterial: Boolean(options.linear),
     selectedProduct: { allowMuntin: options.allowMuntin },
@@ -191,7 +195,7 @@ function fixture(options = {}) {
       return pending.promise;
     },
     calculatePiece: calculateMock("estimate"),
-    toast: { error: message => errors.push(message), success: message => successes.push(message) },
+    toast: { error: message => errors.push(message), success: message => successes.push(message), info: message => notices.push(message) },
     setIsLocked: value => { state.isLocked = value; },
     setDesignEnabled: value => { state.designEnabled = value; },
     setResultsScrollRequest: value => { state.resultsScrollRequest = value; },
@@ -219,9 +223,9 @@ function fixture(options = {}) {
   };
   render();
   return {
-    form, state, requests, prechecks, validations, validatedFields, writes, errors, successes, submissions, props,
+    form, state, requests, prechecks, validations, validatedFields, writes, errors, successes, notices, submissions, props,
     calculate() { return handlers.calculate(); }, render,
-    changeDesign(enabled, idDesign, idDesignColor) { handlers.changeDesign(enabled, idDesign, idDesignColor); render(); },
+    changeDesign(enabled, idDesign, idDesignColor, resetContext = false) { handlers.changeDesign(enabled, idDesign, idDesignColor, resetContext); render(); },
     async start() { const done = handlers.calculate(); await flush(); return { done }; },
     async change(name, value) { await field(name).onChange({ target: { name, value }, type: "change" }); },
     async blur(name) { await field(name).onBlur({ target: { name, value: form.getValues(name) }, type: "blur" }); },
@@ -489,16 +493,140 @@ const designSnapshot = { version: 1, systemId: 3,
   design: { id: 21, name: "Horizontal", imageUrl: null },
   color: { id: 31, name: "Walnut", hexCode: "#614126", idFrameColor: 37 } };
 
+const restorationColors = [
+  { id: 5, color: "Session choice", isActive: true },
+  { id: 8, color: "Series choice", isActive: true },
+  { id: 12, color: "Piece choice", isActive: true },
+  { id: 37, color: "Design finish", isActive: true },
+  { id: 38, color: "Other finish", isActive: true },
+];
+const restorationSystem = { id: 3, allowDesign: true,
+  systemFrameColors: [{ idFrameColor: 8, isDefault: true }],
+  designOptions: [31, 32].map((id, index) => ({ idSystem: 3, idDesign: 21, idDesignColor: id,
+    design: { id: 21, name: "Any pattern", isActive: true },
+    color: { id, name: `Finish ${id}`, hexCode: "#614126", isActive: true, idFrameColor: 37 + index },
+  })),
+};
+
+test("design activation remembers the manual frame once, through finish changes and repeated toggles", async () => {
+  const f = fixture({ values: { idFC: 12 }, estimateFrameColorId: 5,
+    designSystem: restorationSystem, frameColors: restorationColors });
+  f.changeDesign(true, 21, 31);
+  assert.equal(f.form.getValues("frameColorBeforeDesignId"), 12);
+  assert.equal(f.form.getValues("idFC"), 37);
+  f.changeDesign(true, 21, 32);
+  assert.equal(f.form.getValues("idFC"), 38);
+  assert.equal(f.form.getValues("frameColorBeforeDesignId"), 12);
+  f.props.estimateFrameColorId = 8; f.render();
+  assert.equal(f.form.getValues("idFC"), 38, "Global defaults never override an enabled design");
+  f.changeDesign(false, null, null);
+  assert.equal(f.form.getValues("idFC"), 12, "The manual piece choice wins over a newer global default");
+  assert.equal(f.form.getValues("frameColorBeforeDesignId"), null);
+  assert.match(f.notices[0], /Piece choice/);
+  assert.equal(f.state.isLocked, false);
+  await f.change("idFC", 5); f.render();
+  f.changeDesign(true, 21, 31);
+  assert.equal(f.form.getValues("frameColorBeforeDesignId"), 5);
+  f.changeDesign(false, null, null);
+  assert.equal(f.form.getValues("idFC"), 5);
+  f.unmount();
+});
+
+for (const item of [
+  { name: "saved previous choice", previous: 12, global: 5, expected: 12 },
+  { name: "removed previous choice", previous: 999, global: 5, expected: 5 },
+  { name: "inactive previous choice", previous: 12, global: 5, inactive: 12, expected: 5 },
+  { name: "unavailable global choice", previous: 999, global: 999, expected: 8 },
+  { name: "legacy saved design", previous: null, global: 5, expected: 5 },
+  { name: "reopened estimate without a session global", previous: null, global: undefined, expected: 8 },
+  { name: "inactive global choice", previous: null, global: 5, inactive: 5, expected: 8 },
+  { name: "no usable candidates", previous: null, global: 999, inactive: 8, expected: 0 },
+  { name: "ordinary frame matching the design finish", previous: 37, global: 5, expected: 37 },
+]) {
+  test(`removing a design restores the correct frame for ${item.name}`, () => {
+    const f = fixture({ values: { idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot,
+      frameColorBeforeDesignId: item.previous }, estimateFrameColorId: item.global,
+      designSystem: restorationSystem,
+      frameColors: restorationColors.map(color => ({ ...color, isActive: color.id !== item.inactive })),
+    });
+    f.changeDesign(false, null, null);
+    assert.equal(f.form.getValues("idFC"), item.expected);
+    assert.equal(f.form.getValues("frameColorBeforeDesignId"), null);
+    assert.equal(f.form.getValues("designSnapshot"), null);
+    assert.equal(f.state.designEnabled, false);
+    assert.equal(f.notices.length, 1);
+    assert.match(f.notices[0], item.expected ? /Frame color is now/ : /Select a frame color/);
+    f.unmount();
+  });
+}
+
+test("changing product, brand or series clears design context without applying its old remembered frame", () => {
+  const f = fixture({ values: { idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot,
+    frameColorBeforeDesignId: 12 }, designSystem: restorationSystem, frameColors: restorationColors });
+  f.changeDesign(false, null, null, true);
+  assert.equal(f.form.getValues("idFC"), 0);
+  assert.equal(f.form.getValues("frameColorBeforeDesignId"), null);
+  assert.equal(f.form.getValues("idDesign"), null);
+  assert.deepEqual(f.notices, []);
+  assert.equal((source.text.match(/changeGarageDesign\(false, null, null, true\)/g) ?? []).length, 5);
+  f.unmount();
+});
+
+test("automatic catalog fallback clears a design before changing its brand or series", () => {
+  for (const marker of ["const currentBrandId", "const currentSystemId"]) {
+    const effect = statements.find(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+      && node.expression.expression.getText(source) === "useEffect" && node.getText(source).includes(marker));
+    assert.ok(effect);
+    for (const enabled of [false, true]) {
+      const calls = [], values = {};
+      evaluate(compile(effect.getText(source)), {
+        isLocked: false, retainedGarageDesign: false, designEnabled: enabled, idProd: 1, brandId: 2, systemId: 3,
+        selectedProduct: { brandProducts: [{ isDefault: true, brand: { id: 9, isActive: true } }] },
+        availableBrands: [{ id: 9 }], availableSystems: [{ id: 10, isDefault: true }],
+        changeGarageDesign: (...args) => calls.push(args), setValue: (key, value) => { values[key] = value; },
+        useEffect: callback => callback(),
+      });
+      assert.deepEqual(calls, enabled ? [[false, null, null, true]] : []);
+      assert.equal(values[marker.includes("Brand") ? "idBrand" : "idSyst"], marker.includes("Brand") ? 9 : 10);
+    }
+  }
+});
+
+test("ordinary frame defaults use the session global, never the saved design frame, and preserve a valid manual choice", () => {
+  const defaultEffect = statements.find(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && node.expression.expression.getText(source) === "useEffect"
+    && node.getText(source).includes("const currentFrameColorId"));
+  assert.ok(defaultEffect);
+  const run = (current, global) => {
+    let value = current;
+    evaluate(compile(defaultEffect.getText(source)), { ...frameRestore, isLocked: false, designEnabled: false,
+      selectedSystem: restorationSystem, availableFrameColors: restorationColors,
+      props: { estimateFrameColorId: global }, initialData: { idFC: 37 },
+      getValues: () => value, setValue: (_, next) => { value = next; }, useEffect: callback => callback(),
+    });
+    return value;
+  };
+  assert.equal(run(0, 5), 5);
+  assert.equal(run(0, undefined), 8);
+  assert.equal(run(12, 5), 12);
+});
+
 test("a saved design is sent as IDs and receives its snapshot only from calculation", async () => {
-  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot } });
+  const f = fixture({ values: { idDesign: 21, idDesignColor: 31, designSnapshot, frameColorBeforeDesignId: 5 } });
   const { done } = await f.start();
   assert.equal(f.requests[0].dto.idDesign, 21); assert.equal(f.requests[0].dto.idDesignColor, 31);
   assert.equal(f.requests[0].dto.idFC, 37, 'The actual linked frame reaches pricing');
+  assert.equal(f.requests[0].dto.frameColorBeforeDesignId, 5);
   assert.equal(Object.hasOwn(f.requests[0].dto, "designSnapshot"), false, "Snapshots must not authorize calculation");
   const serverSnapshot = { ...designSnapshot, design: { ...designSnapshot.design, name: "Captured original" } };
-  await f.resolve(0, { ...response(), idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot: serverSnapshot }); await done;
+  await f.resolve(0, { ...response(), idFC: 37, idDesign: 21, idDesignColor: 31, designSnapshot: serverSnapshot, frameColorBeforeDesignId: 5 }); await done;
   assert.deepEqual(f.form.getValues("designSnapshot"), serverSnapshot);
   await f.submit(); assert.deepEqual(f.submissions[0].designSnapshot, serverSnapshot);
+  assert.equal(f.submissions[0].frameColorBeforeDesignId, 5, "Remembered frame survives server calculation and saving");
+  const reopened = fixture({ values: f.submissions[0] });
+  reopened.changeDesign(false, null, null);
+  assert.equal(reopened.form.getValues("idFC"), 5);
+  reopened.unmount();
   assert.equal(f.submissions[0].idFC, 37, 'The server-confirmed frame is persisted with the price'); f.unmount();
 });
 
