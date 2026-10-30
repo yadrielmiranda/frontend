@@ -1,6 +1,6 @@
 import React, { useId } from "react";
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
-import { DimensionText, VerticalDimensionText, VERTICAL_DIMENSION_RESERVE_PX } from "../dimension-text";
+import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX } from "./pivot-dimension-text";
 import { GlassAppearanceLayer, type GlassOverlayRect } from "../glass-appearance";
 import { MuntinLayer, type ResolvedMuntin } from "../muntin-layer";
 import { pivotFixedLayout } from "./pivot-door-layout";
@@ -61,11 +61,11 @@ export function PivotFixedDoorDiagram({ width, height, frameColorHex, glassTintH
   const fw = frame.width; const fh = frame.height; const r = 7 * Math.min(sx, sy);
   const gx = glass.x; const gy = glass.y; const gr = gx + glass.width; const gb = gy + glass.height;
   const framePath = `M${r} 0H${fw-r}Q${fw} 0 ${fw} ${r}V${fh-r}Q${fw} ${fh} ${fw-r} ${fh}H${r}Q0 ${fh} 0 ${fh-r}V${r}Q0 0 ${r} 0Z M${gx} ${gy}V${gb}H${gr}V${gy}Z`;
-  const bottom = fh + 38 * p; const right = fw + 38 * p;
+  const bottom = fh + 28 * p; const right = fw + 28 * p;
   const format = (value: number) => `${Number(value.toFixed(3))}\u2033`;
-  const viewBox = expandedViewBox(frame, showDimensions ? { top: 20 * p, right: 100 * p, bottom: 90 * p, left: 24 * p } : { top: 16 * p, right: 27 * p, bottom: 23 * p, left: 24 * p });
+  const viewBox = expandedViewBox(frame, showDimensions ? { top: 20 * p, right: 70 * p, bottom: 65 * p, left: 24 * p } : { top: 16 * p, right: 27 * p, bottom: 23 * p, left: 24 * p });
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby={`${id}-title ${id}-description`} className={className}
-    style={{ boxSizing: "border-box", paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingBottom: showDimensions ? 24 : undefined }}
+    style={{ boxSizing: "border-box", paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration="O" data-view="EXTERIOR" data-width={width} data-height={height} data-frame-color={color} data-units-per-inch={unitsPerInch}>
     <title id={`${id}-title`}>Pivot Door — Fixed Configuration O</title>
     <desc id={`${id}-description`}>{`Exterior view of a fixed ${format(width)} × ${format(height)} glass panel. Dimensions describe the whole frame.`}</desc>
@@ -79,11 +79,11 @@ export function PivotFixedDoorDiagram({ width, height, frameColorHex, glassTintH
       </g>
       <PivotFixedPane rect={glass} id={`${id}-pane`} color={color} profileScale={p} unitsPerInch={unitsPerInch} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} muntin={muntin} />
     </g>
-    {showDimensions ? <g data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
+    {showDimensions ? <g key={viewBox} data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
       <path d={`M0 ${fh+12*p}V${bottom+11*p}M${fw} ${fh+12*p}V${bottom+11*p}M0 ${bottom}H${fw}M${fw+10*p} 0H${right+11*p}M${fw+10*p} ${fh}H${right+11*p}M${right} 0V${fh}`} />
       <path d={`M0 ${bottom}l${8*p} ${-3*p}v${6*p}z M${fw} ${bottom}l${-8*p} ${-3*p}v${6*p}z M${right} 0l${-3*p} ${8*p}h${6*p}z M${right} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-      <DimensionText x={fw/2} y={bottom} screenOffsetYPx={24} textAnchor="middle" fallbackFontSize={26}>{`F.W. ${format(width)}`}</DimensionText>
-      <VerticalDimensionText x={right} y={fh/2} fallbackFontSize={26}>{`F.H. ${format(height)}`}</VerticalDimensionText>
+      <DimensionText x={fw/2} y={bottom} screenOffsetYPx={18} textAnchor="middle" fallbackFontSize={18}>{`W ${format(width)}`}</DimensionText>
+      <VerticalDimensionText x={right} y={fh/2} fallbackFontSize={18}>{`H ${format(height)}`}</VerticalDimensionText>
     </g> : null}
   </svg>;
 }

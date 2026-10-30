@@ -105,6 +105,11 @@ function compositeMuntin(item) {
   })).sort((a, b) => a.panelIndex - b.panelIndex) };
 }
 const layer = (html, name) => element(html, 'data-layer', name);
+function assertDimensions(html, expected) {
+  const dimensions = element(html, 'data-dimensions', 'VISIBLE');
+  const actual = [...dimensions.matchAll(/<text\b[^>]*>([^<>]*)<\/text>/g)].map(match => match[1]).sort();
+  assert.deepEqual(actual, expected.map(([label, value]) => `${label} ${value}″`).sort());
+}
 const referencedAppearance = (html, name) => {
   const content = layer(html, name);
   const ids = [...new Set([...content.matchAll(/url\(#([^\)]+)\)/g)].map(match => match[1]))];
@@ -120,8 +125,7 @@ test('Pivot X renders in the editor and saved report with the actual dimensions'
     assert.match(html, /data-diagram-renderer="PIVOT_DOOR_X"/);
     assert.equal((html.match(/<svg\b/g) || []).length, 1);
     assert.match(html, /data-opening-direction="OUTWARD"/);
-    assert.match(html, /F\.W\. 45″/);
-    assert.match(html, /F\.H\. 100″/);
+    assertDimensions(html, [['W', 45], ['H', 100]]);
     assert.doesNotMatch(html, /data-diagram-state="unavailable"/);
   }
 });
@@ -132,13 +136,12 @@ test('Right Active mirrors the whole 45 by 108 artwork in editor and report whil
     const left = render({ variant, piece, activeOptionName: 'Left Active' });
     const right = render({ variant, piece, activeOptionName: 'Right Active' });
     assert.match(right, /data-exterior-pivot-side="right"/);
-    assert.match(right, /F\.W\. 45″/);
-    assert.match(right, /F\.H\. 108″/);
+    assertDimensions(right, [['W', 45], ['H', 108]]);
     const artwork = element(right, 'data-part', 'pivot-door-artwork');
     assert.match(artwork, /^<g[^>]*transform="translate\(450 0\) scale\(-1 1\)"/);
     assert.equal(artwork.replace(' transform="translate(450 0) scale(-1 1)"', ''),
       element(left, 'data-part', 'pivot-door-artwork'), 'All product layers share the same mirror');
-    assert.doesNotMatch(artwork, /data-dimensions="VISIBLE"|F\.W\.|F\.H\./);
+    assert.doesNotMatch(artwork, /data-dimensions="VISIBLE"|>[WH] [^<>]+″</);
     assert.equal(element(right, 'data-dimensions', 'VISIBLE'), element(left, 'data-dimensions', 'VISIBLE'));
     assert.match(element(right, 'data-part', 'pivot-door-frame'), /data-width="450" data-height="1080"/);
   }
@@ -189,8 +192,7 @@ test('Decimal and fraction inputs produce the same actual dimensions and geometr
     const numeric = render({ variant, piece: { width: 45.375, height: 100.125 } });
     const fractional = render({ variant, piece: { width: '45 3/8″', height: '100-1/8' } });
     assert.equal(fractional, numeric);
-    assert.match(fractional, /F\.W\. 45\.375″/);
-    assert.match(fractional, /F\.H\. 100\.125″/);
+    assertDimensions(fractional, [['W', 45.375], ['H', 100.125]]);
   }
 });
 
@@ -222,8 +224,7 @@ test('Fixed O renders in editor and report without active hardware or movement',
     const options = { variant, configuration: ' o ', piece: { width: 30, height: 100 } };
     const html = render(options);
     assert.match(html, /data-diagram-renderer="PIVOT_FIXED_O"/);
-    assert.match(html, /F\.W\. 30″/);
-    assert.match(html, /F\.H\. 100″/);
+    assertDimensions(html, [['W', 30], ['H', 100]]);
     assert.equal((html.match(/<svg\b/g) || []).length, 1);
     assert.match(element(html, 'data-part', 'pivot-fixed-glass'), /data-panel-code="O"/);
     const marker = layer(html, 'CONFIGURATION_MARKER');
@@ -258,10 +259,7 @@ test('O/X normalizes fractional opening and door dimensions before drawing the t
     const fractional = render({ ...options, piece: { width: '45 3/8″', height: '120-1/8', doorHeight: '100 1/8' } });
     assert.equal(fractional, numeric);
     assert.match(fractional, /data-diagram-renderer="PIVOT_DOOR_TRANSOM"/);
-    assert.match(fractional, /F\.W\. 45\.375″/);
-    assert.match(fractional, /F\.H\. 120\.125″/);
-    assert.match(fractional, /D\.H\. 100\.125″/);
-    assert.match(fractional, /T\.H\. 20″/);
+    assertDimensions(fractional, [['W', 45.375], ['H', 120.125], ['H', 100.125], ['H', 20]]);
   }
 });
 
@@ -291,9 +289,7 @@ test('O/X keeps one full-height frame and one divider at the derived transom hei
       assert.match(lower, new RegExp(`^<g[^>]*transform="translate\\(0 ${transomHeight * 10}\\)"`));
       assert.match(lower, /data-opening-direction="OUTWARD"/);
       assert.match(lower, /data-layer="PULL_HANDLE"/);
-      for (const [label, value] of [['F.W.', width], ['F.H.', height], ['D.H.', doorHeight], ['T.H.', transomHeight]]) {
-        assert.ok(html.includes(`${label} ${value}″`));
-      }
+      assertDimensions(html, [['W', width], ['H', height], ['H', doorHeight], ['H', transomHeight]]);
     }
   }
 });
@@ -322,7 +318,7 @@ test('O and O/X can hide every dimension label without changing their product ge
       const visible = render(options);
       const hidden = render({ ...options, showDimensions: false });
       assert.match(hidden, /<svg\b/);
-      assert.doesNotMatch(hidden, /F\.W\.|F\.H\.|D\.H\.|T\.H\.|data-dimensions="VISIBLE"|data-part="pivot-segment-dimensions"/);
+      assert.doesNotMatch(hidden, />[WH] [^<>]+″<|data-dimensions="VISIBLE"|data-part="pivot-segment-dimensions"/);
       const part = configuration === 'O' ? 'pivot-fixed-artwork' : 'pivot-door-artwork';
       assert.equal(element(hidden, 'data-part', part), element(visible, 'data-part', part));
     }
@@ -394,8 +390,7 @@ test('XO and OX normalize actual opening and door widths in editor and report an
       assert.match(numeric, /data-diagram-renderer="PIVOT_DOOR_SIDELITE"/);
       assert.match(numeric, /data-door-width="45\.125"/);
       assert.match(numeric, /data-sidelite-width="35\.25"/);
-      assert.match(numeric, /F\.W\. 80\.375″/);
-      assert.match(numeric, /F\.H\. 108\.125″/);
+      assertDimensions(numeric, [['W', 80.375], ['H', 108.125], ['W', 45.125], ['W', 35.25]]);
       assert.equal((numeric.match(/<svg\b/g) || []).length, 1);
       assert.doesNotMatch(numeric, /data-part="pivot-transom"|data-transom-height=/);
       for (const doorHeight of [100, 500, NaN, 'invalid']) {
@@ -485,12 +480,9 @@ test('XO and OX show total and segment dimensions and can hide all labels withou
     for (const configuration of ['XO', 'OX']) {
       const options = { variant, configuration, piece: { width: 80, height: 108, doorWidth: 45 } };
       const visible = render(options);
-      for (const [label, value] of [['F.W.', 80], ['F.H.', 108], ['D.W.', 45], ['S.W.', 35]]) {
-        assert.ok(visible.includes(`${label} ${value}″`));
-      }
-      assert.doesNotMatch(visible, /D\.H\.|T\.H\./);
+      assertDimensions(visible, [['W', 80], ['H', 108], ['W', 45], ['W', 35]]);
       const hidden = render({ ...options, showDimensions: false });
-      assert.doesNotMatch(hidden, /F\.W\.|F\.H\.|D\.W\.|S\.W\.|data-dimensions="VISIBLE"/);
+      assert.doesNotMatch(hidden, />[WH] [^<>]+″<|data-dimensions="VISIBLE"/);
       assert.equal(element(hidden, 'data-part', 'pivot-door-artwork'), element(visible, 'data-part', 'pivot-door-artwork'));
     }
   }
@@ -568,16 +560,17 @@ test('OXO and compound transoms normalize configuration spacing and fractional m
       assert.equal(fractional, numeric);
       assert.match(numeric, new RegExp(`data-diagram-renderer="${hasTransom ? 'PIVOT_DOOR_COMPOSITE_TRANSOM' : 'PIVOT_DOOR_SIDELITE'}"`));
       assert.equal((numeric.match(/<svg\b/g) || []).length, 1);
-      assert.match(numeric, /F\.W\. 150\.375″/);
-      assert.match(numeric, /F\.H\. 130\.125″/);
+      const labels = [['W', 150.375], ['H', 130.125], ['W', 60.125]];
+      if (item.leftWidth && item.rightWidth) labels.push(['W', 45.125], ['W', 45.125]);
+      else labels.push(['W', 90.25]);
       if (hasTransom) {
         assert.match(numeric, /data-transom-height="30"/);
-        assert.match(numeric, /D\.H\. 100\.125″/);
-        assert.match(numeric, /T\.H\. 30″/);
+        labels.push(['H', 100.125], ['H', 30]);
       } else {
         assert.equal(render({ variant, configuration: item.configuration, piece: { ...piece, doorHeight: 1 } }), numeric);
-        assert.doesNotMatch(numeric, /data-transom-height=|D\.H\.|T\.H\./);
+        assert.doesNotMatch(numeric, /data-transom-height=/);
       }
+      assertDimensions(numeric, labels);
     }
   }
 });
@@ -698,13 +691,13 @@ test('Composite total and individual segment labels report actual dimensions and
       const { configuration, width, height, doorWidth, doorHeight, leftWidth, rightWidth } = item;
       const options = { variant, configuration, piece: { width, height, doorWidth, doorHeight } };
       const visible = render(options);
-      const labels = [['F.W.', width], ['F.H.', height], ['D.W.', doorWidth]];
-      if (leftWidth && rightWidth) labels.push(['L.S.W.', leftWidth], ['R.S.W.', rightWidth]);
-      else labels.push(['S.W.', leftWidth || rightWidth]);
-      if (doorHeight !== undefined) labels.push(['D.H.', doorHeight], ['T.H.', height - doorHeight]);
-      for (const [label, value] of labels) assert.ok(visible.includes(`${label} ${value}″`), `Missing ${label} ${value}`);
+      const labels = [['W', width], ['H', height], ['W', doorWidth]];
+      if (leftWidth && rightWidth) labels.push(['W', leftWidth], ['W', rightWidth]);
+      else labels.push(['W', leftWidth || rightWidth]);
+      if (doorHeight !== undefined) labels.push(['H', doorHeight], ['H', height - doorHeight]);
+      assertDimensions(visible, labels);
       const hidden = render({ ...options, showDimensions: false });
-      assert.doesNotMatch(hidden, /F\.W\.|F\.H\.|D\.W\.|S\.W\.|D\.H\.|T\.H\.|data-dimensions="VISIBLE"/);
+      assert.doesNotMatch(hidden, />[WH] [^<>]+″<|data-dimensions="VISIBLE"/);
       assert.equal(element(hidden, 'data-part', 'pivot-door-artwork'), element(visible, 'data-part', 'pivot-door-artwork'));
     }
   }
@@ -814,7 +807,7 @@ test('Dimensions can be hidden while preserving the product drawing', () => {
   const visible = render();
   const hidden = render({ showDimensions: false });
   assert.match(hidden, /<svg\b/);
-  assert.doesNotMatch(hidden, /F\.W\.|F\.H\.|data-dimensions="VISIBLE"/);
+  assert.doesNotMatch(hidden, />[WH] [^<>]+″<|data-dimensions="VISIBLE"/);
   for (const name of ['FRAME', 'OPEN_LEAF', 'PULL_HANDLE', 'CONFIGURATION_MARKER']) {
     assert.equal(layer(hidden, name), layer(visible, name));
   }
@@ -825,10 +818,8 @@ test('Changing width and height changes the drawing proportions and displayed me
   const wide = render({ piece: { width: 60, height: 80 } });
   assert.notEqual(layer(narrow, 'FRAME'), layer(wide, 'FRAME'));
   assert.notEqual(layer(narrow, 'OPEN_LEAF'), layer(wide, 'OPEN_LEAF'));
-  assert.match(narrow, /F\.W\. 30″/);
-  assert.match(narrow, /F\.H\. 120″/);
-  assert.match(wide, /F\.W\. 60″/);
-  assert.match(wide, /F\.H\. 80″/);
+  assertDimensions(narrow, [['W', 30], ['H', 120]]);
+  assertDimensions(wide, [['W', 60], ['H', 80]]);
 });
 
 test('Approved frame profiles and handle width remain physical sizes across priced dimensions', () => {

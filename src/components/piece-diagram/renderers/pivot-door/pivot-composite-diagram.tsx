@@ -1,13 +1,17 @@
-import React, { useId } from "react";
+"use client";
+
+import React, { useId, useState } from "react";
 import type { PivotDoorDiagramProps } from "./pivot-door-diagram";
 import { PivotDoorLeafArtwork } from "./pivot-door-leaf";
 import { PivotFixedPane } from "./pivot-fixed-panel";
 import { matchPivotCompositeMuntin, pivotCompositeLayout, type PivotCompositeConfiguration } from "./pivot-composite-layout";
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
-import { DimensionText, VerticalDimensionText, VERTICAL_DIMENSION_RESERVE_PX } from "../dimension-text";
+import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX, PivotSegmentLabels } from "./pivot-dimension-text";
 
 export function PivotCompositeDoorDiagram({ configuration, width, height, doorWidth, doorHeight, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: Omit<PivotDoorDiagramProps, "configuration"> & { configuration: PivotCompositeConfiguration }) {
   const reactId = useId();
+  const [widthLanes, setWidthLanes] = useState(1);
+  const [heightLanes, setHeightLanes] = useState(1);
   const id = `pivot-composite-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const layout = pivotCompositeLayout(configuration, width, height, doorWidth, doorHeight);
   if (!layout) return null;
@@ -33,18 +37,18 @@ export function PivotCompositeDoorDiagram({ configuration, width, height, doorWi
   const fixedPanes = panes.filter(pane => pane.panelCode === "O");
   const leftSide = columns[0].code === "O";
   const rightSide = columns[columns.length - 1].code === "O";
-  const bottom = Math.max(fh, door.leaf.br.y + transomUnits) + 38 * p;
-  const right = fw + 38 * p;
+  const bottom = Math.max(fh, door.leaf.br.y + transomUnits) + 28 * p;
+  const right = fw + 28 * p;
   const top = Math.min(0, door.leaf.tr.y + transomUnits);
   const viewBox = expandedViewBox({ x: 0, y: top, width: fw, height: Math.max(fh, door.leaf.br.y + transomUnits) - top }, showDimensions
-    ? { top: (sideCount === 2 ? 150 : 110) * p, right: 100 * p, bottom: 90 * p, left: (hasTransom ? 130 : 24) * p }
+    ? { top: 52 * p, right: 70 * p, bottom: 65 * p, left: (hasTransom ? 70 : 24) * p }
     : { top: 16 * p, right: 27 * p, bottom: 23 * p, left: 24 * p });
   const format = (value: number) => `${Number(value.toFixed(3))}\u2033`;
-  const widthLine = -38 * p;
+  const widthLine = -28 * p;
   const widthEnds = [0, ...columns.map(column => column.x + column.width)];
 
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby={`${id}-title ${id}-description`} className={className}
-    style={{ boxSizing: "border-box", paddingTop: showDimensions ? (sideCount === 2 ? 82 : 56) : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && hasTransom ? 60 : undefined, paddingBottom: showDimensions ? 24 : undefined }}
+    style={{ boxSizing: "border-box", paddingTop: showDimensions ? 18 * widthLanes : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && hasTransom ? VERTICAL_DIMENSION_RESERVE_PX + 18 * (heightLanes - 1) : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration={configuration} data-view="EXTERIOR" data-opening-direction="OUTWARD" data-exterior-pivot-side={rightActive ? "right" : "left"} data-schematic-opening-deg="24"
     data-width={width} data-height={height} data-door-width={doorWidth} data-door-height={hasTransom ? doorHeight : undefined} data-transom-height={hasTransom ? transomHeight : undefined} data-sidelite-width={sideliteWidth} data-sidelite-count={sideCount} data-left-sidelite-width={leftSide ? sideliteWidth : undefined} data-right-sidelite-width={rightSide ? sideliteWidth : undefined} data-frame-color={color} data-units-per-inch={unitsPerInch}>
     <title id={`${id}-title`}>{`Pivot Door — Configuration ${configuration}`}</title>
@@ -67,22 +71,25 @@ export function PivotCompositeDoorDiagram({ configuration, width, height, doorWi
         <PivotDoorLeafArtwork layout={door} color={color} id={`${id}-door`} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} muntin={paneMuntin(doorPane.panelIndex)} />
       </g>
     </g>
-    {showDimensions ? <g key={`${configuration}:${viewBox}`} data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
+    {showDimensions ? <g key={`${configuration}:${viewBox}:${widthLanes}:${heightLanes}`} data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
       <path d={`M0 ${fh+12*p}V${bottom+11*p}M${fw} ${fh+12*p}V${bottom+11*p}M0 ${bottom}H${fw}M${fw+10*p} 0H${right+11*p}M${fw+10*p} ${fh}H${right+11*p}M${right} 0V${fh}`} />
       <path d={`M0 ${bottom}l${8*p} ${-3*p}v${6*p}z M${fw} ${bottom}l${-8*p} ${-3*p}v${6*p}z M${right} 0l${-3*p} ${8*p}h${6*p}z M${right} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-      <DimensionText x={fw/2} y={bottom} screenOffsetYPx={24} textAnchor="middle" fallbackFontSize={26}>{`F.W. ${format(width)}`}</DimensionText>
-      <VerticalDimensionText x={right} y={fh/2} fallbackFontSize={26}>{`F.H. ${format(height)}`}</VerticalDimensionText>
+      <DimensionText x={fw/2} y={bottom} screenOffsetYPx={18} textAnchor="middle" fallbackFontSize={18}>{`W ${format(width)}`}</DimensionText>
+      <VerticalDimensionText x={right} y={fh/2} fallbackFontSize={18}>{`H ${format(height)}`}</VerticalDimensionText>
       <g data-part="pivot-width-segment-dimensions">
         <path d={`${widthEnds.map(x => `M${x} ${-12*p}V${widthLine-11*p}`).join(" ")} M0 ${widthLine}H${fw}`} />
         {columns.map(column => <path key={column.column} d={`M${column.x} ${widthLine}l${8*p} ${-3*p}v${6*p}z M${column.x+column.width} ${widthLine}l${-8*p} ${-3*p}v${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />)}
-        <DimensionText x={doorOffset+door.frame.width/2} y={widthLine} screenOffsetYPx={-10} textAnchor="middle" fallbackFontSize={26}>{`D.W. ${format(doorWidth!)}`}</DimensionText>
-        {columns.filter(column => column.code === "O").map(column => <DimensionText key={column.column} x={column.column === "left" ? 0 : fw} y={widthLine} screenOffsetYPx={column.column === "right" && sideCount === 2 ? -62 : -36} textAnchor={column.column === "left" ? "start" : "end"} fallbackFontSize={26}>{`${sideCount === 2 ? (column.column === "left" ? "L.S.W." : "R.S.W.") : "S.W."} ${format(sideliteWidth)}`}</DimensionText>)}
+        <PivotSegmentLabels axis="horizontal" onLanesChange={setWidthLanes} labels={columns.map(column => ({
+          key: column.column, x: column.x+column.width/2, y: widthLine, text: `W ${format(column.code === "X" ? doorWidth! : sideliteWidth)}`,
+        }))} />
       </g>
       {hasTransom ? <g data-part="pivot-segment-dimensions">
-        <path d={`M${-10*p} 0H${-49*p}M${-10*p} ${transomUnits}H${-49*p}M${-10*p} ${fh}H${-49*p}M${-38*p} 0V${fh}`} />
-        <path d={`M${-38*p} 0l${-3*p} ${8*p}h${6*p}z M${-38*p} ${transomUnits}l${-3*p} ${-8*p}h${6*p}z M${-38*p} ${transomUnits}l${-3*p} ${8*p}h${6*p}z M${-38*p} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-        <VerticalDimensionText x={-38*p} y={transomUnits/2} side="left" fallbackFontSize={26}>{`T.H. ${format(transomHeight)}`}</VerticalDimensionText>
-        <DimensionText x={-38*p} y={(transomUnits+fh)/2} transform={`rotate(-90 ${-38*p} ${(transomUnits+fh)/2})`} textAnchor="middle" dominantBaseline="central" screenOffsetYPx={-46} fallbackFontSize={26} data-dimension-orientation="vertical">{`D.H. ${format(doorHeight!)}`}</DimensionText>
+        <path d={`M${-10*p} 0H${-39*p}M${-10*p} ${transomUnits}H${-39*p}M${-10*p} ${fh}H${-39*p}M${-28*p} 0V${fh}`} />
+        <path d={`M${-28*p} 0l${-3*p} ${8*p}h${6*p}z M${-28*p} ${transomUnits}l${-3*p} ${-8*p}h${6*p}z M${-28*p} ${transomUnits}l${-3*p} ${8*p}h${6*p}z M${-28*p} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
+        <PivotSegmentLabels axis="vertical" onLanesChange={setHeightLanes} labels={[
+          { key: "transom", x: -28*p, y: transomUnits/2, text: `H ${format(transomHeight)}` },
+          { key: "door", x: -28*p, y: (transomUnits+fh)/2, text: `H ${format(doorHeight!)}` },
+        ]} />
       </g> : null}
     </g> : null}
   </svg>;

@@ -1,7 +1,9 @@
-import React, { useId } from "react";
+"use client";
+
+import React, { useId, useState } from "react";
 
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
-import { DimensionText, VerticalDimensionText, VERTICAL_DIMENSION_RESERVE_PX } from "../dimension-text";
+import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX, PivotSegmentLabels } from "./pivot-dimension-text";
 import { matchMuntinPanels, type ResolvedMuntin } from "../muntin-layer";
 import { pivotDoorLayout, pivotSideliteLayout } from "./pivot-door-layout";
 import { PivotFixedDoorDiagram, PivotFixedPane } from "./pivot-fixed-panel";
@@ -40,6 +42,8 @@ function shade(hex: string, amount: number): string {
 /** Fixed O and the approved outward-opening X, with a fixed transom or sidelite. */
 export function PivotDoorDiagram({ width, height, configuration = "X", doorHeight, doorWidth, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: PivotDoorDiagramProps) {
   const reactId = useId();
+  const [widthLanes, setWidthLanes] = useState(1);
+  const [heightLanes, setHeightLanes] = useState(1);
   const id = `pivot-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (configuration === "O") return <PivotFixedDoorDiagram width={width} height={height} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
   if (configuration === "OXO" || configuration === "O/O-O/X" || configuration === "O/X-O/O" || configuration === "O/O-O/X-O/O") return <PivotCompositeDoorDiagram configuration={configuration} width={width} height={height} doorWidth={doorWidth} doorHeight={doorHeight} activeOptionName={activeOptionName} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
@@ -85,16 +89,16 @@ export function PivotDoorDiagram({ width, height, configuration = "X", doorHeigh
   const ox = opening.x + doorOffset; const oy = opening.y + transomUnits; const or = ox + opening.width; const ob = oy + opening.height;
   const fixedOpening = sidelite?.glass;
   const framePath = `M${r} 0H${fw-r}Q${fw} 0 ${fw} ${r}V${fh-r}Q${fw} ${fh} ${fw-r} ${fh}H${r}Q0 ${fh} 0 ${fh-r}V${r}Q0 0 ${r} 0Z M${ox} ${oy}V${ob}H${or}V${oy}Z${isTransom ? ` M${ox} ${transomGlass.y}V${transomUnits}H${or}V${transomGlass.y}Z` : ""}${fixedOpening ? ` M${fixedOpening.x} ${fixedOpening.y}V${fixedOpening.y+fixedOpening.height}H${fixedOpening.x+fixedOpening.width}V${fixedOpening.y}Z` : ""}`;
-  const dimensionOffset = 38 * p;
+  const dimensionOffset = 28 * p;
   const dimensionBottom = Math.max(fh, leaf.br.y + transomUnits) + dimensionOffset;
   const dimensionRight = fw + dimensionOffset;
   const viewBox = expandedViewBox({ x: 0, y: Math.min(0, leaf.tr.y + transomUnits), width: fw, height: Math.max(fh, leaf.br.y + transomUnits) - Math.min(0, leaf.tr.y + transomUnits) }, showDimensions
-    ? { top: (isSidelite ? 110 : 20) * p, right: 100 * p, bottom: 90 * p, left: (isTransom ? 100 : 24) * p }
+    ? { top: (isSidelite ? 52 : 20) * p, right: 70 * p, bottom: 65 * p, left: (isTransom ? 70 : 24) * p }
     : { top: 16 * p, right: 27 * p, bottom: 23 * p, left: 24 * p });
   const format = (value: number) => `${Number(value.toFixed(3))}\u2033`;
 
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby={`${id}-title ${id}-description`} className={className}
-    style={{ boxSizing: "border-box", paddingTop: showDimensions && isSidelite ? 56 : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && isTransom ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingBottom: showDimensions ? 24 : undefined }}
+    style={{ boxSizing: "border-box", paddingTop: showDimensions && isSidelite ? 18 * widthLanes : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && isTransom ? VERTICAL_DIMENSION_RESERVE_PX + 18 * (heightLanes - 1) : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration={configuration} data-view="EXTERIOR" data-opening-direction="OUTWARD" data-exterior-pivot-side={rightActive ? "right" : "left"} data-schematic-opening-deg="24" data-width={width} data-height={height} data-door-height={isTransom ? doorHeight : undefined} data-transom-height={isTransom ? transomHeight : undefined} data-door-width={isSidelite ? doorWidth : undefined} data-sidelite-width={sidelite?.sideliteWidth} data-frame-color={color} data-units-per-inch={layout.unitsPerInch}>
     <title id={`${id}-title`}>{`Pivot Door — Configuration ${configuration}`}</title>
     <desc id={`${id}-description`}>{`Exterior view of a ${format(width)} × ${format(height)} pivot door opening outward toward the observer about a hidden inboard pivot on the ${rightActive ? "right" : "left"}, with a long metal pull handle on the ${rightActive ? "left" : "right"}. ${isTransom ? `A fixed ${format(transomHeight)} transom sits above the ${format(doorHeight!)} door. ` : ""}${sidelite ? `A fixed ${format(sidelite.sideliteWidth)} sidelite sits to the ${sidelite.side} of the ${format(doorWidth!)} door. ` : ""}The frame dimensions describe the closed opening.`}</desc>
@@ -125,22 +129,26 @@ export function PivotDoorDiagram({ width, height, configuration = "X", doorHeigh
       <PivotDoorLeafArtwork layout={layout} color={color} id={id} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} muntin={isTransom || isSidelite ? matchedPanelMuntin("X") : muntin} />
     </g>
     </g>
-    {showDimensions ? <g data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
+    {showDimensions ? <g key={`${configuration}:${viewBox}:${widthLanes}:${heightLanes}`} data-dimensions="VISIBLE" fill="none" stroke={DIMENSION_COLOR} strokeWidth={1.3*p}>
       <path d={`M0 ${fh+12*p}V${dimensionBottom+11*p}M${fw} ${fh+12*p}V${dimensionBottom+11*p}M0 ${dimensionBottom}H${fw}M${fw+10*p} 0H${dimensionRight+11*p}M${fw+10*p} ${fh}H${dimensionRight+11*p}M${dimensionRight} 0V${fh}`} />
       <path d={`M0 ${dimensionBottom}l${8*p} ${-3*p}v${6*p}z M${fw} ${dimensionBottom}l${-8*p} ${-3*p}v${6*p}z M${dimensionRight} 0l${-3*p} ${8*p}h${6*p}z M${dimensionRight} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-      <DimensionText x={fw/2} y={dimensionBottom} screenOffsetYPx={24} textAnchor="middle" fallbackFontSize={26}>{`F.W. ${format(width)}`}</DimensionText>
-      <VerticalDimensionText x={dimensionRight} y={fh/2} fallbackFontSize={26}>{`F.H. ${format(height)}`}</VerticalDimensionText>
+      <DimensionText x={fw/2} y={dimensionBottom} screenOffsetYPx={18} textAnchor="middle" fallbackFontSize={18}>{`W ${format(width)}`}</DimensionText>
+      <VerticalDimensionText x={dimensionRight} y={fh/2} fallbackFontSize={18}>{`H ${format(height)}`}</VerticalDimensionText>
       {sidelite ? <g data-part="pivot-width-segment-dimensions">
-        <path d={`M0 ${-12*p}V${-49*p}M${sidelite.split} ${-12*p}V${-49*p}M${fw} ${-12*p}V${-49*p}M0 ${-38*p}H${fw}`} />
-        <path d={`M0 ${-38*p}l${8*p} ${-3*p}v${6*p}z M${sidelite.split} ${-38*p}l${-8*p} ${-3*p}v${6*p}z M${sidelite.split} ${-38*p}l${8*p} ${-3*p}v${6*p}z M${fw} ${-38*p}l${-8*p} ${-3*p}v${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-        <DimensionText x={doorOffset+layout.frame.width/2} y={-38*p} screenOffsetYPx={-10} textAnchor="middle" fallbackFontSize={26}>{`D.W. ${format(doorWidth!)}`}</DimensionText>
-        <DimensionText x={sidelite.side === "left" ? sidelite.sideliteUnits/2 : layout.frame.width+sidelite.sideliteUnits/2} y={-38*p} screenOffsetYPx={-36} textAnchor="middle" fallbackFontSize={26}>{`S.W. ${format(sidelite.sideliteWidth)}`}</DimensionText>
+        <path d={`M0 ${-12*p}V${-39*p}M${sidelite.split} ${-12*p}V${-39*p}M${fw} ${-12*p}V${-39*p}M0 ${-28*p}H${fw}`} />
+        <path d={`M0 ${-28*p}l${8*p} ${-3*p}v${6*p}z M${sidelite.split} ${-28*p}l${-8*p} ${-3*p}v${6*p}z M${sidelite.split} ${-28*p}l${8*p} ${-3*p}v${6*p}z M${fw} ${-28*p}l${-8*p} ${-3*p}v${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
+        <PivotSegmentLabels axis="horizontal" onLanesChange={setWidthLanes} labels={[
+          { key: "door", x: doorOffset+layout.frame.width/2, y: -28*p, text: `W ${format(doorWidth!)}` },
+          { key: "sidelite", x: sidelite.side === "left" ? sidelite.sideliteUnits/2 : layout.frame.width+sidelite.sideliteUnits/2, y: -28*p, text: `W ${format(sidelite.sideliteWidth)}` },
+        ]} />
       </g> : null}
       {isTransom ? <g data-part="pivot-segment-dimensions">
-        <path d={`M${-10*p} 0H${-49*p}M${-10*p} ${transomUnits}H${-49*p}M${-10*p} ${fh}H${-49*p}M${-38*p} 0V${fh}`} />
-        <path d={`M${-38*p} 0l${-3*p} ${8*p}h${6*p}z M${-38*p} ${transomUnits}l${-3*p} ${-8*p}h${6*p}z M${-38*p} ${transomUnits}l${-3*p} ${8*p}h${6*p}z M${-38*p} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
-        <VerticalDimensionText x={-38*p} y={transomUnits/2} side="left" fallbackFontSize={26}>{`T.H. ${format(transomHeight)}`}</VerticalDimensionText>
-        <VerticalDimensionText x={-38*p} y={(transomUnits+fh)/2} side="left" fallbackFontSize={26}>{`D.H. ${format(doorHeight!)}`}</VerticalDimensionText>
+        <path d={`M${-10*p} 0H${-39*p}M${-10*p} ${transomUnits}H${-39*p}M${-10*p} ${fh}H${-39*p}M${-28*p} 0V${fh}`} />
+        <path d={`M${-28*p} 0l${-3*p} ${8*p}h${6*p}z M${-28*p} ${transomUnits}l${-3*p} ${-8*p}h${6*p}z M${-28*p} ${transomUnits}l${-3*p} ${8*p}h${6*p}z M${-28*p} ${fh}l${-3*p} ${-8*p}h${6*p}z`} fill={DIMENSION_COLOR} stroke="none" />
+        <PivotSegmentLabels axis="vertical" onLanesChange={setHeightLanes} labels={[
+          { key: "transom", x: -28*p, y: transomUnits/2, text: `H ${format(transomHeight)}` },
+          { key: "door", x: -28*p, y: (transomUnits+fh)/2, text: `H ${format(doorHeight!)}` },
+        ]} />
       </g> : null}
     </g> : null}
   </svg>;
