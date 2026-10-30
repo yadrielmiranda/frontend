@@ -3,6 +3,7 @@ import React from "react";
 import type { DiagramFamily, DiagramSpec, DimensionMode } from "@/lib/types";
 import { validateGarageDesignTemplate } from "@/lib/garage-design-templates";
 import { GarageDoorDiagram } from "./piece-diagram/renderers/garage-door/garage-door-diagram";
+import { PivotDoorDiagram } from "./piece-diagram/renderers/pivot-door/pivot-door-diagram";
 
 import {
   PieceDiagram as LegacyPieceDiagram,
@@ -288,6 +289,58 @@ export function PieceDiagram({
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
   const rendererClasses = "h-full w-full";
+  const pivotWidth = positiveDimensionNumber(normalizedPiece?.width);
+  const pivotHeight = positiveDimensionNumber(normalizedPiece?.height);
+  const pivotDoorHeight = positiveDimensionNumber(normalizedPiece?.doorHeight);
+  const pivotDoorWidth = positiveDimensionNumber(normalizedPiece?.doorWidth);
+  const pivotConfigurationName = configuration?.trim().toUpperCase().replace(/\s*([/-])\s*/g, "$1");
+  const pivotConfiguration = pivotConfigurationName === "X" || pivotConfigurationName === "O" || pivotConfigurationName === "O/X"
+    || pivotConfigurationName === "XO" || pivotConfigurationName === "OX" || pivotConfigurationName === "OXO"
+    || pivotConfigurationName === "O/O-O/X" || pivotConfigurationName === "O/X-O/O" || pivotConfigurationName === "O/O-O/X-O/O"
+    ? pivotConfigurationName : null;
+  const pivotCompositeTransom = pivotConfiguration === "O/O-O/X" || pivotConfiguration === "O/X-O/O" || pivotConfiguration === "O/O-O/X-O/O";
+  const pivotHasTransom = pivotConfiguration === "O/X" || pivotCompositeTransom;
+  const pivotHasSidelite = pivotConfiguration === "XO" || pivotConfiguration === "OX" || pivotConfiguration === "OXO" || pivotCompositeTransom;
+  if (
+    diagramFamily === "PIVOT_DOOR" &&
+    pivotConfiguration !== null &&
+    pivotWidth !== null && pivotHeight !== null &&
+    (!pivotHasTransom || (pivotDoorHeight !== null && pivotDoorHeight < pivotHeight)) &&
+    (!pivotHasSidelite || (pivotDoorWidth !== null && pivotDoorWidth < pivotWidth))
+  ) {
+    return (
+      <DiagramShell
+        width={pivotWidth}
+        height={pivotHeight}
+        variant={variant}
+        className={className}
+        dataAttributes={{
+          "data-dimension-mode": dimensionMode,
+          "data-diagram-family": "PIVOT_DOOR",
+          "data-diagram-renderer": pivotConfiguration === "O" ? "PIVOT_FIXED_O"
+            : pivotCompositeTransom ? "PIVOT_DOOR_COMPOSITE_TRANSOM"
+              : pivotHasTransom ? "PIVOT_DOOR_TRANSOM"
+                : pivotHasSidelite ? "PIVOT_DOOR_SIDELITE" : "PIVOT_DOOR_X",
+        }}
+      >
+        <PivotDoorDiagram
+          width={pivotWidth}
+          height={pivotHeight}
+          configuration={pivotConfiguration}
+          doorHeight={pivotHasTransom ? pivotDoorHeight ?? undefined : undefined}
+          doorWidth={pivotHasSidelite ? pivotDoorWidth ?? undefined : undefined}
+          activeOptionName={activeOptionName}
+          frameColorHex={safeFrameColor(frameColorHex)}
+          glassTintHex={glassTintHex}
+          hasCoating={hasCoating}
+          hasPrivacy={hasPrivacy}
+          muntin={muntin}
+          showDimensions={showDimensions}
+          className={rendererClasses}
+        />
+      </DiagramShell>
+    );
+  }
   const selectedGarageDesign = garageDesign === undefined ? piece?.designSnapshot : garageDesign;
   const garageTemplate = validateGarageDesignTemplate(selectedGarageDesign?.design?.template);
   const garageWidth = positiveDimensionNumber(normalizedPiece?.width);
