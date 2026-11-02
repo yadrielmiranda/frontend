@@ -230,7 +230,7 @@ test('Fixed O renders in editor and report without active hardware or movement',
     const marker = layer(html, 'CONFIGURATION_MARKER');
     assert.match(marker, /data-configuration="O"/);
     assert.match(marker, /stroke="#D51028"/);
-    assert.match(marker, /<ellipse\b/);
+    assert.match(marker, /<circle\b/);
     assert.doesNotMatch(html, /data-layer="(?:PULL_HANDLE|OPEN_LEAF)"|data-opening-direction="(?:OUTWARD|INWARD)"/);
     assert.equal(render({ ...options, activeOptionName: 'Right Active' }), html);
     assert.equal(render({ ...options, activeOptionName: 'Left Active' }), html);

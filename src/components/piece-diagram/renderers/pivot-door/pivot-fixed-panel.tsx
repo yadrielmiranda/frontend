@@ -25,6 +25,8 @@ export function PivotFixedPane({ rect, id, color, profileScale, unitsPerInch, pa
   panelIndex?: number; panelLabel?: string;
 }) {
   const url = (suffix: string) => `url(#${id}-${suffix})`;
+  // Fit the whole marker uniformly so narrow or shallow panes keep a round O.
+  const markerScale = Math.min(profileScale, rect.width / 65, rect.height / 65);
   return <g data-part="pivot-fixed-pane" data-panel-code="O">
     <defs>
       <linearGradient id={`${id}-glass-fill`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#E5E5E7" /><stop offset="0.4" stopColor="#E1E1E3" /><stop offset="1" stopColor="#DDDFE0" /></linearGradient>
@@ -38,8 +40,8 @@ export function PivotFixedPane({ rect, id, color, profileScale, unitsPerInch, pa
       <MuntinLayer muntin={safeMuntin(muntin)} glassPanels={[{ panelIndex, panelCode: "O", panelLabel, rect }]} frameColorHex={color} unitsPerInch={unitsPerInch} idNamespace={`${id}-fixed`} />
     </g>
     <rect {...rect} fill="none" stroke="#7C888C" strokeWidth={1.4 * profileScale} data-part="glass-gasket" />
-    <g data-layer="CONFIGURATION_MARKER" data-configuration="O" fill="none" stroke="#D51028" strokeWidth={3.2 * profileScale}>
-      <ellipse cx={rect.x + rect.width / 2} cy={rect.y + rect.height / 2} rx={Math.min(7.5 * profileScale, rect.width * 0.2)} ry={Math.min(16 * profileScale, rect.height * 0.2)} />
+    <g data-layer="CONFIGURATION_MARKER" data-configuration="O" fill="none" stroke="#D51028" strokeWidth={3.2 * markerScale}>
+      <circle cx={rect.x + rect.width / 2} cy={rect.y + rect.height / 2} r={13 * markerScale} />
     </g>
   </g>;
 }
