@@ -195,6 +195,22 @@ export function PricingRangeForm({
       : [];
   }, [systemId, systemsWithConfigs]);
 
+  const allowZeroHeight = useMemo(() => {
+    const selectedSystem = systemsWithConfigs.find(
+      (system) => system.id === Number(systemId),
+    );
+    const selectedConfig = selectedSystem?.sysconfs.find(
+      (sysconf) => sysconf.idConfig === Number(configId),
+    );
+    const fixedHeight = selectedConfig?.billableHeightFixedIn;
+    return (
+      selectedConfig?.billableHeightMode === "FIXED" &&
+      fixedHeight != null &&
+      String(fixedHeight).trim() !== "" &&
+      Number(fixedHeight) === 0
+    );
+  }, [systemId, configId, systemsWithConfigs]);
+
   const groupedConfigs = useMemo(
     () => groupConfigsByCategory(availableConfigs),
     [availableConfigs],
@@ -756,6 +772,8 @@ export function PricingRangeForm({
             <h3 className="font-semibold">Height Range</h3>
             <p className="text-sm text-muted-foreground">
               Leave a boundary empty when that side has no limit.
+              {allowZeroHeight &&
+                " This configuration also accepts zero because its billable height is fixed at 0."}
             </p>
           </div>
 
@@ -769,8 +787,11 @@ export function PricingRangeForm({
                   validate: (value) =>
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
-                      Number(value) > 0) ||
-                    "Use a positive value with up to 4 decimals.",
+                      (Number(value) > 0 ||
+                        (allowZeroHeight && Number(value) === 0))) ||
+                    (allowZeroHeight
+                      ? "Use zero or a positive value with up to 4 decimals."
+                      : "Use a positive value with up to 4 decimals."),
                 }}
                 render={({ field, fieldState }) => (
                   <>
@@ -824,8 +845,11 @@ export function PricingRangeForm({
                   validate: (value) =>
                     value.trim() === "" ||
                     (DIMENSION_DECIMAL_PATTERN.test(value.trim()) &&
-                      Number(value) > 0) ||
-                    "Use a positive value with up to 4 decimals.",
+                      (Number(value) > 0 ||
+                        (allowZeroHeight && Number(value) === 0))) ||
+                    (allowZeroHeight
+                      ? "Use zero or a positive value with up to 4 decimals."
+                      : "Use a positive value with up to 4 decimals."),
                 }}
                 render={({ field, fieldState }) => (
                   <>
