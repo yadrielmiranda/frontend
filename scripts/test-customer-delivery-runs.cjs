@@ -74,6 +74,7 @@ global.window = { scrollTo() {}, addEventListener() {}, removeEventListener() {}
 const account = { id: 10, role: { name: 'admin' } };
 const drawnSignature = [[{x:.1,y:.1},{x:.2,y:.4},{x:.3,y:.2},{x:.4,y:.5},{x:.6,y:.2}]];
 const run = (changes = {}) => ({ id: 7, status: 'ACTIVE', storeId: 1, storeName: 'Main', createdById: 10, createdBy: 'Test Admin',
+  availableStorages: [{ storeId: 1, storeName: 'Main' }],
   createdAt: '2026-11-04T18:00:00Z', updatedAt: '2026-11-04T18:00:00Z', closedAt: null, revision: 'revision-7',
   orders: [{key:'external:1',poNumber:'293232',source:'EXTERNAL',orderNumber:'',totalPieces:1,totalParts:1,pendingPieces:2,pendingParts:3,unknownPending:false}],
   items: receipt().items, pendingItems: receipt().pendingItems, totalPieces:1,totalParts:1,pendingPieces:2,pendingParts:3,hasPending:true,deliveryId:null,delivery:null,...changes });
@@ -111,9 +112,13 @@ const button = (h, name) => flatten(h.render(),node=>node.type==='Button'&&text(
 const click = (h,name) => {const node=button(h,name);assert.ok(node,`Missing ${name}`);assert.ok(!node.props.disabled,`Disabled ${name}`);return node.props.onClick();};
 const ariaButton = (h, name) => flatten(h.render(), node => node.type === 'Button' && node.props['aria-label'] === name)[0];
 const clickAria = (h, name) => { const node = ariaButton(h, name); assert.ok(node, `Missing ${name}`); assert.ok(!node.props.disabled, `Disabled ${name}`); return node.props.onClick(); };
-const chooseStorage = (h, name = 'Main') => {
-  const dialog = flatten(h.render(), node => node.type === 'Dialog' && flatten(node, child => child.type === 'Button' && ['Choose storage', 'Change storage'].includes(text(child))).length)[0];
-  assert.ok(dialog, 'Missing storage selector'); dialog.props.onOpenChange(true); click(h, name);
+const storageDialog = h => flatten(h.render(), node => node.type === 'Dialog' && flatten(node, child => child.type === 'Button' && ['Choose storage', 'Change storage'].includes(text(child))).length)[0];
+const openStorage = async h => {
+  const dialog = storageDialog(h);
+  assert.ok(dialog, 'Missing storage selector'); dialog.props.onOpenChange(true); await flush();
+};
+const chooseStorage = async (h, name = 'Main') => {
+  await openStorage(h); click(h, name);
 };
 const enter = (h,id,value) => {const node=flatten(h.render(),node=>node.props?.id===id)[0];assert.ok(node,`Missing ${id}`);node.props.onChange({target:{value}});};
 const flush = async () => {for(let i=0;i<10;i++)await Promise.resolve();};
@@ -126,6 +131,79 @@ test('opening a saved delivery recovers server scans with no selection checkboxe
   storage.clear();const h=harness();assert.match(text(h.render()),/Scanned and saved/);assert.match(text(h.render()),/1133926/);
   assert.equal(flatten(h.render(),node=>node.type==='input'&&node.props.type==='checkbox').length,0);
   assert.equal(type(h,'ScanPad').props.persistent,true);
+});
+
+test('admin and technician storage choices use current stock for the delivery POs instead of the full store list', async () => {
+  for (const role of ['admin', 'technician']) {
+    storage.clear(); const calls = [], person = { id: 10, role: { name: role } };
+    const h = harness({ auth: { user: person, revalidate: async () => person },
+      props: { actorRole: role, technician: role === 'technician', initialStores: [
+        { id: 1, name: 'Main', isActive: true }, { id: 3, name: 'Unrelated stock', isActive: true },
+      ] }, api: { customerDeliveryRun: async id => { calls.push(id); return run({
+        availableStorages: [{ storeId: 2, storeName: 'Overflow' }],
+      }); } } });
+    await openStorage(h);
+    assert.deepEqual(calls, [7]); assert.ok(button(h, 'Overflow'));
+    assert.equal(button(h, 'Main'), undefined); assert.equal(button(h, 'Unrelated stock'), undefined);
+    assert.equal(button(h, 'Unassigned'), undefined); assert.equal(type(h, 'ScanPad').props.disabled, true);
+    click(h, 'Overflow');
+    assert.equal(type(h, 'ScanPad').props.disabled, false);
+    assert.deepEqual(JSON.parse(storage.get('customer-delivery-run:10:source:7')).source, { storeId: 2, storeName: 'Overflow' });
+  }
+});
+
+test('reopening the storage selector refreshes available locations and includes unassigned only when stocked', async () => {
+  storage.clear(); let calls = 0;
+  const h = harness({ api: { customerDeliveryRun: async () => run({ availableStorages: ++calls === 1
+    ? [{ storeId: 1, storeName: 'Main' }]
+    : [{ storeId: null, storeName: 'Unassigned' }, { storeId: 2, storeName: 'Overflow' }],
+  }) } });
+  await chooseStorage(h); assert.equal(calls, 1);
+  await openStorage(h);
+  assert.equal(calls, 2); assert.equal(button(h, 'Main'), undefined);
+  assert.ok(button(h, 'Overflow')); assert.ok(button(h, 'Unassigned'));
+  click(h, 'Unassigned');
+  assert.equal(JSON.parse(storage.get('customer-delivery-run:10:source:7')).source.storeId, null);
+  assert.equal(type(h, 'ScanPad').props.disabled, false);
+});
+
+test('empty and unstocked deliveries explain why no storage can be selected', async () => {
+  for (const hasPos of [false, true]) {
+    storage.clear(); const h = harness({ initialRun: run({ availableStorages: [],
+      ...(hasPos ? {} : { orders: [], items: [], totalPieces: 0, totalParts: 0 }),
+    }) });
+    await openStorage(h);
+    assert.equal(button(h, 'Main'), undefined); assert.equal(button(h, 'Unassigned'), undefined);
+    assert.equal(type(h, 'ScanPad').props.disabled, true);
+    assert.match(text(storageDialog(h)), hasPos ? /No storage has available stock/ : /Add POs.*before choosing a storage/);
+  }
+});
+
+test('a failed storage refresh does not expose stale or unrelated locations and can be retried', async () => {
+  storage.clear(); let calls = 0;
+  const h = harness({ api: { customerDeliveryRun: async () => {
+    if (++calls === 1) throw new Error('Connection lost');
+    return run({ availableStorages: [{ storeId: 2, storeName: 'Overflow' }] });
+  } } });
+  await openStorage(h); assert.match(text(storageDialog(h)), /Connection lost/);
+  assert.equal(button(h, 'Main'), undefined); assert.equal(button(h, 'Unassigned'), undefined);
+  assert.equal(type(h, 'ScanPad').props.disabled, true);
+  click(h, 'Try again'); await flush();
+  assert.equal(calls, 2); assert.ok(button(h, 'Overflow')); assert.equal(button(h, 'Try again'), undefined);
+});
+
+test('an older storage response cannot replace the options after closing and reopening the selector', async () => {
+  storage.clear(); let calls = 0, resolveOld;
+  const h = harness({ api: { customerDeliveryRun: () => ++calls === 1
+    ? new Promise(resolve => { resolveOld = resolve; })
+    : Promise.resolve(run({ availableStorages: [{ storeId: 2, storeName: 'Overflow' }] })),
+  } });
+  await openStorage(h); assert.match(text(storageDialog(h)), /Loading available storages/);
+  assert.equal(button(h, 'Main'), undefined);
+  storageDialog(h).props.onOpenChange(false);
+  await openStorage(h); assert.ok(button(h, 'Overflow'));
+  resolveOld(run({ availableStorages: [{ storeId: 1, storeName: 'Main' }] })); await flush();
+  assert.ok(button(h, 'Overflow')); assert.equal(button(h, 'Main'), undefined); assert.equal(calls, 2);
 });
 
 test('manual PO delivery skips scanner and planning but retains all saved parts and signed close', async () => {
@@ -159,7 +237,7 @@ test('manual view recovers a pre-existing uncertain scan before allowing signed 
 });
 test('PO exclusion discards only the pending scan and keeps earlier saved parts', async () => {
   storage.clear();const calls=[];const h=harness({api:{scanCustomerDeliveryPart:async(...args)=>{calls.push(args);throw new ApiError('Other PO',409,{code:'DELIVERY_PO_NOT_INCLUDED',poNumber:'293233'});}}});
-  chooseStorage(h);
+  await chooseStorage(h);
   const scan=type(h,'ScanPad');const pending=scan.props.onRead('1134000-WINDOW','same-scan-key');await flush();
   assert.match(text(h.render()),/Add PO 293233/);click(h,'No, discard scan');
   assert.equal(await pending,null);assert.equal(calls.length,1);assert.match(text(h.render()),/1133926/);
@@ -167,7 +245,7 @@ test('PO exclusion discards only the pending scan and keeps earlier saved parts'
 test('PO inclusion retries the original reading with explicit consent and the same request key', async () => {
   storage.clear();const calls=[];const saved=run({totalParts:2});
   const h=harness({api:{scanCustomerDeliveryPart:async(id,body)=>{calls.push(body);if(!body.addPo)throw new ApiError('Other PO',409,{code:'DELIVERY_PO_NOT_INCLUDED',poNumber:'293233'});return saved;}}});
-  chooseStorage(h);
+  await chooseStorage(h);
   const pending=type(h,'ScanPad').props.onRead('1134000-WINDOW','same-scan-key');await flush();click(h,'Yes, add PO and part');
   assert.deepEqual(await pending,saved);assert.deepEqual(calls.map(x=>x.requestKey),['same-scan-key','same-scan-key']);assert.equal(calls[1].addPo,true);
 });
@@ -219,7 +297,7 @@ test('admin and technician must explicitly select storage even with a legacy or 
     assert.doesNotMatch(text(h.render()),/Scanning from: Main/);
     await assert.rejects(()=>type(h,'ScanPad').props.onRead('1133926-DOOR','unselected-reading'),/Choose.*storage/i);
     assert.equal(writes,0);
-    chooseStorage(h);
+    await chooseStorage(h);
     assert.equal(type(h,'ScanPad').props.disabled,false);assert.equal(type(h,'ScanPad').props.retryOnly,false);
     assert.equal(JSON.parse(storage.get(sourceKey)).sourceConfirmed,true);
     const restored=harness(options);
@@ -237,7 +315,7 @@ test('an old uncertain scan retries its saved source without enabling a new scan
   assert.deepEqual(calls,[{barcode:'1133926-DOOR',requestKey,storeId:2}]);
   assert.equal(type(h,'ScanPad').props.disabled,true);
   await assert.rejects(()=>type(h,'ScanPad').props.onRead('1133926-DOOR','new-reading'),/Choose.*storage/i);
-  assert.equal(calls.length,1);chooseStorage(h);assert.equal(type(h,'ScanPad').props.disabled,false);
+  assert.equal(calls.length,1);await chooseStorage(h);assert.equal(type(h,'ScanPad').props.disabled,false);
 });
 test('partial review includes whole-PO pending summary and requires acknowledgement before closing', async () => {
   storage.clear();const h=harness();await click(h,'Review and close delivery');assert.match(text(h.render()),/Some POs are incomplete/);
@@ -265,7 +343,7 @@ test('stock conflict clears signature for fresh review while preserving the save
 test('changed account cannot view prior receipt or submit a saved scan', async () => {
   storage.clear();let writes=0;const auth={user:account,revalidate:async()=>({id:99,role:{name:'admin'}})};
   const h=harness({auth,api:{scanCustomerDeliveryPart:async()=>{writes++;return run();}}});
-  chooseStorage(h);
+  await chooseStorage(h);
   await assert.rejects(()=>type(h,'ScanPad').props.onRead('1133926-DOOR','scan'),/account has changed/i);assert.equal(writes,0);
   auth.user={id:99,role:{name:'admin'}};assert.doesNotMatch(text(h.render()),/1133926|Scanned and saved/);assert.match(text(h.render()),/Sign in/);
 });

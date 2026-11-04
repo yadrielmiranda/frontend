@@ -20,6 +20,7 @@ const page = items => ({ items, total: items.length, page: 1, pageSize: 20 });
 const receipt = { source: 'WAREHOUSE', storeId: 1, storeName: 'Main', firstName: 'Synthetic', lastName: 'Recipient', signatureStrokes: [],
   items: [{ lineNumber: '1133926', barcode: 'I1133926', poNumber: '293232', source: 'EXTERNAL', orderNumber: '', mark: '1', description: 'French door', product: '', system: '', configuration: '', quantity: 1, parts: { DOOR: 1 } }], totalPieces: 1, totalParts: 1, pendingItems: [] };
 const run = (changes = {}) => ({ id: 7, status: 'ACTIVE', storeId: 1, storeName: 'Main', createdById: 10, createdBy: 'Test Admin',
+  availableStorages: [{ storeId: 1, storeName: 'Main' }],
   createdAt: '2026-11-04T18:00:00Z', updatedAt: '2026-11-04T18:00:00Z', closedAt: null, revision: 'revision-7',
   orders: [{ key: 'external:1', poNumber: '293232', source: 'EXTERNAL', orderNumber: '', totalPieces: 1, totalParts: 1, pendingPieces: 0, pendingParts: 0, unknownPending: false }],
   items: receipt.items, pendingItems: [], totalPieces: 1, totalParts: 1, pendingPieces: 0, pendingParts: 0, hasPending: false, deliveryId: null, delivery: null, ...changes });
@@ -252,10 +253,13 @@ test('storage is selected before scanning, stays locked during a reading and can
   const first = run({ multiStore: true, allocations: [mainPart] });
   const combined = run({ multiStore: true, totalParts: 2, totalPieces: 1, items: [{ ...receipt.items[0], quantity: 2, parts: { DOOR: 2 } }], allocations: [mainPart, { ...mainPart, storeId: 2, storeName: 'Overflow' }] });
   const calls = []; let finish;
-  const api = { scanCustomerDeliveryPart: async (_id, body) => { calls.push(body); return calls.length === 1 ? new Promise(resolve => { finish = resolve; }) : combined; } };
+  const api = {
+    customerDeliveryRun: async () => ({ ...(calls.length ? first : empty), availableStorages: [{ storeId: 1, storeName: 'Main' }, { storeId: 2, storeName: 'Overflow' }] }),
+    scanCustomerDeliveryPart: async (_id, body) => { calls.push(body); return calls.length === 1 ? new Promise(resolve => { finish = resolve; }) : combined; },
+  };
   const props = { initialRun: empty, initialStores: [store, { ...store, id: 2, name: 'Overflow' }] };
   const h = deliveryHarness({ props, api });
-  assert.equal(ofType(h, 'ScanPad').props.disabled, true); dialogFor(h, 'Choose storage').props.onOpenChange(true); click(h, 'Main');
+  assert.equal(ofType(h, 'ScanPad').props.disabled, true); dialogFor(h, 'Choose storage').props.onOpenChange(true); await flush(); click(h, 'Main');
   assert.equal(ofType(h, 'ScanPad').props.disabled, false); assert.match(text(h.render()), /Scanning from: Main/);
   assert.equal(ofType(h, 'ScanPad').props.retryOnly, false);
   assert.equal(JSON.parse(storage.get('customer-delivery-run:10:source:7')).sourceConfirmed, true);
@@ -263,7 +267,7 @@ test('storage is selected before scanning, stays locked during a reading and can
   assert.equal(button(h, 'Change storage').props.disabled, true); assert.equal(h.busy.at(-1), true);
   dialogFor(h, 'Change storage').props.onOpenChange(true); assert.equal(dialogFor(h, 'Change storage').props.open, false);
   finish(first); ofType(h, 'ScanPad').props.onSaved(await reading);
-  dialogFor(h, 'Change storage').props.onOpenChange(true); click(h, 'Overflow');
+  dialogFor(h, 'Change storage').props.onOpenChange(true); await flush(); click(h, 'Overflow');
   assert.match(text(h.render()), /Scanning from: Overflow/); h.dispose();
   const restored = deliveryHarness({ props: { ...props, initialRun: first }, api });
   assert.match(text(restored.render()), /Scanning from: Overflow/);
@@ -291,7 +295,7 @@ test('mobile Change operation restarts only the embedded scanner and preserves t
 
   const saved = run({ totalParts: 2, items: [{ ...receipt.items[0], quantity: 2, parts: { DOOR: 2 } }] });
   const child = deliveryHarness({ props: { scannerRevision: 0 }, api: { scanCustomerDeliveryPart: async () => saved } });
-  dialogFor(child, 'Choose storage').props.onOpenChange(true); click(child, 'Main');
+  dialogFor(child, 'Choose storage').props.onOpenChange(true); await flush(); click(child, 'Main');
   const scanner = ofType(child, 'ScanPad');
   scanner.props.onSaved(await scanner.props.onRead('1133926-DOOR', 'synthetic-reading'));
   const previousKey = ofType(child, 'ScanPad').key; assert.match(text(child.render()), /2 physical parts/);

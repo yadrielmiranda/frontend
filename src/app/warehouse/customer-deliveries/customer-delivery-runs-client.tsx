@@ -124,7 +124,6 @@ export function CustomerDeliveryRunsClient({
   actorRole,
   initialList,
   initialRun = null,
-  initialStores,
   technician = false,
   embedded = false,
   basePath,
@@ -173,6 +172,9 @@ export function CustomerDeliveryRunsClient({
   const [status, setStatus] = useState<"ACTIVE" | "CLOSED">("ACTIVE");
   const [poPickerOpen, setPoPickerOpen] = useState(false);
   const [storagePickerOpen, setStoragePickerOpen] = useState(false);
+  const [storageOptions, setStorageOptions] = useState<ScanStorage[] | null>(null);
+  const [storageError, setStorageError] = useState("");
+  const storageRequests = useRef({ serial: 0 }).current;
   const [scanContext, setScanContext] = useState<ScanContext | null>(null);
   const scanContextRef = useRef<ScanContext | null>(null);
   const [busy, setBusy] = useState(false),
@@ -258,7 +260,10 @@ export function CustomerDeliveryRunsClient({
   useEffect(() => {
     setPoPickerOpen(false);
     setStoragePickerOpen(false);
-  }, [run?.id]);
+    setStorageOptions(null);
+    storageRequests.serial++;
+    return () => { storageRequests.serial++; };
+  }, [run?.id, ownerMatches, storageRequests]);
 
   useEffect(() => {
     onBusy?.(operationBusy);
@@ -289,10 +294,37 @@ export function CustomerDeliveryRunsClient({
     if (current?.runId === runId && current.reading?.requestKey === requestKey)
       saveScanContext({ ...current, reading: null });
   }
-  function chooseStorage(source: ScanStorage) {
+  async function loadStorageOptions() {
     if (!run || sourceLocked) return;
+    const runId = run.id;
+    const request = ++storageRequests.serial;
+    setStorageOptions(null);
+    setStorageError("");
+    try {
+      const next = await customerDeliveryRun(runId);
+      if (request !== storageRequests.serial ||
+        currentRun.current?.id !== runId || !liveIdentity.current) return;
+      if (next.status !== "ACTIVE") {
+        setRun(next);
+        setStoragePickerOpen(false);
+        return;
+      }
+      if (!Array.isArray(next.availableStorages))
+        throw new Error("Storage availability could not be loaded. Try again.");
+      setRun(next);
+      setStorageOptions(next.availableStorages);
+    } catch (e) {
+      if (request !== storageRequests.serial ||
+        currentRun.current?.id !== runId || !liveIdentity.current) return;
+      setStorageError(errorMessage(e));
+    }
+  }
+  function chooseStorage(source: ScanStorage) {
+    if (!run || sourceLocked ||
+      !storageOptions?.some(option => option.storeId === source.storeId)) return;
     try {
       saveScanContext({ runId: run.id, source, sourceConfirmed: true, reading: null });
+      storageRequests.serial++;
       setStoragePickerOpen(false);
       setError("");
       setNotice("");
@@ -1465,6 +1497,9 @@ export function CustomerDeliveryRunsClient({
                       if (open) {
                         setError("");
                         onScanModeChange?.(false);
+                        void loadStorageOptions();
+                      } else {
+                        storageRequests.serial++;
                       }
                     }}
                   >
@@ -1484,8 +1519,7 @@ export function CustomerDeliveryRunsClient({
                         <DialogHeader className="text-left">
                           <DialogTitle>Choose storage</DialogTitle>
                           <DialogDescription>
-                            Select where the next parts are being taken from.
-                            Parts already scanned keep their original storage.
+                            Only locations with stock for this delivery&apos;s POs are shown.
                           </DialogDescription>
                         </DialogHeader>
                         {error && (
@@ -1496,48 +1530,38 @@ export function CustomerDeliveryRunsClient({
                             {error}
                           </p>
                         )}
+                        {storageError ? (
+                          <div className="space-y-3">
+                            <p role="alert" className="text-sm text-red-800">{storageError}</p>
+                            <Button type="button" variant="outline" disabled={sourceLocked}
+                              onClick={() => void loadStorageOptions()}>Try again</Button>
+                          </div>
+                        ) : storageOptions === null ? (
+                          <p role="status" className="text-sm text-muted-foreground">Loading available storages…</p>
+                        ) : storageOptions.length === 0 ? (
+                          <p role="status" className="text-sm text-muted-foreground">
+                            {run.orders.length === 0
+                              ? "Add POs to this delivery before choosing a storage."
+                              : "No storage has available stock for this delivery's POs."}
+                          </p>
+                        ) : null}
                         <div className="grid gap-2">
-                          {initialStores
-                            .filter((store) => store.isActive)
-                            .map((store) => (
+                          {storageOptions?.map((store) => (
                               <Button
-                                key={store.id}
+                                key={store.storeId ?? "unassigned"}
                                 type="button"
                                 variant="outline"
                                 className="h-auto min-h-11 justify-between whitespace-normal px-4 py-3 text-left"
                                 disabled={sourceLocked}
-                                aria-pressed={scanStorage?.storeId === store.id}
-                                onClick={() =>
-                                  chooseStorage({
-                                    storeId: store.id,
-                                    storeName: store.name,
-                                  })
-                                }
+                                aria-pressed={scanStorage?.storeId === store.storeId}
+                                onClick={() => chooseStorage(store)}
                               >
-                                {store.name}
-                                {scanStorage?.storeId === store.id && (
+                                {store.storeName}
+                                {scanStorage?.storeId === store.storeId && (
                                   <CheckCircle2 className="ml-2 size-4 shrink-0 text-emerald-700" />
                                 )}
                               </Button>
                             ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="min-h-11 justify-between px-4 py-3"
-                            disabled={sourceLocked}
-                            aria-pressed={scanStorage?.storeId === null}
-                            onClick={() =>
-                              chooseStorage({
-                                storeId: null,
-                                storeName: "Unassigned",
-                              })
-                            }
-                          >
-                            Unassigned
-                            {scanStorage?.storeId === null && (
-                              <CheckCircle2 className="ml-2 size-4 text-emerald-700" />
-                            )}
-                          </Button>
                         </div>
                       </DialogContent>
                     )}

@@ -26,6 +26,7 @@ export type CustomerDeliveryRun = {
   storeId: number | null;
   storeName: string;
   multiStore?: boolean;
+  availableStorages?: Array<{ storeId: number | null; storeName: string }>;
   canDelete?: boolean;
   allocations?: Array<
     CustomerDeliveryItem & { storeId: number | null; storeName: string }
