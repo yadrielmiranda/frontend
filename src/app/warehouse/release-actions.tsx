@@ -3,21 +3,27 @@
 import Link from "next/link";
 import { ChevronDown, ClipboardCheck, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { pendingReceiptCustomerDeliveryPath, warehouseCustomerDeliveryPath } from "./customer-deliveries/customer-delivery-navigation";
+import { PoWarehouseReleaseActions } from "./customer-deliveries/po-customer-delivery-action";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export function WarehouseReleaseActions({
-  source = "WAREHOUSE", storeId = "all", search = "", poKey, poLabel, compact = false,
+  source = "WAREHOUSE", storeId = "all", search = "", poKey, poLabel, compact = false, onInstallationRelease,
 }: {
   source?: "WAREHOUSE" | "TRANSIT"; storeId?: string; search?: string;
   poKey?: string; poLabel?: string; compact?: boolean;
+  onInstallationRelease?: () => void;
 }) {
+  if (source === "WAREHOUSE" && /^(order|external):[1-9]\d*$/.test(poKey ?? "") && Number.isSafeInteger(Number(poKey!.split(":")[1]))) {
+    return <PoWarehouseReleaseActions poKey={poKey!} poLabel={poLabel} storeId={storeId} search={search} compact={compact} onInstallationRelease={onInstallationRelease} />;
+  }
   const query = new URLSearchParams({ source, search });
   if (poKey) query.set("poKey", poKey);
   if (source === "WAREHOUSE" && storeId !== "all" && storeId) query.set("storeId", storeId);
-  const customerHref = `/warehouse/customer-deliveries/new?${query}`;
+  const customerHref = source === "WAREHOUSE" ? warehouseCustomerDeliveryPath({ storeId }) : pendingReceiptCustomerDeliveryPath({ search, poKey });
   const compactClass = "mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-700 underline underline-offset-2";
   if (source === "TRANSIT") return compact
     ? <Link href={customerHref} className={compactClass} aria-label={`Deliver PO ${poLabel} to customer`}>Deliver to customer</Link>
@@ -36,7 +42,7 @@ export function WarehouseReleaseActions({
         <DropdownMenuItem asChild className="items-start rounded-lg p-3">
           <Link href={customerHref}>
             <ClipboardCheck className="mt-0.5" />
-            <span><span className="block font-medium">Deliver to customer</span><span className="mt-1 block text-xs text-muted-foreground">Review and sign a delivery receipt.</span></span>
+            <span><span className="block font-medium">Deliver to customer</span><span className="mt-1 block text-xs text-muted-foreground">Create or continue a saved delivery.</span></span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="items-start rounded-lg p-3">

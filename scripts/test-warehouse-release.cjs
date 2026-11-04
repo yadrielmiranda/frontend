@@ -24,6 +24,7 @@ function loader(hooks = {}, api = {}, auth = standardAuth()) {
       if (id === 'next/link') return { default: 'a', __esModule: true };
       if (id === '@/app/api/technician-warehouse.api' || id === '@/app/api/technician.api') return api;
       if (id === '@/contexts/AuthContext') return { useAuth: () => auth };
+      if (id === './customer-deliveries/po-customer-delivery-action') return { PoWarehouseReleaseActions: 'PoWarehouseReleaseActions' };
       if (id === 'lucide-react' || id.startsWith('@/components/ui/')) return new Proxy({}, { get: (_, name) => name });
       if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `request-${++nextKey}`, ...api };
       if (id === '@/app/api/_base') return { isApiError: error => error instanceof ApiError };
@@ -271,17 +272,14 @@ test('scanner navigation keeps installation destination and source without recor
   assert.equal(url.searchParams.get('action'), 'RELEASE'); assert.equal(url.searchParams.get('destination'), 'installation');
   assert.equal(url.searchParams.get('storeId'), 'unassigned');
 });
-test('inventory release choices preserve PO store and search for both destinations', () => {
+test('inventory PO release choices pass exact PO context to their modal', () => {
   const Component = loader()('app/warehouse/release-actions.tsx').WarehouseReleaseActions;
   for (const storeId of ['2', 'unassigned']) {
     const tree = Component({ storeId, search: 'Santos 292427', poKey: 'external:1', poLabel: '292427', compact: true });
-    const links = nodes(tree, node => node.type === 'a'); assert.equal(links.length, 2);
-    for (const link of links) {
-      const url = new URL(link.props.href, 'https://local.invalid');
-      assert.equal(url.searchParams.get('storeId'), storeId); assert.equal(url.searchParams.get('search'), 'Santos 292427');
-      assert.equal(url.searchParams.get('poKey'), 'external:1');
-      assert.ok(['/warehouse/customer-deliveries/new', '/warehouse/releases/new'].includes(url.pathname));
-    }
+    assert.equal(tree.type, 'PoWarehouseReleaseActions');
+    assert.equal(tree.props.storeId, storeId); assert.equal(tree.props.poKey, 'external:1');
+    assert.equal(tree.props.poLabel, '292427'); assert.equal(tree.props.search, 'Santos 292427');
+    assert.equal(tree.props.compact, true);
   }
 });
 test('transit navigation offers only signed customer delivery and no warehouse release', () => {
@@ -289,7 +287,7 @@ test('transit navigation offers only signed customer delivery and no warehouse r
   const tree = Component({ source: 'TRANSIT', poKey: 'order:2', storeId: '1' });
   const links = nodes(tree, node => node.type === 'a'); assert.equal(links.length, 1);
   const url = new URL(links[0].props.href, 'https://local.invalid');
-  assert.equal(url.pathname, '/warehouse/customer-deliveries/new'); assert.equal(url.searchParams.get('source'), 'TRANSIT');
+  assert.equal(url.pathname, '/warehouse/receipts'); assert.equal(url.searchParams.get('destination'), 'customer');
   assert.equal(url.searchParams.has('storeId'), false); assert.equal(url.searchParams.get('poKey'), 'order:2');
 });
 

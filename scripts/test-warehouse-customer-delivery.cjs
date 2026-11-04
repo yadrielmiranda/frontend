@@ -530,6 +530,81 @@ test('technician warehouse handoff keeps selection, signature and replay on tech
   assert.deepEqual(redirects, ['/technician/customer-deliveries/92']);
 });
 
+const receiptMode = (selected = selection(), extra = {}) => ({ selection: selected, onClose() {}, onComplete() {}, ...extra });
+
+test('pending receipt reviews the exact multi-PO partial selection with fixed transit and stays in place after signing', async () => {
+  const typed = { ...parts[0], inTransit: 3, partTracking: { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: { DOOR: 2, FRAME: 1 }, onHand: {}, unassigned: {}, released: {}, stores: [] } };
+  const selected = { [typed.lineNumber]: { unit: typed, quantity: '1', parts: { FRAME: 1 } }, [parts[1].lineNumber]: { unit: parts[1], quantity: '1' } };
+  const original = structuredClone(selected), requests = [], redirects = [], busy = [];
+  let closed = 0, complete;
+  const mode = receiptMode(selected, { onClose() { closed++; }, onComplete(value) { complete = value; }, onBusyChange: value => busy.push(value) });
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', pendingReceipt: mode }), {
+    warehouseDeliverToCustomer: async body => { requests.push(structuredClone(body)); return savedReceipt(body); },
+  }, { replace: value => redirects.push(value) });
+  const preview = byType(h, 'CustomerDeliveryReceipt').props.delivery;
+  assert.equal(preview.source, 'TRANSIT'); assert.equal(preview.totalPieces, 2); assert.equal(preview.totalParts, 2);
+  assert.deepEqual(preview.items[0].parts, { FRAME: 1 });
+  for (const label of ['From warehouse', 'Directly from factory', 'Select all matching POs']) assert.equal(button(h, label), undefined);
+  assert.equal(byType(h, 'StoreSelect'), undefined); assert.equal(byType(h, 'ScanPad'), undefined);
+  assert.equal(byType(h, 'Pagination'), undefined); assert.equal(label(h, 'Search delivery POs'), undefined);
+  click(h, 'Back to selection'); assert.equal(closed, 1); assert.deepEqual(selected, original); assert.equal(requests.length, 0);
+  sign(h); await click(h, 'Confirm signed delivery');
+  assert.equal(requests[0].source, 'TRANSIT'); assert.equal('storeId' in requests[0], false); assert.equal('pickupRunId' in requests[0], false);
+  assert.deepEqual(requests[0].items, [{ barcode: typed.barcode, quantity: 1, version: 3, parts: { FRAME: 1 } }, { barcode: parts[1].barcode, quantity: 1, version: 3 }]);
+  assert.equal(busy.at(-1), true); assert.deepEqual(redirects, []); assert.equal(complete, undefined);
+  assert.equal(byType(h, 'CustomerDeliveryReceipt').props.delivery.id, 81); assert.ok(storage.has('warehouse-customer-delivery:10'));
+  click(h, 'Done'); assert.equal(complete.id, 81); assert.equal(storage.size, 0);
+});
+
+test('pending receipt recovers an uncertain transit request including its pickup scope with no current inventory', async () => {
+  const bodies = [], redirects = [];
+  const first = harness(embeddedProps(), { warehouseDeliverToCustomer: async body => { bodies.push(structuredClone(body)); throw new Error('Connection lost'); } });
+  sign(first); await click(first, 'Confirm signed delivery');
+  const input = props({ initial: { ...props().initial, items: [], total: 0 }, pendingReceipt: receiptMode({}) });
+  const recovered = harness(input, { warehouseDeliverToCustomer: async body => { bodies.push(structuredClone(body)); return savedReceipt(body); } }, { replace: value => redirects.push(value) });
+  assert.equal(button(recovered, 'Back to selection').props.disabled, true);
+  assert.equal(byType(recovered, 'CustomerDeliveryReceipt').props.delivery.totalParts, 2);
+  await click(recovered, 'Check delivery');
+  assert.deepEqual(bodies[1], bodies[0]); assert.equal(bodies[1].pickupRunId, 44); assert.deepEqual(redirects, []);
+  assert.ok(button(recovered, 'Done')); assert.equal(button(recovered, 'From warehouse'), undefined);
+});
+
+test('pending receipt never changes or submits a recovered warehouse request', async () => {
+  const previous = helpers.customerDeliveryRequest({ selection: selection(), source: 'WAREHOUSE', storeId: '1', firstName: 'Ana', lastName: 'Perez', signatureStrokes: signature, requestKey: 'old-warehouse-request' });
+  const saved = JSON.stringify({ body: previous, receipt: savedReceipt(previous) });
+  storage.set('warehouse-customer-delivery:10', saved);
+  let writes = 0, closed = 0;
+  const h = harness(props({ pendingReceipt: receiptMode(selection(), { onClose() { closed++; } }) }), { warehouseDeliverToCustomer: async () => { writes++; } });
+  assert.match(text(h.render()), /previous warehouse delivery must be recovered/);
+  assert.equal(button(h, 'Check delivery'), undefined); sign(h);
+  assert.equal(button(h, 'Confirm signed delivery').props.disabled, true);
+  await button(h, 'Confirm signed delivery').props.onClick(); assert.equal(writes, 0); assert.equal(storage.get('warehouse-customer-delivery:10'), saved);
+  click(h, 'Back to selection'); assert.equal(closed, 1);
+});
+
+test('pending receipt stock conflict clears the signature and returns to the parent selection for refresh', async () => {
+  let closed = 0, writes = 0;
+  const h = harness(props({ pendingReceipt: receiptMode(selection(), { onClose() { closed++; } }) }), {
+    warehouseDeliverToCustomer: async () => { writes++; throw new ApiError('Stock changed', 409); },
+  });
+  sign(h); await click(h, 'Confirm signed delivery');
+  assert.deepEqual(byType(h, 'SignaturePad').props.value, []); assert.equal(storage.size, 0);
+  sign(h); assert.equal(button(h, 'Confirm signed delivery').props.disabled, true);
+  await button(h, 'Confirm signed delivery').props.onClick(); assert.equal(writes, 1);
+  click(h, 'Back to selection'); assert.equal(closed, 1); assert.equal(button(h, 'From warehouse'), undefined);
+});
+
+test('pending receipt count blocks a new release but preserves an existing signed retry', async () => {
+  let writes = 0;
+  const blocked = harness(props({ pendingReceipt: receiptMode(selection(), { blocked: true }) }), { warehouseDeliverToCustomer: async () => { writes++; } });
+  sign(blocked); assert.equal(button(blocked, 'Confirm signed delivery').props.disabled, true);
+  await button(blocked, 'Confirm signed delivery').props.onClick(); assert.equal(writes, 0);
+  const body = helpers.customerDeliveryRequest({ selection: selection(), source: 'TRANSIT', storeId: '', firstName: 'Ana', lastName: 'Perez', signatureStrokes: signature, requestKey: 'signed-before-count' });
+  storage.set('warehouse-customer-delivery:10', JSON.stringify({ body, receipt: savedReceipt(body) }));
+  const retry = harness(props({ pendingReceipt: receiptMode({}, { blocked: true }) }), { warehouseDeliverToCustomer: async request => { writes++; assert.deepEqual(request, body); return savedReceipt(body); } });
+  await click(retry, 'Check delivery'); assert.equal(writes, 1);
+});
+
 (async () => {
   for (const { name, run } of tests) { storage.clear(); await run(); process.stdout.write(`PASS ${name}\n`); }
   process.stdout.write(`${tests.length} customer delivery checks passed.\n`);

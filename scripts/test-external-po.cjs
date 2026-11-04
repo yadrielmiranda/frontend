@@ -18,10 +18,13 @@ const stubs = {
   '@/app/api/_base': { apiFetch: async (...args) => { calls.push(args); return {}; }, isApiError: () => false },
   './_base': { apiFetch: async (...args) => { calls.push(args); return {}; }, isApiError: () => false },
   '@/app/api/warehouse.api': {},
+  '@/contexts/AuthContext': { useAuth: () => ({ user: { id: 10, role: { name: 'admin' } } }) },
+  './releases/po-installation-release-dialog': { PoInstallationReleaseDialog: () => null, pendingPoInstallationRelease: () => null },
   '@/app/api/warehouse-delivery.api': {},
   './store-select': { StoreSelect: () => null },
   '../store-select': { StoreSelect: () => null },
   './pickup-customer-delivery': { PickupCustomerDelivery: () => null },
+  '../customer-deliveries/customer-delivery-client': { CustomerDeliveryClient: () => null },
   './pickup-customer-delivery-data': { pickupDeliveryContextKey: (surface, actorId, runId) => `${surface}:${actorId}:${runId}` },
   './transfer-form': { TransferForm: () => null },
 };

@@ -22,6 +22,7 @@ import { StoreSelect } from "../store-select";
 import { ScanPad } from "../scan-pad";
 import { UnitOrigin } from "../unit-origin";
 import { CustomerDeliveryReceipt, type CustomerDeliveryPreview } from "./customer-delivery-receipt";
+import { warehouseCustomerDeliveryPath } from "./customer-delivery-navigation";
 import { FactoryPartQuantity } from "../factory-part-quantity";
 import { displayedFactoryParts, factoryBarcode, factoryPartSource, selectedFactoryParts } from "../factory-parts";
 import {
@@ -32,26 +33,29 @@ import {
 
 type PendingDelivery = { body: CustomerDeliveryRequest; receipt: CustomerDeliveryPreview };
 
-export function CustomerDeliveryClient({ actorId, actorRole, initial, initialStores, initialSource, initialStoreId, initialSearch = "", initialPoKey = "", autoReviewPo = false, embedded, technician = false }: {
+export function CustomerDeliveryClient({ actorId, actorRole, initial, initialStores, initialSource, initialStoreId, initialSearch = "", initialPoKey = "", autoReviewPo = false, embedded, pendingReceipt, technician = false }: {
   actorId: number; actorRole: string; initial: WarehousePoInventory; initialStores: WarehouseStoreRef[]; technician?: boolean;
   initialSource: DeliverySource; initialStoreId: string; initialSearch?: string; initialPoKey?: string;
   autoReviewPo?: boolean;
   embedded?: { pickupRunId: number; blocked?: boolean; onClose: () => void; onComplete: (delivery: CustomerDelivery) => void };
+  pendingReceipt?: { selection: DeliverySelection; blocked?: boolean; onClose: () => void; onComplete: (delivery: CustomerDelivery) => void; onBusyChange?: (busy: boolean) => void };
 }) {
   const inventoryApi = technician ? technicianWarehouseInventoryByPo : warehouseInventoryByPo;
   const storesApi = technician ? technicianWarehouseStores : warehouseStores;
   const unitApi = technician ? technicianWarehouseUnit : warehouseUnit;
   const deliverApi = technician ? technicianDeliverToCustomer : warehouseDeliverToCustomer;
   const receiptBase = technician ? "/technician/customer-deliveries" : "/warehouse/customer-deliveries";
+  const inPendingReceipt = Boolean(pendingReceipt);
   const router = useRouter();
   const { user, revalidate } = useAuth();
   const liveIdentity = useRef({ id: user?.id, role: user?.role?.name });
   liveIdentity.current = { id: user?.id, role: user?.role?.name };
   const ownerMatches = user?.id === actorId && user?.role?.name === actorRole;
-  const [source, setSource] = useState(initialSource), [storeId, setStoreId] = useState(initialStoreId);
+  const [source, setSource] = useState<DeliverySource>(pendingReceipt ? "TRANSIT" : initialSource), [storeId, setStoreId] = useState(pendingReceipt ? "" : initialStoreId);
   const [data, setData] = useState(initial), [stores, setStores] = useState(initialStores);
   const [search, setSearch] = useState(initialSearch), [page, setPage] = useState(1);
   const [initialChoice] = useState(() => {
+    if (pendingReceipt) return { selection: Object.fromEntries(Object.entries(pendingReceipt.selection).map(([line, entry]) => [line, { ...entry, unit: { ...entry.unit }, ...(entry.parts ? { parts: { ...entry.parts } } : {}) }])), error: "" };
     if (!autoReviewPo || initialSource !== "TRANSIT" || !initialPoKey) return { selection: {} as DeliverySelection, error: "" };
     const group = initial.items.find((item) => item.key === initialPoKey);
     if (!group) return { selection: {} as DeliverySelection, error: "This PO has no collected parts available for delivery. Return to the pickup and refresh it." };
@@ -61,6 +65,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   const [selection, setSelection] = useState<DeliverySelection>(initialChoice.selection);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [review, setReview] = useState(() => {
+    if (pendingReceipt) return true;
     if (!autoReviewPo || initial.activeCountId) return false;
     try { deliveryItems(initialChoice.selection, initialSource, initialStoreId); return true; } catch { return false; }
   }), [scan, setScan] = useState(false), [reading, setReading] = useState(false);
@@ -81,7 +86,10 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   const validSource = source === "TRANSIT" || storeId === "unassigned" || Boolean(target);
   const busy = !ready || loading || selecting || saving || reading;
   const locked = Boolean(pending) || savedId !== null;
-  const blocked = Boolean(data.activeCountId) || Boolean(embedded?.blocked);
+  const blocked = Boolean(data.activeCountId) || Boolean(embedded?.blocked) || Boolean(pendingReceipt?.blocked);
+  const pendingReceiptCallbacks = useRef(pendingReceipt);
+  pendingReceiptCallbacks.current = pendingReceipt;
+  const receiptBusy = busy || Boolean(pending) || savedId !== null || !ownerMatches;
   let selectionError = "";
   try { deliveryItems(selection, source, storeId); } catch (e) { selectionError = errorMessage(e); }
   const preview: CustomerDeliveryPreview = pending?.receipt ?? {
@@ -102,6 +110,11 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       const saved = sessionStorage.getItem(storageKey);
       if (saved) {
         const value = JSON.parse(saved) as PendingDelivery;
+        if (inPendingReceipt && value.body?.source !== "TRANSIT") {
+          setNeedsReview(true); setReady(true);
+          setError("A previous warehouse delivery must be recovered from its delivery screen before starting another delivery. Its saved request has not been changed.");
+          return;
+        }
         if (!value.body?.requestKey || (technician && value.body.source !== "WAREHOUSE") || !Array.isArray(value.body.items) || !value.receipt?.items)
           throw new Error("Invalid pending delivery");
         setPending(value); setSource(value.body.source);
@@ -114,7 +127,10 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     } catch {
       setError("The pending delivery could not be loaded. Keep this page open and contact an administrator before recording another delivery.");
     }
-  }, [storageKey, technician]);
+  }, [storageKey, technician, inPendingReceipt]);
+
+  useEffect(() => { pendingReceiptCallbacks.current?.onBusyChange?.(receiptBusy); }, [receiptBusy]);
+  useEffect(() => () => { pendingReceiptCallbacks.current?.onBusyChange?.(false); }, []);
 
   useEffect(() => {
     const connection = () => setOffline(!navigator.onLine);
@@ -124,7 +140,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
 
   const refresh = useCallback(async () => {
     // The embedded pickup passes its own scoped quantities. Reopening the pickup refreshes them.
-    if (embedded || !ownerMatches || !ready || review || pending || savedId !== null || (source === "WAREHOUSE" && !storeId)) return;
+    if (embedded || pendingReceipt || !ownerMatches || !ready || review || pending || savedId !== null || (source === "WAREHOUSE" && !storeId)) return;
     const sequence = ++serial.current;
     setLoading(true);
     try {
@@ -135,7 +151,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       if (sequence === serial.current) { setData(next); setStores(nextStores); }
     } catch (e) { if (sequence === serial.current) setError(errorMessage(e)); }
     finally { if (sequence === serial.current) setLoading(false); }
-  }, [embedded, ownerMatches, ready, review, pending, savedId, source, storeId, search, page, inventoryApi, storesApi]);
+  }, [embedded, pendingReceipt, ownerMatches, ready, review, pending, savedId, source, storeId, search, page, inventoryApi, storesApi]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => { clearTimeout(timer); serial.current++; };
@@ -151,6 +167,11 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
   }, [pending]);
 
   function changeSource(next: DeliverySource, location = "") {
+    if (pendingReceipt) return;
+    if (!embedded && !technician && next === "WAREHOUSE") {
+      router.push(warehouseCustomerDeliveryPath({ storeId: location }));
+      return;
+    }
     serial.current++; setSource(next); setStoreId(location); setPage(1); setSelection({}); setExpanded({}); setError(""); setScan(false); setLoading(Boolean(location) || next === "TRANSIT");
   }
   function toggle(unit: WarehouseUnit, checked: boolean) {
@@ -228,6 +249,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     if (saveLock.current || savedId !== null || !ready || !review || !ownerMatches || offline) return;
     if (!pending && (!accepted || !validSource || selectionError || blocked || needsReview)) return;
     saveLock.current = true; setSaving(true); setError("");
+    pendingReceiptCallbacks.current?.onBusyChange?.(true);
     let attempt = pending;
     let verified = false;
     try {
@@ -249,7 +271,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
       }
       const result = await deliverApi(attempt.body);
       setSavedId(result.id); setSavedDelivery(result); setPending(null);
-      if (!embedded) {
+      if (!embedded && !pendingReceipt) {
         try { sessionStorage.removeItem(storageKey); } catch { /* Retrying this saved request will return the same receipt. */ }
         router.replace(`${receiptBase}/${result.id}`);
       }
@@ -272,21 +294,28 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     embedded.onComplete(savedDelivery);
   }
 
+  function finishPendingReceipt() {
+    if (!pendingReceipt || !savedDelivery || saving) return;
+    try { sessionStorage.removeItem(storageKey); }
+    catch { setError("The delivery is saved, but its browser recovery data could not be cleared. Enable site storage and try Done again."); return; }
+    pendingReceipt.onComplete(savedDelivery);
+  }
+
   const visibleGroups = embedded ? data.items.filter((group) => group.key === initialPoKey) : data.items;
   const availablePage = visibleGroups.filter((group) => deliveryPoUnits(group, source, storeId).length > 0);
   const allPage = availablePage.length > 0 && availablePage.every((group) => deliveryPoSelected(group, selection, source, storeId));
   if (!ownerMatches) return <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Your account has changed. Sign in with the original account and reopen this delivery before continuing.</p>;
   return <div className="space-y-5">
     {technician && !locked && !saving && <Button asChild variant="outline"><Link href="/technician">Technician home</Link></Button>}
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="text-xl font-semibold">Customer delivery</h2><p className="mt-1 text-sm text-muted-foreground">{embedded ? "Review the collected parts with the recipient and collect their signature." : "Choose the POs being handed over, then review the receipt with the recipient and collect their signature."}</p></div>
-      {embedded ? savedId === null && <Button variant="outline" disabled={busy || locked} onClick={() => { if (!busy && !locked) embedded.onClose(); }}>Back to pickup</Button> : !technician && !locked && !saving && <Button asChild variant="outline"><Link href={source === "TRANSIT" ? "/warehouse/receipts" : "/warehouse"}>Back to {source === "TRANSIT" ? "pending receipt" : "inventory"}</Link></Button>}
-    </div>
+    {!pendingReceipt && <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><h2 className="text-xl font-semibold">{pendingReceipt ? "Deliver directly to customer" : "Customer delivery"}</h2><p className="mt-1 text-sm text-muted-foreground">{embedded || pendingReceipt ? "Review the collected parts with the recipient and collect their signature." : "Choose the POs being handed over, then review the receipt with the recipient and collect their signature."}</p></div>
+      {embedded ? savedId === null && <Button variant="outline" disabled={busy || locked} onClick={() => { if (!busy && !locked) embedded.onClose(); }}>Back to pickup</Button> : !pendingReceipt && !technician && !locked && !saving && <Button asChild variant="outline"><Link href={source === "TRANSIT" ? "/warehouse/receipts" : "/warehouse"}>Back to {source === "TRANSIT" ? "pending receipt" : "inventory"}</Link></Button>}
+    </div>}
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-    {embedded && blocked && savedId === null && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">A physical count is open. New deliveries are paused until it is closed.</p>}
+    {(embedded || pendingReceipt) && blocked && savedId === null && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">A physical count is open. New deliveries are paused until it is closed.</p>}
     {offline && savedId === null && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">You are offline. Reconnect before confirming this delivery.</p>}
-    {savedId !== null ? <div className="space-y-5"><div role="status" className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="font-medium">Delivery recorded. The receipt is saved.</p>{embedded && savedDelivery ? <div className="flex flex-wrap gap-3"><Button disabled={saving} onClick={continuePickup}>Continue pickup</Button><Button asChild variant="outline"><Link href={`${receiptBase}/${savedId}`} target="_blank" rel="noopener noreferrer">Open signed receipt</Link></Button></div> : <Button asChild><Link href={`${receiptBase}/${savedId}`}>Open signed receipt</Link></Button>}</div>{embedded && savedDelivery && <CustomerDeliveryReceipt delivery={savedDelivery} />}</div> : review ? <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h3 ref={reviewHeading} tabIndex={-1} className="scroll-mt-28 text-lg font-semibold outline-none">Review with the recipient</h3>{(!embedded || !needsReview) && <Button variant="outline" disabled={saving || locked} onClick={() => { setReview(false); setSignature([]); setAccepted(false); setError(""); }}>Back to selection</Button>}</div>
+    {savedId !== null ? <div className="space-y-5"><div role="status" className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="font-medium">Delivery recorded. The receipt is saved.</p>{(embedded || pendingReceipt) && savedDelivery ? <div className="flex flex-wrap gap-3"><Button disabled={saving} onClick={pendingReceipt ? finishPendingReceipt : continuePickup}>{pendingReceipt ? "Done" : "Continue pickup"}</Button><Button asChild variant="outline"><Link href={`${receiptBase}/${savedId}`} target="_blank" rel="noopener noreferrer">Open signed receipt</Link></Button></div> : <Button asChild><Link href={`${receiptBase}/${savedId}`}>Open signed receipt</Link></Button>}</div>{(embedded || pendingReceipt) && savedDelivery && <CustomerDeliveryReceipt delivery={savedDelivery} />}</div> : review ? <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3"><h3 ref={reviewHeading} tabIndex={-1} className="scroll-mt-28 text-lg font-semibold outline-none">Review with the recipient</h3>{(!embedded || !needsReview) && <Button variant="outline" disabled={busy || locked} onClick={() => { if (busy || locked) return; if (pendingReceipt) { pendingReceipt.onClose(); return; } setReview(false); setSignature([]); setAccepted(false); setError(""); }}>Back to selection</Button>}</div>
       <CustomerDeliveryReceipt delivery={preview} showSignature={false} />
       <section className="space-y-5 rounded-xl border bg-white p-5">
         <div><h3 className="font-semibold">Received by</h3><p className="mt-1 text-sm text-muted-foreground">Enter the name of the person receiving these parts.</p></div>
@@ -296,11 +325,11 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
         </div>
         <div className="space-y-2"><p className="text-sm font-medium">Recipient signature</p><SignaturePad value={signature} onChange={setSignature} disabled={saving || locked} /></div>
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={accepted} disabled={saving || locked} onChange={(e) => setAccepted(e.target.checked)} /><span>I confirm that I have received the POs, pieces and parts listed above.</span></label>
-        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{preview.totalPieces} pieces · {preview.totalParts} physical parts</p><Button disabled={saving || !ready || offline || (!pending && (blocked || needsReview || !firstName.trim() || !lastName.trim() || !hasDeliverySignature(signature) || !accepted))} onClick={confirmDelivery}><CheckCircle2 className="mr-2 h-4 w-4" />{saving ? "Saving…" : pending ? "Check delivery" : "Confirm signed delivery"}</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{preview.totalPieces} pieces · {preview.totalParts} physical parts</p><Button disabled={saving || !ready || offline || (!pending && (blocked || needsReview || Boolean(selectionError) || !firstName.trim() || !lastName.trim() || !hasDeliverySignature(signature) || !accepted))} onClick={confirmDelivery}><CheckCircle2 className="mr-2 h-4 w-4" />{saving ? "Saving…" : pending ? "Check delivery" : "Confirm signed delivery"}</Button></div>
       </section>
     </div> : <>
       {technician ? data.activeCountId && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A physical count is in progress. Deliveries are paused until it is closed.</p> : <CountNotice id={data.activeCountId} />}
-      {!embedded && <section className="space-y-4 rounded-xl border bg-white p-4">
+      {!embedded && !pendingReceipt && <section className="space-y-4 rounded-xl border bg-white p-4">
         {!technician && <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery source">{(["WAREHOUSE", "TRANSIT"] as const).map((value) => <Button key={value} variant={source === value ? "default" : "outline"} aria-pressed={source === value} disabled={busy || locked} onClick={() => changeSource(value)}>{value === "WAREHOUSE" ? "From warehouse" : "Directly from factory"}</Button>)}</div>}
         {source === "TRANSIT" ? <p className="text-sm text-muted-foreground">Choose parts already collected and scanned at the factory. No second scan is required. The delivered parts leave transit without entering a warehouse.</p> : <div className="max-w-sm space-y-2"><p className="text-sm font-medium">Source store</p><StoreSelect stores={stores} value={storeId} onChange={(value) => changeSource("WAREHOUSE", value)} disabled={busy || locked} allowUnassigned includeInactive={!technician} label="Customer delivery source store" /></div>}
       </section>}

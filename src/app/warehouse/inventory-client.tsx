@@ -5,6 +5,8 @@ import Link from "next/link";
 import { StoreSelect } from "./store-select";
 import { TransferForm } from "./transfer-form";
 import { WarehouseReleaseActions } from "./release-actions";
+import { PoInstallationReleaseDialog, pendingPoInstallationRelease } from "./releases/po-installation-release-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { UnitOrigin, unitOriginLabel } from "./unit-origin";
 import {
   ChevronDown,
@@ -137,6 +139,7 @@ function PoInventoryTable({
   expanded,
   onToggle,
   onSelect,
+  onInstallationRelease,
 }: {
   data: WarehousePoInventory;
   storeId: string;
@@ -144,6 +147,7 @@ function PoInventoryTable({
   expanded: Set<string>;
   onToggle: (key: string) => void;
   onSelect: (unit: WarehouseUnit) => void;
+  onInstallationRelease: (group: WarehousePoGroup) => void;
 }) {
   const allStores = storeId === "all";
   const columns = allStores ? 8 : 7;
@@ -153,7 +157,7 @@ function PoInventoryTable({
     if (!available) return null;
     return <WarehouseReleaseActions source={deliverySource} storeId={storeId}
       search={group.poNumber || group.orderNumber} poKey={group.key}
-      poLabel={group.poNumber || group.orderNumber} compact />;
+      poLabel={group.poNumber || group.orderNumber} compact onInstallationRelease={() => onInstallationRelease(group)} />;
   }
   return (
     <>
@@ -523,6 +527,16 @@ export function InventoryClient({
   initialStoreId: string;
   admin: boolean;
 }) {
+  const { user } = useAuth();
+  const [installationTarget, setInstallationTarget] = useState<{ poKey: string; poLabel?: string; storeId?: string } | null>(null);
+  const [releaseRecoveryError, setReleaseRecoveryError] = useState("");
+  useEffect(() => {
+    setInstallationTarget(null);
+    setReleaseRecoveryError("");
+    if (!user?.id || !["admin", "operator", "technician"].includes(user.role?.name ?? "")) return;
+    try { setInstallationTarget(pendingPoInstallationRelease(user.id)); }
+    catch (error) { setReleaseRecoveryError(errorMessage(error)); }
+  }, [user?.id, user?.role?.name]);
   const [poData, setPoData] = useState<WarehousePoInventory | null>(initial),
     [pieceData, setPieceData] = useState<Inventory | null>(null),
     [mode, setMode] = useState<InventoryMode>("po"),
@@ -816,6 +830,7 @@ export function InventoryClient({
           {error}
         </p>
       )}
+      {releaseRecoveryError && <p role="alert" className="text-sm text-red-700">{releaseRecoveryError}</p>}
       <div className="overflow-hidden rounded-xl border bg-white">
         {!currentData ? (
           <div className="px-5 py-12 text-center text-sm text-muted-foreground">
@@ -834,6 +849,14 @@ export function InventoryClient({
             storeId={storeId}
             expanded={expanded}
             deliverySource={view === "in_transit" ? "TRANSIT" : "WAREHOUSE"}
+            onInstallationRelease={group => {
+              try {
+                const pending = user?.id ? pendingPoInstallationRelease(user.id) : null;
+                setReleaseRecoveryError(pending && pending.poKey !== group.key
+                  ? "Recover the previous installation release before starting another." : "");
+                setInstallationTarget(pending ?? { poKey: group.key, poLabel: group.poNumber || group.orderNumber, storeId });
+              } catch (error) { setReleaseRecoveryError(errorMessage(error)); }
+            }}
             onToggle={(key) =>
               setExpanded((current) => {
                 const next = new Set(current);
@@ -874,6 +897,12 @@ export function InventoryClient({
           onChanged={() => void refresh()}
         />
       )}
+      {installationTarget && <PoInstallationReleaseDialog
+        key={`${user?.id}:${installationTarget.poKey}`}
+        {...installationTarget} open
+        onOpenChange={open => { if (!open) setInstallationTarget(null); }}
+        onComplete={() => { setReleaseRecoveryError(""); void refresh(); }}
+      />}
     </div>
   );
 }

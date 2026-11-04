@@ -112,7 +112,7 @@ export function FactoryBarcodeCamera({ onDetected, disabled = false, prominent =
 
   return <Dialog open={open && !disabled} onOpenChange={changeOpen}>
     <DialogTrigger asChild>
-      <Button ref={trigger} type="button" variant={prominent ? "default" : "outline"} disabled={disabled} className={prominent ? "h-16 w-full gap-3 rounded-xl bg-orange-700 px-5 text-lg font-bold text-white shadow-sm hover:bg-orange-800 focus-visible:ring-orange-600/50 focus-visible:ring-offset-2" : "shrink-0"}><Camera className={prominent ? "size-7" : "mr-2 h-4 w-4"} aria-hidden="true" />{label}</Button>
+      <Button ref={trigger} type="button" variant={prominent ? "default" : "outline"} disabled={disabled} className={prominent ? "h-16 w-full gap-3 rounded-xl bg-orange-700 px-5 text-lg font-bold text-white shadow-sm hover:bg-orange-800 focus-visible:ring-orange-600/50 focus-visible:ring-offset-2 disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100 disabled:shadow-none" : "shrink-0"}><Camera className={prominent ? "size-7" : "mr-2 h-4 w-4"} aria-hidden="true" />{label}</Button>
     </DialogTrigger>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg" onCloseAutoFocus={(event) => { event.preventDefault(); trigger.current?.focus({ preventScroll: true }); }}>
       <DialogHeader>

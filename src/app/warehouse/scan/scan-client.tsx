@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StoreSelect } from "../store-select";
 import { CheckCircle2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,11 @@ import {
   type WarehouseStore,
   type WarehouseAction,
   type ScanResult,
+  type Paged,
 } from "@/app/api/warehouse.api";
+import type { CustomerDeliveryRun } from "@/app/api/customer-delivery-runs.api";
+import { CustomerDeliveryRunsClient } from "../customer-deliveries/customer-delivery-runs-client";
+import { pendingReceiptCustomerDeliveryPath, warehouseCustomerDeliveryPath } from "../customer-deliveries/customer-delivery-navigation";
 import { ScanPad } from "../scan-pad";
 import { FactoryPickups } from "@/app/technician/factory-pickups";
 import {
@@ -45,7 +50,7 @@ const actions: {
     value: "RELEASE",
     label: "Release from warehouse",
     description:
-      "Choose a customer delivery with a signed receipt, or release parts for installation.",
+      "Create or continue a customer delivery, or release parts for installation.",
   },
 ];
 export function ScanClient({
@@ -55,6 +60,11 @@ export function ScanClient({
   initialStores,
   initialRelease = false,
   initialStoreId = "",
+  initialAction,
+  initialCustomerDelivery = false,
+  initialDeliveries = { items: [], total: 0, page: 1, pageSize: 20 },
+  initialDelivery = null,
+  initialManualDelivery = false,
 }: {
   actorId: number;
   isAdmin: boolean;
@@ -62,8 +72,14 @@ export function ScanClient({
   initialStores: WarehouseStore[];
   initialRelease?: boolean;
   initialStoreId?: string;
+  initialAction?: WarehouseAction;
+  initialCustomerDelivery?: boolean;
+  initialDeliveries?: Paged<CustomerDeliveryRun>;
+  initialDelivery?: CustomerDeliveryRun | null;
+  initialManualDelivery?: boolean;
 }) {
-  const [action, setAction] = useState<WarehouseAction>(initialRelease ? "RELEASE" : "RECEIVE"),
+  const router = useRouter();
+  const [action, setAction] = useState<WarehouseAction>(initialAction ?? (initialRelease || initialCustomerDelivery ? "RELEASE" : "RECEIVE")),
     [last, setLast] = useState<ScanResult | null>(null),
     [pending, setPending] = useState(false);
   const [countId, setCountId] = useState(activeCountId),
@@ -72,9 +88,20 @@ export function ScanClient({
     [error, setError] = useState("");
   const [stores, setStores] = useState(initialStores), [storeId, setStoreId] = useState(initialStoreId);
   const [releaseToInstallation, setReleaseToInstallation] = useState(initialRelease);
+  const [releaseToCustomer, setReleaseToCustomer] = useState(initialCustomerDelivery);
+  const manualDelivery = initialManualDelivery && Boolean(initialDelivery) && action === "RELEASE" && releaseToCustomer;
   const [scanFocus, setScanFocus] = useState(false), [scannerRevision, setScannerRevision] = useState(0);
   const [offline, setOffline] = useState(false), [pickupRevision, setPickupRevision] = useState(0);
   const undoKey = useRef(""), focusRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setAction(initialAction ?? (initialRelease || initialCustomerDelivery ? "RELEASE" : "RECEIVE"));
+    setReleaseToInstallation(initialRelease);
+    setReleaseToCustomer(initialCustomerDelivery);
+    setScanFocus(false);
+    setStoreId(initialStoreId);
+    setLast(null);
+    setError("");
+  }, [initialAction, initialRelease, initialCustomerDelivery, initialStoreId]);
   const locationValid = action === "COLLECT" ||
     (action === "RELEASE" && storeId === "unassigned") ||
     stores.some((s) => String(s.id) === storeId && (action === "RELEASE" || s.isActive));
@@ -144,7 +171,7 @@ export function ScanClient({
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Scanning</p>
               <p className="mt-1 font-semibold text-slate-950">{activeAction.label}</p>
-              {action !== "COLLECT" && activeStoreName && (
+              {action !== "COLLECT" && !releaseToCustomer && activeStoreName && (
                 <p className="mt-1 text-xs text-slate-600">
                   {action === "RECEIVE" ? "To" : "From"}: {activeStoreName}
                 </p>
@@ -159,6 +186,7 @@ export function ScanClient({
       <div className={scanFocus ? "hidden sm:block" : ""}>
         <CountNotice id={countId} />
       </div>
+      {!manualDelivery && <>
       <h2 className={`text-xl font-semibold ${scanFocus ? "hidden sm:block" : ""}`}>Scan parts</h2>
       <div
         className={`${scanFocus ? "hidden sm:grid" : "grid"} gap-3 sm:grid-cols-3`}
@@ -175,9 +203,11 @@ export function ScanClient({
               setScanFocus(false);
               setAction(option.value);
               setReleaseToInstallation(false);
+              setReleaseToCustomer(false);
               setStoreId("");
               setLast(null);
               setError("");
+              router.replace(`/warehouse/scan?action=${option.value}`, { scroll: false });
             }}
             className={`rounded-xl border p-4 text-left text-sm font-semibold disabled:opacity-60 ${action === option.value ? "border-red-300 bg-red-50 text-red-800 ring-1 ring-red-200" : "bg-white hover:bg-slate-50"}`}
           >
@@ -192,20 +222,27 @@ export function ScanClient({
         <section className={`space-y-3 rounded-xl border bg-white p-4 ${scanFocus ? "hidden sm:block" : ""}`}>
           <h3 className="font-semibold">Who are these parts for?</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild variant="outline" disabled={pending || undoing}>
-              <Link aria-disabled={pending || undoing} tabIndex={pending || undoing ? -1 : undefined}
-                onClick={(event) => { if (pending || undoing) event.preventDefault(); }}
-                href="/warehouse/customer-deliveries/new?source=WAREHOUSE">Deliver to customer</Link>
+            <Button variant={releaseToCustomer ? "default" : "outline"} disabled={pending || undoing}
+              aria-pressed={releaseToCustomer} onClick={() => {
+                setReleaseToCustomer(true); setReleaseToInstallation(false); setLast(null); setError("");
+                router.replace(warehouseCustomerDeliveryPath({ storeId }), { scroll: false });
+              }}>
+              Deliver to customer
             </Button>
             <Button variant={releaseToInstallation ? "default" : "outline"} disabled={pending || undoing}
-              aria-pressed={releaseToInstallation} onClick={() => setReleaseToInstallation(true)}>
+              aria-pressed={releaseToInstallation} onClick={() => {
+                setReleaseToInstallation(true); setReleaseToCustomer(false); setLast(null); setError("");
+                const query = new URLSearchParams({ action: "RELEASE", destination: "installation" });
+                if (storeId) query.set("storeId", storeId);
+                router.replace(`/warehouse/scan?${query}`, { scroll: false });
+              }}>
               Release to installation
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             {releaseToInstallation
               ? "Choose the source store, then scan each part leaving for installation. No recipient name or signature is required."
-              : "Choose the source store and select the POs from the list. Review their pieces and parts with the recipient, then record their first name, last name and signature."}
+              : "Create or open a delivery below, add its POs, and scan each part. Review the delivered and pending parts with the customer before signing and closing."}
           </p>
           {releaseToInstallation && <Link
             href={`/warehouse/releases/new${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`}
@@ -216,6 +253,18 @@ export function ScanClient({
           </Link>}
         </section>
       )}
+      </>}
+      {action === "RELEASE" && releaseToCustomer && (isAdmin ? <CustomerDeliveryRunsClient
+        key={`${actorId}:warehouse-customer-delivery`}
+        embedded actorId={actorId} actorRole="admin"
+        initialList={initialDeliveries} initialRun={initialDelivery} initialStores={stores}
+        initialStoreId={storeId} basePath={warehouseCustomerDeliveryPath({ storeId })}
+        manual={manualDelivery}
+        scannerRevision={scannerRevision}
+        offline={offline} blocked={Boolean(countId)} onBusy={setPending} onScanModeChange={setScanFocus}
+      /> : <p role="status" className="rounded-xl border bg-white p-4 text-sm text-muted-foreground">
+        Administrators and technicians can create and manage customer deliveries.
+      </p>)}
       {(action === "RECEIVE" || (action === "RELEASE" && releaseToInstallation)) && (
         <div className={`space-y-2 sm:max-w-sm ${scanFocus ? "hidden sm:block" : ""}`}>
           <p className="text-sm font-medium">{action === "RECEIVE" ? "Destination store" : "Source store"}</p>
@@ -226,7 +275,7 @@ export function ScanClient({
         </div>
       )}
       {action === "RECEIVE" && <Link href="/warehouse/receipts" className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>Receive selected or all pending units without rescanning</Link>}
-      {action === "COLLECT" && <Link href="/warehouse/customer-deliveries/new?source=TRANSIT"
+      {action === "COLLECT" && <Link href={pendingReceiptCustomerDeliveryPath()}
         className={`text-sm font-medium underline ${scanFocus ? "hidden sm:inline-block" : "inline-block"}`}>
         Deliver collected parts directly to a customer without rescanning
       </Link>}

@@ -265,7 +265,7 @@ export function ScanPad<Result = ScanResult>({
         /> : <Button
           type="button"
           variant={prominent && !camera ? "default" : "outline"}
-          className={prominent ? `h-16 w-full gap-3 rounded-xl px-5 text-lg font-bold shadow-sm focus-visible:ring-orange-600/50 focus-visible:ring-offset-2 ${camera ? "border-orange-300 bg-white text-orange-950 hover:bg-orange-100" : "bg-orange-700 text-white hover:bg-orange-800"}` : undefined}
+          className={prominent ? `h-16 w-full gap-3 rounded-xl px-5 text-lg font-bold shadow-sm focus-visible:ring-orange-600/50 focus-visible:ring-offset-2 disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100 disabled:shadow-none ${camera ? "border-orange-300 bg-white text-orange-950 hover:bg-orange-100" : "bg-orange-700 text-white hover:bg-orange-800"}` : undefined}
           onClick={camera ? endScanMode : startCamera}
           disabled={disabled || retryOnly || busy || Boolean(pending) || Boolean(partChoice)}
         >

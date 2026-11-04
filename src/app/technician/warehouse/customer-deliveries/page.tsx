@@ -1,14 +1,42 @@
 import { technicianState } from "@/app/api/technician.api";
-import { technicianWarehouseInventoryByPo } from "@/app/api/technician-warehouse.api";
-import { CustomerDeliveryClient } from "@/app/warehouse/customer-deliveries/customer-delivery-client";
+import { isApiError } from "@/app/api/_base";
+import {
+  customerDeliveryRun,
+  customerDeliveryRuns,
+} from "@/app/api/customer-delivery-runs.api";
+import { CustomerDeliveryRunsClient } from "@/app/warehouse/customer-deliveries/customer-delivery-runs-client";
 import { requireTechnicianDeliveryUser } from "../../customer-deliveries/technician-delivery-access";
-import { emptyTechnicianWarehouseInventory, technicianStoreSelection } from "../warehouse-data";
+import { technicianStoreSelection } from "../warehouse-data";
 
-export default async function TechnicianWarehouseCustomerDeliveryPage({ searchParams }: { searchParams: Promise<{ storeId?: string }> }) {
+export default async function TechnicianWarehouseCustomerDeliveryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ storeId?: string; runId?: string }>;
+}) {
   const user = await requireTechnicianDeliveryUser();
-  const storeId = technicianStoreSelection((await searchParams).storeId);
-  const [state, initial] = await Promise.all([
-    technicianState(), storeId ? technicianWarehouseInventoryByPo({ storeId, page: 1, pageSize: 20 }) : emptyTechnicianWarehouseInventory(),
+  const query = await searchParams;
+  const storeId = technicianStoreSelection(query.storeId);
+  const id = /^[1-9]\d*$/.test(query.runId ?? "") ? Number(query.runId) : null;
+  const [state, initialList, initialRun] = await Promise.all([
+    technicianState(),
+    customerDeliveryRuns({ status: "ACTIVE", page: 1, pageSize: 20 }),
+    id ? customerDeliveryRun(id).catch(error => {
+      if (isApiError(error) && error.status === 404) return null;
+      throw error;
+    }) : null,
   ]);
-  return <main className="mx-auto min-h-dvh max-w-4xl space-y-5 px-4 py-6"><h1 className="text-2xl font-semibold">Deliver to customer from warehouse</h1><CustomerDeliveryClient technician key={user.id} actorId={user.id} actorRole="technician" initial={initial} initialStores={state.stores} initialSource="WAREHOUSE" initialStoreId={storeId} /></main>;
+  return (
+    <main className="mx-auto min-h-dvh max-w-4xl space-y-5 px-4 py-6">
+      <CustomerDeliveryRunsClient
+        technician
+        key={user.id}
+        actorId={user.id}
+        actorRole="technician"
+        initialList={initialList}
+        initialRun={initialRun}
+        initialStores={state.stores}
+        initialStoreId={storeId}
+      />
+    </main>
+  );
 }

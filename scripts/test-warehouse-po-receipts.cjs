@@ -7,6 +7,10 @@ const React = require('react');
 const root = path.resolve(__dirname, '../src');
 const tests = [], test = (name, run) => tests.push({ name, run });
 let nextKey = 0;
+const browserStorage = new Map();
+global.sessionStorage = { getItem: key => browserStorage.get(key) ?? null, setItem: (key, value) => browserStorage.set(key, value), removeItem: key => browserStorage.delete(key) };
+global.window = { addEventListener() {}, removeEventListener() {} };
+global.document = { visibilityState: 'visible' };
 const stores = [{ id: 1, name: 'Store 1', isActive: true }, { id: 2, name: 'Store 2', isActive: true }];
 function unit(lineNumber, overrides = {}) {
   return { lineNumber, barcode: `I${lineNumber}`, version: 3, source: 'EXTERNAL', externalPoId: 1, orderId: null, orderNumber: '', poNumber: '292427', customer: '', project: 'Santos', product: 'French Door', description: 'French door', mark: '', system: '600', configuration: 'X', installation: null, inTransit: 4, onHand: 0, unassigned: 0, stores: [], expectedParts: 4, ...overrides };
@@ -17,12 +21,14 @@ function group(units) {
 }
 const pieces = [unit('1126830'), unit('1126835', { inTransit: 2 })];
 const inventory = (items = [group(structuredClone(pieces))], extra = {}) => ({ items, total: items.length, page: 1, pageSize: 20, activeCountId: null, summary: {}, ...extra });
-function harness(initial = inventory(), api = {}) {
-  const states = [], refs = [], cache = new Map(); let si = 0, ri = 0;
+function harness(initial = inventory(), api = {}, props = {}, runEffects = false) {
+  const states = [], refs = [], effects = [], callbacks = [], cache = new Map(); let si = 0, ri = 0, ei = 0, ci = 0, dirty = false, queued = [];
+  const changed = (left, right) => !left || !right || left.length !== right.length || left.some((value, index) => value !== right[index]);
   const hooks = {
-    useState(value) { const index = si++; if (!(index in states)) states[index] = typeof value === 'function' ? value() : value; return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }]; },
+    useState(value) { const index = si++; if (!(index in states)) states[index] = typeof value === 'function' ? value() : value; return [states[index], next => { const value = typeof next === 'function' ? next(states[index]) : next; if (states[index] !== value) dirty = true; states[index] = value; }]; },
     useRef(value) { const index = ri++; if (!(index in refs)) refs[index] = { current: value }; return refs[index]; },
-    useCallback(value) { return value; }, useEffect() {},
+    useCallback(value, deps) { const index = ci++; if (changed(callbacks[index]?.deps, deps)) callbacks[index] = { value, deps }; return callbacks[index].value; },
+    useEffect(value, deps) { const index = ei++; if (runEffects && changed(effects[index]?.deps, deps)) { const previous = effects[index]; effects[index] = { deps }; queued.push(() => { previous?.cleanup?.(); effects[index].cleanup = value(); }); } },
   };
   function load(relative) {
     const filename = path.resolve(root, relative);
@@ -38,6 +44,7 @@ function harness(initial = inventory(), api = {}) {
       if (id === '../warehouse-shared') return { CountNotice: 'CountNotice', Pagination: 'Pagination', errorMessage: error => error.message };
       if (id === '../store-select') return { StoreSelect: 'StoreSelect' };
       if (id === '../unit-origin') return { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' };
+      if (id === '../customer-deliveries/customer-delivery-client') return { CustomerDeliveryClient: 'CustomerDeliveryClient' };
       const base = id.startsWith('@/') ? path.resolve(root, id.slice(2)) : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
       if (!base) return require(id);
       const found = ['.ts', '.tsx'].map(ext => base + ext).find(file => fs.existsSync(file));
@@ -48,7 +55,20 @@ function harness(initial = inventory(), api = {}) {
     cache.set(filename, module.exports); return module.exports;
   }
   const Component = load('app/warehouse/receipts/receipts-client.tsx').ReceiptsClient;
-  return { render() { si = 0; ri = 0; return Component({ initial, initialStores: stores }); } };
+  return { render() {
+    let tree;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      si = 0; ri = 0; ei = 0; ci = 0; dirty = false; queued = [];
+      tree = Component({ actorId: 10, actorRole: 'admin', initial, initialStores: stores, ...props });
+      const original = { setTimeout, clearTimeout, setInterval, clearInterval };
+      try {
+        global.setTimeout = global.setInterval = () => 1; global.clearTimeout = global.clearInterval = () => {};
+        queued.forEach(effect => effect());
+      } finally { Object.assign(global, original); }
+      if (!dirty) return tree;
+    }
+    throw new Error('Receipt test render did not settle.');
+  } };
 }
 function nodes(element, predicate, result = []) {
   if (typeof element?.type === 'function' && element.type.name === 'FactoryPartQuantity')
@@ -239,6 +259,66 @@ test('invalid partial quantities cannot be confirmed', () => {
     assert.equal(button(h, 'Receive selected').props.disabled, true);
   }
 });
+test('customer destination stays in pending receipt and preserves an exact partial frame selection', () => {
+  const door = unit('1126830', { inTransit: 3,
+    partTracking: { types: ['DOOR', 'FRAME'], expected: { DOOR: 2, FRAME: 1 }, inTransit: { DOOR: 2, FRAME: 1 }, onHand: {}, unassigned: {}, released: {}, stores: [] },
+  });
+  const h = harness(inventory([group([door])]), {}, { actorRole: 'operator' });
+  selectPo(h); expand(h);
+  label(h, 'Door panels — Quantity to receive for I1126830').props.onChange({ target: { value: '0' } });
+  const destination = button(h, 'Deliver directly to customer'); assert.equal(destination.props.asChild, undefined);
+  click(h, 'Deliver directly to customer');
+  assert.equal(byType(h, 'StoreSelect'), undefined); assert.equal(button(h, 'From warehouse'), undefined); assert.equal(button(h, 'Directly from factory'), undefined);
+  assert.equal(label(h, 'Frames — Quantity to deliver for I1126830').props.value, 1);
+  click(h, 'Review delivery'); const child = byType(h, 'CustomerDeliveryClient');
+  assert.equal(child.props.initialSource, 'TRANSIT'); assert.equal(child.props.initialStoreId, ''); assert.deepEqual(child.props.initialStores, []);
+  assert.equal(child.props.actorRole, 'operator');
+  assert.deepEqual(child.props.pendingReceipt.selection['1126830'].parts, { DOOR: 0, FRAME: 1 });
+  assert.equal(child.props.pendingReceipt.selection['1126830'].quantity, '1'); assert.equal(child.props.pendingReceipt.selection['1126830'].unit.version, 3);
+  assert.equal(label(h, 'Select PO 292427').props.disabled, true);
+  child.props.pendingReceipt.onClose(); assert.ok(byType(h, 'CustomerDeliveryClient'), 'initializing review cannot be dismissed');
+  child.props.pendingReceipt.onBusyChange(false); child.props.pendingReceipt.onClose();
+  assert.equal(byType(h, 'CustomerDeliveryClient'), undefined); assert.equal(label(h, 'Frames — Quantity to deliver for I1126830').props.value, 1);
+  click(h, 'Receive at warehouse'); assert.equal(label(h, 'Frames — Quantity to receive for I1126830').props.value, 1);
+});
+
+test('customer modal cannot dismiss an uncertain confirmation and completion clears only the reviewed selection', async () => {
+  const reads = []; const h = harness(inventory(), { warehouseInventoryByPo: async query => { reads.push(query); return inventory([]); } });
+  click(h, 'Deliver directly to customer'); selectPo(h); click(h, 'Review delivery');
+  const child = byType(h, 'CustomerDeliveryClient'); child.props.pendingReceipt.onBusyChange(true);
+  const dialog = nodes(h.render(), node => node.type === 'Dialog' && nodes(node, child => child.type === 'CustomerDeliveryClient').length)[0];
+  dialog.props.onOpenChange(false); assert.ok(byType(h, 'CustomerDeliveryClient'));
+  let prevented = 0; const content = nodes(h.render(), node => node.type === 'DialogContent' && nodes(node, child => child.type === 'CustomerDeliveryClient').length)[0];
+  content.props.onEscapeKeyDown({ preventDefault() { prevented++; } }); content.props.onInteractOutside({ preventDefault() { prevented++; } }); assert.equal(prevented, 2);
+  child.props.pendingReceipt.onComplete({ id: 81, totalParts: 6 }); await Promise.resolve(); await Promise.resolve();
+  assert.equal(byType(h, 'CustomerDeliveryClient'), undefined); assert.match(text(h.render()), /Receipt #81 is saved/);
+  assert.equal(button(h, 'Review delivery').props.disabled, true); assert.ok(reads.every(query => query.view === 'in_transit'));
+});
+
+test('existing transit confirmation reopens inside pending receipt even with no currently available parts', () => {
+  browserStorage.clear(); browserStorage.set('warehouse-customer-delivery:10', JSON.stringify({ body: { requestKey: 'same-request', source: 'TRANSIT', items: [] }, receipt: { items: [] } }));
+  const h = harness(inventory([]), {}, {}, true);
+  const child = byType(h, 'CustomerDeliveryClient'); assert.ok(child); assert.equal(child.props.initialSource, 'TRANSIT');
+  assert.equal(button(h, 'Deliver directly to customer').props['aria-pressed'], true);
+  assert.equal(child.props.pendingReceipt.selection && Object.keys(child.props.pendingReceipt.selection).length, 0);
+  assert.ok(browserStorage.has('warehouse-customer-delivery:10')); browserStorage.clear();
+});
+
+test('other-source recovery is never silently opened or overwritten as a transit delivery', () => {
+  const saved = JSON.stringify({ body: { requestKey: 'warehouse-request', source: 'WAREHOUSE', items: [] }, receipt: { items: [] } });
+  browserStorage.set('warehouse-customer-delivery:10', saved);
+  const h = harness(inventory(), {}, {}, true); assert.equal(byType(h, 'CustomerDeliveryClient'), undefined);
+  assert.equal(browserStorage.get('warehouse-customer-delivery:10'), saved); browserStorage.clear();
+});
+
+test('customer deep-link selects only its exact PO source and never jumps straight to signing', () => {
+  const other = group([unit('99001', { source: 'ORDER', orderId: 1, externalPoId: null, poNumber: '292427' })]);
+  const h = harness(inventory([group(pieces), other]), {}, { initialDestination: 'customer', initialPoKey: 'order:1', initialSearch: '292427' });
+  assert.equal(label(h, 'Search pending receipts').props.value, '292427');
+  assert.equal(byType(h, 'CustomerDeliveryClient'), undefined); click(h, 'Review delivery');
+  assert.deepEqual(Object.keys(byType(h, 'CustomerDeliveryClient').props.pendingReceipt.selection), ['99001']);
+});
+
 test('uncertain receipt retries the same key and quantity without duplicate click writes', async () => {
   let resolve; const calls = [];
   const h = harness(inventory(), { warehouseReceive: async (storeId, items, key) => {

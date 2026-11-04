@@ -250,6 +250,12 @@ export const warehouseUpdateStore = (store: WarehouseStore, name: string, isActi
     method: "PATCH", body: { name, isActive, version: store.version },
   });
 export type ReceiptItem = { barcode: string; quantity: number; version: number; parts?: FactoryPartCounts };
+export type CustomerDeliveryOrigin = {
+  storeId: number | null;
+  storeName: string;
+  quantity: number;
+  parts?: FactoryPartCounts;
+};
 export type CustomerDeliveryItem = {
   lineNumber: string;
   barcode: string;
@@ -263,6 +269,8 @@ export type CustomerDeliveryItem = {
   configuration: string;
   quantity: number;
   parts?: FactoryPartCounts;
+  unknownQuantity?: boolean;
+  origins?: CustomerDeliveryOrigin[];
 };
 export type CustomerDeliveryRequest = {
   requestKey: string;
@@ -283,6 +291,8 @@ export type CustomerDelivery = {
   lastName: string;
   signatureStrokes: { x: number; y: number }[][];
   items: CustomerDeliveryItem[];
+  pendingItems?: CustomerDeliveryItem[];
+  orders?: import("./customer-delivery-runs.api").CustomerDeliveryRunOrder[];
   totalPieces: number;
   totalParts: number;
   actor: string;
