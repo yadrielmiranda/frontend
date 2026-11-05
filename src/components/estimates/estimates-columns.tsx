@@ -364,6 +364,7 @@ export const getEstimateColumns = (
 
         const isOwner = currentUser?.id === estimate.idUser;
         const showOwnerActions = isOwner;
+        const canDelete = isOwner || isAdminRole(currentUser?.role?.name);
         const isDealer = currentUser?.role?.name === "dealer";
         const effectiveDealerMode = estimate.dealerNetwork ? estimate.dealerModeSnapshot : isOwner
           ? (estimate.user?.dealerMode ??
@@ -577,7 +578,7 @@ export const getEstimateColumns = (
                   {lifecycleAction === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
                 </DropdownMenuItem>}
 
-                {showOwnerActions && !isCanceled &&
+                {canDelete && !isCanceled &&
                   !isOrdered &&
                   !hasDeletePaymentBlock &&
                   installationAllowsDelete && (

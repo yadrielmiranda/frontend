@@ -91,6 +91,7 @@ check('internal network member retains authorized access', { id: 9, role: { name
   { payments: [paid], dealerNetwork: { canAssist: true, canPay: false, canRecordManualPayment: true } }, 'Open Estimate');
 
 const owner = { id: 7, role: { name: 'dealer' } };
+const admin = { id: 1, role: { name: 'admin' } };
 const preliminaryInstallation = { id: 12, status: 'DEPOSIT_PAYMENT_PENDING' };
 function renderActions(estimate, actor = owner) {
   stateIndex = 0;
@@ -118,10 +119,12 @@ for (const status of ['MATERIAL_PAYMENT_PENDING', 'PERMIT_PAYMENT_PENDING']) {
     installationJob: { id: 12, status, canDeleteWithEstimate: true },
   }, true);
 }
-for (const eligible of [undefined, false]) {
-  checkDelete(`hides an advanced quote when deletion eligibility is ${eligible}`, {
-    installationJob: { id: 12, status: 'CUSTOMER_APPROVAL_PENDING', canDeleteWithEstimate: eligible },
-  }, false);
+for (const actor of [owner, admin]) {
+  for (const eligible of [undefined, false]) {
+    checkDelete(`${actor.role.name}: hides an advanced quote when deletion eligibility is ${eligible}`, {
+      installationJob: { id: 12, status: 'CUSTOMER_APPROVAL_PENDING', canDeleteWithEstimate: eligible },
+    }, false, actor);
+  }
 }
 checkDelete('retains deletion for canceled installation records', {
   installationJob: { id: 12, status: 'CANCELED' },
@@ -143,34 +146,61 @@ for (const type of ['INSTALLATION_DEPOSIT', 'PERMIT', 'INSTALLMENT']) {
     { refundReviewPending: true },
     { receipts: [{ id: 1 }] },
   ]) {
-    checkDelete(`blocks deletion with ${type} ${Object.keys(evidence)[0]} after an unpaid first installment`, {
-      installationJob: { ...preliminaryInstallation, canDeleteWithEstimate: true },
-      payments: [
-        { type: 'INSTALLMENT', sequence: 1, status: 'PENDING', stripeSessionId: null },
-        { type, sequence: 2, status: 'PENDING', ...evidence },
-      ],
-    }, false);
+    for (const actor of [owner, admin]) {
+      checkDelete(`${actor.role.name}: blocks deletion with ${type} ${Object.keys(evidence)[0]} after an unpaid first installment`, {
+        installationJob: { ...preliminaryInstallation, canDeleteWithEstimate: true },
+        payments: [
+          { type: 'INSTALLMENT', sequence: 1, status: 'PENDING', stripeSessionId: null },
+          { type, sequence: 2, status: 'PENDING', ...evidence },
+        ],
+      }, false, actor);
+    }
   }
 }
 for (const overrides of [{ status: { name: 'Canceled' } }, { status: { name: 'Ordered' } }, { order: { id: 3 } }]) {
-  checkDelete(`retains lifecycle restriction ${JSON.stringify(overrides)}`, {
-    ...overrides, installationJob: preliminaryInstallation,
-  }, false);
+  for (const actor of [owner, admin]) {
+    checkDelete(`${actor.role.name}: retains lifecycle restriction ${JSON.stringify(overrides)}`, {
+      ...overrides, installationJob: preliminaryInstallation,
+    }, false, actor);
+  }
 }
-for (const actor of [{ id: 9, role: { name: 'dealer' } }, { id: 1, role: { name: 'admin' } }]) {
-  checkDelete(`retains owner-only deletion for ${actor.role.name}`, { installationJob: preliminaryInstallation }, false, actor);
+for (const role of ['dealer', 'client']) {
+  for (const installationJob of [null, preliminaryInstallation]) {
+    checkDelete(`admin deletes another ${role}'s eligible estimate ${installationJob ? 'with' : 'without'} installation`, {
+      user: { role: { name: role } }, installationJob,
+    }, true, admin);
+  }
 }
+for (const role of ['dealer', 'client', 'operator']) {
+  checkDelete(`unrelated ${role} cannot delete`, { installationJob: preliminaryInstallation }, false,
+    { id: 9, role: { name: role } });
+  checkDelete(`${role} retains deletion of own estimate`, { installationJob: preliminaryInstallation }, true,
+    { id: 7, role: { name: role } });
+}
+checkDelete('network assistance does not grant deletion to another dealer', {
+  installationJob: preliminaryInstallation, dealerNetwork: { canAssist: true, canPay: true },
+}, false, { id: 9, role: { name: 'dealer' } });
+checkDelete('missing actor cannot delete', {}, false, null);
+checkDelete('admin honors server refusal while the deposit is pending', {
+  installationJob: { ...preliminaryInstallation, canDeleteWithEstimate: false },
+}, false, admin);
+const adminExpiredActions = renderActions({ ...base, status: { name: 'Expired' } }, admin);
+assert.ok(deleteItem(adminExpiredActions));
+assert.doesNotMatch(text(adminExpiredActions), /Recalculate Estimate|Pay now/,
+  'administrator deletion does not grant other owner actions');
+console.log('PASS administrator deletion does not expose owner payment or recalculation actions'); count++;
 
-async function checkDeleteConfirmation() {
+async function checkDeleteConfirmation(actor) {
   const estimate = { ...base, installationJob: preliminaryInstallation };
+  mutations.length = notices.length = navigation.length = 0;
   state = [];
   const dialog = () => {
-    const node = all(renderActions(estimate), node => node.type?.name === 'DeleteConfirmationDialog')[0];
+    const node = all(renderActions(estimate, actor), node => node.type?.name === 'DeleteConfirmationDialog')[0];
     assert.ok(node, 'renders the actual confirmation component');
     return node.type(node.props);
   };
   assert.equal(dialog().props.open, false);
-  deleteItem(renderActions(estimate)).props.onSelect();
+  deleteItem(renderActions(estimate, actor)).props.onSelect();
   const opened = dialog();
   assert.equal(opened.props.open, true);
   assert.match(text(opened), /estimate and its calculated installation together/);
@@ -178,16 +208,16 @@ async function checkDeleteConfirmation() {
   all(opened, node => node.type === 'AlertDialogCancel')[0].props.onClick();
   assert.equal(dialog().props.open, false);
   assert.deepEqual(mutations, [], 'dismissing does not delete');
-  deleteItem(renderActions(estimate)).props.onSelect();
+  deleteItem(renderActions(estimate, actor)).props.onSelect();
   await all(dialog(), node => node.type === 'AlertDialogAction')[0].props.onClick();
   assert.deepEqual(mutations, [{ action: 'delete', id: 17 }], 'one estimate deletion handles both records');
   assert.equal(dialog().props.open, false);
   assert.deepEqual(navigation, ['refresh']);
   assert.deepEqual(notices, ['Estimate deleted successfully.']);
   state = null;
-  console.log('PASS confirms deletion of estimate and calculated installation in one operation'); count++;
+  console.log(`PASS ${actor.role.name}: confirms deletion of estimate and calculated installation in one operation`); count++;
 }
-checkDeleteConfirmation().then(() => {
+checkDeleteConfirmation(owner).then(() => checkDeleteConfirmation(admin)).then(() => {
 console.log(`${count} estimate payment access checks passed`);
 }).catch(error => {
   console.error(error);
