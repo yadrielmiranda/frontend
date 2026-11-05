@@ -389,6 +389,24 @@ export const getEstimateColumns = (
           estimate.installationJob &&
             estimate.installationJob.status !== "CANCELED",
         );
+        const installationAllowsDelete =
+          !estimate.installationJob ||
+          (estimate.installationJob.canDeleteWithEstimate ??
+            ["DEPOSIT_PAYMENT_PENDING", "CANCELED"].includes(
+              estimate.installationJob.status,
+            ));
+        const hasDeletePaymentBlock = estimate.payments?.some(
+          (payment) =>
+            ["PAID", "REFUNDED"].includes(payment.status) ||
+            payment.paidAt ||
+            payment.stripeSessionId ||
+            payment.stripePaymentIntentId ||
+            Number(payment.netPaidBaseAmount) > 0 ||
+            Number(payment.refundedAmount) > 0 ||
+            Number(payment.refundCreditAmount) > 0 ||
+            payment.refundReviewPending ||
+            payment.receipts?.length,
+        );
 
         const primaryAction = getEstimateListAction(estimate, currentUser);
 
@@ -561,8 +579,8 @@ export const getEstimateColumns = (
 
                 {showOwnerActions && !isCanceled &&
                   !isOrdered &&
-                  !isPaymentLocked &&
-                  !hasActiveInstallation && (
+                  !hasDeletePaymentBlock &&
+                  installationAllowsDelete && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -580,6 +598,11 @@ export const getEstimateColumns = (
               isOpen={showDeleteConfirm}
               onClose={() => setShowDeleteConfirm(false)}
               onConfirm={handleDelete}
+              title={`Delete estimate #${estimate.number}?`}
+              description={estimate.installationJob
+                ? "This action cannot be undone. This will permanently delete this estimate and its calculated installation together."
+                : "This action cannot be undone. This will permanently delete this estimate."}
+              confirmText="Delete estimate"
             />
             <EstimateLifecycleDialog estimate={estimate} action={lifecycle} onClose={() => setLifecycle(null)} />
           </div>

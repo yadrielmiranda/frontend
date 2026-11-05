@@ -420,6 +420,8 @@ export interface EstimatePayment {
   surchargeAmount: string | number;
   amount: string | number;
   stripeSessionId: string | null;
+  stripePaymentIntentId?: string | null;
+  receipts?: Array<{ id: number }>;
   paymentMethod: PaymentMethod;
   payerType: PaymentPayerType;
   payerName?: string | null;
@@ -492,6 +494,7 @@ export interface Estimate {
   installationJob?: {
     id: number;
     status: InstallationJobStatus;
+    canDeleteWithEstimate?: boolean;
   } | null;
 }
 
