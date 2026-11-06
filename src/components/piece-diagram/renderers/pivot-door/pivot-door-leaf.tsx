@@ -1,15 +1,8 @@
 import React from "react";
 import { GlassAppearanceLayer } from "../glass-appearance";
+import { doorFinish, DoorLeafGradient, shadeDoorColor } from "../door-finish";
 import { matchMuntinPanels, type ResolvedMuntin } from "../muntin-layer";
 import { pivotPolygon, pivotQuadPath, pivotQuadPoint, type PivotDoorLayout } from "./pivot-door-layout";
-
-function shade(hex: string, amount: number): string {
-  const target = amount < 0 ? 0 : 255;
-  return `#${[1, 3, 5].map(start => {
-    const value = parseInt(hex.slice(start, start + 2), 16);
-    return Math.round(value + (target - value) * Math.abs(amount)).toString(16).padStart(2, "0");
-  }).join("").toUpperCase()}`;
-}
 
 function ProjectedMuntin({ muntin, layout, color, id }: {
   muntin?: ResolvedMuntin | null; layout: PivotDoorLayout; color: string; id: string;
@@ -34,7 +27,7 @@ function ProjectedMuntin({ muntin, layout, color, id }: {
   ]);
   return <g data-part="muntin-layer" data-muntin-profile={muntin.profile} pointerEvents="none" clipPath={`url(#${id}-glass-clip)`}>
     <defs>{(["vertical", "horizontal"] as const).map(axis => <linearGradient key={axis} id={`${id}-muntin-${axis}`} x1="0" y1="0" x2={axis === "vertical" ? "1" : "0"} y2={axis === "horizontal" ? "1" : "0"}>
-      {stops.map(([offset, amount]) => <stop key={offset} offset={offset} stopColor={shade(color, amount)} />)}
+      {stops.map(([offset, amount]) => <stop key={offset} offset={offset} stopColor={shadeDoorColor(color, amount)} />)}
     </linearGradient>)}</defs>
     <g data-part="muntin-panel" data-panel-index={panel.panelIndex} data-horizontal-lites={h} data-vertical-lites={v}>
       {Array.from({ length: h - 1 }, (_, index) => {
@@ -55,7 +48,7 @@ export function PivotDoorLeafArtwork({ layout, color, id, glassTintHex, hasCoati
   hasCoating?: boolean; hasPrivacy?: boolean; muntin?: ResolvedMuntin | null;
 }) {
   const { leaf, glass, glassBounds, handle, profileScale: p, sx, sy } = layout;
-  const finish = (reference: string, amount: number) => color === "#FFFFFF" ? reference : shade(color, amount);
+  const finish = doorFinish(color);
   const url = (suffix: string) => `url(#${id}-${suffix})`;
   const glassPath = pivotQuadPath(glass);
   const leafPath = pivotQuadPath(leaf);
@@ -81,9 +74,7 @@ export function PivotDoorLeafArtwork({ layout, color, id, glassTintHex, hasCoati
   const xSize = 10 * sx; const ySize = 13 * sy;
   return <>
     <defs>
-      <linearGradient id={`${id}-leaf-finish`} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor={finish("#F2F4F2", 0.12)} /><stop offset="0.62" stopColor={finish("#F0F2F0", 0)} /><stop offset="1" stopColor={finish("#ECEFED", -0.07)} />
-      </linearGradient>
+      <DoorLeafGradient id={`${id}-leaf-finish`} finish={finish} />
       <linearGradient id={`${id}-leaf-edge`} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopColor={finish("#A6B2B4", -0.3)} /><stop offset="0.42" stopColor={finish("#D0D7D7", -0.12)} /><stop offset="1" stopColor={finish("#6D8288", -0.46)} />
       </linearGradient>

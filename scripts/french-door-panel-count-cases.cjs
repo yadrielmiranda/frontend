@@ -10,7 +10,7 @@ module.exports = function register({ test, load, render, tags, PieceDiagram, Pie
     piece: { width: null, doorWidth: '68', height: '116', leftSideliteWidth: '34',
       rightSideliteWidth: '34', leftPanels: 3, rightPanels: 3 },
   };
-  const structures = html => tags(html, 'image').filter(item => item['data-layer'] === 'FRENCH_DOOR_STRUCTURE');
+  const structures = html => tags(html, 'g').filter(item => item['data-layer'] === 'FRENCH_DOOR_STRUCTURE');
   const indicators = html => tags(html, 'g').filter(item => item['data-indicator-panel']);
 
   test('Novo OXXO with three sidelites per side renders its actual eight glass panels at 272 by 116', () => {
@@ -24,9 +24,12 @@ module.exports = function register({ test, load, render, tags, PieceDiagram, Pie
       const html = render(PieceDiagram, { ...fixture, variant });
       assert.match(html, /data-diagram-renderer="SERIES_600_SHARED"/);
       assert.match(html, /272 by 116 inches/);
+      assert.equal(tags(html, 'image').length, 0);
       assert.equal(structures(html).length, 7);
+      assert.equal(tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-glass').length, 6);
       assert.equal(indicators(html).length, 8);
-      assert.ok(structures(html).some(image => image.href.endsWith('/double-left-active-two-bore.png')));
+      assert.equal(tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore').length, 2);
+      assert.ok(tags(html, 'g').some(group => group['data-structure-id'] === 'LEFT_ACTIVE__TWO_BORE'));
       const dimensionLabels = [...html.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)]
         .filter(match => /data-screen-font-size/.test(match[1]));
       assert.deepEqual(dimensionLabels.map(match => match[2].replace(/&quot;/g, '"')),
@@ -47,7 +50,11 @@ module.exports = function register({ test, load, render, tags, PieceDiagram, Pie
       const total = (door === 'X' ? 36 : 68) + left * 12 + right * 14;
       const html = render(PieceDiagram, props);
       assert.match(html, new RegExp(`${total} by 116 inches`));
-      assert.equal(structures(html).length, left + right + 1);
+      assert.equal(tags(html, 'image').length, 0);
+      const sections = structures(html);
+      assert.equal(sections.length, left + right + 1);
+      assert.ok(sections.every(section => section['data-artwork'] === 'vector'));
+      assert.equal(tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-glass').length, left + right);
       assert.equal(indicators(html).length, left + right + door.length);
     }
   });

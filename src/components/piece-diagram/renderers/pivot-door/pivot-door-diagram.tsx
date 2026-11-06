@@ -3,6 +3,7 @@
 import React, { useId, useState } from "react";
 
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
+import { doorFinish, DoorFrameGradient } from "../door-finish";
 import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX, PivotSegmentLabels } from "./pivot-dimension-text";
 import { matchMuntinPanels, type ResolvedMuntin } from "../muntin-layer";
 import { pivotDoorLayout, pivotSideliteLayout } from "./pivot-door-layout";
@@ -29,14 +30,6 @@ export interface PivotDoorDiagramProps {
 function frameColor(value?: string | null): string {
   const color = value?.trim();
   return color && /^#[\da-f]{6}$/i.test(color) ? color.toUpperCase() : "#FFFFFF";
-}
-
-function shade(hex: string, amount: number): string {
-  const target = amount < 0 ? 0 : 255;
-  return `#${[1, 3, 5].map(start => {
-    const value = parseInt(hex.slice(start, start + 2), 16);
-    return Math.round(value + (target - value) * Math.abs(amount)).toString(16).padStart(2, "0");
-  }).join("").toUpperCase()}`;
 }
 
 /** Fixed O and the approved outward-opening X, with a fixed transom or sidelite. */
@@ -80,9 +73,7 @@ export function PivotDoorDiagram({ width, height, configuration = "X", doorHeigh
   const activeWords: string[] = (activeOptionName ?? "").toUpperCase().match(/[A-Z]+/g) ?? [];
   const rightActive = activeWords.includes("RIGHT") && activeWords.includes("ACTIVE") && !activeWords.includes("LEFT");
   const color = frameColor(frameColorHex);
-  // White retains the approved subtle neutral finish; other frame colors use
-  // the same highlights and profile boundaries without tinting the glass.
-  const finish = (reference: string, amount: number) => color === "#FFFFFF" ? reference : shade(color, amount);
+  const finish = doorFinish(color);
   const url = (suffix: string) => `url(#${id}-${suffix})`;
   const r = 7 * Math.min(sx, sy);
   const fw = frame.width; const fh = frame.height;
@@ -103,9 +94,7 @@ export function PivotDoorDiagram({ width, height, configuration = "X", doorHeigh
     <title id={`${id}-title`}>{`Pivot Door — Configuration ${configuration}`}</title>
     <desc id={`${id}-description`}>{`Exterior view of a ${format(width)} × ${format(height)} pivot door opening outward toward the observer about a hidden inboard pivot on the ${rightActive ? "right" : "left"}, with a long metal pull handle on the ${rightActive ? "left" : "right"}. ${isTransom ? `A fixed ${format(transomHeight)} transom sits above the ${format(doorHeight!)} door. ` : ""}${sidelite ? `A fixed ${format(sidelite.sideliteWidth)} sidelite sits to the ${sidelite.side} of the ${format(doorWidth!)} door. ` : ""}The frame dimensions describe the closed opening.`}</desc>
     <defs>
-      <linearGradient id={`${id}-frame-finish`} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor={finish("#F5F7F6", 0.16)} /><stop offset="0.46" stopColor={finish("#EEF1EF", 0)} /><stop offset="1" stopColor={finish("#E0E5E3", -0.16)} />
-      </linearGradient>
+      <DoorFrameGradient id={`${id}-frame-finish`} finish={finish} />
     </defs>
     {/* Mirror the product only; closed-frame dimensions remain readable. */}
     <g data-part="pivot-door-artwork" transform={rightActive && !isTransom && !isSidelite ? `translate(${fw} 0) scale(-1 1)` : undefined}>

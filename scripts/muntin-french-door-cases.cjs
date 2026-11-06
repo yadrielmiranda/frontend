@@ -44,6 +44,37 @@ module.exports = function register(ctx) {
   const rectOf = rect => Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Number(rect[key])]));
   const nearly = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 
+  function checkDoorJoints(html, positions) {
+    const seams = tags(html, 'line').filter(line => line['data-part'] === 'sidelite-door-seam');
+    assert.deepEqual(seams.map(line => Number(line.x1)), positions);
+    for (const seam of seams) {
+      nearly(Number(seam.x1), Number(seam.x2));
+      assert.ok(Number(seam.y2) > Number(seam.y1));
+      assert.ok(seam.stroke && seam.stroke !== 'none');
+    }
+    return seams.map(line => Number(line.x1));
+  }
+
+  function visibleDoorFrame(html, configuration) {
+    const clipped = tags(html, 'g').filter(group => group['clip-path']?.endsWith('-visible-frame)'));
+    assert.equal(clipped.length, 1, 'Only the operable door may be clipped at a sidelite joint');
+    assert.ok(html.includes(`<g clip-path="${clipped[0]['clip-path']}"><g data-configuration="${configuration}"`),
+      'The mounting clip is applied to the door artwork');
+    return clipFor(html, clipped[0]);
+  }
+
+  function paintedGradient(html, tag, part, index = 0) {
+    const surface = tags(html, tag).filter(element => element['data-part'] === part)[index];
+    assert.ok(surface, 'Missing painted surface: ' + part);
+    const ref = /^url\(#([^)]+)\)$/.exec(surface.fill);
+    assert.ok(ref, 'Missing gradient fill on ' + part);
+    const gradient = [...html.matchAll(/<linearGradient\b([^>]*)>([\s\S]*?)<\/linearGradient>/g)]
+      .find(match => attrs(match[1]).id === ref[1]);
+    assert.ok(gradient, 'Missing gradient definition for ' + part);
+    const { id, ...coordinates } = attrs(gradient[1]);
+    return { coordinates, stops: tags(gradient[2], 'stop') };
+  }
+
   function checkGrid(html, counts) {
     const groups = sortedGroups(html);
     assert.equal(groups.length, counts.length, 'Every physical glass light must receive its own grid');
@@ -82,18 +113,260 @@ module.exports = function register(ctx) {
 
   for (const hinge of ['left', 'right']) test(`French Door X ${hinge} hinge clips Colonial to its mirrored glass`, () => {
     const html = render(FrenchDoor, standalone('X', { exteriorHingeSide: hinge, muntin: resolved(onePanel('X')) }));
-    checkActualGlassClips(html, checkGrid(html, [[2, 3]]));
+    const groups = checkGrid(html, [[2, 3]]);
+    checkActualGlassClips(html, groups);
+    const glass = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'single-glass'));
+    const clip = clipFor(html, groups[0]);
+    nearly(clip.x, hinge === 'left' ? 36 - glass.x - glass.width : glass.x);
+    for (const key of ['y', 'width', 'height']) nearly(clip[key], glass[key]);
     assert.match(html, new RegExp(`data-hinge-side="${hinge}"`));
     assert.equal((html.match(/scale\(-1 1\)/g) ?? []).length, hinge === 'left' ? 1 : 0);
     assert.equal(tags(html, 'g').filter(group => group['data-indicator-panel'] === 'X').length, 1);
   });
 
-  test('French Door standalone O keeps its sidelite glass and fixed indicator', () => {
-    const html = render(FrenchDoor, standalone('O', { muntin: resolved(onePanel('O'), 'ogee') }));
-    checkActualGlassClips(html, checkGrid(html, [[2, 3]]));
-    assert.match(html, /data-product-role="SIDELITE"/);
-    assert.match(html, /data-muntin-profile="ogee"/);
-    assert.equal(tags(html, 'g').filter(group => group['data-indicator-panel'] === 'O').length, 1);
+  test('Single French Door centers the lower bore and keeps the upper bore the same distance above it', () => {
+    for (const hinge of ['left', 'right']) {
+      for (const height of [60, 80, 95.5]) {
+        const html = render(FrenchDoor, standalone('X', { piece: { width: 36, height }, exteriorHingeSide: hinge }));
+        const centers = tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore')
+          .map(circle => Number(circle.cy)).sort((a, b) => a - b);
+        assert.equal(centers.length, 2);
+        const [upper, lower] = centers;
+        nearly(lower, height / 2);
+        nearly(lower - upper, 3.82);
+      }
+    }
+  });
+
+  test('Single French Door and Pivot use the same frame and leaf finishes for White and Bronze', () => {
+    let clearGlass;
+    for (const frameColorHex of ['#FFFFFF', '#704A35']) {
+      const appearance = { frameColorHex, hasCoating: false, glassTintHex: '#FFFFFF' };
+      const french = render(FrenchDoor, standalone('X', appearance));
+      const pivot = render(PieceDiagram, {
+        ...appearance, diagramFamily: 'PIVOT_DOOR', configuration: 'X',
+        piece: { width: 36, height: 80 }, showDimensions: false,
+      });
+      for (const [part, pivotPart] of [['single-frame', 'pivot-door-frame'], ['single-leaf', 'pivot-door-leaf']]) {
+        const finish = paintedGradient(french, 'rect', part);
+        assert.deepEqual(finish, paintedGradient(pivot, 'path', pivotPart), part + ' at ' + frameColorHex);
+        assert.ok(finish.stops.length >= 2 && finish.stops.every(stop => Number(stop['stop-opacity'] ?? 1) === 1));
+        if (frameColorHex === '#704A35') assert.ok(finish.stops.some(stop => stop['stop-color'] === frameColorHex));
+      }
+      const glass = paintedGradient(french, 'rect', 'single-glass');
+      if (clearGlass) assert.deepEqual(glass, clearGlass, 'Frame selection must preserve the glass finish');
+      clearGlass = glass;
+    }
+  });
+
+  test('French Door fixed and double panels use the same finishes and glass treatments as the single', () => {
+    for (const appearance of [
+      { frameColorHex: '#FFFFFF', glassTintHex: '#FFFFFF', hasCoating: false, hasPrivacy: false },
+      { frameColorHex: '#704A35', glassTintHex: '#77ABCF', hasCoating: true, hasPrivacy: true },
+    ]) {
+      const single = render(FrenchDoor, standalone('X', appearance));
+      for (const [configuration, prefix, profile, paneCount] of [['O', 'sidelite', 'profile', 1], ['XX', 'double', 'leaf', 2]]) {
+        const html = render(FrenchDoor, standalone(configuration, appearance));
+        const glassPart = prefix + '-glass';
+        const lights = tags(html, 'rect').filter(rect => rect['data-part'] === glassPart).map(rectOf);
+        assert.equal(lights.length, paneCount);
+        assert.deepEqual(paintedGradient(html, 'rect', prefix + '-frame'), paintedGradient(single, 'rect', 'single-frame'));
+        for (let i = 0; i < paneCount; i++) {
+          assert.deepEqual(paintedGradient(html, 'rect', prefix + '-' + profile, i), paintedGradient(single, 'rect', 'single-leaf'));
+          assert.deepEqual(paintedGradient(html, 'rect', glassPart, i), paintedGradient(single, 'rect', 'single-glass'));
+        }
+        for (const effect of ['TINT', 'COATING', 'PRIVACY']) {
+          const affected = markup => tags(markup, 'rect').filter(rect => rect['data-glass-effect'] === effect);
+          const example = affected(single)[0];
+          const overlays = affected(html);
+          assert.deepEqual(overlays.map(rectOf), example ? lights : []);
+          for (const overlay of overlays) {
+            for (const key of ['fill', 'fill-opacity', 'style']) assert.equal(overlay[key], example[key]);
+          }
+        }
+      }
+    }
+  });
+
+  test('Single French Door changes the glass opening while keeping its profiles and bores at the same physical size', () => {
+    let reference;
+    for (const [width, height] of [[32, 80], [36, 80], [42.5, 96]]) {
+      const html = render(FrenchDoor, standalone('X', {
+        piece: { width, height }, exteriorHingeSide: 'right', showDimensions: true, hasPrivacy: true,
+      }));
+      assert.equal(tags(html, 'image').length, 0);
+      assert.match(html, new RegExp(`French Door X, ${width} by ${height} inches`));
+      assert.match(html, /data-layer="FRENCH_DOOR_DIMENSIONS"/);
+      const rects = tags(html, 'rect');
+      const glass = rectOf(rects.find(rect => rect['data-part'] === 'single-glass'));
+      const margins = [glass.x, width - glass.x - glass.width, glass.y, height - glass.y - glass.height];
+      assert.ok(margins.every(margin => margin > 0) && glass.width > 0 && glass.height > 0);
+      for (const effect of ['TINT', 'COATING', 'PRIVACY']) {
+        const overlay = rects.find(rect => rect['data-glass-effect'] === effect);
+        assert.deepEqual(rectOf(overlay), glass);
+        if (effect === 'TINT') assert.equal(overlay.fill, base.glassTintHex);
+      }
+      const bores = tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore');
+      assert.equal(bores.length, 2);
+      const radii = bores.map(circle => Number(circle.r));
+      assert.ok(radii.every(radius => radius > 0));
+      const hinges = tags(html, 'g').filter(group => group['data-part'] === 'barrel-hinge');
+      assert.equal(hinges.length, 3);
+      if (!reference) reference = { margins, radii };
+      margins.forEach((margin, index) => nearly(margin, reference.margins[index]));
+      assert.deepEqual(radii, reference.radii);
+    }
+  });
+
+  test('French Door standalone O keeps physical profiles, positive glass and a fixed indicator', () => {
+    let standardInsets;
+    for (const [width, height] of [[12, 60], [18, 80], [24, 96]]) {
+      const html = render(FrenchDoor, standalone('O', { piece: { width, height }, muntin: resolved(onePanel('O'), 'ogee') }));
+      checkDoorJoints(html, []);
+      const glass = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'sidelite-glass'));
+      const groups = checkGrid(html, [[2, 3]]);
+      checkActualGlassClips(html, groups);
+      assert.deepEqual(clipFor(html, groups[0]), glass);
+      const insets = [glass.x, glass.y, width - glass.x - glass.width, height - glass.y - glass.height];
+      assert.ok(insets.every(n => n > 0) && glass.width > 0 && glass.height > 0);
+      if (!standardInsets) standardInsets = insets;
+      insets.forEach((n, i) => nearly(n, standardInsets[i]));
+      assert.match(html, /data-product-role="SIDELITE"/);
+      assert.match(html, /data-muntin-profile="ogee"/);
+      assert.equal(tags(html, 'image').length, 0);
+      assert.doesNotMatch(html, /data-part="(?:lock-bore|barrel-hinge)"/);
+      const markers = tags(html, 'g').filter(group => group['data-indicator-panel']);
+      assert.deepEqual(markers.map(marker => [marker['data-indicator-panel'], marker['data-indicator-role']]), [['O', 'FIXED']]);
+    }
+    const small = render(FrenchDoor, standalone('O', { piece: { width: 4, height: 15 } }));
+    const opening = rectOf(tags(small, 'rect').find(rect => rect['data-part'] === 'sidelite-glass'));
+    assert.ok(opening.x > 0 && opening.y > 0 && opening.width > 0 && opening.height > 0);
+    assert.ok(opening.x + opening.width < 4 && opening.y + opening.height < 15);
+  });
+
+  test('Joined jamb faces and neighboring rails use the same finish at every height', () => {
+    for (const frameColorHex of ['#FFFFFF', '#704A35']) {
+      const single = render(FrenchDoor, standalone('X', { frameColorHex }));
+      const leafStops = paintedGradient(single, 'rect', 'single-leaf').stops;
+      assert.doesNotMatch(single, /data-part="joined-frame-face"/);
+      for (const [configuration, doorWidth, width, seams] of [
+        ['OX', 36, 70, [34.25]],
+        ['XO', 36, 70, [35.75]],
+        ['OXXO', 72, 140, [34.25, 105.75]],
+      ]) {
+        const height = 80;
+        const html = render(PieceDiagram, {
+          ...base, diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 600', configuration, frameColorHex,
+          activeOptionName: 'Left Active', preparationOptionName: '2 Holes', piece: { width, height, doorWidth },
+        });
+        checkDoorJoints(html, seams);
+        const rects = tags(html, 'rect');
+        const faces = rects.filter(rect => rect['data-part'] === 'joined-frame-face');
+        assert.equal(faces.length, seams.length * 2);
+        const rails = rects.filter(rect => ['single-leaf', 'double-leaf', 'sidelite-profile'].includes(rect['data-part']));
+        assert.deepEqual(faces.map(rect => rect.fill).sort(), rails.map(rect => rect.fill).sort());
+
+        for (const [index, face] of faces.entries()) {
+          nearly(Number(face.width), 3);
+          nearly(Number(face.height), height);
+          const { coordinates, stops } = paintedGradient(html, 'rect', 'joined-frame-face', index);
+          assert.deepEqual(stops, leafStops);
+          assert.equal(coordinates.gradientUnits, 'userSpaceOnUse');
+          nearly(Number(coordinates.x1), Number(coordinates.x2));
+          nearly(Number(coordinates.y1), 0);
+          nearly(Number(coordinates.y2), height);
+        }
+      }
+    }
+  });
+
+  test('The 70-inch OX opening keeps its 34/36 dimensions and a half-inch overlap between two 3-inch frames', () => {
+    for (const hinge of ['left', 'right']) {
+      const html = render(PieceDiagram, {
+        ...base, diagramFamily: 'FRENCH_DOOR', configuration: 'OX', systemName: 'Serie 600', showDimensions: true,
+        activeOptionName: hinge === 'left' ? 'Left Active' : 'Right Active', piece: { width: 70, doorWidth: 36, height: 80 },
+        muntin: resolved([panel(1, 2, 2, 'Left', 'O'), panel(2, 2, 3, 'Right', 'X')]),
+      });
+      assert.match(tags(html, 'svg')[0]['aria-label'], /70 by 80 inches/);
+      for (const size of [34, 36, 70]) assert.ok(html.includes(`W. ${size}&quot;`));
+      const [seam] = checkDoorJoints(html, [34.25]);
+
+      const rects = tags(html, 'rect');
+      const part = name => rects.find(rect => rect['data-part'] === name);
+      const fixedWidth = Number(part('sidelite-frame').width);
+      const doorWidth = Number(part('single-frame').width);
+      const doorLeft = 70 - doorWidth;
+      nearly(fixedWidth - doorLeft, 0.5);
+      const visible = visibleDoorFrame(html, 'X');
+      assert.deepEqual(visible, { x: 0.5, y: 0, width: doorWidth - 0.5, height: 80 });
+      nearly(doorLeft + visible.x, seam);
+      nearly(seam, fixedWidth);
+      const fixedProfile = rectOf(part('sidelite-profile'));
+      const fixedProfileEnd = fixedProfile.x + fixedProfile.width;
+      const leaf = rectOf(part('single-leaf'));
+      const doorLeafStart = doorLeft + (hinge === 'left' ? doorWidth - leaf.x - leaf.width : leaf.x);
+      nearly(seam - fixedProfileEnd, 3);
+      nearly(doorLeafStart - doorLeft, 3);
+      nearly(doorLeafStart - seam, 2.5);
+      nearly(doorLeafStart - fixedProfileEnd, 5.5);
+
+      const groups = checkGrid(html, [[2, 2], [2, 3]]);
+      checkActualGlassClips(html, groups);
+      assert.deepEqual(clipFor(html, groups[0]), rectOf(part('sidelite-glass')));
+      const doorGlass = rectOf(part('single-glass'));
+      const bores = tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore');
+      assert.equal(bores.length, 2);
+      for (const bore of bores) {
+        nearly(Number(bore.cx) - leaf.x, 1.7);
+        assert.ok(Number(bore.cx) - Number(bore.r) > leaf.x && Number(bore.cx) + Number(bore.r) < doorGlass.x,
+          'The wider jamb keeps both lock bores inside the moving leaf stile');
+      }
+      const doorClip = clipFor(html, groups[1]);
+      nearly(doorClip.x, doorLeft + (hinge === 'left' ? doorWidth - doorGlass.x - doorGlass.width : doorGlass.x));
+      nearly(doorClip.width, doorGlass.width);
+    }
+  });
+
+  test('Unequal sidelites cover half an inch on each side of a single or double door', () => {
+    for (const [kind, doorWidth] of [['X', 36], ['XX', 72]]) {
+      const width = 14 + doorWidth + 22;
+      const html = render(PieceDiagram, {
+        ...base, diagramFamily: 'FRENCH_DOOR', configuration: 'O' + kind + 'O', systemName: 'Serie 600',
+        showDimensions: true, activeOptionName: 'Right Active', preparationOptionName: '2 Holes',
+        piece: { width, doorWidth, height: 80, leftSideliteWidth: 14, rightSideliteWidth: 22 },
+      });
+      for (const size of [14, doorWidth, 22, width]) assert.ok(html.includes(`W. ${size}&quot;`));
+      const [leftSeam, rightSeam] = checkDoorJoints(html, [14.25, 14 + doorWidth - 0.25]);
+      const fixed = tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-frame');
+      nearly(Number(fixed[0].width), leftSeam);
+      nearly(width - Number(fixed[1].width), rightSeam);
+      assert.deepEqual(visibleDoorFrame(html, kind), { x: 0.5, y: 0, width: rightSeam - leftSeam, height: 80 });
+    }
+  });
+
+  test('Single French Door and its right sidelite clip their grids to the drawn apertures', () => {
+    const html = render(MixedDoor, {
+      ...base, configuration: 'XO', pieces: [
+        { kind: 'X', width: 42, height: 96, exteriorHingeSide: 'right' },
+        { kind: 'O', width: 16, height: 96 },
+      ], muntin: resolved([panel(1, 2, 3, 'Left', 'X'), panel(2, 2, 2, 'Right', 'O')]),
+    });
+    const groups = checkGrid(html, [[2, 3], [2, 2]]);
+    checkActualGlassClips(html, groups);
+    const [seam] = checkDoorJoints(html, [41.75]);
+    const visible = visibleDoorFrame(html, 'X');
+    assert.deepEqual(visible, { x: 0, y: 0, width: seam, height: 96 });
+    const leaf = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'single-leaf'));
+    const fixedProfile = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'sidelite-profile'));
+    nearly(seam - (leaf.x + leaf.width), 2.5);
+    nearly(42 - 0.25 + fixedProfile.x - seam, 3);
+    const glass = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'single-glass'));
+    assert.deepEqual(clipFor(html, groups[0]), glass);
+    const fixed = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'sidelite-glass'));
+    const clip = clipFor(html, groups[1]);
+    nearly(clip.x, 42 - 0.25 + fixed.x);
+    for (const key of ['y', 'width', 'height']) nearly(clip[key], fixed[key]);
+    assert.equal(tags(html, 'image').length, 0);
   });
 
   for (const activeLeaf of ['left', 'right']) for (const boreCount of [2, 3]) {
@@ -103,10 +376,27 @@ module.exports = function register(ctx) {
       }));
       const groups = checkGrid(html, [[2, 3], [3, 2]]);
       checkActualGlassClips(html, groups);
-      assert.ok(clipFor(html, groups[0]).x < clipFor(html, groups[1]).x);
+      const lights = tags(html, 'rect').filter(rect => rect['data-part'] === 'double-glass').map(rectOf);
+      assert.deepEqual(groups.map(group => clipFor(html, group)), lights);
+      assert.ok(lights[0].x + lights[0].width < lights[1].x);
       const structure = tags(html, 'g').find(group => group['data-structure-id']);
       assert.equal(structure['data-active-leaf'], activeLeaf);
       assert.equal(structure['data-bore-count'], String(boreCount));
+      assert.equal(tags(html, 'image').length, 0);
+      assert.ok(tags(html, 'g').some(g => g['data-layer'] === 'FRENCH_DOOR_STRUCTURE' && g['data-artwork'] === 'vector'));
+      const bores = tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore');
+      assert.equal(bores.length, boreCount);
+      const activeBores = bores.filter(bore => (Number(bore.cx) < 36) === (activeLeaf === 'left'));
+      assert.equal(activeBores.length, 2);
+      const centers = activeBores.map(circle => Number(circle.cy)).sort((a, b) => a - b);
+      nearly(centers[1], 40);
+      nearly(centers[1] - centers[0], 3.82);
+      if (boreCount === 3) {
+        const inactive = bores.find(bore => !activeBores.includes(bore));
+        nearly(Number(inactive.cy), centers[1]);
+        nearly(Number(inactive.cx), 72 - Number(activeBores[0].cx));
+      }
+      assert.equal(tags(html, 'g').filter(g => g['data-part'] === 'barrel-hinge').length, 6);
       const active = tags(html, 'g').find(group => group['data-indicator-role'] === 'ACTIVE');
       const secondary = tags(html, 'g').find(group => group['data-indicator-role'] === 'SECONDARY');
       assert.equal(active['data-hinge-side'], activeLeaf);
@@ -114,6 +404,23 @@ module.exports = function register(ctx) {
       assert.equal(secondary['data-show-arrow'], 'false');
     });
   }
+
+  test('Double French Door preserves profile widths and bore dimensions as the opening size changes', () => {
+    let reference;
+    for (const [width, height] of [[64, 60], [72, 80], [84.5, 96]]) {
+      const html = render(FrenchDoor, standalone('XX', { piece: { width, height }, activeLeaf: 'right', boreCount: 3 }));
+      const [left, right] = tags(html, 'rect').filter(rect => rect['data-part'] === 'double-glass').map(rectOf);
+      const active = tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore' && Number(circle.cx) > width / 2);
+      assert.equal(active.length, 2);
+      const centers = active.map(circle => Number(circle.cy)).sort((a, b) => a - b);
+      nearly(centers[1], height / 2);
+      nearly(centers[1] - centers[0], 3.82);
+      const dimensions = [left.x, left.y, height - left.y - left.height, right.x - left.x - left.width,
+        width - right.x - right.width, Number(active[0].cx) - width / 2, Number(active[0].r)];
+      if (!reference) reference = dimensions;
+      dimensions.forEach((value, i) => nearly(value, reference[i]));
+    }
+  });
 
   for (const item of mixedCases) test(`French Door ${item.configuration} maps all ${item.codes.length} glass lights from shuffled saved panels`, () => {
     const selection = mixedPanels(item);
@@ -123,7 +430,36 @@ module.exports = function register(ctx) {
     const clips = groups.map(group => clipFor(html, group));
     clips.forEach((clip, index) => { if (index) assert.ok(clips[index - 1].x < clip.x); });
     assert.equal(tags(html, 'g').filter(group => group['data-part'] === 'muntin-layer').length, 1, 'Mixed assemblies use one complete mapping, not duplicate per-section grids');
-    assert.equal(tags(html, 'image').filter(image => image['data-layer'] === 'FRENCH_DOOR_STRUCTURE').length, item.kinds.length);
+    assert.equal(tags(html, 'image').length, 0);
+    assert.doesNotMatch(html, /scale\(-1 1\)/, 'Mirroring the right sidelites would reverse the glass reflections');
+    const lights = tags(html, 'rect').filter(rect => ['sidelite-glass', 'double-glass'].includes(rect['data-part'])).map(rectOf);
+    let width = 0;
+    const offsets = mixedProps(item).pieces.flatMap((piece, index) => {
+      const origin = width - (index === 0 ? 0 : 0.25);
+      width += piece.width;
+      return piece.kind === 'XX' ? [origin, origin] : [origin];
+    });
+    assert.equal(lights.length, offsets.length);
+    const doorIndex = item.kinds.indexOf('XX');
+    const leftBoundary = doorIndex * 18;
+    const [leftSeam, rightSeam] = checkDoorJoints(html, [leftBoundary + 0.25, leftBoundary + 72 - 0.25]);
+    const visible = visibleDoorFrame(html, 'XX');
+    nearly(visible.x, 0.5);
+    nearly(offsets[doorIndex] + visible.x, leftSeam);
+    nearly(leftSeam + visible.width, rightSeam);
+    const fixedProfiles = tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-profile').map(rectOf);
+    const leaves = tags(html, 'rect').filter(rect => rect['data-part'] === 'double-leaf').map(rectOf);
+    const leftProfileEnd = offsets[doorIndex - 1] + fixedProfiles[doorIndex - 1].x + fixedProfiles[doorIndex - 1].width;
+    const rightProfileStart = offsets[doorIndex + 2] + fixedProfiles[doorIndex].x;
+    nearly(leftSeam - leftProfileEnd, 3);
+    nearly(rightProfileStart - rightSeam, 3);
+    nearly((offsets[doorIndex] + leaves[0].x) - leftSeam, 2.5);
+    nearly(rightSeam - (offsets[doorIndex + 1] + leaves[1].x + leaves[1].width), 2.5);
+    lights.forEach((light, i) => {
+      const clip = clips[i];
+      nearly(clip.x, light.x + offsets[i]);
+      for (const key of ['y', 'width', 'height']) nearly(clip[key], light[key]);
+    });
     assert.equal(tags(html, 'g').filter(group => group['data-indicator-panel']).length, item.codes.length);
   });
 
@@ -148,7 +484,9 @@ module.exports = function register(ctx) {
     for (const invalid of [selection.slice(0, -1), selection.map((entry, index) => index === 2 ? { ...entry, panelCode: 'O' } : entry)]) {
       const html = render(MixedDoor, { ...mixedProps(item), muntin: resolved(invalid) });
       assert.equal(bars(html).length, 0);
-      assert.equal(tags(html, 'image').filter(image => image['data-layer'] === 'FRENCH_DOOR_STRUCTURE').length, item.kinds.length);
+      assert.equal(tags(html, 'image').length, 0);
+      assert.equal(tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-glass').length, item.kinds.filter(kind => kind === 'O').length);
+      assert.equal(tags(html, 'rect').filter(rect => rect['data-part'] === 'double-glass').length, 2);
       assert.equal(tags(html, 'g').filter(group => group['data-indicator-panel']).length, item.codes.length);
     }
   });
@@ -162,7 +500,7 @@ module.exports = function register(ctx) {
     }
   });
 
-  test('French Door muntins preserve structural assets, hardware, dimensions and movement paths', () => {
+  test('French Door muntins preserve glass, hardware, dimensions and movement paths', () => {
     const examples = [
       [FrenchDoor, standalone('X', { exteriorHingeSide: 'left' }), onePanel('X')],
       [FrenchDoor, standalone('XX', { activeLeaf: 'right', boreCount: 3 }), twoPanels()],
@@ -173,7 +511,8 @@ module.exports = function register(ctx) {
       const baseline = render(Component, { ...props, showDimensions: true });
       const html = render(Component, { ...props, showDimensions: true, muntin: resolved(selection) });
       assert.ok(bars(html).length > 0);
-      assert.deepEqual(tags(html, 'image'), tags(baseline, 'image'), 'Raster structures with hardware and thresholds are unchanged');
+      const glass = source => tags(source, 'rect').filter(rect => rect['data-part']?.endsWith('-glass'));
+      assert.deepEqual(glass(html), glass(baseline));
       assert.deepEqual(tags(html, 'path'), tags(baseline, 'path'), 'Movement, frame tint and dimension paths are unchanged');
       const indicators = source => tags(source, 'g').filter(group => group['data-indicator-panel']);
       assert.deepEqual(indicators(html), indicators(baseline));
@@ -183,17 +522,22 @@ module.exports = function register(ctx) {
   });
 
   test('French Door dispatcher forwards live grids to standalone and mixed templates in both variants', () => {
-    for (const variant of ['editor', 'report']) for (const configuration of ['X', 'OXXO']) {
-      const selection = configuration === 'X' ? onePanel('X') : mixedPanels(mixedCases[0]);
+    const shapes = [
+      { configuration: 'O', piece: { width: '16', height: '80' }, selection: onePanel('O'), counts: [[2, 3]] },
+      { configuration: 'X', piece: { width: '36', height: '80' }, selection: onePanel('X'), counts: [[2, 3]] },
+      { configuration: 'XX', piece: { width: '72', height: '80' }, selection: twoPanels(), counts: [[2, 3], [3, 2]] },
+      { configuration: 'OXXO', piece: { width: '108', height: '80', doorWidth: '72', leftSideliteWidth: '18', rightSideliteWidth: '18' },
+        selection: mixedPanels(mixedCases[0]), counts: mixedCases[0].counts },
+    ];
+    for (const variant of ['editor', 'report']) for (const { configuration, piece, selection, counts } of shapes) {
       const html = render(PieceDiagram, {
         diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 600', configuration, variant,
         activeOptionName: 'Left Active', preparationOptionName: '2 Holes', showDimensions: false,
-        piece: configuration === 'X' ? { width: '36', height: '80' }
-          : { width: '108', height: '80', doorWidth: '72', leftSideliteWidth: '18', rightSideliteWidth: '18' },
-        muntin: resolved(selection),
+        piece, muntin: resolved(selection),
       });
       assert.match(html, /data-diagram-renderer="SERIES_600_SHARED"/);
-      checkGrid(html, configuration === 'X' ? [[2, 3]] : mixedCases[0].counts);
+      assert.equal(tags(html, 'image').length, 0);
+      checkGrid(html, counts);
     }
   });
 
@@ -207,9 +551,14 @@ module.exports = function register(ctx) {
     const piece = doorReport(saved(mixedPanels(mixedCases[0]).reverse()));
     const before = JSON.stringify(piece);
     const html = render(PieceReportCard, { piece, displayMark: 'FD1', showPrices: false });
+    checkDoorJoints(html, [18.25, 89.75]);
     checkActualGlassClips(html, checkGrid(html, mixedCases[0].counts));
     assert.match(html, /data-diagram-renderer="SERIES_600_SHARED"/);
     assert.match(html, /data-piece-diagram-id="123"/);
+    assert.equal(tags(html, 'rect').filter(rect => rect['data-part'] === 'sidelite-glass').length, 2);
+    assert.equal(tags(html, 'image').length, 0);
+    assert.ok(tags(html, 'g').some(group => group['data-structure-id'] === 'RIGHT_ACTIVE__THREE_BORE'));
+    assert.equal(tags(html, 'circle').filter(circle => circle['data-part'] === 'lock-bore').length, 3);
     assert.match(html, /Colonial/);
     assert.equal(JSON.stringify(piece), before, 'Rendering never mutates the saved piece');
   });

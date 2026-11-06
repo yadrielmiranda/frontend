@@ -30,6 +30,11 @@ import {
   type Serie600MovementPanel,
 } from "./series-600-movement-indicators";
 import { mixedDoorPattern } from "./mixed-door-pattern";
+import { Series600SingleArtwork, singleFrenchDoorGeometry } from "./series-600-single-artwork";
+import { Series600DoubleArtwork, doubleFrenchDoorGeometry } from "./series-600-double-artwork";
+import { Series600SideliteArtwork, frenchDoorSideliteGeometry } from "./series-600-sidelite-artwork";
+import { FRAME_OVERLAP_INCHES, type JoinedJambs } from "./series-600-frame-joint";
+import { doorFinish } from "../door-finish";
 
 type DiagramValue = string | number | null | undefined;
 type Rect = GlassOverlayRect;
@@ -131,71 +136,16 @@ export interface PieceDiagramProps extends SharedMaterialProps {
 }
 
 const DEFAULT_FRAME_COLOR = "#FFFFFF";
-const ASSET_BASE = "/product-visuals/french-door/series-600";
-const MIXED_HALF_OVERLAP = 0.25;
-
-const X_SOURCE = {
-  href: `${ASSET_BASE}/single-door.png`,
-  imageWidth: 690,
-  imageHeight: 1569,
-  frameX: 68,
-  frameY: 40,
-  frameWidth: 586,
-  frameHeight: 1466,
-  glass: { x: 172, y: 142, width: 373, height: 1265 },
-} as const;
-
-const O_SOURCE = {
-  href: `${ASSET_BASE}/sidelite.png`,
-  imageWidth: 370,
-  imageHeight: 1648,
-  frameWidth: 370,
-  frameHeight: 1648,
-  glass: { x: 63, y: 97, width: 243, height: 1444 },
-} as const;
-
-type XXStructure = {
-  href: string;
-  activeLeaf: PieceDiagramActiveLeaf;
-  boreCount: PieceDiagramBoreCount;
-  leftGlass: Rect;
-  rightGlass: Rect;
-};
-
-const XX_SOURCE = { width: 944, height: 1120 } as const;
+const MIXED_HALF_OVERLAP = FRAME_OVERLAP_INCHES / 2;
 
 const XX_STRUCTURES: Record<
   PieceDiagramSeries600XXStructureId,
-  XXStructure
+  { activeLeaf: PieceDiagramActiveLeaf; boreCount: PieceDiagramBoreCount }
 > = {
-  LEFT_ACTIVE__TWO_BORE: {
-    href: `${ASSET_BASE}/double-left-active-two-bore.png`,
-    activeLeaf: "left",
-    boreCount: 2,
-    leftGlass: { x: 96, y: 93, width: 315, height: 944 },
-    rightGlass: { x: 537, y: 93, width: 315, height: 944 },
-  },
-  LEFT_ACTIVE__THREE_BORE: {
-    href: `${ASSET_BASE}/double-left-active-three-bore.png`,
-    activeLeaf: "left",
-    boreCount: 3,
-    leftGlass: { x: 96, y: 93, width: 315, height: 944 },
-    rightGlass: { x: 537, y: 93, width: 315, height: 944 },
-  },
-  RIGHT_ACTIVE__TWO_BORE: {
-    href: `${ASSET_BASE}/double-right-active-two-bore.png`,
-    activeLeaf: "right",
-    boreCount: 2,
-    leftGlass: { x: 92, y: 93, width: 315, height: 944 },
-    rightGlass: { x: 533, y: 93, width: 315, height: 944 },
-  },
-  RIGHT_ACTIVE__THREE_BORE: {
-    href: `${ASSET_BASE}/double-right-active-three-bore.png`,
-    activeLeaf: "right",
-    boreCount: 3,
-    leftGlass: { x: 92, y: 93, width: 315, height: 944 },
-    rightGlass: { x: 533, y: 93, width: 315, height: 944 },
-  },
+  LEFT_ACTIVE__TWO_BORE: { activeLeaf: "left", boreCount: 2 },
+  LEFT_ACTIVE__THREE_BORE: { activeLeaf: "left", boreCount: 3 },
+  RIGHT_ACTIVE__TWO_BORE: { activeLeaf: "right", boreCount: 2 },
+  RIGHT_ACTIVE__THREE_BORE: { activeLeaf: "right", boreCount: 3 },
 };
 
 function parsePositiveDimension(value: DiagramValue, name: string): number {
@@ -244,25 +194,6 @@ function safeId(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, "") || "ae-french-door";
 }
 
-function frameTintPath(width: number, height: number, glass: readonly Rect[]) {
-  return [
-    `M 0 0 H ${width} V ${height} H 0 Z`,
-    ...glass.map(
-      (rect) =>
-        `M ${rect.x} ${rect.y} H ${rect.x + rect.width} V ${rect.y + rect.height} H ${rect.x} Z`,
-    ),
-  ].join(" ");
-}
-
-function scaleRect(rect: Rect, scaleX: number, scaleY: number): Rect {
-  return {
-    x: rect.x * scaleX,
-    y: rect.y * scaleY,
-    width: rect.width * scaleX,
-    height: rect.height * scaleY,
-  };
-}
-
 function mirroredRect(rect: Rect, width: number): Rect {
   return { ...rect, x: width - rect.x - rect.width };
 }
@@ -295,33 +226,11 @@ function resolveXXStructureId(
   }_BORE` as PieceDiagramSeries600XXStructureId;
 }
 
-function FrameFinish({
-  width,
-  height,
-  glass,
-  color,
-}: {
-  width: number;
-  height: number;
-  glass: readonly Rect[];
-  color: string;
-}) {
-  return color === DEFAULT_FRAME_COLOR ? null : (
-    <path
-      d={frameTintPath(width, height, glass)}
-      fill={color}
-      fillRule="evenodd"
-      clipRule="evenodd"
-      style={{ mixBlendMode: "multiply" }}
-      data-layer="FRENCH_DOOR_FRAME_FINISH"
-    />
-  );
-}
-
 type StructureMaterialProps = SharedMaterialProps & {
   width: number;
   height: number;
   frameColor: string;
+  joined?: JoinedJambs;
   movementIndicatorColor?: string;
   movementIndicatorId?: string;
 };
@@ -330,6 +239,7 @@ function XStructure({
   width,
   height,
   hingeSide,
+  joined,
   frameColor,
   glassTintHex,
   hasCoating,
@@ -340,14 +250,8 @@ function XStructure({
 }: StructureMaterialProps & {
   hingeSide: PieceDiagramExteriorHingeSide;
 }) {
-  const scaleX = width / X_SOURCE.frameWidth;
-  const scaleY = height / X_SOURCE.frameHeight;
-  const baseGlass = {
-    x: (X_SOURCE.glass.x - X_SOURCE.frameX) * scaleX,
-    y: (X_SOURCE.glass.y - X_SOURCE.frameY) * scaleY,
-    width: X_SOURCE.glass.width * scaleX,
-    height: X_SOURCE.glass.height * scaleY,
-  };
+  const geometry = singleFrenchDoorGeometry(width, height, hingeSide, joined);
+  const baseGlass = geometry.glass;
   const indicatorGlass =
     hingeSide === "left" ? mirroredRect(baseGlass, width) : baseGlass;
   const mirror =
@@ -367,26 +271,18 @@ function XStructure({
         </clipPath>
       </defs>
       <g transform={mirror} clipPath={`url(#${clipId})`}>
-        <image
-          href={X_SOURCE.href}
-          x={-X_SOURCE.frameX * scaleX}
-          y={-X_SOURCE.frameY * scaleY}
-          width={X_SOURCE.imageWidth * scaleX}
-          height={X_SOURCE.imageHeight * scaleY}
-          preserveAspectRatio="none"
-          data-layer="FRENCH_DOOR_STRUCTURE"
+        <Series600SingleArtwork
+          width={width}
+          height={height}
+          geometry={geometry}
+          idNamespace={clipId}
+          frameColor={frameColor}
         />
         <GlassAppearanceLayer
           rects={[baseGlass]}
           glassTintHex={glassTintHex}
           hasCoating={hasCoating}
           hasPrivacy={hasPrivacy}
-        />
-        <FrameFinish
-          width={width}
-          height={height}
-          glass={[baseGlass]}
-          color={frameColor}
         />
       </g>
       <MuntinLayer
@@ -418,6 +314,7 @@ function OStructure({
   width,
   height,
   mirror = false,
+  joined,
   frameColor,
   glassTintHex,
   hasCoating,
@@ -426,13 +323,8 @@ function OStructure({
   movementIndicatorColor,
   movementIndicatorId,
 }: StructureMaterialProps & { mirror?: boolean }) {
-  const scaleX = width / O_SOURCE.frameWidth;
-  const scaleY = height / O_SOURCE.frameHeight;
-  const baseGlass = scaleRect(O_SOURCE.glass, scaleX, scaleY);
-  const indicatorGlass = mirror ? mirroredRect(baseGlass, width) : baseGlass;
-  const transform = mirror
-    ? `translate(${width} 0) scale(-1 1)`
-    : undefined;
+  const geometry = frenchDoorSideliteGeometry(width, height, mirror, joined);
+  const { glass } = geometry;
 
   return (
     <g
@@ -441,39 +333,29 @@ function OStructure({
       data-view="EXTERIOR"
       data-glass-source="DATABASE_APPEARANCE_LAYER"
     >
-      <g transform={transform}>
-        <image
-          href={O_SOURCE.href}
-          x={0}
-          y={0}
-          width={width}
-          height={height}
-          preserveAspectRatio="none"
-          data-layer="FRENCH_DOOR_STRUCTURE"
-        />
-        <GlassAppearanceLayer
-          rects={[baseGlass]}
-          glassTintHex={glassTintHex}
-          hasCoating={hasCoating}
-          hasPrivacy={hasPrivacy}
-        />
-        <FrameFinish
-          width={width}
-          height={height}
-          glass={[baseGlass]}
-          color={frameColor}
-        />
-      </g>
+      <Series600SideliteArtwork
+        width={width}
+        height={height}
+        geometry={geometry}
+        frameColor={frameColor}
+        idNamespace={safeId(movementIndicatorId ?? "o")}
+      />
+      <GlassAppearanceLayer
+        rects={[glass]}
+        glassTintHex={glassTintHex}
+        hasCoating={hasCoating}
+        hasPrivacy={hasPrivacy}
+      />
       <MuntinLayer
         muntin={muntin}
-        glassPanels={frenchDoorMuntinPanels([{ kind: "O", glass: indicatorGlass }])}
+        glassPanels={frenchDoorMuntinPanels([{ kind: "O", glass }])}
         frameColorHex={frameColor}
         unitsPerInch={1}
         idNamespace={`${movementIndicatorId ?? "o"}-glass`}
       />
       {movementIndicatorColor ? (
         <Serie600MovementIndicators
-          panels={[{ kind: "O", role: "FIXED", glass: indicatorGlass }]}
+          panels={[{ kind: "O", role: "FIXED", glass }]}
           movementIndicatorColor={movementIndicatorColor}
           idNamespace={movementIndicatorId}
         />
@@ -486,6 +368,7 @@ function XXStructure({
   width,
   height,
   structureId,
+  joined,
   frameColor,
   glassTintHex,
   hasCoating,
@@ -497,10 +380,8 @@ function XXStructure({
   structureId: PieceDiagramSeries600XXStructureId;
 }) {
   const structure = XX_STRUCTURES[structureId];
-  const scaleX = width / XX_SOURCE.width;
-  const scaleY = height / XX_SOURCE.height;
-  const leftGlass = scaleRect(structure.leftGlass, scaleX, scaleY);
-  const rightGlass = scaleRect(structure.rightGlass, scaleX, scaleY);
+  const geometry = doubleFrenchDoorGeometry(width, height, structure.activeLeaf, joined);
+  const { leftGlass, rightGlass } = geometry;
 
   return (
     <g
@@ -511,26 +392,20 @@ function XXStructure({
       data-structure-id={structureId}
       data-glass-source="DATABASE_APPEARANCE_LAYER"
     >
-      <image
-        href={structure.href}
-        x={0}
-        y={0}
+      <Series600DoubleArtwork
         width={width}
         height={height}
-        preserveAspectRatio="none"
-        data-layer="FRENCH_DOOR_STRUCTURE"
+        geometry={geometry}
+        activeLeaf={structure.activeLeaf}
+        boreCount={structure.boreCount}
+        idNamespace={safeId(movementIndicatorId ?? "xx")}
+        frameColor={frameColor}
       />
       <GlassAppearanceLayer
         rects={[leftGlass, rightGlass]}
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
-      />
-      <FrameFinish
-        width={width}
-        height={height}
-        glass={[leftGlass, rightGlass]}
-        color={frameColor}
       />
       <MuntinLayer
         muntin={muntin}
@@ -656,6 +531,7 @@ type ResolvedMixedPiece = {
   logicalRight: number;
   drawLeft: number;
   drawWidth: number;
+  joined: JoinedJambs;
   mirrorSidelite: boolean;
   exteriorHingeSide?: PieceDiagramExteriorHingeSide;
   structureId?: PieceDiagramSeries600XXStructureId;
@@ -724,6 +600,8 @@ function resolveMixedLayout(
 
   const boundaries = [0];
   parsed.forEach((piece) => boundaries.push(boundaries.at(-1)! + piece.width));
+  const isDoorJoint = (boundary: number) => boundary > 0 && boundary < parsed.length &&
+    (boundary === mainIndex || boundary === mainIndex + 1);
   const resolvedPieces = parsed.map((piece, index) => {
     const logicalLeft = boundaries[index]!;
     const logicalRight = boundaries[index + 1]!;
@@ -735,6 +613,7 @@ function resolveMixedLayout(
       logicalRight,
       drawLeft: logicalLeft - leftOverlap,
       drawWidth: piece.width + leftOverlap + rightOverlap,
+      joined: { left: isDoorJoint(index), right: isDoorJoint(index + 1) },
     };
   });
 
@@ -751,33 +630,16 @@ function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel
   const panels: Serie600MovementPanel[] = [];
   for (const piece of layout.pieces) {
     if (piece.kind === "O") {
-      const glass = scaleRect(
-        O_SOURCE.glass,
-        piece.drawWidth / O_SOURCE.frameWidth,
-        layout.height / O_SOURCE.frameHeight,
-      );
-      const placed = piece.mirrorSidelite
-        ? mirroredRect(glass, piece.drawWidth)
-        : glass;
+      const { glass } = frenchDoorSideliteGeometry(piece.drawWidth, layout.height, piece.mirrorSidelite, piece.joined);
       panels.push({
         kind: "O",
         role: "FIXED",
-        glass: { ...placed, x: piece.drawLeft + placed.x },
+        glass: { ...glass, x: piece.drawLeft + glass.x },
       });
       continue;
     }
     if (piece.kind === "X") {
-      const baseGlass: Rect = {
-        x:
-          ((X_SOURCE.glass.x - X_SOURCE.frameX) / X_SOURCE.frameWidth) *
-          piece.drawWidth,
-        y:
-          ((X_SOURCE.glass.y - X_SOURCE.frameY) / X_SOURCE.frameHeight) *
-          layout.height,
-        width: (X_SOURCE.glass.width / X_SOURCE.frameWidth) * piece.drawWidth,
-        height:
-          (X_SOURCE.glass.height / X_SOURCE.frameHeight) * layout.height,
-      };
+      const baseGlass = singleFrenchDoorGeometry(piece.drawWidth, layout.height, piece.exteriorHingeSide, piece.joined).glass;
       const glass =
         piece.exteriorHingeSide === "left"
           ? mirroredRect(baseGlass, piece.drawWidth)
@@ -792,15 +654,11 @@ function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel
     }
 
     const structure = XX_STRUCTURES[piece.structureId!];
+    const { leftGlass, rightGlass } = doubleFrenchDoorGeometry(piece.drawWidth, layout.height, structure.activeLeaf, piece.joined);
     ([
-      ["left", structure.leftGlass],
-      ["right", structure.rightGlass],
-    ] as const).forEach(([hingeSide, sourceGlass]) => {
-      const glass = scaleRect(
-        sourceGlass,
-        piece.drawWidth / XX_SOURCE.width,
-        layout.height / XX_SOURCE.height,
-      );
+      ["left", leftGlass],
+      ["right", rightGlass],
+    ] as const).forEach(([hingeSide, glass]) => {
       const active = structure.activeLeaf === hingeSide;
       panels.push({
         kind: "X",
@@ -921,6 +779,7 @@ export function Series600MixedAssemblyDiagram({
   const namespace = safeId(idNamespace ?? `ae-french-door-mixed-${reactId}`);
   const layout = resolveMixedLayout(configuration, pieces);
   const frameColor = normalizeFrameColor(frameColorHex);
+  const finish = doorFinish(frameColor);
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
   const movementPanels = mixedMovementPanels(layout);
   // Keep the dimension lines in the viewBox; the fixed pixel padding below
@@ -974,6 +833,7 @@ export function Series600MixedAssemblyDiagram({
         style={{ backgroundColor: "transparent" }}
       >
         {layout.pieces.map((piece) => {
+          const pieceId = `${namespace}-piece-${piece.index}`;
           const materialProps = {
             width: piece.drawWidth,
             height: layout.height,
@@ -981,36 +841,41 @@ export function Series600MixedAssemblyDiagram({
             glassTintHex,
             hasCoating,
             hasPrivacy,
+            joined: piece.joined,
+            movementIndicatorId: pieceId,
           } as const;
+          let structure: React.ReactNode;
           if (piece.kind === "X") {
-            return (
-              <g key={piece.index} transform={`translate(${piece.drawLeft} 0)`}>
-                <XStructure
-                  {...materialProps}
-                  hingeSide={piece.exteriorHingeSide!}
-                  movementIndicatorId={`${namespace}-piece-${piece.index}`}
-                />
-              </g>
-            );
+            structure = <XStructure {...materialProps} hingeSide={piece.exteriorHingeSide!} />;
+          } else if (piece.kind === "XX") {
+            structure = <XXStructure {...materialProps} structureId={piece.structureId!} />;
+          } else {
+            structure = <OStructure {...materialProps} mirror={piece.mirrorSidelite} />;
           }
-          if (piece.kind === "XX") {
-            return (
-              <g key={piece.index} transform={`translate(${piece.drawLeft} 0)`}>
-                <XXStructure
-                  {...materialProps}
-                  structureId={piece.structureId!}
-                  movementIndicatorId={`${namespace}-piece-${piece.index}`}
-                />
-              </g>
-            );
-          }
+          // The fixed jamb covers the entire ½″ lap on the door, on either side of the opening.
+          const trimLeft = piece.kind !== "O" && piece.joined.left ? FRAME_OVERLAP_INCHES : 0;
+          const trimRight = piece.kind !== "O" && piece.joined.right ? FRAME_OVERLAP_INCHES : 0;
+          const clipId = trimLeft || trimRight ? `${pieceId}-visible-frame` : undefined;
           return (
             <g key={piece.index} transform={`translate(${piece.drawLeft} 0)`}>
-              <OStructure
-                {...materialProps}
-                mirror={piece.mirrorSidelite}
-                movementIndicatorId={`${namespace}-piece-${piece.index}`}
-              />
+              {clipId && <defs><clipPath id={clipId}>
+                <rect x={trimLeft} y={0} width={Math.max(0, piece.drawWidth - trimLeft - trimRight)} height={layout.height} />
+              </clipPath></defs>}
+              <g clipPath={clipId ? `url(#${clipId})` : undefined}>{structure}</g>
+            </g>
+          );
+        })}
+        {layout.pieces.filter(piece => piece.kind === "O" && (piece.joined.left || piece.joined.right)).map(sidelite => {
+          // Follow the exposed edge of the sidelite. The nominal dimension tick stays at the section boundary.
+          const edge = sidelite.joined.left ? sidelite.drawLeft : sidelite.drawLeft + sidelite.drawWidth;
+          const towardDoor = sidelite.joined.left ? -1 : 1;
+          const shadow = edge + towardDoor * 0.10;
+          const highlight = edge - towardDoor * 0.08;
+          return (
+            <g key={sidelite.index} aria-hidden="true" pointerEvents="none">
+              <line x1={shadow} x2={shadow} y1={0} y2={layout.height} stroke={finish("#73817D", -0.45)} strokeOpacity={0.3} strokeWidth={0.16} />
+              <line x1={highlight} x2={highlight} y1={0} y2={layout.height} stroke={finish("#FFFFFF", 0.32)} strokeWidth={0.08} />
+              <line x1={edge} x2={edge} y1={0} y2={layout.height} stroke={finish("#84918C", -0.4)} strokeWidth={0.11} data-part="sidelite-door-seam" />
             </g>
           );
         })}
