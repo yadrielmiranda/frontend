@@ -1,4 +1,4 @@
-import { apiFetch } from "./_base";
+import { API_URL, apiFetch } from "./_base";
 import type { EnergySnapshot } from "@/lib/energy-ratings";
 import type {
   EstimateWithRelations,
@@ -236,6 +236,40 @@ export function updateEstimateInternalNote(
     method: "PATCH",
     body: data,
   });
+}
+
+export type EstimateNoteAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
+export type EstimateNoteAttachmentsResponse = {
+  attachments: EstimateNoteAttachment[];
+  usedBytes: number;
+  storage: { usedBytes: number; warning: boolean } | null;
+};
+
+const attachmentsPath = (estimateId: number) => `/api/estimates/${estimateId}/internal-note/attachments`;
+
+export function getEstimateNoteAttachments(estimateId: number) {
+  return apiFetch<EstimateNoteAttachmentsResponse>(attachmentsPath(estimateId));
+}
+
+export function uploadEstimateNoteAttachment(estimateId: number, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  return apiFetch<EstimateNoteAttachmentsResponse>(attachmentsPath(estimateId), { method: "POST", body });
+}
+
+export function deleteEstimateNoteAttachment(estimateId: number, id: string) {
+  return apiFetch<EstimateNoteAttachmentsResponse>(`${attachmentsPath(estimateId)}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function estimateNoteAttachmentUrl(estimateId: number, id: string, download = false) {
+  return `${API_URL}${attachmentsPath(estimateId)}/${encodeURIComponent(id)}${download ? "?download=1" : ""}`;
 }
 
 export function getEstimates() {

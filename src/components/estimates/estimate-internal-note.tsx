@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isAdminRole, isDealerRole, isOperatorRole } from "@/lib/rbac";
+import { NoteAttachmentList, NoteAttachmentPicker, useEstimateNoteAttachments } from "./estimate-note-attachments";
 
 const MAX_NOTE_LENGTH = 2000;
 
@@ -23,10 +24,10 @@ export function EstimateInternalNote({
   if (!isAdminRole(userRole) && !isDealerRole(userRole) && !isOperatorRole(userRole)) return null;
 
   return <InternalNoteEditor key={`${estimateId}:${userRole}`} estimateId={estimateId}
-    allowEditing={isAdminRole(userRole) || isDealerRole(userRole)} />;
+    allowEditing={isAdminRole(userRole) || isDealerRole(userRole)} isAdmin={isAdminRole(userRole)} />;
 }
 
-function InternalNoteEditor({ estimateId, allowEditing }: { estimateId: number; allowEditing: boolean }) {
+function InternalNoteEditor({ estimateId, allowEditing, isAdmin }: { estimateId: number; allowEditing: boolean; isAdmin: boolean }) {
   const [data, setData] = useState<EstimateInternalNoteResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -71,6 +72,7 @@ function InternalNoteEditor({ estimateId, allowEditing }: { estimateId: number; 
   }, [load]);
 
   const canEdit = allowEditing && data?.canEdit === true;
+  const attachments = useEstimateNoteAttachments(estimateId, Boolean(data) && !loadError, canEdit);
   const note = data?.internalNote;
   const hasNote = Boolean(note?.text);
   const dirty = draft !== (note?.text ?? "");
@@ -116,14 +118,15 @@ function InternalNoteEditor({ estimateId, allowEditing }: { estimateId: number; 
       aria-labelledby={`internal-note-heading-${estimateId}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id={`internal-note-heading-${estimateId}`} className="border-l-4 border-red-600 pl-3 text-xl font-semibold text-[#5C4033]">Internal note</h3>
-        {canEdit && !editing && !loading && !loadError && (
-          <Button type="button" variant="outline" size="sm" onClick={() => {
-            setDraft(note?.text ?? "");
-            setSaveError("");
-            setConflict(false);
-            setEditing(true);
-          }}>{hasNote ? "Edit" : "Add note"}</Button>
-        )}
+        {canEdit && !loading && !loadError && <div className="flex flex-wrap gap-2">
+          {!editing && <Button type="button" variant="outline" size="sm" onClick={() => {
+              setDraft(note?.text ?? "");
+              setSaveError("");
+              setConflict(false);
+              setEditing(true);
+            }}>{hasNote ? "Edit" : "Add note"}</Button>}
+          <NoteAttachmentPicker files={attachments} />
+        </div>}
       </div>
 
       {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading note…</p>}
@@ -164,6 +167,7 @@ function InternalNoteEditor({ estimateId, allowEditing }: { estimateId: number; 
       {note && !loading && !loadError && <p className="mt-3 text-xs text-slate-500">
         Last edited by {note.updatedBy.name} · {new Date(note.updatedAt).toLocaleString()}
       </p>}
+      {data && !loadError && <NoteAttachmentList files={attachments} isAdmin={isAdmin} />}
     </section>
   );
 }
