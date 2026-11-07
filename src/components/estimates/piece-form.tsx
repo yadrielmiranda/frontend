@@ -65,6 +65,8 @@ import { roundMoney } from "@/lib/formatters";
 import { formatEnergyValue, type EnergySelection } from "@/lib/energy-ratings";
 
 import type { PieceFormValues } from "./types";
+import { selectedDoorDesign, type DoorDesignKind } from "@/lib/door-designs";
+import { FrenchDoorDesignFields } from "./french-door-design-fields";
 import { GarageDesignFields } from "./garage-design-fields";
 import { availableGarageDesignOptions, defaultGarageDesignPair, garageDesignPairForColor, garageDesignPairForDesign, garageDesignSelectionError, garageDesignFrameSelection, isRetainedGarageDesign, pieceGarageDesign, pieceHasSolidGarageDesign, type ExistingGarageDesignContext } from "./piece-garage-design";
 import { positiveFrameColorId, restoreFrameColorAfterDesign } from "./piece-frame-restore";
@@ -83,6 +85,7 @@ type SystemConfigLink = {
   idConfig: number;
   allowScreen: boolean;
   muntinRules?: SysConfMuntinRule[];
+  doorDesignKind?: DoorDesignKind | null;
   isSelectableInEstimate: boolean;
   sortOrder: number;
   config: Config;
@@ -342,6 +345,8 @@ export function PieceForm({
       idDesignColor: initialData.idDesignColor ?? null,
       frameColorBeforeDesignId: initialData.frameColorBeforeDesignId ?? null,
       designSnapshot: initialData.designSnapshot ?? null,
+      idDoorDesign: initialData.idDoorDesign ?? null,
+      doorDesignSnapshot: initialData.doorDesignSnapshot ?? null,
       width: initialData.width ?? "",
       height: initialData.height ?? "",
       heightLeft: initialData.heightLeft ?? "",
@@ -357,7 +362,7 @@ export function PieceForm({
       rightPanels: initialData.rightPanels ?? null,
       panelCount: initialData.panelCount ?? null,
       horizontalHeights: initialData.horizontalHeights ?? null,
-      muntin: initialData.muntin ?? null,
+      muntin: initialData.idDoorDesign ? null : initialData.muntin ?? null,
       rate: initialData.rate ?? 0,
       price: initialData.price ?? 0,
       subtotal: initialData.subtotal ?? 0,
@@ -503,7 +508,8 @@ export function PieceForm({
   }, [idProd, props.productsWithBrands]);
 
   const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
-  const muntinAllowed = !isLinearMaterial && selectedProduct?.allowMuntin !== false;
+  const hasDoorDesign = !!pieceValues.idDoorDesign;
+  const muntinAllowed = !isLinearMaterial && selectedProduct?.allowMuntin !== false && !hasDoorDesign;
 
   const [brandId, systemId] = useWatch({
     control,
@@ -1074,6 +1080,37 @@ export function PieceForm({
       availableSysConfs.find((sc) => sc.config?.id === Number(idConf)) ?? null
     );
   }, [idConf, availableSysConfs]);
+
+  const doorDesignOptions = selectedProduct?.diagramFamily === "FRENCH_DOOR" && selectedSystem?.allowDesign && selectedSysConf?.doorDesignKind
+    ? (selectedSystem.doorDesigns ?? []).filter(design => design.kind === selectedSysConf.doorDesignKind)
+    : [];
+  const currentDoorDesign = selectedDoorDesign(pieceValues.idDoorDesign, Number(systemId), Number(idConf),
+    doorDesignOptions, getValues("doorDesignSnapshot"));
+  const doorDesignError = hasDoorDesign && !currentDoorDesign
+    ? "Select an available door design or No design before calculating." : null;
+  const previousDoorContext = useRef(`${initialData.idProd}:${initialData.idBrand}:${initialData.idSyst}:${initialData.idConf}`);
+
+  useLayoutEffect(() => {
+    const context = `${idProd}:${brandId}:${systemId}:${idConf}`;
+    if (previousDoorContext.current === context) return;
+    previousDoorContext.current = context;
+    if (getValues("idDoorDesign") != null) {
+      setValue("idDoorDesign", null, { shouldDirty: true });
+      setValue("doorDesignSnapshot", null, { shouldDirty: true });
+    }
+  }, [idProd, brandId, systemId, idConf, getValues, setValue]);
+
+  function changeDoorDesign(id: number | null) {
+    if (isLocked || id === getValues("idDoorDesign")) return;
+    latestCalculationRef.current++;
+    setValue("idDoorDesign", id, { shouldDirty: true });
+    const original = initialData.doorDesignSnapshot;
+    const retained = original?.id === id && original.systemId === Number(systemId) && original.configId === Number(idConf);
+    setValue("doorDesignSnapshot", retained ? original : null, { shouldDirty: true });
+    if (id != null) setValue("muntin", null, { shouldDirty: true });
+    setResultsScrollRequest(0);
+    setActiveAccordionItems(items => items.filter(item => item !== "item-results"));
+  }
 
   const isWindowWall = selectedSysConf?.dimensionMode === "WINDOW_WALL";
 
@@ -1887,8 +1924,8 @@ export function PieceForm({
       valuesVersion === calculationValuesVersionRef.current;
 
     try {
-      if (designSelectionError) {
-        toast.error(designSelectionError);
+      if (designSelectionError || doorDesignError) {
+        toast.error(designSelectionError || doorDesignError);
         return;
       }
       if (selectedConfigUnavailable) {
@@ -2238,6 +2275,7 @@ export function PieceForm({
           : undefined);
 
       const pieceDtoToSend: CalculatePiecePayload = {
+        idDoorDesign: currentValues.idDoorDesign ?? null,
         mark: currentValues.mark ?? "",
         idProd: Number(currentValues.idProd),
         idBrand: Number(currentValues.idBrand),
@@ -2418,7 +2456,7 @@ export function PieceForm({
       );
       setValue("promotionSnapshot", calculated.promotionSnapshot ?? null);
       setValue("total", customerSubtotalLine);
-      setValue("muntin", calculated.muntin ?? null, { shouldDirty: true });
+      setValue("muntin", calculated.idDoorDesign ? null : calculated.muntin ?? null, { shouldDirty: true });
       setValue("panelCount", calculated.panelCount ?? null, {
         shouldDirty: true,
         shouldValidate: false,
@@ -2443,6 +2481,8 @@ export function PieceForm({
       setValue("idDesignColor", calculated.idDesignColor ?? null);
       setValue("frameColorBeforeDesignId", calculated.frameColorBeforeDesignId ?? null);
       setValue("designSnapshot", calculated.designSnapshot ?? null);
+      setValue("idDoorDesign", calculated.idDoorDesign ?? null);
+      setValue("doorDesignSnapshot", calculated.doorDesignSnapshot ?? null);
       setDesignEnabled(Boolean(calculated.idDesign || calculated.idDesignColor));
 
       if (props.canUseCustomerPricing) {
@@ -2562,7 +2602,7 @@ export function PieceForm({
     <form
       className="relative flex min-h-0 flex-1 flex-col"
       onSubmit={handleSubmit((values) => {
-        if (designSelectionError) { toast.error(designSelectionError); return; }
+        if (designSelectionError || doorDesignError) { toast.error(designSelectionError || doorDesignError); return; }
         return onSubmit(withoutInactiveDimensions(values, dimensionRequirements));
       })}
     >
@@ -3932,6 +3972,10 @@ export function PieceForm({
                       )}
                     </div>}
 
+                    <FrenchDoorDesignFields options={doorDesignOptions} selectedId={pieceValues.idDoorDesign}
+                      selected={currentDoorDesign} locked={isLocked} frameColorHex={selectedFrameColorHex}
+                      glassTintHex={selectedTintHex} onChange={changeDoorDesign} />
+
                     <GarageDesignFields index={index} allowed={garageDesignAllowed} enabled={designEnabled}
                       locked={isLocked} retained={retainedGarageDesign} idDesign={pieceValues.idDesign}
                       idDesignColor={pieceValues.idDesignColor} options={garageDesignOptions}
@@ -4124,6 +4168,11 @@ export function PieceForm({
                         )}
                       </div>
                     )}
+                    {hasDoorDesign && selectedProduct?.allowMuntin !== false && <div className="max-w-sm">
+                      <label className={fieldLabelClass} htmlFor={`door-design-full-view-${index}`}>Muntin</label>
+                      <Input id={`door-design-full-view-${index}`} value="Full View" readOnly disabled />
+                      <p className="mt-1 text-xs text-muted-foreground">Door designs use Full View. Remove the design to choose a muntin.</p>
+                    </div>}
                     {muntinAllowed && (
                       <div className="pb-4 text-sm">
                         {!selectedConfig ? (
@@ -4457,6 +4506,7 @@ export function PieceForm({
                 dimensionMode={dimensionMode}
                 piece={pieceValues}
                 garageDesign={designEnabled ? selectedGarageDesign : null}
+                frenchDoorDesignKey={currentDoorDesign?.artworkKey ?? null}
                 garageMaxSectionHeightIn={selectedSystem?.garageMaxSectionHeightIn == null ? undefined : Number(selectedSystem.garageMaxSectionHeightIn)}
                 muntin={muntinAllowed ? resolveFormMuntinForDiagram(pieceValues.muntin, props.muntinPatterns, props.muntinTypes) : null}
                 frameColorHex={selectedFrameColorHex}

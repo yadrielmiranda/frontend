@@ -16,6 +16,7 @@ import {
 } from "./piece-diagram/renderers/casement/casement-window-diagram";
 import { PieceDiagram as Series600DoorDiagram } from "./piece-diagram/renderers/french-door/series-600-door-diagram";
 import { resolveSharedFrenchDoor } from "./piece-diagram/renderers/french-door/series-600-door-resolver";
+import { frenchDoorArtwork } from "./piece-diagram/renderers/french-door/french-door-design-artwork";
 import {
   FixedWindowShapeDiagram,
   type FixedWindowMultiHeightShape,
@@ -35,13 +36,17 @@ import type { ResolvedMuntin } from "./piece-diagram/muntin-data";
 export type { PieceDiagramData, PieceDiagramVariant };
 
 export interface PieceDiagramProps {
+  frenchDoorDesignKey?: string | null;
   diagramFamily?: DiagramFamily;
   systemName?: string | null;
   brandName?: string | null;
   configuration?: string;
   diagramSpec?: DiagramSpec | null;
   dimensionMode?: DimensionMode;
-  piece?: PieceDiagramData & { designSnapshot?: { design?: { name?: string; template?: unknown }; color?: { hexCode?: string | null } } | null };
+  piece?: PieceDiagramData & {
+    designSnapshot?: { design?: { name?: string; template?: unknown }; color?: { hexCode?: string | null } } | null;
+    doorDesignSnapshot?: { artworkKey?: string | null } | null;
+  };
   garageDesign?: { design: { name: string; imageUrl?: string | null; template?: unknown }; color: { hexCode?: string | null } } | null;
   garageMaxSectionHeightIn?: number | string | null;
   frameColorHex?: string | null;
@@ -274,6 +279,7 @@ export function PieceDiagram({
   dimensionMode = "STANDARD",
   piece,
   garageDesign,
+  frenchDoorDesignKey,
   garageMaxSectionHeightIn,
   frameColorHex,
   glassTintHex,
@@ -410,10 +416,12 @@ export function PieceDiagram({
     );
   }
 
+  const selectedFrenchArtwork = frenchDoorDesignKey === undefined ? piece?.doorDesignSnapshot?.artworkKey : frenchDoorDesignKey;
   const resolvedSharedFrenchDoor =
     diagramFamily === "FRENCH_DOOR"
       ? resolveSharedFrenchDoor({
           systemName,
+          hasCatalogArtwork: !!frenchDoorArtwork(selectedFrenchArtwork),
           configuration,
           dimensionMode,
           piece: normalizedPiece,
@@ -425,6 +433,9 @@ export function PieceDiagram({
   if (resolvedSharedFrenchDoor) {
     const sharedDoorProps = {
       diagramFamily: "FRENCH_DOOR" as const,
+      frenchDoorDesignKey: selectedFrenchArtwork,
+      showHardware: !resolvedSharedFrenchDoor.hideHardware,
+      showMovement: !resolvedSharedFrenchDoor.hideHardware,
       dimensionMode,
       frameColorHex,
       glassTintHex,

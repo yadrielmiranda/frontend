@@ -40,11 +40,12 @@ type ArtworkProps = {
   geometry: ReturnType<typeof doubleFrenchDoorGeometry>;
   idNamespace: string;
   frameColor: string;
+  showHardware?: boolean;
   activeLeaf: Side;
   boreCount: 2 | 3;
 };
 
-export function Series600DoubleArtwork({ width, height, geometry, idNamespace, frameColor, activeLeaf, boreCount }: ArtworkProps) {
+export function Series600DoubleArtwork({ width, height, geometry, idNamespace, frameColor, activeLeaf, boreCount, showHardware = true }: ArtworkProps) {
   const { leftGlass, rightGlass, profileScale: p, openingLeft, openingRight, meetingX: mid, leafWidth } = geometry;
   const prefix = `${idNamespace}-double`;
   const paint = (surface: string) => `url(#${prefix}-${surface})`;
@@ -112,12 +113,12 @@ export function Series600DoubleArtwork({ width, height, geometry, idNamespace, f
     <path d={`M${mid-astragalWidth/2+0.07*p} ${head}V${sill}`}
       fill="none" stroke="white" strokeOpacity=".6" strokeWidth={0.09*p} />
 
-    {bores.map(({ role, x, y }) => <g key={role}>
+    {showHardware && bores.map(({ role, x, y }) => <g key={role}>
       <circle cx={x} cy={y+0.04*p} r={0.98*p} fill={frameColor} stroke="white" strokeOpacity=".62" strokeWidth={0.07*p} />
       <circle cx={x} cy={y} r={0.89*p} fill={paint("bore")} stroke="#484342" strokeWidth={0.035*p}
         data-part="lock-bore" data-bore-role={role} />
     </g>)}
-    {[openingLeft, openingRight].map(x => <g key={x}>
+    {showHardware && [openingLeft, openingRight].map(x => <g key={x}>
       {hingeCenters.map(y => <g key={y} transform={`translate(${x} ${y}) scale(${p})`} data-part="barrel-hinge">
         <rect x="-.30" y="-2.53" width=".76" height="5.34" rx=".11" fill="#211D20" opacity=".25" />
         <rect x="-.31" y="-2.63" width=".62" height="5.26" rx=".11" fill={frameColor} />

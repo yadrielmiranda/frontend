@@ -35,6 +35,7 @@ import { Series600DoubleArtwork, doubleFrenchDoorGeometry } from "./series-600-d
 import { Series600SideliteArtwork, frenchDoorSideliteGeometry } from "./series-600-sidelite-artwork";
 import { FRAME_OVERLAP_INCHES, type JoinedJambs } from "./series-600-frame-joint";
 import { doorFinish } from "../door-finish";
+import { FrenchDoorDesignArtwork, frenchDoorArtwork } from "./french-door-design-artwork";
 
 type DiagramValue = string | number | null | undefined;
 type Rect = GlassOverlayRect;
@@ -79,6 +80,8 @@ export type PieceDiagramSeries600MixedPiece =
     });
 
 interface SharedMaterialProps {
+  frenchDoorDesignKey?: string | null;
+  showHardware?: boolean;
   frameColorHex?: string | null;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -88,6 +91,7 @@ interface SharedMaterialProps {
 
 export interface PieceDiagramSeries600MixedAssemblyProps
   extends SharedMaterialProps {
+  showMovement?: boolean;
   configuration: PieceDiagramSeries600MixedConfiguration;
   pieces: readonly PieceDiagramSeries600MixedPiece[];
   dimensionMode?: DimensionMode;
@@ -118,6 +122,7 @@ export interface PieceDiagramData {
 }
 
 export interface PieceDiagramProps extends SharedMaterialProps {
+  showMovement?: boolean;
   diagramFamily?: DiagramFamily;
   configuration?: string;
   dimensionMode?: DimensionMode;
@@ -240,6 +245,8 @@ function XStructure({
   height,
   hingeSide,
   joined,
+  showHardware = true,
+  frenchDoorDesignKey,
   frameColor,
   glassTintHex,
   hasCoating,
@@ -262,7 +269,7 @@ function XStructure({
     <g
       data-configuration="X"
       data-view="EXTERIOR"
-      data-hinge-side={hingeSide}
+      data-hinge-side={showHardware ? hingeSide : undefined}
       data-glass-source="DATABASE_APPEARANCE_LAYER"
     >
       <defs>
@@ -276,6 +283,7 @@ function XStructure({
           height={height}
           geometry={geometry}
           idNamespace={clipId}
+          showHardware={showHardware}
           frameColor={frameColor}
         />
         <GlassAppearanceLayer
@@ -285,8 +293,10 @@ function XStructure({
           hasPrivacy={hasPrivacy}
         />
       </g>
+      <FrenchDoorDesignArtwork artworkKey={frenchDoorDesignKey} panes={[indicatorGlass]} frameColor={frameColor}
+        finishId={`${clipId}-single-finish`} idNamespace={clipId} />
       <MuntinLayer
-        muntin={muntin}
+        muntin={frenchDoorArtwork(frenchDoorDesignKey)?.leafCount === 1 ? null : muntin}
         glassPanels={frenchDoorMuntinPanels([{ kind: "X", glass: indicatorGlass }])}
         frameColorHex={frameColor}
         unitsPerInch={1}
@@ -369,6 +379,8 @@ function XXStructure({
   height,
   structureId,
   joined,
+  showHardware = true,
+  frenchDoorDesignKey,
   frameColor,
   glassTintHex,
   hasCoating,
@@ -387,9 +399,9 @@ function XXStructure({
     <g
       data-configuration="XX"
       data-view="EXTERIOR"
-      data-active-leaf={structure.activeLeaf}
-      data-bore-count={structure.boreCount}
-      data-structure-id={structureId}
+      data-active-leaf={showHardware ? structure.activeLeaf : undefined}
+      data-bore-count={showHardware ? structure.boreCount : undefined}
+      data-structure-id={showHardware ? structureId : undefined}
       data-glass-source="DATABASE_APPEARANCE_LAYER"
     >
       <Series600DoubleArtwork
@@ -398,6 +410,7 @@ function XXStructure({
         geometry={geometry}
         activeLeaf={structure.activeLeaf}
         boreCount={structure.boreCount}
+        showHardware={showHardware}
         idNamespace={safeId(movementIndicatorId ?? "xx")}
         frameColor={frameColor}
       />
@@ -407,8 +420,10 @@ function XXStructure({
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
       />
+      <FrenchDoorDesignArtwork artworkKey={frenchDoorDesignKey} panes={[leftGlass, rightGlass]} frameColor={frameColor}
+        finishId={`${safeId(movementIndicatorId ?? "xx")}-double-finish`} idNamespace={safeId(movementIndicatorId ?? "xx")} />
       <MuntinLayer
-        muntin={muntin}
+        muntin={frenchDoorArtwork(frenchDoorDesignKey)?.leafCount === 2 ? null : muntin}
         glassPanels={frenchDoorMuntinPanels([
           { kind: "X", glass: leftGlass },
           { kind: "X", glass: rightGlass },
@@ -762,6 +777,7 @@ function containerClass(variant: PieceDiagramVariant, className?: string) {
 
 export function Series600MixedAssemblyDiagram({
   configuration,
+  showHardware,
   pieces,
   dimensionMode = "STANDARD",
   frameColorHex,
@@ -769,6 +785,8 @@ export function Series600MixedAssemblyDiagram({
   hasCoating = false,
   hasPrivacy = false,
   muntin,
+  frenchDoorDesignKey,
+  showMovement = true,
   movementIndicatorColor = DEFAULT_MOVEMENT_INDICATOR_COLOR,
   showDimensions = true,
   idNamespace,
@@ -782,6 +800,7 @@ export function Series600MixedAssemblyDiagram({
   const finish = doorFinish(frameColor);
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
   const movementPanels = mixedMovementPanels(layout);
+  const leafCount = layout.pieces.some(piece => piece.kind === "XX") ? 2 : 1;
   // Keep the dimension lines in the viewBox; the fixed pixel padding below
   // reserves label space without shrinking the product a second time.
   const top = showDimensions ? layout.height * 0.07 : 0;
@@ -842,6 +861,8 @@ export function Series600MixedAssemblyDiagram({
             hasCoating,
             hasPrivacy,
             joined: piece.joined,
+            showHardware,
+            frenchDoorDesignKey,
             movementIndicatorId: pieceId,
           } as const;
           let structure: React.ReactNode;
@@ -880,17 +901,17 @@ export function Series600MixedAssemblyDiagram({
           );
         })}
         <MuntinLayer
-          muntin={muntin}
+          muntin={frenchDoorArtwork(frenchDoorDesignKey)?.leafCount === leafCount ? null : muntin}
           glassPanels={frenchDoorMuntinPanels(movementPanels)}
           frameColorHex={frameColor}
           unitsPerInch={1}
           idNamespace={`${namespace}-glass`}
         />
-        <Serie600MovementIndicators
+        {showMovement && <Serie600MovementIndicators
           panels={movementPanels}
           movementIndicatorColor={movementColor}
           idNamespace={`${namespace}-movement`}
-        />
+        />}
         {showDimensions ? <MixedDimensions layout={layout} variant={variant} /> : null}
       </svg>
     </div>
@@ -899,6 +920,7 @@ export function Series600MixedAssemblyDiagram({
 
 export function PieceDiagram({
   diagramFamily = "FRENCH_DOOR",
+  showHardware,
   configuration,
   dimensionMode = "STANDARD",
   piece,
@@ -907,6 +929,8 @@ export function PieceDiagram({
   hasCoating = false,
   hasPrivacy = false,
   muntin,
+  frenchDoorDesignKey,
+  showMovement = true,
   movementIndicatorColor = DEFAULT_MOVEMENT_INDICATOR_COLOR,
   visualTemplate,
   exteriorHingeSide = "right",
@@ -929,12 +953,15 @@ export function PieceDiagram({
       <Series600MixedAssemblyDiagram
         configuration={configuration as PieceDiagramSeries600MixedConfiguration}
         pieces={series600MixedPieces}
+        showHardware={showHardware}
         dimensionMode={dimensionMode}
         frameColorHex={frameColorHex}
         glassTintHex={glassTintHex}
         hasCoating={hasCoating}
         hasPrivacy={hasPrivacy}
         muntin={muntin}
+        frenchDoorDesignKey={frenchDoorDesignKey}
+        showMovement={showMovement}
         movementIndicatorColor={movementIndicatorColor}
         showDimensions={showDimensions}
         idNamespace={idNamespace}
@@ -962,12 +989,14 @@ export function PieceDiagram({
   const materialProps = {
     width,
     height,
+    showHardware,
     frameColor,
     glassTintHex,
     hasCoating,
     hasPrivacy,
     muntin,
-    movementIndicatorColor: movementColor,
+    frenchDoorDesignKey,
+    movementIndicatorColor: showMovement ? movementColor : undefined,
   } as const;
 
   let product: React.ReactNode;

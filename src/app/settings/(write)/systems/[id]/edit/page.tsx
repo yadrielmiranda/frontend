@@ -43,7 +43,7 @@ export default async function EditSystemPage({
         <CardHeader>
           <CardTitle>Edit System</CardTitle>
           <CardDescription>
-            Update the system details and High Bottom availability.
+            Update the system details and available options.
           </CardDescription>
         </CardHeader>
 

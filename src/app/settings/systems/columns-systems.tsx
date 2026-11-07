@@ -37,6 +37,20 @@ export function getSystemColumns({
       accessorKey: "name",
       header: "System Name",
       filterFn: "includesString",
+      cell: ({ row }) => {
+        const system = row.original;
+        const product = system.brandProduct?.product;
+        return (
+          <div>
+            {system.name}
+            {product?.kind === "GLAZED_UNIT" && product.diagramFamily === "FRENCH_DOOR" && (
+              <span className="block text-xs text-muted-foreground">
+                {system.allowDesign ? "Door designs enabled" : "Door designs off"}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "sortOrder",

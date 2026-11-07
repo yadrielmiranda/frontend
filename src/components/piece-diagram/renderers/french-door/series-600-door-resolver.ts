@@ -31,9 +31,7 @@ type MixedResolution = {
   pieces: readonly PieceDiagramSeries600MixedPiece[];
 };
 
-export type Series600DoorResolution =
-  | StandaloneResolution
-  | MixedResolution;
+export type Series600DoorResolution = (StandaloneResolution | MixedResolution) & { hideHardware?: boolean };
 
 const STANDALONE_CONFIGURATIONS = new Set<StandaloneConfiguration>([
   "X",
@@ -397,6 +395,7 @@ function mixedResolution({
 
 export function resolveSharedFrenchDoor({
   systemName,
+  hasCatalogArtwork,
   configuration,
   dimensionMode = "STANDARD",
   piece,
@@ -404,39 +403,43 @@ export function resolveSharedFrenchDoor({
   preparationOptionName,
 }: {
   systemName?: string | null;
+  hasCatalogArtwork?: boolean;
   configuration?: string | null;
   dimensionMode?: DimensionMode;
   piece?: PieceDiagramData;
   activeOptionName?: string | null;
   preparationOptionName?: string | null;
 }): Series600DoorResolution | null {
-  if (!usesSharedFrenchDoorVisuals(systemName)) return null;
+  if (!hasCatalogArtwork && !usesSharedFrenchDoorVisuals(systemName)) return null;
 
   const normalizedConfiguration = normalizeConfiguration(configuration);
+  // A newly configured series may have no handing options or use other hardware.
+  // Use the leaf geometry to display its selected artwork, without claiming a hardware layout.
+  const hideHardware = hasCatalogArtwork && normalizedConfiguration.includes("X") && (
+    !activeSide(activeOptionName) || (normalizedConfiguration.includes("XX") && !xxBoreCount(preparationOptionName))
+  );
+  const options = hideHardware ? { activeOptionName: "Left Active", preparationOptionName: null } : { activeOptionName, preparationOptionName };
+  let result: StandaloneResolution | MixedResolution | null = null;
 
   if (
     STANDALONE_CONFIGURATIONS.has(
       normalizedConfiguration as StandaloneConfiguration,
     )
   ) {
-    return standaloneResolution({
+    result = standaloneResolution({
       configuration: normalizedConfiguration as StandaloneConfiguration,
       piece,
-      activeOptionName,
-      preparationOptionName,
+      ...options,
     });
-  }
-
-  if (mixedDoorPattern(normalizedConfiguration)) {
-    return mixedResolution({
+  } else if (mixedDoorPattern(normalizedConfiguration)) {
+    result = mixedResolution({
       configuration:
         normalizedConfiguration as PieceDiagramSeries600MixedConfiguration,
       dimensionMode,
       piece,
-      activeOptionName,
-      preparationOptionName,
+      ...options,
     });
   }
 
-  return null;
+  return result && hideHardware ? { ...result, hideHardware: true } : result;
 }

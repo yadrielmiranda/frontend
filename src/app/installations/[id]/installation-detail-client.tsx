@@ -213,6 +213,7 @@ function pieceForPersistence(
     idDesignColor: piece.idDesignColor == null ? null : Number(piece.idDesignColor),
     frameColorBeforeDesignId: piece.frameColorBeforeDesignId == null ? null : Number(piece.frameColorBeforeDesignId),
     designSnapshot: piece.designSnapshot ?? null,
+    idDoorDesign: piece.idDoorDesign ?? null,
     width: text(piece.width),
     height: text(piece.height),
     heightLeft: text(piece.heightLeft),
@@ -1242,7 +1243,9 @@ export function InstallationDetailClient({
                         <p className="text-xs text-muted-foreground">Pending material addition. It is not part of the original estimate until approval. Use Edit Piece to review all specifications.</p>
                         {canEditRemeasurementRevision && <div className="flex flex-wrap gap-2">
                           <Button variant="outline" disabled={busy} onClick={() => setAddedPieceEditor({
-                            measurementId: measurement.id, input, key: `added-${measurement.id}-${measurement.updatedAt}`,
+                            measurementId: measurement.id,
+                            input: { ...input, doorDesignSnapshot: addition.calculatedSnapshot?.doorDesignSnapshot },
+                            key: `added-${measurement.id}-${measurement.updatedAt}`,
                           })}>Edit Piece</Button>
                           <Button disabled={busy || measurement.status === "COMPLETED"} onClick={() => void run(
                             () => updateInstallationMeasurement(job.id, measurement.id, { label: measurement.label }),

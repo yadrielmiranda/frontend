@@ -72,6 +72,7 @@ function Specifications({ input, catalogs }: { input: CreatePieceData; catalogs:
     {options.filter(([, id]) => id != null).map(([name, id, list]) => <p key={name}>{name}: {list?.find(link => link.optionId === id)?.option.name ?? `Option #${id}`}</p>)}
     {input.highBottom && <p>High bottom: Yes</p>}
     {garageDesignDescription(input, system) && <p>{garageDesignDescription(input, system)}</p>}
+    {input.doorDesignSnapshot && <p>Door Design: {input.doorDesignSnapshot.code}</p>}
     {!!input.idCryst && <p>{!hasSolidDesign && <>Glass: {catalogs.crystals.find(item => item.id === input.idCryst)?.glass ?? "—"} · </>}Screen: {input.screen ? "Yes" : "No"}</p>}
     {input.leftPanels != null || input.rightPanels != null || input.panelCount != null ? <p>Panels: {input.panelCount ?? "—"} · Left: {input.leftPanels ?? "—"} · Right: {input.rightPanels ?? "—"}</p> : null}
     {input.horizontalHeights?.length ? <p>Horizontal heights: {input.horizontalHeights.join(", ")} in</p> : null}

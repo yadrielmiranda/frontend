@@ -18,6 +18,7 @@ export type SystemData = {
   isActive?: boolean;
   isDefault?: boolean;
   allowHighBottom?: boolean;
+  allowDesign?: boolean;
 };
 
 export type UpdateSystemData = Partial<SystemData>;

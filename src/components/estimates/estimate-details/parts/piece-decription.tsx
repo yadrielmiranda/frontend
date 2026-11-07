@@ -198,6 +198,7 @@ export function buildPieceReportDetails(
   ];
   const designLine = garageDesignDescription(piece, piece.syst);
   if (designLine) detailLines.push(designLine);
+  if (piece.doorDesignSnapshot) detailLines.push(`Door Design: ${piece.doorDesignSnapshot.code}`);
 
   if (!hasSolidDesign && glassTokens.length > 0) {
     detailLines.push(`Glass: ${glassTokens.join(" + ")}`);

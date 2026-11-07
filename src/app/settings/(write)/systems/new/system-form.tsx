@@ -30,6 +30,7 @@ type FormValues = {
   isActive: boolean;
   isDefault: boolean;
   allowHighBottom: boolean;
+  allowDesign: boolean;
 };
 
 interface SystemFormProps {
@@ -63,6 +64,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       isActive: system?.isActive ?? true,
       isDefault: system?.isDefault ?? false,
       allowHighBottom: system?.allowHighBottom ?? false,
+      allowDesign: system?.allowDesign ?? false,
     },
   });
 
@@ -71,11 +73,6 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   const watchedAllowHighBottom = watch("allowHighBottom");
 
   const showLoadingState = isSubmitting || isSuccess;
-
-  const initialBrandId = useMemo(
-    () => (system?.idBrand ? String(system.idBrand) : ""),
-    [system?.idBrand],
-  );
 
   const selectedProduct = useMemo(() => {
     const productId = Number(watchedProductId);
@@ -94,11 +91,14 @@ export function SystemForm({ brands, system }: SystemFormProps) {
   ]);
 
   const isLinearMaterial = selectedProduct?.kind === "LINEAR_MATERIAL";
+  const isFrenchDoor = selectedProduct?.kind === "GLAZED_UNIT" && selectedProduct.diagramFamily === "FRENCH_DOOR";
 
   useEffect(() => {
+    let current = true;
     const fetchProductsForBrand = async () => {
       if (!watchedBrandId) {
         setAvailableProducts([]);
+        setIsProductLoading(false);
         return;
       }
 
@@ -109,26 +109,19 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           Number(watchedBrandId),
         );
 
-        const products = brandWithProducts.brandProducts.map(
-          (bp: any) => bp.product,
-        );
-
-        setAvailableProducts(products);
+        if (current) setAvailableProducts(brandWithProducts.brandProducts.map(item => item.product));
       } catch (err) {
+        if (!current) return;
         console.error("Error fetching products for brand:", err);
         setAvailableProducts([]);
       } finally {
-        setIsProductLoading(false);
+        if (current) setIsProductLoading(false);
       }
     };
 
     fetchProductsForBrand();
 
-    if (watchedBrandId && watchedBrandId !== initialBrandId) {
-      setValue("idProduct", "", { shouldDirty: true });
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { current = false; };
   }, [watchedBrandId]);
 
   useEffect(() => {
@@ -145,6 +138,7 @@ export function SystemForm({ brands, system }: SystemFormProps) {
       idProduct: Number(data.idProduct),
       isDefault: system?.isDefault === true ? true : data.isDefault,
       allowHighBottom: isLinearMaterial ? false : Boolean(data.allowHighBottom),
+      ...(isFrenchDoor ? { allowDesign: data.allowDesign } : {}),
       ...(isEdit
         ? {
             isActive:
@@ -227,7 +221,12 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           render={({ field }) => (
             <Select
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={value => {
+                if (field.value === value) return;
+                setValue("idProduct", "", { shouldDirty: true });
+                setValue("allowDesign", false, { shouldDirty: true });
+                field.onChange(value);
+              }}
               disabled={showLoadingState || system?.isDefault === true}
             >
               <SelectTrigger id="brand">
@@ -257,7 +256,10 @@ export function SystemForm({ brands, system }: SystemFormProps) {
           render={({ field }) => (
             <Select
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={value => {
+                if (field.value !== value) setValue("allowDesign", false, { shouldDirty: true });
+                field.onChange(value);
+              }}
               disabled={
                 showLoadingState ||
                 system?.isDefault === true ||
@@ -337,6 +339,25 @@ export function SystemForm({ brands, system }: SystemFormProps) {
                 <span className="block text-xs text-muted-foreground">
                   Enables the High Bottom option for all configurations in this
                   system.
+                </span>
+              </span>
+            </label>
+          )}
+        />
+      )}
+
+      {isFrenchDoor && (
+        <Controller
+          name="allowDesign"
+          control={control}
+          render={({ field }) => (
+            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+              <Checkbox id="allowDesign" checked={field.value} disabled={showLoadingState}
+                onCheckedChange={checked => field.onChange(checked === true)} />
+              <span className="space-y-0.5">
+                <span className="block font-medium">Allow Door Designs</span>
+                <span className="block text-xs text-muted-foreground">
+                  Offer priced catalog designs on single and double doors in this series.
                 </span>
               </span>
             </label>

@@ -5,15 +5,23 @@ const path = require('node:path');
 const ts = require('typescript');
 const React = require('react');
 
-function setup(product) {
+function setup(product, systemProps) {
   let values;
   let defaults;
   const requests = [];
   const states = [];
   let stateIndex = 0;
+  const effects = [];
+  let effectIndex = 0;
   function requireTest(id) {
     if (id === 'react') return {
       useMemo: fn => fn(),
+      useEffect: (callback, deps) => {
+        const index = effectIndex++;
+        if (effects[index] && deps.every((dep, i) => dep === effects[index].deps[i])) return;
+        effects[index]?.cleanup?.();
+        effects[index] = { deps, cleanup: callback() };
+      },
       useState: initial => {
         const index = stateIndex++;
         if (!(index in states)) states[index] = initial;
@@ -21,7 +29,7 @@ function setup(product) {
       },
     };
     if (id === 'react/jsx-runtime') return require(id);
-    if (id === 'react-hook-form') return { useForm: ({ defaultValues }) => {
+    if (id === 'react-hook-form') return { Controller: 'Controller', useForm: ({ defaultValues }) => {
       if (!values) { values = { ...defaultValues }; defaults = { ...defaultValues }; }
       return {
         register: name => ({ name, onChange: event => { values[name] = event.target.type === 'checkbox' ? event.target.checked : event.target.value; } }),
@@ -31,7 +39,7 @@ function setup(product) {
         formState: { errors: {}, isSubmitting: false, isDirty: JSON.stringify(values) !== JSON.stringify(defaults) },
       };
     } };
-    if (id === 'next/navigation') return { useParams: () => product ? { id: String(product.id) } : {}, useRouter: () => ({ push() {}, back() {}, refresh() {} }) };
+    if (id === 'next/navigation') return { useParams: () => (product || systemProps?.system) ? { id: String((product || systemProps.system).id) } : {}, useRouter: () => ({ push() {}, back() {}, refresh() {} }) };
     if (id === 'next/link') return { __esModule: true, default: 'Link' };
     if (id === 'lucide-react') return new Proxy({}, { get: () => () => null });
     if (id === 'sonner') return { toast: { success() {}, error(message) { throw new Error(message); } } };
@@ -39,7 +47,11 @@ function setup(product) {
       createProduct: async body => { requests.push({ method: 'POST', body }); },
       updateProduct: async (id, body) => { requests.push({ method: 'PATCH', id, body }); },
     };
-    if (id === '@/app/api/systems.api') return { deleteSystem() { throw new Error('Not part of this test'); } };
+    if (id === '@/app/api/systems.api') return {
+      createSystem: async body => requests.push({ method:'POST', body }),
+      updateSystem: async (id, body) => requests.push({ method:'PATCH', id, body }),
+    };
+    if (id === '@/app/api/brands.api') return { getBrandWithProducts: async () => ({ brandProducts: systemProps.products.map(product => ({ product })) }) };
     if (id === '@/components/delete-conf-dialog') return { DeleteConfirmationDialog: 'DeleteConfirmationDialog' };
     if (id.startsWith('@/components/ui/')) return new Proxy({}, { get: (_target, name) => name });
     throw new Error(`Unexpected dependency: ${id}`);
@@ -51,8 +63,13 @@ function setup(product) {
     new Function('require', 'module', 'exports', code)(requireTest, loaded, loaded.exports);
     return loaded.exports;
   }
-  const { ProductForm } = load('app/settings/(write)/products/new/product-form.tsx');
-  return { requests, load, render() { stateIndex = 0; return ProductForm({ product }); } };
+  const form = systemProps ? load('app/settings/(write)/systems/new/system-form.tsx').SystemForm : load('app/settings/(write)/products/new/product-form.tsx').ProductForm;
+  return { requests, load, render() { stateIndex = 0; effectIndex = 0; return form(systemProps ?? { product }); },
+    control(tree, name) {
+      const control = elements(tree).find(item => item.type === 'Controller' && item.props.name === name);
+      return control?.props.render({ field:{ value: values[name], onChange: value => { values[name] = value; } } });
+    },
+  };
 }
 function elements(node) {
   if (Array.isArray(node)) return node.flatMap(elements);
@@ -107,4 +124,31 @@ const base = { id: 42, name: 'Configurable door', sortOrder: 3, isActive: true, 
   }
   assert.equal(getSystemColumns({ canEdit: false }).some(column => column.id === 'actions'), false);
   console.log('PASS product muntin settings: defaults, create/edit payloads, configurable Garage Door, linear guard and system menu visibility.');
+
+  const french = { ...base, id:41, diagramFamily:'FRENCH_DOOR' };
+  const linear = { ...french, id:40, kind:'LINEAR_MATERIAL' };
+  const systemProps = { brands:[{id:1, name:'Test brand'}], products:[french, base, linear] };
+  app = setup(null, systemProps);
+  assert.equal(app.control(app.render(), 'allowDesign'), undefined);
+  app.control(app.render(), 'idBrand').props.onValueChange('1'); app.render(); await Promise.resolve();
+  app.control(app.render(), 'idProduct').props.onValueChange('41');
+  assert.equal(byId(app.control(app.render(), 'allowDesign'), 'allowDesign').props.checked, false);
+  byId(app.control(app.render(), 'allowDesign'), 'allowDesign').props.onCheckedChange(true);
+  await app.render().props.onSubmit();
+  assert.equal(app.requests[0].method, 'POST'); assert.equal(app.requests[0].body.allowDesign, true);
+
+  const frenchSystem = { id:3, name:'Example series', idBrand:1, idProduct:41, brandProduct:{product:french}, allowDesign:true };
+  app = setup(null, { ...systemProps, system:frenchSystem });
+  assert.equal(byId(app.control(app.render(), 'allowDesign'), 'allowDesign').props.checked, true);
+  byId(app.control(app.render(), 'allowDesign'), 'allowDesign').props.onCheckedChange(false);
+  await app.render().props.onSubmit();
+  assert.equal(app.requests[0].method, 'PATCH'); assert.equal(app.requests[0].body.allowDesign, false);
+  for (const product of [base, linear]) {
+    app = setup(null, { ...systemProps, system:{...frenchSystem,idProduct:product.id,brandProduct:{product}} });
+    assert.equal(app.control(app.render(), 'allowDesign'), undefined);
+    await app.render().props.onSubmit(); assert.equal(Object.hasOwn(app.requests[0].body, 'allowDesign'), false);
+    app.control(app.render(), 'idProduct').props.onValueChange('41');
+    assert.equal(byId(app.control(app.render(), 'allowDesign'), 'allowDesign').props.checked, false, 'Changing product cannot inherit an unrelated design flag');
+  }
+  console.log('PASS French series: disabled by default on create, saved switch on edit, and garage/linear systems never submit this setting.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -316,6 +316,7 @@ export function PieceFormDetailsPanel({
               <strong>High Bottom:</strong> Yes
             </p>
           )}
+          {piece.doorDesignSnapshot && <p><strong>Door Design:</strong> {piece.doorDesignSnapshot.code}</p>}
           {selectedDesign && (
             <>
               <p>
@@ -422,6 +423,7 @@ export function PieceFormDetailsPanel({
               dimensionMode={selectedSysConf?.dimensionMode}
               piece={piece}
               garageDesign={selectedDesign}
+              frenchDoorDesignKey={piece.doorDesignSnapshot?.artworkKey}
               garageMaxSectionHeightIn={system?.garageMaxSectionHeightIn == null ? undefined : Number(system.garageMaxSectionHeightIn)}
               muntin={muntinAllowed ? resolveFormMuntinForDiagram(piece.muntin, muntinPatterns, muntinTypes) : null}
               frameColorHex={frameColorHex}

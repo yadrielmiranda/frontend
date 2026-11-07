@@ -62,13 +62,16 @@ function compile(code) {
 const handlerCode = compile([
   declaration("withoutInactiveDimensions", source.statements),
   declaration("MIN_HORIZONTAL_HEIGHT_IN", source.statements),
-  declaration("muntinAllowed"),
+  declaration("hasDoorDesign"), declaration("muntinAllowed"),
+  declaration("doorDesignOptions"), declaration("currentDoorDesign"), declaration("doorDesignError"),
+  declaration("previousDoorContext"),
+  ...statements.filter(node => ts.isExpressionStatement(node) && containsIdentifier(node, "previousDoorContext")).map(node => node.getText(source)),
   ...guardStatements.map(node => node.getText(source)),
   ...statements.filter(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
     && node.expression.expression.getText(source) === 'useLayoutEffect' && node.getText(source).includes('garageFrameSelection.idFrameColor')).map(node => node.getText(source)),
   declaration("handleCalculate"), declaration("handleUnlock"),
-  declaration("changeGarageDesign"),
-  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign };",
+  declaration("changeGarageDesign"), declaration("changeDoorDesign"),
+  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign, changeDoorDesign, doorDesignError, currentDoorDesign, doorDesignOptions };",
 ].join("\n"));
 const forbiddenNetwork = () => { throw new Error("Network access is forbidden in calculation tests"); };
 globalThis.fetch = forbiddenNetwork;
@@ -95,6 +98,7 @@ const formatters = loadPureModule("../src/lib/formatters.ts");
 const energy = loadPureModule("../src/lib/energy-ratings.ts");
 const garageDesign = loadPureModule("../src/components/estimates/piece-garage-design.ts");
 const frameRestore = loadPureModule("../src/components/estimates/piece-frame-restore.ts");
+const doorDesign = loadPureModule("../src/lib/door-designs.ts");
 let energyInput;
 function findEnergyInput(node) {
   if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "Input"
@@ -132,7 +136,7 @@ const initial = {
   netProfitD: 0, customerPrice: 0, customerSubtotal: 0, total: 0,
   dpPosPsf: null, dpNegPsf: null,
   energyRatingId: null, energySnapshot: null,
-  idDesign: null, idDesignColor: null, designSnapshot: null, frameColorBeforeDesignId: null,
+  idDesign: null, idDesignColor: null, designSnapshot: null, frameColorBeforeDesignId: null, idDoorDesign: null, doorDesignSnapshot: null,
 };
 const energyResponse = (overrides = {}) => ({ schemaVersion: 1, status: "AVAILABLE", ratingId: 11,
   uFactor: "1.053", shgc: "0.608", vlt: "0.709", capturedAt: "2026-10-18T22:00:00.000Z",
@@ -167,12 +171,12 @@ function fixture(options = {}) {
     estimateFrameColorId: options.estimateFrameColorId,
     onCalculate: options.revision ? calculateMock("revision") : undefined };
   const scope = {
-    ...dimensions, ...formatters, ...frameRestore, props, initialData: { id: initial.id },
+    ...dimensions, ...formatters, ...frameRestore, ...doorDesign, props, initialData: { ...initial, ...options.values },
     selectedSystem: options.designSystem ?? { systemFrameColors: [{ idFrameColor: 5, isDefault: true }] },
     availableFrameColors: options.frameColors ?? [{ id: 5, color: "Original" }, { id: 37, color: "Walnut" }],
     selectedConfigUnavailable: false, selectedCrystalUnavailable: false,
     selectedConfig: { id: 4 }, isLinearMaterial: Boolean(options.linear),
-    selectedProduct: { allowMuntin: options.allowMuntin },
+    selectedProduct: { allowMuntin: options.allowMuntin, diagramFamily: options.diagramFamily },
     reinforcementRequired: false, dimensionRequirements: requirements,
     widthLabel: "Width", heightLabel: "Height", fixedPanelCount: undefined,
     requiresManualPanelCount: false, highBottomAllowed: true,
@@ -217,7 +221,10 @@ function fixture(options = {}) {
     const garageFrameSelection = garageDesign.garageDesignFrameSelection({ enabled: state.designEnabled,
       piece: form.getValues(), system: options.designSystem, frameColors: options.frameColors ?? [{ id: 5 }, { id: 37 }] });
     state.designSelectionError ??= garageFrameSelection.error;
-    handlers = evaluate(handlerCode, { ...scope, ...state, garageFrameSelection, pieceValues: form.getValues(),
+    const pieceValues = form.getValues();
+    handlers = evaluate(handlerCode, { ...scope, ...state, garageFrameSelection, pieceValues,
+      idProd: pieceValues.idProd, brandId: pieceValues.idBrand, systemId: pieceValues.idSyst, idConf: pieceValues.idConf,
+      selectedSysConf: options.configs?.[pieceValues.idConf],
       hasSolidGarageDesign: state.designEnabled && garageDesign.pieceHasSolidGarageDesign(form.getValues(), options.designSystem),
     });
   };
@@ -226,6 +233,10 @@ function fixture(options = {}) {
     form, state, requests, prechecks, validations, validatedFields, writes, errors, successes, notices, submissions, props,
     calculate() { return handlers.calculate(); }, render,
     changeDesign(enabled, idDesign, idDesignColor, resetContext = false) { handlers.changeDesign(enabled, idDesign, idDesignColor, resetContext); render(); },
+    changeDoorDesign(id) { handlers.changeDoorDesign(id); render(); },
+    unlock() { handlers.unlock(); render(); },
+    previewArtwork() { return handlers.currentDoorDesign?.artworkKey ?? null; },
+    offeredDesigns() { return handlers.doorDesignOptions; },
     async start() { const done = handlers.calculate(); await flush(); return { done }; },
     async change(name, value) { await field(name).onChange({ target: { name, value }, type: "change" }); },
     async blur(name) { await field(name).onBlur({ target: { name, value: form.getValues(name) }, type: "blur" }); },
@@ -244,7 +255,7 @@ function fixture(options = {}) {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
       const callback = evaluate(compile(declaration("withoutInactiveDimensions", source.statements) + `\nreturn (${submitCallback});`),
         { handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
-          designSelectionError: state.designSelectionError, toast: scope.toast });
+          designSelectionError: state.designSelectionError, doorDesignError: handlers.doorDesignError, toast: scope.toast });
       await callback();
     },
     unmount() {
@@ -269,6 +280,38 @@ function assertNotApplied(f) {
 
 for (const revision of [false, true]) {
   const route = revision ? "material revision" : "estimate";
+  for (const [artworkKey, kind] of [["SD01", "SINGLE"], ["DD01", "DOUBLE"]]) {
+    test(`${route}: ${artworkKey} replaces a muntin, calculates, saves its snapshot and can be removed`, async () => {
+      const design = { id: 52, code: "CUSTOM-01", artworkKey, kind };
+      const snap = { ...design, version: 1, systemId: 3, configId: 4 };
+      const muntin = { idPattern: 8, idType: 9, panels: [] };
+      const f = fixture({ revision, diagramFamily: "FRENCH_DOOR", designSystem: { allowDesign: true, doorDesigns: [design] },
+        configs: { 4: { doorDesignKind: kind } }, values: { muntin } });
+      assert.equal(f.previewArtwork(), null);
+      assert.deepEqual(f.offeredDesigns(), [design]);
+      const old = await f.start();
+      f.changeDoorDesign(design.id);
+      assert.equal(f.previewArtwork(), artworkKey);
+      assert.equal(f.form.getValues("muntin"), null);
+      await f.resolve(0); await old.done;
+      assertNotApplied(f);
+      const current = await f.start();
+      assert.equal(f.requests[1].dto.idDoorDesign, design.id);
+      assert.equal(f.requests[1].dto.muntin, null);
+      await f.resolve(1, { ...response(120), idDoorDesign: design.id, doorDesignSnapshot: snap }); await current.done;
+      f.render(); await f.submit();
+      assert.equal(f.submissions[0].idDoorDesign, design.id);
+      assert.deepEqual(f.submissions[0].doorDesignSnapshot, snap);
+      assert.equal(f.submissions[0].muntin, null);
+      f.unlock(); f.changeDoorDesign(null);
+      assert.equal(f.previewArtwork(), null);
+      const removed = await f.start();
+      assert.equal(f.requests[2].dto.idDoorDesign, null);
+      await f.resolve(2); await removed.done; f.render(); await f.submit();
+      assert.equal(f.submissions[1].doorDesignSnapshot, null);
+      f.unmount();
+    });
+  }
   for (const allowMuntin of [false, true]) {
     test(`${route}: a product with muntin ${allowMuntin ? "enabled" : "disabled"} sends and saves the permitted selection`, async () => {
       const muntin = { idPattern: 1, idType: 2, panels: [{ panelIndex: 1, horizontalLites: 2, verticalLites: 3 }] };
@@ -326,6 +369,35 @@ for (const revision of [false, true]) {
     assert.equal(f.disabled(), false); assert.equal(f.successes.length, 1); f.unmount();
   });
 }
+
+test("enabled French door series offer designs by leaf count and preserve withdrawn artwork on saved pieces", async () => {
+  const snapshot = { version: 1, id: 56, code: "ORIGINAL", kind: "SINGLE", artworkKey: "SD01", systemId: 3, configId: 4 };
+  const double = { id: 57, kind: "DOUBLE", artworkKey: "DD01", code: "NEW" };
+  const designSystem = { allowDesign: true, doorDesigns: [double] };
+  const configs = { 4: { doorDesignKind: "SINGLE" }, 5: { doorDesignKind: "DOUBLE" }, 6: { doorDesignKind: null } };
+  const f = fixture({ diagramFamily: "FRENCH_DOOR", designSystem, configs, values: { idDoorDesign: 56, doorDesignSnapshot: snapshot } });
+  assert.deepEqual(f.offeredDesigns(), []);
+  assert.equal(f.previewArtwork(), "SD01");
+  const kept = await f.start();
+  assert.equal(f.requests[0].dto.idDoorDesign, 56);
+  await f.resolve(0, { ...response(), idDoorDesign: 56, doorDesignSnapshot: snapshot }); await kept.done; f.render();
+  await f.submit(); assert.deepEqual(f.submissions[0].doorDesignSnapshot, snapshot);
+  f.unlock(); await f.change("idConf", 5); f.render(); f.render();
+  assert.equal(f.form.getValues("idDoorDesign"), null);
+  assert.equal(f.form.getValues("doorDesignSnapshot"), null);
+  assert.deepEqual(f.offeredDesigns(), [double]);
+  await f.change("idConf", 6); f.render();
+  assert.deepEqual(f.offeredDesigns(), [], "standalone sidelites have no door design");
+  f.unmount();
+  const otherProduct = fixture({ diagramFamily: "GARAGE_DOOR", designSystem, configs, values: { idConf:5 } });
+  assert.deepEqual(otherProduct.offeredDesigns(), []);
+  otherProduct.unmount();
+  const disabled = fixture({ diagramFamily: "FRENCH_DOOR", designSystem: { ...designSystem, allowDesign: false },
+    configs, values: { idConf: 5, idDoorDesign: double.id, doorDesignSnapshot: { ...double, version: 1, systemId: 3, configId: 5 } } });
+  assert.deepEqual(disabled.offeredDesigns(), []);
+  assert.equal(disabled.previewArtwork(), "DD01");
+  disabled.unmount();
+});
 
 test("changing glass options hides old values and Calculate displays the new combination", async () => {
   const f = fixture(); const first = await f.start(); await f.resolve(0); await first.done;

@@ -1,3 +1,5 @@
+import type { DoorDesignKind, DoorDesignOption, DoorDesignSnapshot } from "./door-designs";
+
 // --- Tipos de Entidades Base ---
 
 export interface Role {
@@ -118,6 +120,7 @@ export interface BrandProduct {
 
 export interface System {
   allowDesign?: boolean;
+  doorDesigns?: DoorDesignOption[];
   garageMaxSectionHeightIn?: number | string;
   defaultDesignId?: number | null;
   defaultDesignColorId?: number | null;
@@ -311,6 +314,8 @@ export interface CreatePieceMuntinData {
 export type PieceMuntin = CreatePieceMuntinData;
 
 export interface Piece {
+  idDoorDesign?: number | null;
+  doorDesignSnapshot?: DoorDesignSnapshot | null;
   idDesign?: number | null;
   idDesignColor?: number | null;
   frameColorBeforeDesignId?: number | null;
@@ -724,6 +729,7 @@ export interface EstimateRevisionItem {
   proposedPieceInput?: CreatePieceData | null;
   calculatedSnapshot?:
     | (EstimateRevisionPieceSnapshot & {
+        doorDesignSnapshot?: DoorDesignSnapshot | null;
         rate?: string | number;
         price?: string | number;
         customerPrice?: string | number;
@@ -1408,6 +1414,7 @@ export interface SysConfMuntinRule {
 }
 
 export interface SysConf {
+  doorDesignKind?: DoorDesignKind | null;
   idSystem: number;
   idConfig: number;
   allowScreen: boolean;
@@ -1586,6 +1593,8 @@ export type UpdatePrivacyData = {
 };
 
 export interface CreatePieceData {
+  idDoorDesign?: number | null;
+  doorDesignSnapshot?: DoorDesignSnapshot | null;
   idDesign?: number | null;
   idDesignColor?: number | null;
   frameColorBeforeDesignId?: number | null;

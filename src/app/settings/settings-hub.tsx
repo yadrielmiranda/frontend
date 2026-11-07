@@ -143,6 +143,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
 
   const optionItems: SettingsItem[] = [
     {
+      title: "French Door Designs",
+      description: "Edit design codes and fixed door prices.",
+      href: "/settings/french-door-designs",
+      icon: DoorOpen,
+      color: "bg-indigo-50 text-indigo-600",
+      show: isAdmin,
+    },
+    {
       title: "Garage Designs",
       description: "Manage garage door design patterns and colors.",
       href: "/settings/garage-designs",

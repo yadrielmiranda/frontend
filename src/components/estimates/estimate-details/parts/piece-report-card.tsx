@@ -55,6 +55,7 @@ function PieceReportDiagram({
           diagramSpec={piece.conf?.diagramSpec}
           dimensionMode={diagramMetadata?.dimensionMode ?? "STANDARD"}
           piece={piece}
+          frenchDoorDesignKey={piece.doorDesignSnapshot?.artworkKey}
           garageMaxSectionHeightIn={diagramMetadata?.garageMaxSectionHeightIn ?? piece.syst?.garageMaxSectionHeightIn}
           muntin={resolveMuntinForDiagram(piece.pieceMuntin)}
           frameColorHex={piece.fColor?.hexCode}

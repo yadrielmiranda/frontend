@@ -108,6 +108,15 @@ export function SettingsMenuItems({
 
       {isAdmin && (
         <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/french-door-designs">
+            <Palette className={iconClass} />
+            French Door Designs
+          </Link>
+        </DropdownMenuItem>
+      )}
+
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
           <Link href="/settings/garage-designs">
             <Palette className={iconClass} />
             Garage Designs

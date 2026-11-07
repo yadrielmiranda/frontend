@@ -27,6 +27,7 @@ export function revisionPieceInput(piece: CreatePieceData, products: ProductWith
     mark: piece.mark.trim(), idProd: Number(piece.idProd), idBrand: Number(piece.idBrand),
     idSyst: Number(piece.idSyst), idConf: Number(piece.idConf), idFC: Number(piece.idFC),
     idDesign: piece.idDesign == null ? null : Number(piece.idDesign),
+    idDoorDesign: piece.idDoorDesign ?? null,
     idDesignColor: piece.idDesignColor == null ? null : Number(piece.idDesignColor),
     frameColorBeforeDesignId: piece.frameColorBeforeDesignId == null ? null : Number(piece.frameColorBeforeDesignId),
     designSnapshot: piece.designSnapshot ?? null,

@@ -27,9 +27,10 @@ type ArtworkProps = {
   geometry: ReturnType<typeof singleFrenchDoorGeometry>;
   idNamespace: string;
   frameColor: string;
+  showHardware?: boolean;
 };
 
-export function Series600SingleArtwork({ width, height, geometry, idNamespace, frameColor }: ArtworkProps) {
+export function Series600SingleArtwork({ width, height, geometry, idNamespace, frameColor, showHardware = true }: ArtworkProps) {
   const { profileScale: p, glass, jambLeft, jambRight } = geometry;
   const finish = doorFinish(frameColor);
   const finishId = `${idNamespace}-single`;
@@ -84,13 +85,13 @@ export function Series600SingleArtwork({ width, height, geometry, idNamespace, f
     <path d={`M${glass.x} ${glassBottom}H${glassRight}V${glass.y}`}
       fill="none" stroke="white" strokeOpacity=".74" strokeWidth={0.09*p} />
 
-    {[lowerBore - 3.82*p, lowerBore].map(cy => <g key={cy}>
+    {showHardware && [lowerBore - 3.82*p, lowerBore].map(cy => <g key={cy}>
       <circle cx={boreX} cy={cy+0.04*p} r={0.955*p} fill={frameColor}
         stroke="white" strokeOpacity=".58" strokeWidth={0.07*p} />
       <circle cx={boreX} cy={cy} r={0.88*p} fill={paint("bore")}
         stroke="#484342" strokeWidth={0.035*p} data-part="lock-bore" />
     </g>)}
-    {[hingeTop, (hingeTop+hingeBottom)/2, hingeBottom].map(cy =>
+    {showHardware && [hingeTop, (hingeTop+hingeBottom)/2, hingeBottom].map(cy =>
       <g key={cy} transform={`translate(${jambRight} ${cy}) scale(${p})`} data-part="barrel-hinge">
         <rect x="-.28" y="-3.40" width=".8" height="7.14" rx=".13" fill="#211D20" opacity=".26" />
         <rect x="-.32" y="-3.54" width=".66" height="7.08" rx=".12" fill={frameColor} />
