@@ -1,5 +1,4 @@
 import type { EstimateWithRelations } from "@/lib/types";
-import { isDealerRole } from "@/lib/rbac";
 
 // Solo controla la presentación del reporte del cliente; no modifica precios.
 export function customerCanSeePromotions(estimate: EstimateWithRelations) {
@@ -7,12 +6,6 @@ export function customerCanSeePromotions(estimate: EstimateWithRelations) {
   if (typeof estimate.customerPromotionsVisible === "boolean") {
     return estimate.customerPromotionsVisible;
   }
-  if (!isDealerRole(estimate.user?.role?.name)) return true;
-
-  const isActive = estimate.status?.name === "Active" && !estimate.order;
-  const mode = isActive
-    ? estimate.user?.dealerMode ?? estimate.dealerModeSnapshot ?? "EXTERNAL"
-    : estimate.dealerModeSnapshot ?? estimate.user?.dealerMode ?? "EXTERNAL";
-
-  return mode === "INTERNAL";
+  // Saved client quotes remain client quotes after their owner becomes a dealer.
+  return estimate.dealerModeSnapshot !== "EXTERNAL";
 }

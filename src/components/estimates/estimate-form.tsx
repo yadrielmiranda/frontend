@@ -230,21 +230,17 @@ export function EstimateForm({
   const [initialRole] = useState(user?.role?.name ?? null);
   const role = user?.role?.name ?? initialRole;
 
-  const ownerRole = estimate?.user?.role?.name ?? role ?? "client";
+  const savedEstimate = promotionEstimate ?? estimate;
+  const ownerRole = savedEstimate
+    ? (savedEstimate.dealerNetwork || savedEstimate.dealerModeSnapshot != null ? "dealer" : "client")
+    : role ?? "client";
   // Los campos de reventa dependen del dueño del estimado, además del permiso del editor.
   const canUseCustomerPricing =
     isDealerRole(ownerRole) && canSetCustomerOnEstimate(role);
-  const useCurrentDealerClassification = Boolean(
-    estimate && estimate.status?.name === "Active" && !estimate.order &&
-      !(estimate.payments ?? []).some(payment =>
-        ["PENDING", "PAID", "REFUNDED"].includes(payment.status) || payment.paidAt != null),
-  );
-  const dealerMode = estimate?.dealerNetwork ? estimate.dealerModeSnapshot ?? null : useCurrentDealerClassification
-    ? (estimate?.user?.dealerMode ?? estimate?.dealerModeSnapshot ?? null)
-    : (estimate?.dealerModeSnapshot ??
-      estimate?.user?.dealerMode ??
-      user?.dealerMode ??
-      null);
+  // Reading/editing a saved quote must not adopt the owner's new account mode.
+  const dealerMode = savedEstimate
+    ? savedEstimate.dealerModeSnapshot ?? null
+    : user?.dealerMode ?? null;
   const isTaxExempt = estimate?.dealerNetwork ? false : estimate
     ? Boolean(estimate.user.isTaxExempt)
     : Boolean(user?.isTaxExempt);

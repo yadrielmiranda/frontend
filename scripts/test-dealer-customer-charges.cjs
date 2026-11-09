@@ -365,6 +365,19 @@ test('estimate editor assigns internal subdealer increases only to the owner car
   assert.equal(all(owner, node => node.type === 'DealerEarningsSummaryCard')[0].props.serviceProfit, 350);
 });
 
+test('promotion visibility keeps saved client and dealer terms after account role changes', () => {
+  const { customerCanSeePromotions } = load('lib/estimate-customer-promotions.ts');
+  const quote = { status: { name: 'Active' }, order: null, dealerModeSnapshot: null,
+    user: { role: { name: 'dealer' }, dealerMode: 'EXTERNAL' } };
+  assert.equal(customerCanSeePromotions(quote), true);
+  assert.equal(customerCanSeePromotions({ ...quote, dealerModeSnapshot: 'INTERNAL' }), true);
+  assert.equal(customerCanSeePromotions({ ...quote, dealerModeSnapshot: 'EXTERNAL',
+    user: { role: { name: 'client' }, dealerMode: null } }), false);
+  assert.equal(customerCanSeePromotions({ ...quote, dealerModeSnapshot: 'EXTERNAL',
+    user: { role: { name: 'dealer' }, dealerMode: 'INTERNAL' } }), false);
+  assert.equal(customerCanSeePromotions({ ...quote, customerPromotionsVisible: false }), false);
+});
+
 (async () => {
   for (const { name, run } of tests) { await run(); console.log(`PASS ${name}`); }
   console.log(`${tests.length}/${tests.length} customer charge tests passed`);

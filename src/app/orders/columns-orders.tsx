@@ -98,7 +98,14 @@ export function getOrderColumns({
       filterFn: "equalsString",
       header: () => <div className="text-center">Status</div>,
       cell: ({ row }) => (
-        <div className="text-center"><OrderStatusBadge name={row.original.status?.name} /></div>
+        <div className="text-center">
+          <OrderStatusBadge name={row.original.status?.name} />
+          {currentUserRole === "admin" && row.original.earningsReview && (
+            <p className="mt-1 text-xs font-medium text-amber-700" title={row.original.earningsReview.message}>
+              Earnings pending review
+            </p>
+          )}
+        </div>
       ),
     },
   ];

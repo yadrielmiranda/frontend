@@ -283,8 +283,9 @@ export const getEstimateColumns = (
             header: () => <div className="text-center">Net Profit ($)</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {formatMoney(row.original.dealerNetwork && row.original.materialProfits ? Number(row.original.materialProfits.expectedProfit) : Number(row.original.netProfit) -
-                  (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
+                {row.original.earningsReview ? <span className="text-amber-700">Pending review</span> :
+                  formatMoney(row.original.dealerNetwork && row.original.materialProfits ? Number(row.original.materialProfits.expectedProfit) : Number(row.original.netProfit) -
+                    (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
               </div>
             ),
           } satisfies ColumnDef<EstimateWithRelations>,
@@ -298,7 +299,8 @@ export const getEstimateColumns = (
             header: () => <div className="text-center">Net Profit D ($)</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {row.original.dealerNetwork && row.original.dealerEarnings ? (row.original.dealerEarnings.amount == null ? 'Pending' : formatMoney(Number(row.original.dealerEarnings.amount))) : formatMoney(row.original.dealerNetwork?.materialProfit != null ? Number(row.original.dealerNetwork.materialProfit) : Number(row.original.netProfitD) +
+                {row.original.earningsReview ? <span className="text-amber-700">Pending review</span> :
+                  row.original.dealerNetwork && row.original.dealerEarnings ? (row.original.dealerEarnings.amount == null ? 'Pending' : formatMoney(Number(row.original.dealerEarnings.amount))) : formatMoney(row.original.dealerNetwork?.materialProfit != null ? Number(row.original.dealerNetwork.materialProfit) : Number(row.original.netProfitD) +
                   Number(row.original.manualDiscountSummary?.material.netDiscount ?? 0) *
                   (row.original.manualDiscountSummary?.payer === "CUSTOMER" ? -1 : 1))}
               </div>
@@ -342,7 +344,14 @@ export const getEstimateColumns = (
       cell: ({ row }) => {
         const statusName = getEstimateStatusName(row.original);
 
-        return <div className="text-center">{getStatusBadge(statusName)}</div>;
+        return <div className="text-center">
+          {getStatusBadge(statusName)}
+          {role === "admin" && row.original.earningsReview && (
+            <p className="mt-1 text-xs font-medium text-amber-700" title={row.original.earningsReview.message}>
+              Earnings pending review
+            </p>
+          )}
+        </div>;
       },
     },
     {
@@ -366,11 +375,7 @@ export const getEstimateColumns = (
         const showOwnerActions = isOwner;
         const canDelete = isOwner || isAdminRole(currentUser?.role?.name);
         const isDealer = currentUser?.role?.name === "dealer";
-        const effectiveDealerMode = estimate.dealerNetwork ? estimate.dealerModeSnapshot : isOwner
-          ? (estimate.user?.dealerMode ??
-            currentUser?.dealerMode ??
-            estimate.dealerModeSnapshot)
-          : (estimate.dealerModeSnapshot ?? estimate.user?.dealerMode);
+        const effectiveDealerMode = estimate.dealerModeSnapshot ?? null;
         const isInternalDealer = isDealer && effectiveDealerMode === "INTERNAL";
 
         const isActive = statusLower === "active";

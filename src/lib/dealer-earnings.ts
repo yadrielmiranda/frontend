@@ -50,3 +50,9 @@ export interface ReferralCostsSummary {
   amount: string | null;
   status: "CALCULATED" | "PENDING_REAL_COST" | "PENDING_COST" | "PENDING_REVIEW" | "REVERSED";
 }
+
+export interface EarningsReview {
+  status: "PENDING_REVIEW";
+  code: "INVALID_SAVED_EARNINGS_PLAN";
+  message: string;
+}
