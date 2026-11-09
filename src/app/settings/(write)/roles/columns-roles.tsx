@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
 import { updateRole, updateRoleMarkup } from "@/app/api/roles.api";
+import { MARKUP_PERCENT_PATTERN, shiftDecimalString } from "@/lib/markup-decimal";
 import {
   Select,
   SelectContent,
@@ -20,31 +21,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+function markupPercent(value: Role["markup"]): string {
+  const percentage = shiftDecimalString(String(value), 2);
+  const [whole, fraction = ""] = percentage.split(".");
+  return `${whole}.${fraction.padEnd(2, "0")}`;
+}
+
 function EditableMarkupCell({ role }: { role: Role }) {
   const router = useRouter();
 
-  const [markup, setMarkup] = useState((role.markup * 100).toFixed(2));
+  const [markup, setMarkup] = useState(markupPercent(role.markup));
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
-    setIsLoading(true);
-
-    const markupValue = parseFloat(markup);
-
-    if (Number.isNaN(markupValue)) {
-      toast.error("Invalid markup value. Please enter a number.");
-      setIsLoading(false);
+    if (isLoading) return;
+    const percentage = markup.trim();
+    if (!MARKUP_PERCENT_PATTERN.test(percentage)) {
+      toast.error("Enter a valid markup percentage with up to 16 decimal places.");
       return;
     }
-
-    // Round to 2 decimals for UX, then convert to DB (0-1)
-    const roundedPercentage = Math.round(markupValue * 100) / 100;
-    setMarkup(roundedPercentage.toFixed(2));
-
-    const finalMarkupForDb = roundedPercentage / 100;
-
+    setIsLoading(true);
     try {
-      await updateRoleMarkup(role.id, finalMarkupForDb);
+      const updated = await updateRoleMarkup(role.id, shiftDecimalString(percentage, -2));
+      setMarkup(markupPercent(updated.markup));
       toast.success(`Markup for '${role.name}' role updated successfully.`);
       router.refresh();
     } catch (error) {
@@ -57,11 +56,13 @@ function EditableMarkupCell({ role }: { role: Role }) {
   return (
     <div className="flex items-center gap-2 max-w-[200px]">
       <Input
-        type="number"
-        step="0.01"
+        type="text"
+        inputMode="decimal"
+        disabled={isLoading}
+        aria-label={`Default markup for ${role.name}`}
         value={markup}
         onChange={(e) => setMarkup(e.target.value)}
-        className="w-24"
+        className="w-32"
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -103,7 +104,6 @@ function InstallationProfileCell({
     setSaving(true);
     try {
       await updateRole(role.id, {
-        markup: Number(role.markup),
         installationPriceProfileId: value === "DEFAULT" ? null : Number(value),
       });
       toast.success(`Installation profile for '${role.name}' updated.`);
@@ -136,7 +136,7 @@ function PaymentPlanCell({ role, plans }: { role: Role; plans: PaymentPlan[] }) 
   const router = useRouter(); const [busy, setBusy] = useState(false);
   const save = async (value: string) => {
     setBusy(true);
-    try { await updateRole(role.id, { markup: Number(role.markup), paymentPlanId: value === "DEFAULT" ? null : Number(value) }); router.refresh(); toast.success("Payment plan updated for new estimates."); }
+    try { await updateRole(role.id, { paymentPlanId: value === "DEFAULT" ? null : Number(value) }); router.refresh(); toast.success("Payment plan updated for new estimates."); }
     catch (error) { toast.error((error as Error).message); } finally { setBusy(false); }
   };
   return <Select disabled={busy} value={role.paymentPlanId ? String(role.paymentPlanId) : "DEFAULT"} onValueChange={save}>

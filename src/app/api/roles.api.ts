@@ -11,7 +11,7 @@ export function getRoles() {
 /**
  * Actualiza el markup (porcentaje de ganancia) de un rol específico.
  */
-export function updateRoleMarkup(id: number, markup: number) {
+export function updateRoleMarkup(id: number, markup: string | number) {
   return apiFetch<Role>(`/api/roles/${id}`, {
     method: 'PATCH',
     body: { markup },
@@ -20,7 +20,7 @@ export function updateRoleMarkup(id: number, markup: number) {
 
 export function updateRole(
   id: number,
-  data: { paymentPlanId?: number | null; markup: number; installationPriceProfileId?: number | null },
+  data: { paymentPlanId?: number | null; markup?: string | number; installationPriceProfileId?: number | null },
 ) {
   return apiFetch<Role>(`/api/roles/${id}`, {
     method: 'PATCH',

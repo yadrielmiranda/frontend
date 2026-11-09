@@ -5,7 +5,7 @@ import type { DoorDesignKind, DoorDesignOption, DoorDesignSnapshot } from "./doo
 export interface Role {
   id: number;
   name: string;
-  markup: number;
+  markup: string | number;
   paymentPlanId?: number | null;
   paymentPlan?: import("./payment-plan").PaymentPlan | null;
   installationPriceProfileId?: number | null;

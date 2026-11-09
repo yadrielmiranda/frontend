@@ -1,6 +1,7 @@
 "use client";
 import type { PaymentPlan } from "@/lib/payment-plan";
 import { earningsBasisLabels, type DealerEarningsPlan } from "@/lib/dealer-earnings";
+import { MARKUP_PERCENT_PATTERN, shiftDecimalString } from "@/lib/markup-decimal";
 import Link from "next/link";
 
 
@@ -54,42 +55,6 @@ type UserFormData = Omit<CreateUserDto, "password"> & {
   password?: string;
   markupOverride?: string;
 };
-
-const MARKUP_PERCENT_PATTERN = /^-?(?:\d{1,8}(?:\.\d{1,16})?|\.\d{1,16})$/;
-
-function shiftDecimalString(value: string, places: number): string {
-  const match = value.trim().match(/^(-?)(?:(\d+)(?:\.(\d+))?|\.(\d+))$/);
-
-  if (!match) {
-    throw new Error("Custom markup must be a valid decimal number.");
-  }
-
-  const isNegative = match[1] === "-";
-  const whole = match[2] ?? "0";
-  const fraction = match[3] ?? match[4] ?? "";
-
-  let digits = `${whole}${fraction}`;
-  let decimalIndex = whole.length + places;
-
-  if (decimalIndex < 0) {
-    digits = `${"0".repeat(-decimalIndex)}${digits}`;
-    decimalIndex = 0;
-  } else if (decimalIndex > digits.length) {
-    digits = `${digits}${"0".repeat(decimalIndex - digits.length)}`;
-  }
-
-  const integerPart = (
-    decimalIndex === 0 ? "0" : digits.slice(0, decimalIndex)
-  ).replace(/^0+(?=\d)/, "");
-
-  const fractionPart = digits.slice(decimalIndex).replace(/0+$/, "");
-
-  const isZero = integerPart === "0" && fractionPart.length === 0;
-
-  return `${isNegative && !isZero ? "-" : ""}${integerPart || "0"}${
-    fractionPart ? `.${fractionPart}` : ""
-  }`;
-}
 
 function storedMarkupToPercent(
   value: string | number | null | undefined,
@@ -719,7 +684,7 @@ export function UserForm({
                     roles.find((role) => role.id === Number(selectedRoleId))
                       ?.name
                   }"`}
-                  , currently {Number((Number(defaultMarkup) * 100).toFixed(4))}
+                  , currently {storedMarkupToPercent(defaultMarkup)}
                   %). If you enable and set a custom markup, that value will be
                   used instead.
                 </p>
