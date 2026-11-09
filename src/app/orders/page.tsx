@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/session";
 import { OrdersClient } from "./orders-client";
 import { canEditOrders, canViewOrderFinancials } from "@/lib/rbac";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Landmark } from "lucide-react";
 
 export default async function OrdersPage({
   searchParams,
@@ -23,13 +26,16 @@ export default async function OrdersPage({
 
   return (
     <div className="w-full px-4 md:px-8 py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-4xl font-bold">Orders</h1>
           <p className="text-sm text-muted-foreground mt-1">
             View and manage orders.
           </p>
         </div>
+        {role === "admin" && <Button asChild variant="outline">
+          <Link href="/orders/factory-payments"><Landmark aria-hidden="true" />Factory Payments</Link>
+        </Button>}
       </div>
 
       <div className="rounded-xl border bg-white shadow-sm p-4">
