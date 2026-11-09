@@ -51,7 +51,7 @@ import {
 } from "@/lib/username-policy";
 
 // El registro público queda habilitado si es true. Si es false, se oculta el formulario y se muestra un mensaje de que el registro no está disponible.
-const REGISTRATION_ENABLED = false;
+const REGISTRATION_ENABLED = true;
 
 const registerSchema = z.object({
   firstName: z.string().min(1, {
