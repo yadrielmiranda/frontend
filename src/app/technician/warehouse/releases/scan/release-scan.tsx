@@ -32,7 +32,7 @@ export function TechnicianReleaseScan({ actorId, initial, initialStoreId }: { ac
     <section className="space-y-3 rounded-xl border bg-white p-4"><p className="text-sm font-medium">Source store</p><StoreSelect stores={state.stores} value={storeId} onChange={value => { setStoreId(value); setLast(null); }} allowUnassigned disabled={busy} /><p className="text-sm text-slate-600">Each scan releases one part from this store for installation.</p></section>
     {offline && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm">No connection. Reconnect before releasing parts.</p>}
     {state.countOpen && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm">A physical count is in progress. Releases are paused until it is closed.</p>}
-    {selected && <ScanPad<TechnicianScanResult> key={`${actorId}:${storeId}`} scope={`technician:${actorId}:RELEASE:${storeId}`} persistent disabled={offline || (!busy && state.countOpen)} onPendingChange={setBusy}
+    {selected && <ScanPad<TechnicianScanResult> key={`${actorId}:${storeId}`} scope={`technician:${actorId}:RELEASE:${storeId}`} persistent prominent cameraDialog disabled={offline || (!busy && state.countOpen)} onPendingChange={setBusy}
       onRead={async (barcode, requestKey) => {
         const account = await revalidate();
         if (account?.id !== actorId || account.role?.name !== "technician" || identity.current.id !== actorId || identity.current.role !== "technician") throw new Error("Your account has changed. Sign in with the original technician account to continue.");

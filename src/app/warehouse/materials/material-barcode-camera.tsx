@@ -5,8 +5,10 @@ import { Camera, Loader2, ScanBarcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { materialCameraErrorMessage, startMaterialCamera } from "./material-barcode-camera-session";
+import { BarcodeScanGuide } from "../barcode-scan-guide";
+import { readBarcodeRegion } from "../barcode-scan-region";
 
-async function loadMaterialBarcodeReader() {
+async function loadMaterialBarcodeReader(getRegion: () => HTMLDivElement | null) {
   const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType, NotFoundException, ChecksumException, FormatException }] = await Promise.all([
     import("@zxing/browser"), import("@zxing/library"),
   ]);
@@ -19,10 +21,16 @@ async function loadMaterialBarcodeReader() {
   ]);
   hints.set(DecodeHintType.TRY_HARDER, true);
   const reader = new BrowserMultiFormatReader(hints);
+  let canvas: HTMLCanvasElement | null = null;
   return {
     read(video: HTMLVideoElement) {
+      const region = getRegion();
+      if (!region) return null;
+      canvas ??= document.createElement("canvas");
+      const cropped = readBarcodeRegion(video, region, canvas);
+      if (!cropped) return null;
       try {
-        return reader.decode(video).getText();
+        return reader.decodeFromCanvas(cropped).getText();
       } catch (error) {
         if (error instanceof NotFoundException || error instanceof ChecksumException || error instanceof FormatException) return null;
         throw error;
@@ -33,6 +41,7 @@ async function loadMaterialBarcodeReader() {
 
 function MaterialCameraPreview({ onDetected, onClose, stopCapture }: { onDetected: (code: string) => void; onClose: () => void; stopCapture: RefObject<() => void> }) {
   const video = useRef<HTMLVideoElement>(null);
+  const region = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onDetected, onClose });
   callbacks.current = { onDetected, onClose };
   const [attempt, setAttempt] = useState(0);
@@ -49,7 +58,7 @@ function MaterialCameraPreview({ onDetected, onClose, stopCapture }: { onDetecte
     if (!video.current) return;
     const stop = startMaterialCamera({
       video: video.current,
-      loadReader: loadMaterialBarcodeReader,
+      loadReader: () => loadMaterialBarcodeReader(() => region.current),
       getUserMedia: (constraints) => navigator.mediaDevices.getUserMedia(constraints),
       onReady: () => setReady(true),
       onDetected: (code) => callbacks.current.onDetected(code),
@@ -72,13 +81,11 @@ function MaterialCameraPreview({ onDetected, onClose, stopCapture }: { onDetecte
   return (
     <div className="space-y-4">
       <div className="relative overflow-hidden rounded-xl bg-slate-950">
-        <video ref={video} muted playsInline autoPlay className="aspect-[4/3] max-h-[48dvh] w-full object-contain" aria-label="Material barcode camera preview" />
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6" aria-hidden="true">
-          <div className="h-28 w-full max-w-sm rounded-lg border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.15)]" />
-        </div>
+        <video ref={video} muted playsInline autoPlay className="aspect-[4/3] max-h-[48dvh] w-full object-contain object-center" aria-label="Material barcode camera preview" />
+        <BarcodeScanGuide regionRef={region} />
         {!ready && !error && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 text-white" role="status"><Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" /><span>Opening camera…</span></div>}
       </div>
-      {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div> : <div className="flex gap-2 text-sm text-muted-foreground"><ScanBarcode className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><p>Keep the entire barcode inside the frame with good lighting. The camera closes after one reading.</p></div>}
+      {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div> : <div className="flex gap-2 text-sm text-muted-foreground"><ScanBarcode className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><p>Place one complete barcode inside the frame, along the red line. Only this area is scanned. The camera closes after one reading.</p></div>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         {error && <Button type="button" onClick={() => setAttempt((value) => value + 1)}>Try again</Button>}

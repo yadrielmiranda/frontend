@@ -293,6 +293,8 @@ export function ScanClient({
       {(action === "RECEIVE" || (action === "RELEASE" && releaseToInstallation)) && (locationValid || pending) && <ScanPad
         key={`${action}:${storeId}:${scannerRevision}`}
         scope={`${action}:${storeId}`}
+        prominent
+        cameraDialog
         disabled={Boolean(countId) || undoing}
         onRead={(barcode, key) => warehouseScan(
           barcode,

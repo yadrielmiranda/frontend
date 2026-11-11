@@ -23,6 +23,7 @@ function compile(filename, dependency, extra = '') {
 }
 const session = compile('materials/material-barcode-camera-session.ts', () => { throw Error('Unexpected dependency'); });
 const parts = compile('factory-parts.ts', () => { throw Error('Unexpected dependency'); });
+const region = compile('barcode-scan-region.ts', () => { throw Error('Unexpected dependency'); });
 const jsx = (type, props) => ({ type, props });
 const nodes = (node, match) => !node || typeof node !== 'object' ? [] : Array.isArray(node)
   ? node.flatMap(item => nodes(item, match))
@@ -80,6 +81,8 @@ function modalModule(hooks, overrides = {}) {
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (name === 'lucide-react' || name.startsWith('@/components/ui/')) return ui;
     if (name === './materials/material-barcode-camera-session') return overrides.session ?? session;
+    if (name === './barcode-scan-region') return region;
+    if (name === './barcode-scan-guide') return { BarcodeScanGuide: 'BarcodeScanGuide' };
     if (name === '@zxing/library') return zxing;
     if (name === '@zxing/browser') return overrides.browser ?? { BrowserMultiFormatReader };
     throw Error(`Unexpected dependency ${name}`);
@@ -265,20 +268,22 @@ test('Camera failure remains recoverable and retry releases the old session befo
   assert.equal(p.sessions[1].stops, 1);
 });
 
-test('Factory decoder enables CODE128 only and treats ordinary decode failures as unreadable frames', async () => {
+test('Factory decoder enables CODE128 only and treats ordinary decode failures as unreadable frames', async t => {
+  canvasDocument(t);
   const hints = [], output = [];
   class Reader {
     constructor(value) { hints.push(value); }
-    decode() { const next = output.shift(); if (next instanceof Error) throw next; return { getText: () => next }; }
+    decodeFromCanvas() { const next = output.shift(); if (next instanceof Error) throw next; return { getText: () => next }; }
   }
-  const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: Reader } }).testReader();
+  const video = rasterVideo(rasterBarcode('CODE128', '001029975-FRAME'));
+  const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: Reader } }).testReader(() => video);
   assert.deepEqual(hints[0].get(zxing.DecodeHintType.POSSIBLE_FORMATS), [zxing.BarcodeFormat.CODE_128]);
   assert.equal(hints[0].get(zxing.DecodeHintType.TRY_HARDER), true);
   for (const Failure of [zxing.NotFoundException, zxing.ChecksumException, zxing.FormatException]) {
-    output.push(new Failure()); assert.equal(reader.read({}), null);
+    output.push(new Failure()); assert.equal(reader.read(video), null);
   }
-  output.push('001029975-FRAME'); assert.equal(reader.read({}), '001029975-FRAME');
-  output.push(new Error('Broken canvas')); assert.throws(() => reader.read({}), /Broken canvas/);
+  output.push('001029975-FRAME'); assert.equal(reader.read(video), '001029975-FRAME');
+  output.push(new Error('Broken canvas')); assert.throws(() => reader.read(video), /Broken canvas/);
 });
 
 function rasterBarcode(format, code) {
@@ -288,16 +293,83 @@ function rasterBarcode(format, code) {
   const scale = 3, margin = 40, width = modules.length * scale + margin * 2, height = 120;
   const pixels = new Uint8ClampedArray(width * height).fill(255);
   for (let y = 20; y < 100; y++) for (let x = 0; x < modules.length; x++) if (modules[x] === '1') pixels.fill(0, y * width + margin + x * scale, y * width + margin + (x + 1) * scale);
-  return new zxing.BinaryBitmap(new zxing.HybridBinarizer(new zxing.RGBLuminanceSource(pixels, width, height)));
+  return { pixels, width, height };
+}
+
+// Browser canvas/media are simulated; source-pixel cropping and ZXing decoding are real.
+function canvasDocument(t) {
+  const restore = globals({ document: { createElement(tag) {
+    assert.equal(tag, 'canvas');
+    const canvas = { width: 0, height: 0, pixels: null };
+    canvas.getContext = () => ({ drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh) {
+      assert.deepEqual([dx, dy, dw, dh], [0, 0, sw, sh]);
+      assert.equal(canvas.width, sw); assert.equal(canvas.height, sh);
+      canvas.pixels = new Uint8ClampedArray(sw * sh);
+      for (let y = 0; y < sh; y++) canvas.pixels.set(source.pixels.subarray((sy + y) * source.width + sx, (sy + y) * source.width + sx + sw), y * sw);
+    } });
+    return canvas;
+  } } });
+  t.after(restore);
+}
+function rasterVideo(image, bounds = { left: 0, top: 0, width: image.width, height: image.height }) {
+  return { ...image, readyState: 2, videoWidth: image.width, videoHeight: image.height, getBoundingClientRect: () => bounds };
+}
+class RasterReader extends BrowserMultiFormatReader {
+  decodeFromCanvas(canvas) {
+    return super.decodeBitmap(new zxing.BinaryBitmap(new zxing.HybridBinarizer(new zxing.RGBLuminanceSource(canvas.pixels, canvas.width, canvas.height))));
+  }
+}
+function pasteBarcode(scene, code, x, y) {
+  const image = rasterBarcode('CODE128', code);
+  for (let row = 0; row < image.height; row++) scene.pixels.set(image.pixels.subarray(row * image.width, (row + 1) * image.width), (y + row) * scene.width + x);
+  return { left: x, top: y, width: image.width, height: image.height };
 }
 for (const code of ['001029975-DOOR', '1029975-FRAME', '1029975-SIDELITE', 'I1029975']) {
-  test(`Actual factory decoder preserves CODE128 barcode ${code}`, async () => {
-    class RasterReader extends BrowserMultiFormatReader { decode(bitmap) { return super.decodeBitmap(bitmap); } }
-    const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: RasterReader } }).testReader();
-    assert.equal(reader.read(rasterBarcode('CODE128', code)), code);
-    assert.equal(reader.read(rasterBarcode('EAN13', '5901234123457')), null);
+  test(`Actual factory decoder preserves CODE128 barcode ${code}`, async t => {
+    canvasDocument(t);
+    let video = rasterVideo(rasterBarcode('CODE128', code));
+    const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: RasterReader } }).testReader(() => video);
+    assert.equal(reader.read(video), code);
+    video = rasterVideo(rasterBarcode('EAN13', '5901234123457'));
+    assert.equal(reader.read(video), null);
   });
 }
+
+test('Factory reader ignores adjacent codes outside the guide, including after resize and letterboxing', async t => {
+  canvasDocument(t);
+  const scene = { width: 2200, height: 720, pixels: new Uint8ClampedArray(2200 * 720).fill(255) };
+  const target = pasteBarcode(scene, '001029975-DOOR', 200, 300);
+  const neighbor = pasteBarcode(scene, '1029975-FRAME', 1200, 300);
+  pasteBarcode(scene, '1029975-WINDOW', 200, 100);
+  const bounds = { left: 17, top: 29, width: 440, height: 600 };
+  const video = rasterVideo(scene, bounds);
+  let selected = target;
+  const guide = { getBoundingClientRect() {
+    const scale = Math.min(bounds.width / scene.width, bounds.height / scene.height);
+    return { left: bounds.left + (bounds.width - scene.width * scale) / 2 + selected.left * scale,
+      top: bounds.top + (bounds.height - scene.height * scale) / 2 + selected.top * scale,
+      width: selected.width * scale, height: selected.height * scale };
+  } };
+  const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: RasterReader } }).testReader(() => guide);
+  assert.equal(reader.read(video), '001029975-DOOR');
+  selected = neighbor;
+  assert.equal(reader.read(video), '1029975-FRAME');
+  selected = { left: 200, top: 520, width: 750, height: 120 };
+  assert.equal(reader.read(video), null, 'Visible codes elsewhere must not be decoded when the guide is empty');
+  Object.assign(bounds, { left: 0, top: 0, width: 900, height: 180 });
+  selected = target;
+  assert.equal(reader.read(video), '001029975-DOOR');
+});
+
+test('A missing or non-overlapping guide never falls back to a full-frame factory scan', async t => {
+  canvasDocument(t);
+  const video = rasterVideo(rasterBarcode('CODE128', '001029975-DOOR'));
+  let guide = null;
+  const reader = await modalModule({}, { browser: { BrowserMultiFormatReader: RasterReader } }).testReader(() => guide);
+  assert.equal(reader.read(video), null);
+  guide = { getBoundingClientRect: () => ({ left: -500, top: -500, width: 100, height: 100 }) };
+  assert.equal(reader.read(video), null);
+});
 
 function scanPad(t, overrides = {}, existing = {}) {
   const stored = new Map(Object.entries(existing)), temporary = new Map(), calls = [], saved = [], pendingChanges = [];

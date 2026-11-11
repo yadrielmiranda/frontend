@@ -143,6 +143,8 @@ export function CountClient({
       {open && (
         <ScanPad
           scope={`count:${data.id}`}
+          prominent
+          cameraDialog
           disabled={busy}
           onPendingChange={setPending}
           onRead={(barcode, key) => warehouseCountScan(data.id, barcode, key)}

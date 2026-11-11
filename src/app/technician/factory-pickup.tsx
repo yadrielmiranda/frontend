@@ -524,8 +524,8 @@ export function FactoryPickup({
         scope={`${surface}:${actorId}:pickup:${run.id}`}
         persistent
         mobileFocus
-        prominent={surface === "technician"}
-        cameraDialog={surface === "technician"}
+        prominent
+        cameraDialog
         disabled={offline || blocked || working}
         retryOnly={!canScan}
         onPendingChange={setScanBusy}

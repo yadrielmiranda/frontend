@@ -223,6 +223,8 @@ function TechnicianWorkspace({ user }: { user: AuthUser }) {
       {scanning && (view.operation === "COLLECT" || view.storeId) && <ScanPad<TechnicianScanResult>
         key={`${user.id}:${view.operation}:${view.storeId}`}
         scope={`technician:${user.id}:${view.operation}:${view.storeId}`}
+        prominent
+        cameraDialog
         persistent
         disabled={offline || (!busy && blocked)}
         onPendingChange={setBusy}
