@@ -23,6 +23,19 @@ export type FactoryPartTracking = {
   stores: { id: number; parts: FactoryPartCounts }[];
 };
 export type InstallationDestination = { id: number; address: string };
+export type WarehouseUnitDimensions = {
+  width: string | null;
+  height: string | null;
+  heightLeft: string | null;
+  heightRight: string | null;
+  legHeight: string | null;
+  sashHeight: string | null;
+  windowHeight: string | null;
+  doorWidth: string | null;
+  doorHeight: string | null;
+  leftSideliteWidth: string | null;
+  rightSideliteWidth: string | null;
+};
 export type WarehouseStore = WarehouseStoreRef & {
   version: number;
   onHand: number;
@@ -40,6 +53,7 @@ export type WarehouseUnit = {
   product: string;
   system: string;
   configuration: string;
+  dimensions?: WarehouseUnitDimensions | null;
   orderId: number | null;
   orderNumber: string;
   poNumber: string;

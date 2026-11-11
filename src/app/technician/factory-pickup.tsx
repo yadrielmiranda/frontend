@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, PackageCheck, Plus, Undo2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleDot, CircleX, PackageCheck, Plus, Undo2, X } from "lucide-react";
 import {
   technicianFinishPickup,
   technicianPickup,
@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { ScanPad } from "@/app/warehouse/scan-pad";
 import { errorMessage } from "@/app/warehouse/warehouse-shared";
 import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
+import { InternalUnitDimensions } from "@/app/warehouse/internal-unit-dimensions";
 import { PickupCustomerDelivery } from "./pickup-customer-delivery";
 import { pickupDeliveryContextKey } from "./pickup-customer-delivery-data";
 import { FactoryPartProgress } from "@/app/warehouse/factory-part-quantity";
@@ -72,6 +73,7 @@ function RemainingList({ lines }: { lines: FactoryPickupLine[] }) {
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">PO {line.poNumber} · Mark {line.mark || "—"}</p>
                 <p className="mt-1 font-semibold text-slate-950">{line.product}</p>
                 <p className="text-xs text-slate-500">{[line.system, line.configuration].filter(Boolean).join(" · ")}</p>
+                <InternalUnitDimensions unit={line} />
                 <p className="mt-1 font-mono text-xs text-slate-600">Line {line.lineNumber}</p>
                 <UnitOrigin unit={line} />
                 <ExternalDescription unit={line} />
@@ -95,10 +97,28 @@ function RemainingList({ lines }: { lines: FactoryPickupLine[] }) {
 }
 
 const pieceCollectionStyles = {
-  COMPLETE: { label: "Collected", card: "border-emerald-300 bg-emerald-50", badge: "bg-emerald-100 text-emerald-800" },
-  PARTIAL: { label: "Partially collected", card: "border-orange-300 bg-orange-50", badge: "bg-orange-100 text-orange-900" },
-  PENDING: { label: "Not collected", card: "border-red-300 bg-red-50", badge: "bg-red-100 text-red-800" },
+  COMPLETE: { label: "Collected", summaryLabel: "Complete", icon: CheckCircle2, card: "border-emerald-300 bg-emerald-50", badge: "bg-emerald-100 text-emerald-800", color: "text-emerald-700" },
+  PARTIAL: { label: "Partially collected", summaryLabel: "Partial", icon: CircleDot, card: "border-orange-300 bg-orange-50", badge: "bg-orange-100 text-orange-900", color: "text-orange-700" },
+  PENDING: { label: "Not collected", summaryLabel: "Not collected", icon: CircleX, card: "border-red-300 bg-red-50", badge: "bg-red-100 text-red-800", color: "text-red-700" },
 } as const;
+
+const pieceCollectionStates = ["COMPLETE", "PARTIAL", "PENDING"] as const;
+
+function PickupPieceSummary({ lines }: { lines: FactoryPickupLine[] }) {
+  const counts = { COMPLETE: 0, PARTIAL: 0, PENDING: 0 };
+  for (const line of lines) counts[line.collectionState]++;
+
+  return <span className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Piece collection summary">
+    {pieceCollectionStates.map((state) => {
+      const { icon: Icon, badge, summaryLabel } = pieceCollectionStyles[state];
+      return <span key={state} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${badge}`}>
+        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="font-semibold tabular-nums">{counts[state]}</span>
+        <span className="sr-only sm:not-sr-only">{summaryLabel}</span>
+      </span>;
+    })}
+  </span>;
+}
 
 function PickupPieceList({ lines }: { lines: FactoryPickupLine[] }) {
   return <ul className="space-y-2" aria-label="Pieces in this pickup">
@@ -111,6 +131,7 @@ function PickupPieceList({ lines }: { lines: FactoryPickupLine[] }) {
         </div>
         <p className="mt-1 break-words font-semibold text-slate-950">{line.product}</p>
         <p className="text-xs text-slate-600">{[line.system, line.configuration].filter(Boolean).join(" · ")}</p>
+        <InternalUnitDimensions unit={line} />
         <p className="mt-1 font-mono text-xs text-slate-600">Line {line.lineNumber}</p>
         <ExternalDescription unit={line} />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-800">
@@ -494,7 +515,7 @@ export function FactoryPickup({
 
       {candidate && <section className="space-y-4 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
         <div className="flex gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-semibold text-amber-950">PO {candidate.candidate.poNumber} is not included in this pickup.</h3><p className="mt-1 text-sm text-amber-900"><UnitOrigin unit={candidate.candidate} />. Add the entire PO to the pickup and record this same scan?</p></div></div>
-        <div className="rounded-xl bg-white/80 p-3 text-sm"><p className="font-semibold">Mark {candidate.candidate.mark || "—"} · {candidate.candidate.product}</p><p className="text-slate-600">{[candidate.candidate.system, candidate.candidate.configuration].filter(Boolean).join(" · ")}</p><p className="mt-1 font-mono text-xs">Line {candidate.candidate.lineNumber}</p><ExternalDescription unit={candidate.candidate} /><p className="mt-2">PO adds <b>{candidate.candidate.pieces} pieces · {candidate.candidate.parts} parts</b> remaining at the factory.</p></div>
+        <div className="rounded-xl bg-white/80 p-3 text-sm"><p className="font-semibold">Mark {candidate.candidate.mark || "—"} · {candidate.candidate.product}</p><p className="text-slate-600">{[candidate.candidate.system, candidate.candidate.configuration].filter(Boolean).join(" · ")}</p><InternalUnitDimensions unit={candidate.candidate} /><p className="mt-1 font-mono text-xs">Line {candidate.candidate.lineNumber}</p><ExternalDescription unit={candidate.candidate} /><p className="mt-2">PO adds <b>{candidate.candidate.pieces} pieces · {candidate.candidate.parts} parts</b> remaining at the factory.</p></div>
         <div className="grid grid-cols-2 gap-2"><Button variant="outline" className="min-h-12" disabled={working} onClick={() => saveCandidate(null)}>Cancel</Button><Button className="min-h-12" disabled={working || offline || blocked} onClick={() => void confirmAddPo()}>{working ? "Adding…" : "Add PO to pickup"}</Button></div>
       </section>}
 
@@ -529,6 +550,7 @@ export function FactoryPickup({
         <UnitOrigin unit={last.stock} />
         <ExternalDescription unit={last.stock} />
         <p className="text-sm text-slate-600">{[last.stock.system, last.stock.configuration].filter(Boolean).join(" · ")}</p>
+        <InternalUnitDimensions unit={last.stock} />
         <p className="mt-1 font-mono text-xs">Line {last.stock.lineNumber}</p>
         <p className="mt-2 text-sm">This line: <b>{last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.collected ?? 0} / {last.pickup.lines.find((line) => line.lineNumber === last.stock.lineNumber)?.targetParts ?? last.stock.expectedParts ?? "—"}</b> collected for this pickup.</p>
         <FactoryPartProgress tracking={last.stock.partTracking} />
@@ -540,21 +562,34 @@ export function FactoryPickup({
       <section className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-slate-950">PO progress</h3><span className="text-xs text-slate-500">Any scan order</span></div>
         <p className="text-sm text-slate-600">Tap a PO to view its pieces in this pickup.</p>
-        {run.orders.map((order) => <div key={order.key} className="rounded-xl border bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 sm:hidden" aria-label="Piece status legend">
+          {pieceCollectionStates.map((state) => {
+            const { icon: Icon, summaryLabel, color } = pieceCollectionStyles[state];
+            return <span key={state} className="inline-flex items-center gap-1"><Icon className={`h-3.5 w-3.5 ${color}`} aria-hidden="true" />{summaryLabel}</span>;
+          })}
+        </div>
+        {run.orders.map((order) => {
+          const lines = run.lines.filter((line) => line.key === order.key);
+          return <div key={order.key} className="rounded-xl border bg-slate-50 p-3">
           <details className="group/po">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
-              <ChevronDown className="h-5 w-5 shrink-0 text-slate-600 transition-transform group-open/po:rotate-180" aria-hidden="true" />
-              <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
-                <div className="min-w-0"><p className="break-words font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} /> · {order.pieces} pieces{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div>
+            <summary className="grid min-h-12 cursor-pointer list-none grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2 gap-y-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:grid-cols-[1.25rem_minmax(0,1fr)] sm:gap-x-3 [&::-webkit-details-marker]:hidden">
+              <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-600 transition-transform group-open/po:rotate-180 sm:h-5 sm:w-5" aria-hidden="true" />
+              <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
+                <div className="min-w-0"><p className="break-words font-semibold">PO {order.poNumber}</p><p className="text-xs text-slate-500"><UnitOrigin unit={order} />{order.addedDuringPickup ? " · Added during pickup" : ""}</p></div>
                 <div className="shrink-0 text-right"><p className={`font-semibold ${order.remainingParts ? "text-slate-950" : "text-emerald-700"}`}>{order.collectedParts} / {order.expectedParts}</p><p className="text-xs text-slate-500">{order.remainingParts ? `${order.remainingParts} remaining` : "Complete"}</p></div>
+              </div>
+              <div className="col-span-2 flex flex-wrap items-center gap-x-2 gap-y-1 sm:col-span-1 sm:col-start-2">
+                <span className="whitespace-nowrap text-xs text-slate-500">{order.pieces} {order.pieces === 1 ? "piece" : "pieces"}</span>
+                <PickupPieceSummary lines={lines} />
               </div>
             </summary>
             <div className="mt-3 border-t border-slate-200 pt-3">
-              <PickupPieceList lines={run.lines.filter((line) => line.key === order.key)} />
+              <PickupPieceList lines={lines} />
             </div>
           </details>
-          {run.lines.some(line => line.key === order.key && line.collected > 0 && line.inTransit > 0) && <Button className="mt-3 min-h-12 w-full" disabled={busy || offline || blocked || Boolean(candidate) || finishing || editingAssignments || accessLost} onClick={() => openCustomerDelivery(order.key)}>Deliver to customer</Button>}
-        </div>)}
+          {lines.some(line => line.collected > 0 && line.inTransit > 0) && <Button className="mt-3 min-h-12 w-full" disabled={busy || offline || blocked || Boolean(candidate) || finishing || editingAssignments || accessLost} onClick={() => openCustomerDelivery(order.key)}>Deliver to customer</Button>}
+        </div>;
+        })}
       </section>
 
       <Button variant="outline" className="min-h-12 w-full" onClick={() => setShowRemaining((value) => !value)}>

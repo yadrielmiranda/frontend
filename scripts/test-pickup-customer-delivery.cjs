@@ -93,9 +93,9 @@ const runFixture = () => ({ id: 12, cycle: 1, status: 'ACTIVE', expectedParts: 5
   poCount: 2, createdBy: { name: 'Admin' }, technicians: [], collectors: [], events: [], startedAt: '2026-10-14T10:00:00Z',
   orders: [{ key: 'external:1', poNumber: '292427', pieces: 1, collectedParts: 2, expectedParts: 3, remainingParts: 1 },
     { key: 'order:2', poNumber: '292428', pieces: 1, collectedParts: 0, expectedParts: 2, remainingParts: 2 }],
-  lines: [{ key: 'external:1', poNumber: '292427', lineNumber: '1126830', mark: 'A', product: 'French door',
+  lines: [{ key: 'external:1', source: 'EXTERNAL', poNumber: '292427', lineNumber: '1126830', mark: 'A', product: 'French door',
     targetParts: 3, expectedParts: 3, collectionState: 'PARTIAL', collected: 2, inTransit: 2, remaining: 1 },
-    { key: 'order:2', poNumber: '292428', lineNumber: '1126831', mark: 'B', product: 'Sliding door',
+    { key: 'order:2', source: 'ORDER', poNumber: '292428', lineNumber: '1126831', mark: 'B', product: 'Sliding door',
       targetParts: 2, expectedParts: 2, collectionState: 'PENDING', collected: 0, inTransit: 0, remaining: 2 }],
 });
 const contextKey = (surface, actorId, runId) => `${surface}-pickup-customer-delivery:${actorId}:${runId}`;
@@ -111,18 +111,20 @@ function harness(surface = 'warehouse', overrides = {}) {
     useMemo(callback, deps) { const i = memoIndex++; if (!same(memos[i]?.deps, deps)) memos[i] = { value: callback(), deps }; return memos[i].value; },
     useEffect(callback, deps) { const i = effectIndex++; if (!same(effects[i]?.deps, deps)) { const old = effects[i]; effects[i] = { deps }; queue.push(() => { old?.cleanup?.(); effects[i].cleanup = callback(); }); } },
   };
-  const calls = { reads: [], scans: [], finishes: 0 }, run = runFixture();
+  const calls = { reads: [], scans: [], undos: [], finishes: 0 }, run = runFixture();
   const pickup = async id => { calls.reads.push(id); return structuredClone(run); };
   const scan = async (...args) => { calls.scans.push(args); return { kind: 'COLLECTED', pickup: structuredClone(run) }; };
   const finish = async () => { calls.finishes++; throw new Error('Delivery must not finish the pickup'); };
   const Component = load('factory-pickup.tsx', {
     react: { ...React, ...hooks },
     '@/app/api/technician.api': { technicianPickup: pickup, technicianPickupScan: scan, technicianFinishPickup: finish },
-    '@/app/api/warehouse.api': { warehousePickup: pickup, warehousePickupScan: scan, warehouseFinishPickup: finish, warehousePickupTechnicians: async () => [] },
+    '@/app/api/warehouse.api': { warehousePickup: pickup, warehousePickupScan: scan, warehouseFinishPickup: finish, warehousePickupTechnicians: async () => [],
+      warehouseRequestKey: () => 'undo-key', warehouseUndo: async (...args) => { calls.undos.push(args); } },
     '@/app/warehouse/warehouse-shared': { errorMessage: error => error.message },
     '@/app/warehouse/factory-part-quantity': { FactoryPartProgress: 'FactoryPartProgress' },
     '@/app/warehouse/scan-pad': { ScanPad: 'ScanPad' },
     '@/app/warehouse/unit-origin': { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' },
+    '@/app/warehouse/internal-unit-dimensions': load('../warehouse/internal-unit-dimensions.tsx', {}),
     './pickup-customer-delivery': { PickupCustomerDelivery: 'PickupCustomerDelivery' },
     './pickup-customer-delivery-data': { pickupDeliveryContextKey: contextKey },
   }).FactoryPickup;
@@ -143,6 +145,48 @@ const scanner = h => nodes(h.render(), value => value.type === 'ScanPad')[0];
 const localComponent = (tree, name) => nodes(tree, value => typeof value.type === 'function' && value.type.name === name)[0];
 const renderLocal = element => { assert.ok(element, 'Expected local component'); return element.type(element.props); };
 const pieceLists = h => nodes(h.render(), value => typeof value.type === 'function' && value.type.name === 'PickupPieceList').map(renderLocal);
+const pieceSummaries = h => nodes(h.render(), value => value.type === 'summary')
+  .map(summary => localComponent(summary, 'PickupPieceSummary')).filter(Boolean).map(renderLocal);
+
+test('internal pickup dimensions are visible for admin and technician, including saved door and sidelite widths', async () => {
+  for (const surface of ['warehouse', 'technician']) {
+    const h = harness(surface);
+    h.run.lines[1].dimensions = { width: '120.125', height: '80.000', doorWidth: '72', leftSideliteWidth: '24.125', rightSideliteWidth: '24' };
+    await h.settle();
+    const dimensions = renderLocal(localComponent(pieceLists(h)[1], 'InternalUnitDimensions'));
+    assert.match(text(dimensions), /Size: 120.125″ W × 80″ H/);
+    assert.match(text(dimensions), /Door width: 72″/);
+    assert.match(text(dimensions), /Left sidelite width: 24.125″/);
+    assert.match(text(dimensions), /Right sidelite width: 24″/);
+    assert.doesNotMatch(text(dimensions), /Door height/);
+    button(h, 'View remaining (3)').props.onClick();
+    const remaining = renderLocal(localComponent(h.render(), 'RemainingList'));
+    const internal = nodes(remaining, value => value.type.name === 'InternalUnitDimensions' && value.props.unit.source === 'ORDER')[0];
+    assert.equal(text(renderLocal(internal)), text(dimensions));
+
+    scanner(h).props.onSaved({ kind: 'COLLECTED', pickup: structuredClone(h.run), stock: structuredClone(h.run.lines[1]) });
+    await h.settle();
+    assert.equal(text(renderLocal(localComponent(h.render(), 'InternalUnitDimensions'))), text(dimensions));
+  }
+});
+
+test('dimensions also identify an internal PO before it is added to the pickup', async () => {
+  const h = harness(); await h.settle();
+  scanner(h).props.onSaved({ kind: 'PO_NOT_INCLUDED', barcode: 'I1126831', requestKey: 'candidate-key',
+    candidate: { ...h.run.lines[1], pieces: 1, parts: 2, dimensions: { width: '90', height: '80' } } });
+  await h.settle();
+  assert.match(text(renderLocal(localComponent(h.render(), 'InternalUnitDimensions'))), /Size: 90″ W × 80″ H/);
+});
+
+test('missing measurements stay hidden and external PO descriptions remain the source for their sizes', () => {
+  const { InternalUnitDimensions } = load('../warehouse/internal-unit-dimensions.tsx', {});
+  assert.equal(InternalUnitDimensions({ unit: { source: 'EXTERNAL', dimensions: { width: '39', height: '82' } } }), null);
+  for (const dimensions of [undefined, null, {}, { width: '0', height: '-1', doorWidth: 'invalid' }]) {
+    assert.equal(InternalUnitDimensions({ unit: { source: 'ORDER', dimensions } }), null);
+  }
+  const oneDimension = InternalUnitDimensions({ unit: { source: 'ORDER', dimensions: { width: '36.375' } } });
+  assert.equal(text(oneDimension), 'Size: 36.375″ W');
+});
 
 test('PO expanders keep pieces separated by source key even when printed PO numbers match', async () => {
   const h = harness('technician');
@@ -160,6 +204,8 @@ test('PO expanders keep pieces separated by source key even when printed PO numb
     assert.ok(text(pieces).includes(h.run.lines[index].lineNumber));
     assert.ok(!text(pieces).includes(h.run.lines[1 - index].lineNumber));
   }
+  assert.deepEqual(pieceSummaries(h).map(text), ['0Complete1Partial0Not collected', '0Complete0Partial1Not collected']);
+  assert.equal(nodes(h.render(), value => value.props['aria-label'] === 'Piece status legend').length, 1);
   assert.equal(h.calls.scans.length, 0); assert.equal(h.calls.finishes, 0);
 });
 
@@ -172,6 +218,7 @@ test('piece status and part summaries use this pickup target rather than global 
   h.run.lines.forEach(line => { line.partTracking = globalTracking; });
   h.run.lines.push({ ...h.run.lines[0], lineNumber: '1126832', mark: 'C', product: 'Completed piece',
     targetParts: 1, expectedParts: 3, collected: 1, remaining: 0, collectionState: 'COMPLETE' });
+  h.run.orders[0].pieces = 2;
   await h.settle();
   const lists = pieceLists(h), cards = lists.flatMap(list => nodes(list, value => value.type === 'li'));
   assert.equal(cards.length, 3);
@@ -182,6 +229,7 @@ test('piece status and part summaries use this pickup target rather than global 
   assert.doesNotMatch(text(byLine('1126832')), /remaining/);
   assert.equal(lists.flatMap(list => nodes(list, value => value.type === 'FactoryPartProgress')).length, 0);
   assert.doesNotMatch(lists.map(text).join(''), /2 \/ 9|0 \/ 7|1 \/ 3/);
+  assert.deepEqual(pieceSummaries(h).map(text), ['1Complete1Partial0Not collected', '0Complete0Partial1Not collected']);
 });
 
 test('a scan response updates the existing PO piece from pending to partial to collected', async () => {
@@ -189,6 +237,7 @@ test('a scan response updates the existing PO piece from pending to partial to c
   const initialReads = h.calls.reads.length;
   const piece = () => text(pieceLists(h)[1]);
   assert.match(piece(), /Not collected.*0 \/ 2 parts collected/);
+  assert.equal(text(pieceSummaries(h)[1]), '0Complete0Partial1Not collected');
   for (const collected of [1, 2]) {
     const state = collected === 2 ? 'COMPLETE' : 'PARTIAL';
     Object.assign(h.run.lines[1], { collected, inTransit: collected, remaining: 2 - collected, collectionState: state });
@@ -201,10 +250,26 @@ test('a scan response updates the existing PO piece from pending to partial to c
     await h.settle();
     assert.ok(piece().includes(`${collected} / 2 parts collected`));
     assert.ok(piece().includes(collected === 2 ? 'Collected' : 'Partially collected'));
+    assert.equal(text(pieceSummaries(h)[1]), collected === 2 ? '1Complete0Partial0Not collected' : '0Complete1Partial0Not collected');
     if (collected === 2) assert.doesNotMatch(piece(), /Not collected|Partially collected|remaining/);
   }
   assert.deepEqual(h.calls.scans, [[12, 'I1126831', 'progress-1'], [12, 'I1126831', 'progress-2']]);
   assert.equal(h.calls.reads.length, initialReads); assert.equal(h.calls.finishes, 0);
+});
+
+test('undoing a collected part refreshes the collapsed piece counts from complete to partial', async () => {
+  const h = harness('warehouse'); await h.settle();
+  Object.assign(h.run.lines[0], { collected: 3, inTransit: 3, remaining: 0, collectionState: 'COMPLETE' });
+  Object.assign(h.run.orders[0], { collectedParts: 3, remainingParts: 0 });
+  scanner(h).props.onSaved({ kind: 'COLLECTED', pickup: structuredClone(h.run), stock: structuredClone(h.run.lines[0]), movement: { id: 77 } });
+  await h.settle();
+  assert.equal(text(pieceSummaries(h)[0]), '1Complete0Partial0Not collected');
+  Object.assign(h.run.lines[0], { collected: 2, inTransit: 2, remaining: 1, collectionState: 'PARTIAL' });
+  Object.assign(h.run.orders[0], { collectedParts: 2, remainingParts: 1 });
+  button(h, 'Undo last reading').props.onClick(); await h.settle();
+  assert.deepEqual(h.calls.undos, [[77, 'undo-key']]);
+  assert.equal(text(pieceSummaries(h)[0]), '0Complete1Partial0Not collected');
+  assert.equal(text(pieceSummaries(h)[1]), '0Complete0Partial1Not collected');
 });
 
 test('remaining parts keeps its separate partial and untouched groups and excludes completed pieces', async () => {
@@ -227,6 +292,7 @@ test('remaining parts keeps its separate partial and untouched groups and exclud
 
 for (const surface of ['warehouse', 'technician']) test(`${surface}: PO delivery stays inside pickup, then refreshes and resumes scanning same active run`, async () => {
   const h = harness(surface); await h.settle();
+  const countsBeforeDelivery = pieceSummaries(h).map(text);
   assert.equal(nodes(h.render(), value => value.type === 'Button' && text(value) === 'Deliver to customer').length, 1);
   button(h, 'Deliver to customer').props.onClick(); await h.settle();
   assert.equal(panel(h).props.poKey, 'external:1'); assert.equal(panel(h).props.runId, 12); assert.equal(scanner(h), undefined);
@@ -234,6 +300,7 @@ for (const surface of ['warehouse', 'technician']) test(`${surface}: PO delivery
   panel(h).props.onComplete({ id: 41 }); await h.settle();
   assert.equal(panel(h), undefined); assert.ok(scanner(h)); assert.equal(h.calls.finishes, 0);
   assert.equal(h.run.status, 'ACTIVE'); assert.equal(storage.size, 0);
+  assert.deepEqual(pieceSummaries(h).map(text), countsBeforeDelivery, 'Delivery must not change how many pieces were collected');
   await scanner(h).props.onRead('I1126831', 'scan-key');
   assert.deepEqual(h.calls.scans[0], [12, 'I1126831', 'scan-key']);
   assert.match(text(h.render()), /Delivery #41 recorded/);

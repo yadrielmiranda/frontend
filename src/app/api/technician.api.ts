@@ -1,11 +1,12 @@
 import { apiFetch } from "./_base";
-import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult, CustomerDelivery, CustomerDeliveryRequest, FactoryPartTracking } from "./warehouse.api";
+import type { Paged, ReceiptItem, ReceiptResult, WarehouseStoreRef, WarehouseUnitDimensions, InstallationDestination, InstallationDeliveryRequest, InstallationDeliveryResult, CustomerDelivery, CustomerDeliveryRequest, FactoryPartTracking } from "./warehouse.api";
 
 export type TechnicianUnit = {
   lineNumber: string; barcode: string; mark: string;
   source: "ORDER" | "EXTERNAL"; externalPoId: number | null;
   description: string; supplierName: string;
   product: string; system: string; configuration: string;
+  dimensions?: WarehouseUnitDimensions | null;
   orderNumber: string; poNumber: string;
   expectedParts: number | null; inTransit: number; onHand: number;
   pending: number | null; version: number;
@@ -96,6 +97,7 @@ export type FactoryPickupCandidate = FactoryPickupPoPreview & {
   product: string;
   system: string;
   configuration: string;
+  dimensions?: WarehouseUnitDimensions | null;
   description: string;
   supplierName: string;
 };
