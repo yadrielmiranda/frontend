@@ -8,6 +8,7 @@ export type TechnicianUnit = {
   product: string; system: string; configuration: string;
   dimensions?: WarehouseUnitDimensions | null;
   orderNumber: string; poNumber: string;
+  poName?: string;
   expectedParts: number | null; inTransit: number; onHand: number;
   pending: number | null; version: number;
   installation: InstallationDestination | null;
@@ -32,6 +33,7 @@ export type FactoryPickupPoPreview = {
   orderId: number | null;
   orderNumber: string;
   poNumber: string;
+  poName?: string;
   pieces: number;
   parts: number;
 };
@@ -52,6 +54,7 @@ export type FactoryPickupOrder = {
   orderId: number | null;
   orderNumber: string;
   poNumber: string;
+  poName?: string;
   addedDuringPickup: boolean;
   addedAt: string;
   pieces: number;
@@ -62,6 +65,8 @@ export type FactoryPickupOrder = {
 
 export type FactoryPickupRun = {
   id: number;
+  canEditOrders?: boolean;
+  canDelete?: boolean;
   cycle: number;
   events: Array<{ id: number; status: "ACTIVE" | "COMPLETED" | "PARTIAL"; cycle: number; createdAt: string; actor: FactoryPickupPerson; partialReason: FactoryPickupPartialReason | null; note: string | null }>;
   createdBy: FactoryPickupPerson;
@@ -154,6 +159,7 @@ export type TechnicianCustomerDeliveryPo = {
   externalPoId: number | null;
   orderNumber: string;
   poNumber: string;
+  poName?: string;
   customerName?: string;
   projectName?: string;
   expectedParts: number | null;

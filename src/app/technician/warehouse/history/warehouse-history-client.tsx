@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Paged, WarehouseMovement } from "@/app/api/warehouse.api";
 import { technicianMaterialHistory, technicianWarehouseHistory, type TechnicianMaterialMovement } from "@/app/api/technician-warehouse.api";
 import { Pagination } from "@/app/warehouse/warehouse-shared";
+import { PoName } from "@/app/warehouse/unit-origin";
 
 type Kind = "pieces" | "materials";
 const date = (value: string) => new Date(value).toLocaleString();
@@ -66,6 +67,7 @@ export function TechnicianWarehouseHistory({ actorId, initialPieces, initialMate
       {kind === "pieces" ? pieces.items.map(movement => <article key={movement.id} className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
         <div className="flex flex-wrap justify-between gap-2"><p className="font-semibold">{movement.customerDeliveryId ? "Delivered to customer" : "Released for installation"}</p><time className="text-xs text-slate-500" dateTime={movement.createdAt}>{date(movement.createdAt)}</time></div>
         <p>Line {movement.lineNumber} · {movement.quantity} {movement.quantity === 1 ? "part" : "parts"}</p>
+        {movement.poNumber && <p className="break-words font-medium">PO {movement.poNumber}<PoName unit={movement} /></p>}
         <p className="text-slate-600">From {movement.fromStore?.name ?? "Unassigned"}</p>
         {movement.partDetails?.partQuantities && <p className="text-xs text-slate-600">{Object.entries(movement.partDetails.partQuantities).filter(([, amount]) => Number(amount) > 0).map(([type, amount]) => `${amount} ${type === "UNKNOWN" ? "unspecified" : type.toLowerCase()}`).join(" · ")}</p>}
         {movement.installation && <p className="text-slate-600">Installation #{movement.installation.id}{movement.installation.address ? ` · ${movement.installation.address}` : ""}</p>}

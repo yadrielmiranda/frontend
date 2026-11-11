@@ -11,6 +11,9 @@ import type { SignatureStrokes } from "./contracts.api";
 export type CustomerDeliveryRunOrder = {
   key: string;
   poNumber: string;
+  poName?: string;
+  customer?: string;
+  project?: string;
   source: "ORDER" | "EXTERNAL";
   orderNumber: string;
   totalPieces: number;

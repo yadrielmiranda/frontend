@@ -11,7 +11,7 @@ export function prepareRelease(selection: DeliverySelection, storeId: string, st
     lines: Object.values(selection).map(({ unit, quantity }) => ({
       barcode: unit.barcode, lineNumber: unit.lineNumber,
       poKey: unit.source === "EXTERNAL" ? `external:${unit.externalPoId}` : unit.orderId ? `order:${unit.orderId}` : `line:${unit.lineNumber}`,
-      poNumber: unit.poNumber || unit.orderNumber || "No PO", customer: unit.customer || unit.project,
+      poNumber: unit.poNumber || unit.orderNumber || "No PO", customer: unit.poName || unit.customer || unit.project,
       description: unit.description || [unit.product, unit.system, unit.configuration].filter(Boolean).join(" · "), quantity: Number(quantity),
     })).sort((a, b) => a.barcode.localeCompare(b.barcode)),
   };

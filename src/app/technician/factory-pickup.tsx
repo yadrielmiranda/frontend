@@ -37,6 +37,7 @@ import { InternalUnitDimensions } from "@/app/warehouse/internal-unit-dimensions
 import { PickupCustomerDelivery } from "./pickup-customer-delivery";
 import { pickupDeliveryContextKey } from "./pickup-customer-delivery-data";
 import { FactoryPartProgress } from "@/app/warehouse/factory-part-quantity";
+import { PickupManagement } from "./pickup-management";
 
 const reasonOptions: Array<{ value: FactoryPickupPartialReason; label: string }> = [
   { value: "NOT_READY_AT_FACTORY", label: "Not ready at factory" },
@@ -189,6 +190,7 @@ export function FactoryPickup({
   const [accessLost, setAccessLost] = useState(false);
   const [deliveryPoKey, setDeliveryPoKey] = useState<string | null>(null);
   const [deliveryMessage, setDeliveryMessage] = useState("");
+  const [managing, setManaging] = useState(false);
   const mounted = useRef(true);
   const writeRevision = useRef(0);
   const undoKey = useRef("");
@@ -196,8 +198,12 @@ export function FactoryPickup({
   const pickupScan = surface === "warehouse" ? warehousePickupScan : technicianPickupScan;
   const finishPickupRequest = surface === "warehouse" ? warehouseFinishPickup : technicianFinishPickup;
 
-  const busy = working || scanBusy || undoing;
+  const busy = working || scanBusy || undoing || managing;
   const canScan = run?.status === "ACTIVE" && !accessLost;
+  const managementOpenChanged = useCallback((open: boolean) => {
+    writeRevision.current++;
+    setManaging(open);
+  }, []);
   useEffect(() => onBusy(busy || Boolean(candidate) || Boolean(deliveryPoKey)), [busy, candidate, deliveryPoKey, onBusy]);
   useEffect(() => {
     mounted.current = true;
@@ -436,6 +442,7 @@ export function FactoryPickup({
     ? <p role="status" className="rounded-xl border bg-white p-5 text-sm text-slate-600">Refreshing pickup…</p>
     : <PickupCustomerDelivery actorId={actorId} surface={surface} runId={run.id} poKey={deliveryPoKey}
         poNumber={run.orders.find(order => order.key === deliveryPoKey)?.poNumber ?? ""} blocked={blocked}
+        poName={run.orders.find(order => order.key === deliveryPoKey)?.poName}
         onClose={() => void continuePickup()} onComplete={delivery => void continuePickup(delivery)} />;
 
   if (finished) return (
@@ -510,6 +517,11 @@ export function FactoryPickup({
         {run.events.length > 0 && <details className="rounded-lg border p-3"><summary className="cursor-pointer font-medium">Closing and reopening history</summary><ul className="mt-2 space-y-2">{run.events.map((event) => <li key={event.id}>{event.status === "ACTIVE" ? "Reopened" : event.status === "PARTIAL" ? "Closed as partial" : "Completed"} by {event.actor.name} · {new Date(event.createdAt).toLocaleString()}{event.partialReason ? ` · ${reasonOptions.find((option) => option.value === event.partialReason)?.label}` : ""}{event.note ? ` · ${event.note}` : ""}</li>)}</ul></details>}
         {surface === "warehouse" && canScan && !editingAssignments && <Button variant="outline" disabled={busy || Boolean(candidate)} onClick={() => { setTechnicianIds(run.technicians.filter((person) => technicians.some((active) => active.id === person.id)).map((person) => person.id)); setEditingAssignments(true); }}>Edit technicians</Button>}
         {editingAssignments && canScan && <div className="space-y-3">{technicianPicker}<div className="flex gap-2"><Button variant="outline" disabled={working} onClick={() => setEditingAssignments(false)}>Cancel</Button><Button disabled={busy || offline || !technicianIds.length} onClick={() => void saveAssignments()}>Save technicians</Button></div></div>}
+        {surface === "warehouse" && <PickupManagement run={run}
+          disabled={working || scanBusy || undoing || offline || blocked || Boolean(candidate) || finishing || editingAssignments || accessLost}
+          onOpenChange={managementOpenChanged}
+          onChanged={next => { writeRevision.current++; setRun(next); setSyncError(""); setError(""); }}
+          onDeleted={() => { setManaging(false); setRun(null); onFinished(); }} />}
       </section>
       {syncError && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{syncError}</p>}
 
@@ -526,7 +538,7 @@ export function FactoryPickup({
         mobileFocus
         prominent
         cameraDialog
-        disabled={offline || blocked || working}
+        disabled={offline || blocked || working || managing}
         retryOnly={!canScan}
         onPendingChange={setScanBusy}
         onScanModeChange={onScanModeChange}

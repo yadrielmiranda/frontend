@@ -21,11 +21,11 @@ export function selectedCustomerDeliveryLines(selection: TechnicianPoSelection) 
 }
 
 export function technicianCustomerDeliveryPreview(selection: TechnicianPoSelection, firstName: string, lastName: string, signatureStrokes: SignatureStrokes): CustomerDeliveryPreview {
-  const lines = Object.values(selection).flatMap(po => po.lines).sort((a, b) => a.lineNumber.localeCompare(b.lineNumber));
+  const lines = Object.values(selection).flatMap(po => po.lines.map(line => ({ ...line, poName: line.poName || po.poName || po.customerName || po.projectName || "" }))).sort((a, b) => a.lineNumber.localeCompare(b.lineNumber));
   return {
     source: "TRANSIT", storeId: null, storeName: null, firstName: firstName.trim(), lastName: lastName.trim(), signatureStrokes,
     items: lines.map(line => ({
-      lineNumber: line.lineNumber, barcode: line.barcode, poNumber: line.poNumber, source: line.source,
+      lineNumber: line.lineNumber, barcode: line.barcode, poNumber: line.poNumber, poName: line.poName, source: line.source,
       orderNumber: line.orderNumber, mark: line.mark, description: line.description,
       product: line.product, system: line.system, configuration: line.configuration, quantity: line.inTransit,
       ...(line.partTracking ? { parts: line.partTracking.inTransit } : {}),

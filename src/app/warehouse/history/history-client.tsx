@@ -15,6 +15,7 @@ import {
   MovementLocation,
   Pagination,
 } from "../warehouse-shared";
+import { PoName } from "../unit-origin";
 import { factoryPartsText } from "../factory-parts";
 
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
@@ -116,6 +117,7 @@ export function HistoryClient({
                 I{m.lineNumber}
               </Link>
             </div>
+            {m.poNumber && <p className="break-words text-sm font-medium">PO {m.poNumber}<PoName unit={m} /></p>}
             {m.type === "COUNT" || m.type === "COUNT_UNDO" ? (
               <p className="text-sm">
                 Counted: {signed(m.countDelta)} · Stock unchanged

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { isApiError } from "@/app/api/_base";
 import { technicianPending, technicianReceive, technicianDeliverToInstallation, type TechnicianUnit } from "@/app/api/technician.api";
 import { warehouseRequestKey, type Paged, type ReceiptItem, type InstallationDestination } from "@/app/api/warehouse.api";
-import { UnitOrigin, ExternalDescription } from "@/app/warehouse/unit-origin";
+import { UnitOrigin, ExternalDescription, poDisplayName } from "@/app/warehouse/unit-origin";
 
 export const pendingReceiptKey = (actorId: number) => `technician-receipt:${actorId}`;
 export const pendingInstallationDeliveryKey = (actorId: number) => `technician-installation-delivery:${actorId}`;
@@ -30,7 +30,7 @@ export function isPendingInstallationDelivery(value: unknown): value is PendingR
 const deliverySource = (unit: TechnicianUnit) => unit.source === "EXTERNAL"
   ? `external:${unit.externalPoId ?? unit.lineNumber}`
   : `order:${unit.orderNumber || unit.poNumber || unit.lineNumber}`;
-const deliverySourceLabel = (unit: TechnicianUnit) => [unit.poNumber ? `PO ${unit.poNumber}` : "", unit.orderNumber ? `Order #${unit.orderNumber}` : ""].filter(Boolean).join(" · ") || `Line ${unit.lineNumber}`;
+const deliverySourceLabel = (unit: TechnicianUnit) => [unit.poNumber ? `PO ${unit.poNumber}` : "", poDisplayName(unit), unit.orderNumber ? `Order #${unit.orderNumber}` : ""].filter(Boolean).join(" · ") || `Line ${unit.lineNumber}`;
 
 export function TechnicianReceipts({ actorId, storeId, storeName, blocked, offline, onBusy, onSaved, delivering = false }: {
   actorId: number; storeId: number | null; storeName: string; blocked: boolean; offline: boolean;

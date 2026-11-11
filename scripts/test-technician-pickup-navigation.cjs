@@ -43,6 +43,7 @@ function harness(options = {}) {
     if (id === '@/components/ui/button') return { Button: 'Button' };
     if (id === 'lucide-react') return new Proxy({}, { get: (_, name) => name });
     if (id === '@/app/warehouse/warehouse-shared') return { errorMessage: error => error.message };
+    if (id === '@/app/warehouse/unit-origin') return { poDisplayName: unit => unit.poName ?? '' };
     if (id === './factory-pickup') return { FactoryPickup: 'FactoryPickup' };
     throw new Error(`Unexpected import ${id}`);
   }, module, module.exports);

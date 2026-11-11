@@ -7,6 +7,7 @@ import { warehousePickups } from "@/app/api/warehouse.api";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/app/warehouse/warehouse-shared";
 import { FactoryPickup } from "./factory-pickup";
+import { poDisplayName } from "@/app/warehouse/unit-origin";
 
 export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeChange, surface = "technician" }: {
   actorId: number;
@@ -110,7 +111,7 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
     {!loading && !items.length && !error && <p className="rounded-xl border border-dashed bg-white p-5 text-slate-600">{surface === "technician" && status === "ACTIVE" ? "No active pickups assigned to you. An administrator can assign you to a pickup." : "No pickups in this view."}</p>}
     {items.map((run) => <article key={run.id} className={`space-y-3 rounded-2xl border bg-white p-4 shadow-sm ${surface === "technician" && run.status === "ACTIVE" ? "border-orange-200" : ""}`}>
       <div className="flex items-start justify-between gap-3"><h3 className="font-semibold">Pickup #{run.id}</h3><span className="text-sm">{run.status === "ACTIVE" ? "Active" : run.status === "PARTIAL" ? "Partial · Closed" : "Completed"}</span></div>
-      <p className="font-medium">PO {run.orders.map((order) => order.poNumber).join(", ")}</p>
+      <ul className="space-y-1 text-sm">{run.orders.map(order => <li key={order.key ?? order.poNumber} className="break-words"><span className="font-semibold">PO {order.poNumber}</span>{poDisplayName(order) && <span className="text-slate-600"> · {poDisplayName(order)}</span>}</li>)}</ul>
       <p className="text-sm">{run.collectedParts} / {run.expectedParts} parts collected · {run.remainingParts} remaining</p>
       <p className="text-sm text-slate-600">Assigned: {run.technicians.map((person) => person.name).join(", ") || "No technicians assigned"}</p>
       <p className="text-sm text-slate-600">{run.collectors.length ? `Collected by ${run.collectors.map((person) => `${person.name} (${person.parts})`).join(", ")}` : "No parts scanned yet."}</p>

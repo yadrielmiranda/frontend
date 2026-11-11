@@ -9,6 +9,7 @@ const os = require('node:os');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
+const { UnitOrigin, PoName, poDisplayName } = require('./warehouse-origin-test-helpers.cjs');
 const sourceRoot = path.resolve(__dirname, '../src');
 const receiptFile = path.join(sourceRoot, 'app/warehouse/customer-deliveries/customer-delivery-receipt.tsx');
 const clientFile = path.join(sourceRoot, 'app/warehouse/customer-deliveries/[id]/receipt-client.tsx');
@@ -26,7 +27,7 @@ function compile(file, dependencies = {}) {
   }, module, module.exports);
   return module.exports;
 }
-const { CustomerDeliveryReceipt } = compile(receiptFile, { '../factory-parts': compile(path.join(sourceRoot, 'app/warehouse/factory-parts.ts')) });
+const { CustomerDeliveryReceipt } = compile(receiptFile, { '../unit-origin': require('./warehouse-origin-test-helpers.cjs'), '../factory-parts': compile(path.join(sourceRoot, 'app/warehouse/factory-parts.ts')) });
 const renderReceipt = (delivery, showSignature = true) => renderToStaticMarkup(React.createElement(CustomerDeliveryReceipt, { delivery, showSignature }));
 const item = (lineNumber, poNumber, quantity, overrides = {}) => ({ lineNumber, barcode: `I${lineNumber}`, poNumber,
   source: 'EXTERNAL', orderNumber: '', mark: '', description: 'French door bronze', product: '', system: '', configuration: '', quantity, ...overrides });
@@ -38,6 +39,44 @@ const fixture = {
     item('1126900', '292759', 2, { source: 'ORDER', orderNumber: 'ORD-TEST-004', description: '', product: 'Sliding door', system: 'Series 600', configuration: 'OXO' })],
   totalPieces: 3, totalParts: 4,
 };
+test('PO display uses the inventory name with safe older-response fallbacks', () => {
+  assert.equal(poDisplayName({ poName: '  Current name  ', customer: 'Old customer', project: 'Project' }), 'Current name');
+  assert.equal(poDisplayName({ poName: ' ', customer: '  Customer  ', project: 'Project' }), 'Customer');
+  assert.equal(poDisplayName({ customerName: 'Customer', projectName: 'Project' }), 'Customer');
+  assert.equal(poDisplayName({ project: '  Project only  ' }), 'Project only');
+  assert.equal(poDisplayName({}), '');
+  assert.equal(renderToStaticMarkup(React.createElement(PoName, { unit: {} })), '');
+});
+test('internal and external origins keep their identity and render the name once as escaped text', () => {
+  const name = 'Project <script>bad()</script> & Customer';
+  for (const source of ['ORDER', 'EXTERNAL']) {
+    const unit = { source, orderNumber: 'ORD-TEST', orderId: 77, poName: name };
+    const html = renderToStaticMarkup(React.createElement(UnitOrigin, { unit, link: true }));
+    assert.match(html, source === 'ORDER' ? /href="\/orders\/77"/ : /External PO/);
+    assert.match(html, /Project &lt;script&gt;bad\(\)&lt;\/script&gt; &amp; Customer/);
+    assert.doesNotMatch(html, /<script>/);
+    assert.equal((html.match(/Project/g) || []).length, 1);
+    assert.doesNotMatch(renderToStaticMarkup(React.createElement(UnitOrigin, { unit, showName: false })), /Project/);
+  }
+});
+test('receipts keep names tied to their own PO source, including pending and legacy snapshots', () => {
+  const html = renderReceipt({ ...fixture,
+    items: [item('11', 'SAME', 1, { poName: 'External customer' }),
+      item('22', 'SAME', 1, { source: 'ORDER', orderNumber: 'ORD-2', project: 'Internal project' })],
+    pendingItems: [item('33', 'PENDING', 1, { customer: 'Pending customer' })],
+  });
+  const sections = [...html.matchAll(/<section class="delivery-po-group(?: [^"]*)?">(.*?)<\/section>/g)].map(match => match[1]);
+  assert.equal(sections.length, 3);
+  assert.match(sections[0], /External customer/); assert.doesNotMatch(sections[0], /Internal project|Pending customer/);
+  assert.match(sections[1], /Internal project/); assert.doesNotMatch(sections[1], /External customer|Pending customer/);
+  assert.match(sections[2], /Pending customer/);
+});
+test('a missing receipt name is recovered only within its matching PO group', () => {
+  const html = renderReceipt({ ...fixture, items: [item('11', 'FIRST', 1), item('12', 'FIRST', 1, { customer: 'Matching customer' }), item('22', 'SECOND', 1)] });
+  const headings = [...html.matchAll(/<h3[^>]*>(.*?)<\/h3>/g)].map(match => match[1]);
+  assert.match(headings[0], /Matching customer/);
+  assert.equal(headings[1], 'PO SECOND');
+});
 test('new receipt includes its saved panel/frame breakdown without adding it to old receipts', () => {
   const typed = structuredClone(fixture);
   typed.items[0].parts = { FRAME: 1 };
@@ -105,11 +144,12 @@ test('pre-signing preview shows the same receipt rows and totals without fabrica
   assert.deepEqual([...html.matchAll(/<tbody>(.*?)<\/tbody>/g)].map(m => m[1]), [...saved.matchAll(/<tbody>(.*?)<\/tbody>/g)].map(m => m[1]));
   assert.match(html, /Total physical parts<\/dt><dd[^>]*>4<\/dd>/);
 });
-test('saved receipt retains date, operator and exact source location', () => {
+test('saved receipt retains date and operator without exposing internal storage locations', () => {
   const transit = renderReceipt(fixture);
-  assert.match(transit, /Direct from factory/); assert.match(transit, /Warehouse Operator/); assert.match(transit, /datetime="2026-10-14T16:00:00Z"/i);
-  assert.match(renderReceipt({ ...fixture, source: 'WAREHOUSE', storeId: 2, storeName: 'Storage #2 (1035)' }), /Storage #2 \(1035\)/);
-  assert.match(renderReceipt({ ...fixture, source: 'WAREHOUSE' }), /Unassigned warehouse stock/);
+  assert.match(transit, /Warehouse Operator/); assert.match(transit, /datetime="2026-10-14T16:00:00Z"/i);
+  assert.doesNotMatch(transit, /Direct from factory/);
+  assert.doesNotMatch(renderReceipt({ ...fixture, source: 'WAREHOUSE', storeId: 2, storeName: 'Storage #2 (1035)' }), /Storage #2 \(1035\)/);
+  assert.doesNotMatch(renderReceipt({ ...fixture, source: 'WAREHOUSE' }), /Unassigned warehouse stock/);
 });
 test('saved-page print action and receipt isolation selector are present without a public link', () => {
   const html = renderClient();
@@ -122,7 +162,7 @@ async function browserChecks() {
   const tailwind = require('@tailwindcss/node');
   const compiler = await tailwind.compile(fs.readFileSync(path.join(sourceRoot, 'app/globals.css'), 'utf8'), { base: path.join(sourceRoot, 'app'), onDependency() {} });
   const longFixture = { ...fixture, items: Array.from({ length: 42 }, (_, index) => item(String(1200000 + index), `TEST-${1 + Math.floor(index / 9)}`, index % 4 === 0 ? 2 : 1,
-    { description: `${index + 1}. French door with a long synthetic description, bronze finish, right active, and separately supplied physical parts for receipt layout verification.`, source: index > 26 ? 'ORDER' : 'EXTERNAL', orderNumber: index > 26 ? 'ORD-SYNTHETIC-2' : '' })), totalPieces: 42, totalParts: 53 };
+    { description: `${index + 1}. French door with a long synthetic description, bronze finish, right active, and separately supplied physical parts for receipt layout verification.`, poName: `Customer and project with a long name ${'LongUnbrokenName'.repeat(5)}`, source: index > 26 ? 'ORDER' : 'EXTERNAL', orderNumber: index > 26 ? 'ORD-SYNTHETIC-2' : '' })), totalPieces: 42, totalParts: 53 };
   const markup = renderClient(longFixture);
   const classes = [...new Set([...markup.matchAll(/class="([^"]*)"/g)].flatMap(match => match[1].split(/\s+/)))];
   const css = compiler.build(classes);
@@ -154,8 +194,9 @@ async function browserChecks() {
     await page.pdf({ path: path.join(directory, 'receipt-long.pdf'), format: 'Letter', printBackground: true, preferCSSPageSize: true });
     await page.screenshot({ path: path.join(directory, 'receipt-print.png'), fullPage: true });
     await page.emulateMediaType('screen'); await page.setViewport({ width: 390, height: 844 });
-    await page.setContent(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body style="padding:12px">${renderClient()}</body></html>`);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'mobile receipt should not overflow horizontally');
+    await page.setContent(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body style="padding:12px">${renderClient({ ...fixture, items: longFixture.items.slice(0, 2) })}</body></html>`);
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(node => node.getBoundingClientRect().right > window.innerWidth).map(node => ({ tag: node.tagName, className: node.className, right: node.getBoundingClientRect().right, text: node.textContent.slice(0, 80) })).slice(0, 12));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `mobile receipt should not overflow horizontally: ${JSON.stringify(overflow)}`);
     await page.screenshot({ path: path.join(directory, 'receipt-mobile.png'), fullPage: true });
     console.log(`PASS browser print isolation, long receipt and mobile layout; visual artifacts: ${directory}`);
   } finally { await browser.close(); }

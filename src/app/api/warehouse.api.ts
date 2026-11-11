@@ -57,6 +57,7 @@ export type WarehouseUnit = {
   orderId: number | null;
   orderNumber: string;
   poNumber: string;
+  poName?: string;
   customer: string;
   project: string;
   installation: InstallationDestination | null;
@@ -75,6 +76,10 @@ export type WarehouseUnit = {
 export type WarehouseMovement = {
   id: number;
   lineNumber: string;
+  source?: "ORDER" | "EXTERNAL";
+  orderNumber?: string;
+  poNumber?: string;
+  poName?: string;
   type: string;
   quantity: number;
   fromStore: WarehouseStoreRef | null;
@@ -123,6 +128,7 @@ export type WarehousePoGroup = {
   orderId: number | null;
   orderNumber: string;
   poNumber: string;
+  poName?: string;
   customer: string;
   project: string;
   units: WarehouseUnit[];
@@ -274,6 +280,9 @@ export type CustomerDeliveryItem = {
   lineNumber: string;
   barcode: string;
   poNumber: string;
+  poName?: string;
+  customer?: string;
+  project?: string;
   source: "ORDER" | "EXTERNAL";
   orderNumber: string;
   mark: string;
@@ -364,3 +373,12 @@ export function warehouseRequestKey() {
   const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+export const warehouseAddPickupPos = (id: number, poNumbers: string[]) =>
+  apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${id}/pos`, {
+    method: "POST", body: { poNumbers }, timeoutMs: 60000,
+  });
+export const warehouseRemovePickupPo = (id: number, poKey: string) =>
+  apiFetch<FactoryPickupRun>(`/api/warehouse/pickups/${id}/pos/${encodeURIComponent(poKey)}`, { method: "DELETE" });
+export const warehouseDeletePickup = (id: number) =>
+  apiFetch<{ id: number; deleted: true }>(`/api/warehouse/pickups/${id}`, { method: "DELETE" });

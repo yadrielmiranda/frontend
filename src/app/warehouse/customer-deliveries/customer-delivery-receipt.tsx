@@ -1,4 +1,5 @@
 import type { CustomerDelivery, CustomerDeliveryItem } from "@/app/api/warehouse.api";
+import { PoName, poDisplayName } from "../unit-origin";
 import { factoryPartsText } from "../factory-parts";
 
 export type CustomerDeliveryPreview = Pick<CustomerDelivery,
@@ -10,10 +11,11 @@ export type CustomerDeliveryReceiptData = CustomerDeliveryPreview &
   Partial<Pick<CustomerDelivery, "id" | "actor" | "createdAt">>;
 
 function groupItems(items: CustomerDeliveryItem[]) {
-  const groups = new Map<string, { poNumber: string; source: CustomerDeliveryItem["source"]; orderNumber: string; items: CustomerDeliveryItem[] }>();
+  const groups = new Map<string, { poNumber: string; poName: string; source: CustomerDeliveryItem["source"]; orderNumber: string; items: CustomerDeliveryItem[] }>();
   for (const item of items) {
     const key = JSON.stringify([item.source, item.orderNumber, item.poNumber]);
-    const group = groups.get(key) ?? { poNumber: item.poNumber, source: item.source, orderNumber: item.orderNumber, items: [] };
+    const group = groups.get(key) ?? { poNumber: item.poNumber, poName: poDisplayName(item), source: item.source, orderNumber: item.orderNumber, items: [] };
+    if (!group.poName) group.poName = poDisplayName(item);
     group.items.push(item);
     groups.set(key, group);
   }
@@ -56,7 +58,7 @@ export function CustomerDeliveryReceipt({
           const parts = group.items.reduce((sum, item) => sum + item.quantity, 0);
           return <section key={key} className="delivery-po-group">
             <div className="delivery-po-heading flex flex-wrap items-center justify-between gap-2 rounded-t-lg bg-slate-50 px-3 py-3">
-              <h3 className="break-words font-semibold">{group.poNumber ? `PO ${group.poNumber}` : "PO not assigned"}</h3>
+              <h3 className="min-w-0 max-w-full break-words font-semibold">{group.poNumber ? `PO ${group.poNumber}` : "PO not assigned"}<PoName unit={group} /></h3>
               <span className="text-xs text-slate-600">{group.source === "EXTERNAL" ? "External PO" : group.orderNumber ? `Order ${group.orderNumber}` : "System order"}</span>
             </div>
             <table className="w-full table-fixed border-collapse text-left text-sm">
@@ -82,7 +84,7 @@ export function CustomerDeliveryReceipt({
       {delivery.pendingItems && <section className="space-y-4 border-t pt-5">
         <div><h3 className="text-lg font-semibold">Pending pickup</h3><p className="mt-1 text-sm text-slate-600">These pieces and parts are not included in this delivery. Quantities reflect the remaining balance when this receipt was prepared.</p></div>
         {delivery.pendingItems.length === 0 ? <p className="text-sm text-emerald-800">All parts from the included POs have been delivered.</p> : groupItems(delivery.pendingItems).map(([key, group]) => <section className="delivery-po-group rounded-lg border" key={key}>
-          <div className="delivery-po-heading bg-amber-50 px-3 py-3"><h4 className="font-semibold">PO {group.poNumber}</h4><p className="text-xs text-slate-600">{group.source === "EXTERNAL" ? "External PO" : `Order ${group.orderNumber}`}</p></div>
+          <div className="delivery-po-heading bg-amber-50 px-3 py-3"><h4 className="break-words font-semibold">PO {group.poNumber}<PoName unit={group} /></h4><p className="text-xs text-slate-600">{group.source === "EXTERNAL" ? "External PO" : `Order ${group.orderNumber}`}</p></div>
           <ul className="divide-y">{group.items.map(item => <li key={item.lineNumber} className="space-y-1 px-3 py-3 text-sm">
             <div className="flex flex-wrap items-start justify-between gap-3"><p className="min-w-0 flex-1 break-words font-medium">{pieceDescription(item)}</p><p className="shrink-0 font-semibold">{item.unknownQuantity ? "To be confirmed" : `${item.quantity.toLocaleString()} ${item.quantity === 1 ? "part" : "parts"}`}</p></div>
             <p className="text-xs text-slate-500">Line {item.lineNumber}{item.mark ? ` · Mark: ${item.mark}` : ""}</p>

@@ -7,7 +7,7 @@ import { TransferForm } from "./transfer-form";
 import { WarehouseReleaseActions } from "./release-actions";
 import { PoInstallationReleaseDialog, pendingPoInstallationRelease } from "./releases/po-installation-release-dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { UnitOrigin, unitOriginLabel } from "./unit-origin";
+import { UnitOrigin, unitOriginLabel, poDisplayName } from "./unit-origin";
 import {
   ChevronDown,
   ChevronRight,
@@ -157,7 +157,7 @@ function PoInventoryTable({
     if (!available) return null;
     return <WarehouseReleaseActions source={deliverySource} storeId={storeId}
       search={group.poNumber || group.orderNumber} poKey={group.key}
-      poLabel={group.poNumber || group.orderNumber} compact onInstallationRelease={() => onInstallationRelease(group)} />;
+      poLabel={[group.poNumber || group.orderNumber, poDisplayName(group)].filter(Boolean).join(" · ")} compact onInstallationRelease={() => onInstallationRelease(group)} />;
   }
   return (
     <>
@@ -205,9 +205,9 @@ function PoInventoryTable({
                       {releaseActions(group)}
                     </td>
                     <td className="px-4 py-4">
-                      <UnitOrigin unit={group} link />
+                      <UnitOrigin unit={group} link showName={false} />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {group.customer || group.project}
+                        {poDisplayName(group)}
                       </p>
                     </td>
                     <td className="px-4 py-4 font-semibold">{metrics.pieces}</td>
@@ -320,8 +320,8 @@ function PoInventoryTable({
                     PO {group.poNumber || "—"}
                   </button>
                   <p className="mt-1 text-sm">
-                    <UnitOrigin unit={group} link />{" "}
-                    · {group.customer || group.project}
+                    <UnitOrigin unit={group} link showName={false} />{" "}
+                    · {poDisplayName(group)}
                   </p>
                   {releaseActions(group)}
                 </div>
@@ -423,9 +423,9 @@ function PieceInventoryTable({
             {data.items.map((row) => (
               <tr key={row.lineNumber} className="hover:bg-slate-50">
                 <td className="px-4 py-4">
-                  <UnitOrigin unit={row} link />
+                  <UnitOrigin unit={row} link showName={false} />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {row.customer || row.project}
+                    {poDisplayName(row)}
                   </p>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 font-mono">
@@ -481,7 +481,7 @@ function PieceInventoryTable({
                   {[row.system, row.configuration].filter(Boolean).join(" · ")}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {unitOriginLabel(row)} · {row.customer || row.project}
+                  {unitOriginLabel(row)} · {poDisplayName(row)}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   PO: <span className="font-mono text-foreground">{row.poNumber || "—"}</span>
@@ -854,7 +854,7 @@ export function InventoryClient({
                 const pending = user?.id ? pendingPoInstallationRelease(user.id) : null;
                 setReleaseRecoveryError(pending && pending.poKey !== group.key
                   ? "Recover the previous installation release before starting another." : "");
-                setInstallationTarget(pending ?? { poKey: group.key, poLabel: group.poNumber || group.orderNumber, storeId });
+                setInstallationTarget(pending ?? { poKey: group.key, poLabel: [group.poNumber || group.orderNumber, poDisplayName(group)].filter(Boolean).join(" · "), storeId });
               } catch (error) { setReleaseRecoveryError(errorMessage(error)); }
             }}
             onToggle={(key) =>

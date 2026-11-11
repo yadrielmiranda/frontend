@@ -20,7 +20,7 @@ import { technicianDeliverToCustomer } from "@/app/api/technician.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
 import { ScanPad } from "../scan-pad";
-import { UnitOrigin } from "../unit-origin";
+import { UnitOrigin, PoName, poDisplayName } from "../unit-origin";
 import { CustomerDeliveryReceipt, type CustomerDeliveryPreview } from "./customer-delivery-receipt";
 import { warehouseCustomerDeliveryPath } from "./customer-delivery-navigation";
 import { FactoryPartQuantity } from "../factory-part-quantity";
@@ -97,7 +97,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
     storeName: source === "TRANSIT" ? null : target?.name ?? "Unassigned",
     firstName: firstName.trim(), lastName: lastName.trim(), signatureStrokes: signature,
     items: chosen.map(({ unit, quantity, parts }) => ({
-      lineNumber: unit.lineNumber, barcode: unit.barcode, poNumber: unit.poNumber, source: unit.source,
+      lineNumber: unit.lineNumber, barcode: unit.barcode, poNumber: unit.poNumber, poName: poDisplayName(unit), source: unit.source,
       orderNumber: unit.orderNumber, mark: unit.mark, description: unit.description, product: unit.product,
       system: unit.system, configuration: unit.configuration, quantity: Number(quantity),
       ...(unit.partTracking ? { parts: displayedFactoryParts(factoryPartSource(unit.partTracking, source, storeId) ?? {}, Number(quantity), parts) } : {}),
@@ -349,7 +349,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
             <div className="flex flex-wrap items-center gap-4 p-4">
               <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
                 <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" aria-label={`Select PO ${group.poNumber || group.orderNumber || group.key}`} aria-checked={all ? true : some ? "mixed" : false} checked={all} disabled={busy || locked || !units.length} onChange={(e) => selectPos([group], e.target.checked)} />
-                <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{units.length} pieces · {availableParts} physical parts available</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial delivery selected"}</span>}</span>
+                <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} showName={false} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{units.length} pieces · {availableParts} physical parts available</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial delivery selected"}</span>}</span>
               </label>
               <Button variant="outline" size="sm" aria-label={`${open ? "Hide" : "Show"} pieces for PO ${group.poNumber || group.orderNumber || group.key}`} aria-expanded={open} disabled={busy || locked} onClick={() => setExpanded((previous) => ({ ...previous, [group.key]: !open }))}>{open ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4" />}Pieces</Button>
             </div>
@@ -367,7 +367,7 @@ export function CustomerDeliveryClient({ actorId, actorRole, initial, initialSto
         })}{!visibleGroups.length && <p className="rounded-xl border bg-white px-5 py-12 text-center text-sm text-muted-foreground">No POs with available parts match this selection.</p>}</div>
         {!embedded && <Pagination {...data} label="POs" disabled={busy || locked} onPage={(next) => { serial.current++; setLoading(true); setPage(next); }} />}
       </>}
-      {chosen.length > 0 && <section className="space-y-3 rounded-xl border bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Selected for delivery</h3><p className="text-sm">{chosen.length} pieces · {totalParts} physical parts</p></div><div className="max-h-64 overflow-y-auto divide-y">{chosen.map(({ unit, quantity }) => <div key={unit.lineNumber} className="flex items-center justify-between gap-3 py-3"><div className="min-w-0 text-sm"><p className="font-medium">PO {unit.poNumber || "—"} · Line {unit.lineNumber}</p><p className="text-xs text-muted-foreground">{unit.description || unit.product}</p></div><div className="flex shrink-0 items-center gap-2"><span className="text-sm">{quantity} parts</span><Button size="icon" variant="ghost" aria-label={`Remove ${unit.barcode}`} disabled={busy || locked} onClick={() => toggle(unit, false)}><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>{selectionError && <p role="alert" className="text-sm text-red-700">{selectionError}</p>}<div className="flex justify-end"><Button disabled={busy || locked || !validSource || Boolean(selectionError) || Boolean(data.activeCountId)} onClick={beginReview}><ClipboardCheck className="mr-2 h-4 w-4" />Review delivery</Button></div></section>}
+      {chosen.length > 0 && <section className="space-y-3 rounded-xl border bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Selected for delivery</h3><p className="text-sm">{chosen.length} pieces · {totalParts} physical parts</p></div><div className="max-h-64 overflow-y-auto divide-y">{chosen.map(({ unit, quantity }) => <div key={unit.lineNumber} className="flex items-center justify-between gap-3 py-3"><div className="min-w-0 text-sm"><p className="font-medium">PO {unit.poNumber || "—"}<PoName unit={unit} /> · Line {unit.lineNumber}</p><p className="text-xs text-muted-foreground">{unit.description || unit.product}</p></div><div className="flex shrink-0 items-center gap-2"><span className="text-sm">{quantity} parts</span><Button size="icon" variant="ghost" aria-label={`Remove ${unit.barcode}`} disabled={busy || locked} onClick={() => toggle(unit, false)}><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>{selectionError && <p role="alert" className="text-sm text-red-700">{selectionError}</p>}<div className="flex justify-end"><Button disabled={busy || locked || !validSource || Boolean(selectionError) || Boolean(data.activeCountId)} onClick={beginReview}><ClipboardCheck className="mr-2 h-4 w-4" />Review delivery</Button></div></section>}
     </>}
   </div>;
 }

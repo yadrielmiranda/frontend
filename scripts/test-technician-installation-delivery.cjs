@@ -39,7 +39,7 @@ function harness(items = [line()], api = {}, extraProps = {}) {
     if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `delivery-${++nextKey}` };
     if (id === '@/app/api/technician.api') return { technicianPending: async () => ({ items, page: 1, pageSize: 25, total: items.length }), ...api };
     if (id === '@/app/api/_base') return { isApiError: error => Number.isInteger(error?.status) };
-    if (id === '@/app/warehouse/unit-origin') return { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' };
+    if (id === '@/app/warehouse/unit-origin') return require('./warehouse-origin-test-helpers.cjs');
     throw new Error(`Unexpected import ${id}`);
   }, module, module.exports);
   return { props, exports: module.exports, render() {

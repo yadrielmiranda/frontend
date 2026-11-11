@@ -43,7 +43,7 @@ function harness(initial = inventory(), api = {}, props = {}, runEffects = false
       if (id === '@/app/api/warehouse.api') return { warehouseRequestKey: () => `receipt-${++nextKey}`, warehouseStores: async () => stores, warehouseInventoryByPo: async () => initial, ...api };
       if (id === '../warehouse-shared') return { CountNotice: 'CountNotice', Pagination: 'Pagination', errorMessage: error => error.message };
       if (id === '../store-select') return { StoreSelect: 'StoreSelect' };
-      if (id === '../unit-origin') return { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' };
+      if (id === '../unit-origin') return require('./warehouse-origin-test-helpers.cjs');
       if (id === '../customer-deliveries/customer-delivery-client') return { CustomerDeliveryClient: 'CustomerDeliveryClient' };
       const base = id.startsWith('@/') ? path.resolve(root, id.slice(2)) : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
       if (!base) return require(id);

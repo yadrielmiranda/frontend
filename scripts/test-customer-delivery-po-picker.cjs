@@ -21,7 +21,7 @@ function picker({ props = {}, lookup = async () => page([group('external:1', '29
     '@/app/api/customer-delivery-runs.api': { customerDeliveryPoOptions: async (runId, query) => { calls.push({ runId, ...query }); return lookup(query, runId); } },
     '@/app/api/warehouse.api': { warehouseInventoryByPo: async () => { throw new Error('Use the run-scoped PO options'); } },
     '@/app/api/technician-warehouse.api': { technicianWarehouseInventoryByPo: async () => { throw new Error('Use the role-safe run-scoped PO options'); } },
-    '../warehouse-shared': { errorMessage: e => e.message, Pagination: 'Pagination' }, '../unit-origin': { UnitOrigin: 'UnitOrigin' },
+    '../warehouse-shared': { errorMessage: e => e.message, Pagination: 'Pagination' }, '../unit-origin': require('./warehouse-origin-test-helpers.cjs'),
   });
   return Object.assign(h, { calls, additions });
 }

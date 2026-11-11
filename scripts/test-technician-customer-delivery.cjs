@@ -53,6 +53,15 @@ const pos = [
 const signature = [[{ x: .1, y: .2 }, { x: .2, y: .3 }, { x: .3, y: .1 }, { x: .4, y: .3 }, { x: .5, y: .2 }]];
 const props = (extra = {}) => ({ actorId: 3, initial: { items: structuredClone(pos), total: 2, page: 1, pageSize: 20, countOpen: false }, ...extra });
 const helpers = loader()(directory + 'customer-delivery-selection.ts');
+test('technician delivery review snapshots each PO name independently', () => {
+  const first = { ...pos[0], poName: 'External customer' };
+  const second = { ...pos[1], projectName: 'Internal project' };
+  const preview = helpers.technicianCustomerDeliveryPreview({ [first.key]: first, [second.key]: second }, 'Ana', 'Perez', []);
+  assert.deepEqual(preview.items.map(item => [item.poNumber, item.poName]), [
+    ['292427', 'External customer'], ['292427', 'External customer'], ['292759', 'Internal project'],
+  ]);
+  assert.equal(pos[0].lines[0].poName, undefined, 'creating a preview does not mutate the stock response');
+});
 function harness(initial = props(), api = {}, navigation = {}, auth) {
   const states = [], refs = []; let si = 0, ri = 0, ei = 0, mounted = false, initialEffect;
   const hooks = {

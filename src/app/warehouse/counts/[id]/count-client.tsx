@@ -165,7 +165,7 @@ export function CountClient({
             I{last.stock.lineNumber}. Stock unchanged.
             {last.replayed ? " This reading was already recorded." : ""}
           </p>
-          <UnitOrigin unit={last.stock} />
+          <UnitOrigin unit={last.stock} />{last.stock.poNumber ? ` · PO ${last.stock.poNumber}` : ""}
           <ExternalDescription unit={last.stock} />
           <Button variant="outline" onClick={undo} disabled={busy || pending}>
             Undo last count reading

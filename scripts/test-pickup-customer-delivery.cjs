@@ -126,6 +126,7 @@ function harness(surface = 'warehouse', overrides = {}) {
     '@/app/warehouse/unit-origin': { UnitOrigin: 'UnitOrigin', ExternalDescription: 'ExternalDescription' },
     '@/app/warehouse/internal-unit-dimensions': load('../warehouse/internal-unit-dimensions.tsx', {}),
     './pickup-customer-delivery': { PickupCustomerDelivery: 'PickupCustomerDelivery' },
+    './pickup-management': { PickupManagement: 'PickupManagement' },
     './pickup-customer-delivery-data': { pickupDeliveryContextKey: contextKey },
   }).FactoryPickup;
   const props = { actorId: 3, surface, pickupId: 12, offline: false, blocked: false, onBusy() {}, onFinished() {}, onCreated() {}, ...overrides };
@@ -314,6 +315,38 @@ test('reload preserves delivery context even when its released parts no longer a
   const h = harness(); h.run.lines[0].inTransit = 0; await h.settle();
   assert.equal(panel(h).props.poKey, 'external:1'); assert.equal(scanner(h), undefined);
 });
+test('admin pickup management pauses scanning and navigation, applies saved POs and returns after deletion', async () => {
+  let busy = false, returned = 0;
+  const h = harness('warehouse', { onBusy(value) { busy = value; }, onFinished() { returned++; } });
+  Object.assign(h.run, { canEditOrders: true, canDelete: true });
+  await h.settle();
+  const management = () => nodes(h.render(), value => value.type === 'PickupManagement')[0];
+  assert.ok(management());
+  management().props.onOpenChange(true); await h.settle();
+  assert.equal(busy, true); assert.equal(scanner(h).props.disabled, true);
+  assert.equal(button(h, 'Deliver to customer').props.disabled, true);
+  assert.equal(management().props.disabled, false, 'Management must remain usable while its own modal is open');
+  const next = structuredClone(h.run);
+  next.orders = [next.orders[0]]; next.lines = [next.lines[0]]; next.poCount = 1;
+  management().props.onChanged(next); await h.settle();
+  assert.deepEqual(management().props.run.orders.map(order => order.key), ['external:1']);
+  assert.equal(pieceLists(h).length, 1);
+  management().props.onOpenChange(false); await h.settle();
+  assert.equal(busy, false); assert.equal(scanner(h).props.disabled, false);
+  management().props.onDeleted(); await h.settle();
+  assert.equal(returned, 1);
+});
+
+test('technicians have no pickup management controls and unresolved scans block admin editing', async () => {
+  const technician = harness('technician');
+  Object.assign(technician.run, { canEditOrders: true, canDelete: true });
+  await technician.settle();
+  assert.equal(nodes(technician.render(), value => value.type === 'PickupManagement').length, 0);
+  const admin = harness('warehouse'); await admin.settle();
+  scanner(admin).props.onPendingChange(true); await admin.settle();
+  assert.equal(nodes(admin.render(), value => value.type === 'PickupManagement')[0].props.disabled, true);
+});
+
 test('pending scan, offline and physical count cannot open a delivery', async () => {
   for (const overrides of [{ offline: true }, { blocked: true }, {}]) {
     const h = harness('warehouse', overrides); await h.settle();

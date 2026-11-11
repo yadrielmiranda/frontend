@@ -57,6 +57,7 @@ import {
   type CustomerDeliveryRun,
   type CustomerDeliveryRunOrder,
 } from "@/app/api/customer-delivery-runs.api";
+import { PoName, poDisplayName } from "../unit-origin";
 import { ScanPad } from "../scan-pad";
 import { errorMessage, Pagination } from "../warehouse-shared";
 import { factoryPartLabel, factoryPartsText } from "../factory-parts";
@@ -94,7 +95,7 @@ type Removal = {
 };
 type DeliveryManagement =
   | { action: "delete"; runId: number }
-  | { action: "remove-po"; runId: number; requestKey: string; poKey: string; poNumber: string };
+  | { action: "remove-po"; runId: number; requestKey: string; poKey: string; poNumber: string; poName?: string };
 const validStoreId = (value: unknown): value is number | null =>
   value === null ||
   (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
@@ -194,6 +195,7 @@ export function CustomerDeliveryRunsClient({
     [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [poPrompt, setPoPrompt] = useState<{
     poNumber: string;
+    poName?: string;
     barcode: string;
   } | null>(null);
   const [removePrompt, setRemovePrompt] = useState<Removal | null>(null),
@@ -680,10 +682,10 @@ export function CustomerDeliveryRunsClient({
         });
       } catch (e) {
         const data = isApiError(e)
-          ? (e.data as { code?: string; poNumber?: string })
+          ? (e.data as { code?: string; poNumber?: string; poName?: string })
           : null;
         if (data?.code !== "DELIVERY_PO_NOT_INCLUDED") throw e;
-        setPoPrompt({ poNumber: data.poNumber ?? "", barcode });
+        setPoPrompt({ poNumber: data.poNumber ?? "", poName: data.poName, barcode });
         addPo = await new Promise<boolean>((resolve) => {
           answerPo.current = resolve;
         });
@@ -909,7 +911,7 @@ export function CustomerDeliveryRunsClient({
     if (!run || lock.current || sourceLocked || blocked || pendingCreate ||
       run.status !== "ACTIVE" || !(order.canRemove ?? order.totalParts === 0)) return;
     setManagementPrompt({ action: "remove-po", runId: run.id,
-      requestKey: warehouseRequestKey(), poKey: order.key, poNumber: order.poNumber });
+      requestKey: warehouseRequestKey(), poKey: order.key, poNumber: order.poNumber, poName: poDisplayName(order) });
     setError("");
     setNotice("");
     onScanModeChange?.(false);
@@ -1134,7 +1136,7 @@ export function CustomerDeliveryRunsClient({
                       </div>
                       <p className="break-words text-sm text-muted-foreground">
                         {item.orders
-                          .map((order) => `PO ${order.poNumber}`)
+                          .map((order) => [`PO ${order.poNumber}`, poDisplayName(order)].filter(Boolean).join(" · "))
                           .join(" · ") || "Add POs to get started"}
                       </p>
                       <p className="text-sm">
@@ -1449,10 +1451,10 @@ export function CustomerDeliveryRunsClient({
                     {run.orders.map((order) => (
                       <li
                         key={order.key}
-                        className="flex items-center gap-2 rounded-lg border bg-slate-50 py-1 pl-3 pr-1 text-sm"
+                        className="flex max-w-full items-center gap-2 rounded-lg border bg-slate-50 py-1 pl-3 pr-1 text-sm"
                       >
-                        <span className="font-semibold">
-                          PO {order.poNumber}
+                        <span className="min-w-0 break-words font-semibold">
+                          PO {order.poNumber}<PoName unit={order} />
                           <span className="ml-2 text-xs font-normal text-muted-foreground">
                             {order.source === "EXTERNAL"
                               ? "External PO"
@@ -1460,7 +1462,7 @@ export function CustomerDeliveryRunsClient({
                           </span>
                         </span>
                         <Button type="button" variant="ghost" size="icon"
-                          className="size-8 text-slate-500 hover:text-red-700"
+                          className="size-8 shrink-0 text-slate-500 hover:text-red-700"
                           aria-label={`Remove PO ${order.poNumber}`}
                           title={(order.canRemove ?? order.totalParts === 0)
                             ? `Remove PO ${order.poNumber}`
@@ -1649,7 +1651,7 @@ export function CustomerDeliveryRunsClient({
                                 "Piece"}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              PO {item.poNumber} · Line {item.lineNumber}
+                              PO {item.poNumber}<PoName unit={item} /> · Line {item.lineNumber}
                               {item.mark ? ` · Mark: ${item.mark}` : ""}
                             </p>
                             <p className="mt-1 text-sm">
@@ -1743,7 +1745,7 @@ export function CustomerDeliveryRunsClient({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Add PO {poPrompt?.poNumber} to this delivery?
+              Add PO {poPrompt?.poNumber}{poPrompt && <PoName unit={poPrompt} />} to this delivery?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This scanned part belongs to a PO that is not included. Choose Yes
@@ -1813,7 +1815,7 @@ export function CustomerDeliveryRunsClient({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {management?.action === "delete" ? `Delete delivery #${management.runId}?`
-                : `Remove PO ${management?.action === "remove-po" ? management.poNumber : ""}?`}
+                : `Remove PO ${management?.action === "remove-po" ? [management.poNumber, poDisplayName(management)].filter(Boolean).join(" · ") : ""}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {management?.action === "delete"

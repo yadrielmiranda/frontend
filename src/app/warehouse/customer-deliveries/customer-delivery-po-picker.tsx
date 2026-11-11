@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import type { WarehousePoInventory } from "@/app/api/warehouse.api";
 import { customerDeliveryPoOptions, type CustomerDeliveryRun } from "@/app/api/customer-delivery-runs.api";
 import { errorMessage, Pagination } from "../warehouse-shared";
-import { UnitOrigin } from "../unit-origin";
+import { UnitOrigin, poDisplayName } from "../unit-origin";
 
 const PAGE_SIZE = 10;
 const MAX_POS = 50;
 type SelectedPo = {
   poNumber: string;
+  poName?: string;
   source: "ORDER" | "EXTERNAL";
   orderNumber: string;
 };
@@ -286,6 +287,7 @@ export function CustomerDeliveryPoPicker({
                     group.key,
                     {
                       poNumber: group.poNumber,
+                      poName: poDisplayName(group),
                       source: group.source,
                       orderNumber: group.orderNumber,
                     },
@@ -304,7 +306,7 @@ export function CustomerDeliveryPoPicker({
                   )}
                 </span>
                 <span className="block text-xs text-slate-600">
-                  <UnitOrigin unit={group} />
+                  <UnitOrigin unit={group} showName={false} />
                 </span>
                 {group.customer && (
                   <span className="block break-words text-sm font-medium">

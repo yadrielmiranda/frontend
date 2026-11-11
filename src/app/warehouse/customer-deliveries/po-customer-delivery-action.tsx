@@ -12,6 +12,7 @@ import { ApiError, isApiError } from "@/app/api/_base";
 import { warehouseRequestKey, type Paged } from "@/app/api/warehouse.api";
 import { addCustomerDeliveryPos, createCustomerDeliveryRun, customerDeliveryRuns, recordManualCustomerDelivery, type CustomerDeliveryRun, type ManualCustomerDeliveryRequest } from "@/app/api/customer-delivery-runs.api";
 import { errorMessage, Pagination } from "../warehouse-shared";
+import { poDisplayName } from "../unit-origin";
 import { warehouseCustomerDeliveryPath } from "./customer-delivery-navigation";
 
 type PendingRequest =
@@ -271,7 +272,7 @@ export function PoWarehouseReleaseActions({ poKey, poLabel, storeId = "all", sea
             {loading ? <p role="status" className="text-sm text-muted-foreground">Loading deliveries…</p> : list && list.total === 0 ? <p className="text-sm text-muted-foreground">No active deliveries.</p> : <>
               <select id={`delivery-${poKey}`} value={selectedId} onChange={event => setSelectedId(event.target.value)} disabled={!ready || !online || busy || !list} className="h-11 w-full rounded-md border bg-background px-3 text-sm">
                 <option value="">Choose a delivery</option>
-                {list?.items.map(run => <option key={run.id} value={String(run.id)}>Delivery #{run.id}{run.orders.some(order => order.key === poKey) ? " · This PO is already added" : run.orders.length ? ` · ${run.orders.slice(0, 2).map(order => `PO ${order.poNumber}`).join(", ")}${run.orders.length > 2 ? "…" : ""}` : " · No POs yet"}</option>)}
+                {list?.items.map(run => <option key={run.id} value={String(run.id)}>Delivery #{run.id}{run.orders.some(order => order.key === poKey) ? " · This PO is already added" : run.orders.length ? ` · ${run.orders.slice(0, 2).map(order => [`PO ${order.poNumber}`, poDisplayName(order)].filter(Boolean).join(" · ")).join(", ")}${run.orders.length > 2 ? "…" : ""}` : " · No POs yet"}</option>)}
               </select>
               {list && list.total > list.pageSize && <Pagination page={page} total={list.total} pageSize={list.pageSize} onPage={next => { setSelectedId(""); setPage(next); }} disabled={busy || !online} label="deliveries" />}
               <Button variant="outline" className="w-full" disabled={!selected || !ready || !online || busy || loading} onClick={continueSelected}>Add parts and open</Button>

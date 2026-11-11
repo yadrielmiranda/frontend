@@ -32,6 +32,7 @@ function harness(auth = { user: tech(), revalidate: async () => tech() }, api = 
     if (id === '@/contexts/AuthContext') return { useAuth: () => auth };
     if (id === '@/app/api/technician-warehouse.api') return api;
     if (id === '@/app/warehouse/warehouse-shared') return { Pagination: 'Pagination' };
+    if (id === '@/app/warehouse/unit-origin') return require('./warehouse-origin-test-helpers.cjs');
     throw new Error(`Unexpected import ${id}`);
   }, module, module.exports);
   return { render() { stateIndex = 0; refIndex = 0; return module.exports.TechnicianWarehouseHistory(props()); } };

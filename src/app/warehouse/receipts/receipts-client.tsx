@@ -11,7 +11,7 @@ import {
 } from "@/app/api/warehouse.api";
 import { CountNotice, errorMessage, Pagination } from "../warehouse-shared";
 import { StoreSelect } from "../store-select";
-import { UnitOrigin } from "../unit-origin";
+import { UnitOrigin, poDisplayName } from "../unit-origin";
 import { deliveryItems, deliveryPoSelected, selectDeliveryPos, type DeliverySelection } from "../customer-deliveries/customer-delivery-selection";
 import { FactoryPartQuantity } from "../factory-part-quantity";
 import { CustomerDeliveryClient } from "../customer-deliveries/customer-delivery-client";
@@ -48,7 +48,7 @@ export function ReceiptsClient({ initial, initialStores, actorId = 0, actorRole 
   const target = stores.find((s) => String(s.id) === storeId && s.isActive);
   const installation = chosen[0]?.unit.installation;
   const firstUnit = chosen[0]?.unit;
-  const deliveryLabel = firstUnit ? `PO ${firstUnit.poNumber || firstUnit.orderNumber || firstUnit.lineNumber}` : "";
+  const deliveryLabel = firstUnit ? [`PO ${firstUnit.poNumber || firstUnit.orderNumber || firstUnit.lineNumber}`, poDisplayName(firstUnit)].filter(Boolean).join(" · ") : "";
   const invalidDeliverySelection = !firstUnit || chosen.some(({ unit }) =>
     deliverySourceKey(unit) !== deliverySourceKey(firstUnit) ||
     unit.installation?.id !== installation?.id || unit.installation?.address !== installation?.address);
@@ -171,7 +171,7 @@ export function ReceiptsClient({ initial, initialStores, actorId = 0, actorRole 
   const selectedPos = new Map<string, { poNumber: string; orderNumber: string; customer: string; pieces: number; parts: number }>();
   for (const { unit, quantity } of chosen) {
     const key = unit.source === "EXTERNAL" ? `external:${unit.externalPoId}` : unit.orderId ? `order:${unit.orderId}` : `line:${unit.lineNumber}`;
-    const entry = selectedPos.get(key) ?? { poNumber: unit.poNumber, orderNumber: unit.orderNumber, customer: unit.customer || unit.project, pieces: 0, parts: 0 };
+    const entry = selectedPos.get(key) ?? { poNumber: unit.poNumber, orderNumber: unit.orderNumber, customer: poDisplayName(unit), pieces: 0, parts: 0 };
     entry.pieces++; entry.parts += Number(quantity) || 0; selectedPos.set(key, entry);
   }
   return (
@@ -236,7 +236,7 @@ export function ReceiptsClient({ initial, initialStores, actorId = 0, actorRole 
           <div className="flex flex-wrap items-center gap-4 p-4">
             <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
               <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" aria-label={`Select PO ${group.poNumber || group.orderNumber || group.key}`} aria-checked={all ? true : some ? "mixed" : false} checked={all} disabled={busy || editingLocked || !eligible} onChange={(e) => selectPos([group], e.target.checked)} />
-              <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{group.units.length} pieces · {parts} physical parts in transit</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial quantities selected"}</span>}</span>
+              <span className="min-w-0 space-y-1"><span className="block text-base font-semibold">PO {group.poNumber || "—"}</span><span className="block text-sm"><UnitOrigin unit={group} showName={false} /></span>{group.customer && <span className="block break-words text-sm font-medium">{group.customer}</span>}{group.project && group.project !== group.customer && <span className="block break-words text-sm text-muted-foreground">{group.project}</span>}<span className="block text-sm text-muted-foreground">{group.units.length} pieces · {parts} physical parts in transit</span>{some && <span className="block text-xs font-medium text-emerald-700">{all ? "All available parts selected" : "Partial quantities selected"}</span>}</span>
             </label>
             <Button variant="outline" size="sm" aria-label={`${open ? "Hide" : "Show"} pieces for PO ${group.poNumber || group.orderNumber || group.key}`} aria-expanded={open} disabled={busy || editingLocked} onClick={() => setExpanded((previous) => ({ ...previous, [group.key]: !open }))}>{open ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4" />}Pieces</Button>
           </div>

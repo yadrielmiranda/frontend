@@ -30,7 +30,7 @@ function loader(hooks = {}, api = {}, auth = standardAuth()) {
       if (id === '@/app/api/_base') return { isApiError: error => error instanceof ApiError };
       if (id === '../warehouse-shared') return { CountNotice: 'CountNotice', Pagination: 'Pagination', errorMessage: error => error.message };
       if (id === '../store-select') return { StoreSelect: 'StoreSelect' };
-      if (id === '../unit-origin') return { UnitOrigin: 'UnitOrigin' };
+      if (id === '../unit-origin') return require('./warehouse-origin-test-helpers.cjs');
       const base = id.startsWith('@/') ? path.resolve(root, id.slice(2)) : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
       if (!base) return require(id);
       const found = ['.ts', '.tsx'].map(ext => base + ext).find(file => fs.existsSync(file));
