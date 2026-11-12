@@ -37,6 +37,7 @@ export interface User {
   phone: string;
 
   street: string;
+  addressLine2?: string | null;
   city: string;
   state: string;
   postalCode: string;
@@ -475,6 +476,7 @@ export interface Estimate {
   customerEmail?: string | null;
   customerPhone?: string | null;
   customerStreet?: string | null;
+  customerAddressLine2?: string | null;
   customerCity?: string | null;
   customerState?: string | null;
   customerPostalCode?: string | null;
@@ -815,7 +817,7 @@ export interface InstallationServiceMinimumSnapshot {
   adjustment: string | number;
 }
 
-export type InstallationAddress = { street: string; city: string; state: string; postalCode: string };
+export type InstallationAddress = { street: string; addressLine2?: string | null; city: string; state: string; postalCode: string };
 
 export interface InstallationQuote {
   profileRateAdjustmentsSnapshot?: { schema: 1; adjustments: InstallationProfileAdjustment[] } | null;
@@ -1139,10 +1141,12 @@ export interface OrderDelivery {
   vehicleProfile: string;
   routeProvider: string;
   originStreet: string;
+  originAddressLine2?: string | null;
   originCity: string;
   originState: string;
   originPostalCode: string;
   destinationStreet: string;
+  destinationAddressLine2?: string | null;
   destinationCity: string;
   destinationState: string;
   destinationPostalCode: string;
@@ -1652,6 +1656,7 @@ export type CreateEstimateHeaderData = Pick<
   | "customerEmail"
   | "customerPhone"
   | "customerStreet"
+  | "customerAddressLine2"
   | "customerCity"
   | "customerState"
   | "customerPostalCode"
@@ -1670,6 +1675,7 @@ export interface CreateUserDto {
   phone: string;
 
   street: string;
+  addressLine2?: string | null;
   city: string;
   state: string;
   postalCode: string;
@@ -1740,6 +1746,7 @@ export interface Branding {
   website: string | null;
 
   street: string | null;
+  addressLine2?: string | null;
   city: string | null;
   state: string | null;
   postalCode: string | null;

@@ -178,6 +178,7 @@ const ESTIMATE_HEADER_FIELDS: Array<keyof EstimateFormValues> = [
   "customerEmail",
   "customerPhone",
   "customerStreet",
+  "customerAddressLine2",
   "customerCity",
   "customerState",
   "customerPostalCode",
@@ -329,6 +330,7 @@ export function EstimateForm({
           customerEmail: estimate!.customerEmail ?? "",
           customerPhone: estimate!.customerPhone ?? "",
           customerStreet: estimate!.customerStreet ?? "",
+          customerAddressLine2: estimate!.customerAddressLine2 ?? "",
           customerCity: estimate!.customerCity ?? "",
           customerState: estimate!.customerState ?? "",
           customerPostalCode: estimate!.customerPostalCode ?? "",
@@ -349,6 +351,7 @@ export function EstimateForm({
           customerEmail: "",
           customerPhone: "",
           customerStreet: "",
+          customerAddressLine2: "",
           customerCity: "",
           customerState: "",
           customerPostalCode: "",
@@ -385,6 +388,7 @@ export function EstimateForm({
       "customerEmail",
       "customerPhone",
       "customerStreet",
+      "customerAddressLine2",
       "customerCity",
       "customerState",
       "customerPostalCode",
@@ -416,6 +420,8 @@ export function EstimateForm({
             customerPhone: values.customerPhone?.trim() || null,
 
             customerStreet: values.customerStreet?.trim() || null,
+
+            customerAddressLine2: values.customerAddressLine2?.trim() || null,
 
             customerCity: values.customerCity?.trim() || null,
 
@@ -1728,10 +1734,10 @@ export function EstimateForm({
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
             suggestedAddress={isDealerRole(ownerRole) ? {
-              street: getValues("customerStreet") ?? "", city: getValues("customerCity") ?? "",
+              street: getValues("customerStreet") ?? "", addressLine2: getValues("customerAddressLine2") ?? "", city: getValues("customerCity") ?? "",
               state: getValues("customerState") ?? "", postalCode: getValues("customerPostalCode") ?? "",
             } : {
-              street: estimate.user?.street ?? "", city: estimate.user?.city ?? "",
+              street: estimate.user?.street ?? "", addressLine2: estimate.user?.addressLine2 ?? "", city: estimate.user?.city ?? "",
               state: estimate.user?.state ?? "", postalCode: estimate.user?.postalCode ?? "",
             }}
             estimateStatus={needsRecalculation ? "Expired" : estimate.status?.name ?? ""}
@@ -1742,6 +1748,7 @@ export function EstimateForm({
             initialJob={initialInstallation ?? null}
             currentUserId={currentUserId}
             isPrivileged={isPrivileged}
+            isAdmin={isAdminRole(role)}
             canAssist={estimate.dealerNetwork?.canAssist}
             allowAdditionalServiceNotes={isDealerRole(ownerRole)}
             companyName={estimate.companyBranding?.name?.trim() || "Company"}

@@ -1126,7 +1126,7 @@ export function InstallationDetailClient({
 
       {estimateCanceled && <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm">This estimate is canceled. Reactivate it from the estimate to resume this project.</p>}
       {!estimateCanceled && <MaterialRevisionAccess estimateId={job.estimateId} />}
-      {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
+      {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.addressLine2, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].filter(Boolean).join(", ")}</p></div>}
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           {(admin || (owner && userRole === "dealer" && job.estimate.user.dealerMode === "INTERNAL")) &&

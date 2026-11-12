@@ -28,7 +28,7 @@ const dependencies = { z, ...loadLibrary('us-states'), ...loadLibrary('validator
 const schema = new Function(...Object.keys(dependencies), compile(`${declaration('registerSchema', source.statements)}\nreturn registerSchema;`))(...Object.values(dependencies));
 const selection = compile(`${declaration('applyAddress', component.body.statements)}\nreturn applyAddress;`);
 const valid = { firstName: 'Sample', lastName: 'Customer', username: 'sample-client', email: 'sample@example.test',
-  phone: '+13055550111', password: 'Example-password-123', street: '100 Example Street', city: 'Miami',
+  phone: '+13055550111', password: 'Example-password-123', street: '100 Example Street', addressLine2: 'Apt 4B', city: 'Miami',
   state: 'FL', postalCode: '33138', serviceConsent: false, promotionsConsent: false };
 const address = { street: '200 Example Avenue', city: 'Miami', state: 'FL', postalCode: '33138' };
 const tests = [];
@@ -62,6 +62,28 @@ test('manual El Portal correction survives ZIP edits and the registration submis
   const payload = await f.submit();
   assert.equal(payload.city, 'El Portal'); assert.equal(payload.postalCode, '33139');
   assert.equal(payload.street, address.street); f.dispose();
+});
+test('optional apartment details stay separate through selection, manual changes and clearing', async () => {
+  const f = fixture(); f.applyAddress(address);
+  assert.equal((await f.submit()).addressLine2, 'Apt 4B');
+  assert.equal(f.writes.some(write => write.name === 'addressLine2'), false);
+  await f.change('addressLine2', '  Building C, rear entrance  ');
+  assert.equal((await f.submit()).addressLine2, 'Building C, rear entrance');
+  assert.equal((await f.submit()).street, address.street);
+  f.applyAddress({ ...address, addressLine2: 'Suite 12' });
+  assert.equal((await f.submit()).addressLine2, 'Suite 12');
+  await f.change('addressLine2', '');
+  assert.equal((await f.submit()).addressLine2, ''); f.dispose();
+});
+
+test('apartment details are optional and limited to 150 characters', () => {
+  const { addressLine2, ...withoutDetails } = valid;
+  assert.equal(schema.safeParse(withoutDetails).success, true);
+  assert.equal(schema.safeParse({ ...valid, addressLine2: '' }).success, true);
+  assert.equal(schema.safeParse({ ...valid, addressLine2: 'A'.repeat(150) }).success, true);
+  const result = schema.safeParse({ ...valid, addressLine2: 'A'.repeat(151) });
+  assert.equal(result.success, false);
+  assert.deepEqual(result.error.issues[0].path, ['addressLine2']);
 });
 test('registration allows manual entry without selecting a suggestion', async () => {
   const f = fixture(); await f.change('street', '300 Example Road'); await f.change('city', 'El Portal');

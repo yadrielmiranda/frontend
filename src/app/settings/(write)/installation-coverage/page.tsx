@@ -17,6 +17,7 @@ export default async function InstallationCoveragePage() {
     company?.street && company.city && company.state && company.postalCode
       ? {
           street: company.street,
+          addressLine2: company.addressLine2 ?? "",
           city: company.city,
           state: company.state,
           postalCode: company.postalCode,

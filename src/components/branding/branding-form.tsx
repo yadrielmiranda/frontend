@@ -49,6 +49,7 @@ type FormData = {
   email?: string;
   website?: string;
   street?: string;
+  addressLine2?: string;
   city?: string;
   state?: string; // "FL"
   postalCode?: string;
@@ -63,6 +64,7 @@ function normalizePayload(data: FormData): CreateBrandingData {
     email: data.email?.trim() || undefined,
     website: data.website?.trim() || undefined,
     street: data.street?.trim() || undefined,
+    addressLine2: data.addressLine2?.trim() ?? "",
     city: data.city?.trim() || undefined,
     state: data.state?.trim().toUpperCase() || undefined,
     postalCode: data.postalCode?.trim() || undefined,
@@ -95,6 +97,7 @@ export function BrandingForm({
       email: brandingState?.email ?? "",
       website: brandingState?.website ?? "",
       street: brandingState?.street ?? "",
+      addressLine2: brandingState?.addressLine2 ?? "",
       city: brandingState?.city ?? "",
       state: brandingState?.state ?? "",
       postalCode: brandingState?.postalCode ?? "",
@@ -272,6 +275,7 @@ export function BrandingForm({
                 onAddressSelect={(address) => {
                   const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
                   setValue("street", address.street, options);
+                  if (typeof address.addressLine2 === "string") setValue("addressLine2", address.addressLine2, options);
                   setValue("city", address.city, options);
                   setValue("state", address.state, options);
                   setValue("postalCode", address.postalCode, options);
@@ -280,6 +284,18 @@ export function BrandingForm({
             )}
           />
           {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
+        </div>
+
+        <div>
+          <Label htmlFor="branding-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+          <Input
+            id="branding-address-line2"
+            autoComplete="address-line2"
+            maxLength={150}
+            disabled={disableAll}
+            {...register("addressLine2", { maxLength: { value: 150, message: "Address details must be 150 characters or fewer." } })}
+          />
+          {errors.addressLine2 && <p className="text-sm text-destructive">{errors.addressLine2.message}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-2">

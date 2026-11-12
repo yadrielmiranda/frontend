@@ -6,6 +6,7 @@ export type InstallationCoverage = {
   id: number;
   revision: number;
   originStreet: string;
+  originAddressLine2?: string | null;
   originCity: string;
   originState: string;
   originPostalCode: string;
@@ -28,6 +29,7 @@ export type SaveInstallationCoverageInput = Pick<
   InstallationCoverage,
   | "revision"
   | "originStreet"
+  | "originAddressLine2"
   | "originCity"
   | "originState"
   | "originPostalCode"

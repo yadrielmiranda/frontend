@@ -2,6 +2,7 @@ import { apiFetch } from "./_base";
 
 export type WarehouseAddress = {
   street: string;
+  addressLine2?: string | null;
   city: string;
   state: string;
   postalCode: string;

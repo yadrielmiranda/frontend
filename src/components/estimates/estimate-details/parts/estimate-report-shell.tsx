@@ -23,10 +23,11 @@ function buildBrandingModel(estimate: EstimateWithRelations) {
     .join(" ");
   const brandingAddressLine =
     branding?.street ||
+    branding?.addressLine2 ||
     branding?.city ||
     branding?.state ||
     branding?.postalCode
-      ? [branding?.street, brandingCityLine].filter(Boolean).join(", ")
+      ? [branding?.street, branding?.addressLine2, brandingCityLine].filter(Boolean).join(", ")
       : null;
 
   const brandingEmail = branding?.email ?? null;
@@ -106,6 +107,9 @@ export function EstimateReportShell({
     : estimate.customerPhone || estimate.user?.phone || null;
   const contactAddress = [
     estimate.customerStreet || (ownerIsDealer ? null : estimate.user?.street),
+    estimate.customerStreet
+      ? estimate.customerAddressLine2
+      : (ownerIsDealer ? null : estimate.user?.addressLine2),
     estimate.customerCity || (ownerIsDealer ? null : estimate.user?.city),
     estimate.customerState || (ownerIsDealer ? null : estimate.user?.state),
     estimate.customerPostalCode ||

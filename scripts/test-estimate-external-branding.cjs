@@ -96,6 +96,22 @@ async function main() {
   assert.ok(escaped.includes('&lt;script&gt;bad()&lt;/script&gt;'));
   assert.ok(!escaped.includes('<script>'));
 
+  const addressEstimate = {
+    ...estimate,
+    externalDealerPresentation: null,
+    customerStreet: '100 Customer Avenue', customerAddressLine2: 'Apt 4B & Building C',
+    branding: { ...estimate.branding, addressLine2: 'Suite 200' },
+    user: { role: { name: 'client' }, street: '200 Owner Street', addressLine2: 'Unit 99' },
+  };
+  const addressHtml = render(addressEstimate);
+  assert.ok(addressHtml.includes('100 Customer Avenue, Apt 4B &amp; Building C'));
+  assert.ok(addressHtml.includes('Platform address, Suite 200'));
+  assert.ok(!addressHtml.includes('Unit 99'), 'Customer address must not inherit a different owner unit');
+  const addressWithoutUnit = render({ ...addressEstimate, customerAddressLine2: null });
+  assert.ok(!addressWithoutUnit.includes('Unit 99'));
+  const ownerAddressHtml = render({ ...addressEstimate, customerStreet: null, customerAddressLine2: null });
+  assert.ok(ownerAddressHtml.includes('200 Owner Street, Unit 99'));
+
   publicEstimate = estimate;
   const publicHtml = renderToStaticMarkup(await PublicPage({ params: Promise.resolve({ token: 'test-token' }) }));
   assert.ok(publicHtml.includes('Independent Distributor'));
@@ -110,6 +126,13 @@ async function main() {
     assert.ok(agreementHtml.includes('href="http://www.authenticevolutionco.com"'));
     assert.ok(!agreementHtml.includes('platform@example.test'));
   }
+  publicEstimate = addressEstimate;
+  const addressAgreementHtml = renderToStaticMarkup(await AgreementPage({
+    params: Promise.resolve({ token: 'test-token', agreementId: 'with-address-details' }),
+    searchParams: Promise.resolve({ render: '1' }),
+  }));
+  assert.ok(addressAgreementHtml.includes('100 Customer Avenue, Apt 4B &amp; Building C'));
+  assert.ok(addressAgreementHtml.includes('Platform address, Suite 200'));
   // Old snapshots retain their saved presentation without consulting the current owner.
   publicEstimate = { ...estimate, externalDealerPresentation: undefined };
   const oldAgreementHtml = renderToStaticMarkup(await AgreementPage({
@@ -118,6 +141,6 @@ async function main() {
   }));
   assert.ok(oldAgreementHtml.includes('platform@example.test'));
   assert.ok(!oldAgreementHtml.includes('Independent Distributor'));
-  console.log('Passed: hybrid report, public and agreement routes, legacy/own branding, old snapshots, missing contacts, escaping.');
+  console.log('Passed: hybrid report, public and agreement routes, legacy/own branding, old snapshots, missing contacts, escaping, optional address details and source pairing.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

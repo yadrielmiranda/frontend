@@ -8,6 +8,7 @@ export function userView(user: ApiUser): User {
   return {
     ...user,
     email: user.email ?? "", phone: user.phone ?? "", street: user.street ?? "",
+    addressLine2: user.addressLine2 ?? "",
     city: user.city ?? "", state: user.state ?? "", postalCode: user.postalCode ?? "",
   };
 }

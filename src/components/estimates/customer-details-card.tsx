@@ -41,6 +41,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
     if (disabled) return;
     const options = { shouldDirty: true, shouldValidate: true };
     setValue("customerStreet", address.street, options);
+    if (address.addressLine2 !== undefined) setValue("customerAddressLine2", address.addressLine2, options);
     setValue("customerCity", address.city, options);
     setValue("customerState", address.state, options);
     setValue("customerPostalCode", address.postalCode, options);
@@ -175,6 +176,24 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
             <FieldError
               message={errors?.customerStreet?.message as string | undefined}
             />
+          </div>
+
+          <div className="md:col-span-3">
+            <Label className={customerLabelClassName} htmlFor="customerAddressLine2">
+              Apartment, suite, unit, etc. (optional)
+            </Label>
+            <Input
+              id="customerAddressLine2"
+              className={customerFieldClassName}
+              placeholder="e.g. Apt 4B, Suite 200, Building C"
+              autoComplete="address-line2"
+              maxLength={150}
+              disabled={disabled}
+              {...register("customerAddressLine2", {
+                maxLength: { value: 150, message: "Address details must be 150 characters or fewer." },
+              })}
+            />
+            <FieldError message={errors?.customerAddressLine2?.message as string | undefined} />
           </div>
 
           {/* City */}

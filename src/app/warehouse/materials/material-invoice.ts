@@ -2,7 +2,7 @@ import type { Branding } from "@/app/api/brandings.api";
 import type { MaterialSale } from "@/app/api/materials.api";
 import { materialDocumentTitle, materialPublicSaleStatus } from "./material-sale-status";
 
-type InvoiceCompany = Pick<Branding, "name" | "street" | "city" | "state" | "postalCode" | "phone" | "email" | "website">;
+type InvoiceCompany = Pick<Branding, "name" | "street" | "addressLine2" | "city" | "state" | "postalCode" | "phone" | "email" | "website">;
 
 export const materialInvoiceStyles = `
   * { box-sizing: border-box; }
@@ -80,6 +80,7 @@ export function renderMaterialInvoice(doc: Document, sale: MaterialSale, company
   const seller = element("div", "seller"); header.appendChild(seller);
   paragraph(seller, company?.name?.trim() || "Authentic Evolution Co", "seller-name");
   paragraph(seller, company?.street);
+  paragraph(seller, company?.addressLine2?.trim());
   paragraph(seller, [company?.city, [company?.state, company?.postalCode].filter(Boolean).join(" ")].filter(Boolean).join(", "));
   paragraph(seller, company?.phone);
   paragraph(seller, company?.email);

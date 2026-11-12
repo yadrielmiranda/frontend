@@ -32,6 +32,7 @@ function toDraft(settings: WarehouseDeliveryState): Draft {
   const configuration = settings.configuration;
   return {
     street: configuration?.street ?? "",
+    addressLine2: configuration?.addressLine2 ?? "",
     city: configuration?.city ?? "",
     state: configuration?.state ?? "",
     postalCode: configuration?.postalCode ?? "",
@@ -52,6 +53,8 @@ function validateDraft(draft: Draft): string | null {
     return "Complete the warehouse address.";
   if (draft.street.trim().length > 150 || draft.city.trim().length > 100)
     return "Use no more than 150 characters for the street and 100 for the city.";
+  if ((draft.addressLine2?.trim().length ?? 0) > 150)
+    return "Address details must be 150 characters or fewer.";
   if (!US_STATES.some((state) => state.value === draft.state))
     return "Select a valid state.";
   if (!/^\d{5}(?:-\d{4})?$/.test(draft.postalCode.trim()))
@@ -105,7 +108,7 @@ export function WarehouseDeliveryClient({
         item.value === companyAddress.state.trim().toUpperCase() ||
         item.label.toLowerCase() === companyAddress.state.trim().toLowerCase(),
     );
-    change({ ...companyAddress, state: state?.value ?? "" });
+    change({ ...companyAddress, addressLine2: companyAddress.addressLine2 ?? "", state: state?.value ?? "" });
   }
 
   async function save(event: FormEvent) {
@@ -122,6 +125,7 @@ export function WarehouseDeliveryClient({
       const result = await saveWarehouseDeliverySettings({
         revision: saved.configuration?.revision ?? 0,
         street: draft.street.trim(),
+        addressLine2: draft.addressLine2?.trim() ?? "",
         city: draft.city.trim(),
         state: draft.state,
         postalCode: draft.postalCode.trim(),
@@ -199,6 +203,16 @@ export function WarehouseDeliveryClient({
                   contextKey={JSON.stringify([draft.city, draft.state, draft.postalCode])}
                   onAddressSelect={change}
                   onChange={(event) => change({ street: event.target.value })}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+                <Label htmlFor="warehouse-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+                <Input
+                  id="warehouse-address-line2"
+                  autoComplete="address-line2"
+                  maxLength={150}
+                  value={draft.addressLine2 ?? ""}
+                  onChange={(event) => change({ addressLine2: event.target.value })}
                 />
               </div>
               <div className="space-y-2 lg:col-span-2">

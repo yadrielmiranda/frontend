@@ -98,6 +98,17 @@ async function fixture({ initialJob = null, save, beforeRequest, ...extraProps }
   };
 }
 
+test('Google correction preserves optional unit details when changing the main address', async () => {
+  const address = { ...entered, addressLine2: 'Apt 4B, Building C' };
+  const f = await fixture({ suggestedAddress: address });
+  await f.calculate();
+  assert.equal(f.calls[0].payload.installationAddress.addressLine2, address.addressLine2);
+  assert.equal(f.hasSuggestion(), true);
+  await f.accept();
+  assert.deepEqual(f.calls[1].payload.installationAddress, { ...suggested, addressLine2: address.addressLine2 });
+  assert.equal(f.commits.at(-1).installationAddress.addressLine2, address.addressLine2);
+});
+
 test('Google correction requires explicit approval and recalculates with all four corrected fields', async () => {
   const f = await fixture();
   f.control('additional-service-7').props.onCheckedChange(true);

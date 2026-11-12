@@ -102,6 +102,7 @@ export function completeOrderPickup(orderId: number) {
 export type CreateOrderDeliveryInput = {
   type?: DeliveryType;
   street?: string;
+  addressLine2?: string | null;
   city?: string;
   state?: string;
   postalCode?: string;

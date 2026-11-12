@@ -20,7 +20,7 @@ export type NetworkMember = {
 export type DealerNetwork = { canCreate: boolean; level: string | null; defaultTaxPercent: string; members: NetworkMember[] };
 export type NetworkAccountInput = {
   username: string; firstName: string; lastName: string; email: string; phone: string;
-  password: string; street: string; city: string; state: string; postalCode: string;
+  password: string; street: string; addressLine2?: string; city: string; state: string; postalCode: string;
   markupPercent: number; taxPercent: number; parentDealerId?: number; dealerMode?: 'INTERNAL' | 'EXTERNAL';
   subdealerEarningsMode?: 'AVAILABLE_PROFIT' | 'MARKUP'; subdealerEarningsPercent?: number;
 };

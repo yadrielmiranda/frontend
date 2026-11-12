@@ -45,7 +45,7 @@ const selection = compile(`${declaration('applyAddress', cardComponent.body.stat
 const flush = async () => { for (let i = 0; i < 3; i++) await new Promise(setImmediate); };
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
-const saved = { name: 'Test estimate', customerStreet: '100 Example Street', customerCity: 'El Portal',
+const saved = { name: 'Test estimate', customerStreet: '100 Example Street', customerAddressLine2: '', customerCity: 'El Portal',
   customerState: 'FL', customerPostalCode: '33138', customerTaxRate: 0 };
 const selected = { street: '200 Example Avenue', city: 'El Portal', state: 'FL', postalCode: '33138' };
 function fixture(values = {}, disabled = false) {
@@ -98,6 +98,28 @@ test('selected address persists all four fields through real autosave', async ()
   assert.ok(f.writes.every(w => w.options.shouldDirty && w.options.shouldValidate));
   assert.deepEqual(f.toasts, []); f.unmount();
 });
+test('optional address details autosave, survive Google selection and reopen separately from street', async () => {
+  const f = fixture(); f.render();
+  await f.change('customerAddressLine2', '  Apt 4B, Building C  '); f.render(); await f.save();
+  assert.equal(f.saves.at(-1).payload.customerAddressLine2, 'Apt 4B, Building C');
+  assert.equal(f.saves.at(-1).payload.customerStreet, saved.customerStreet);
+  f.applyAddress(selected); f.render(); await f.save();
+  assert.equal(f.saves.at(-1).payload.customerAddressLine2, 'Apt 4B, Building C');
+  assert.equal(f.saves.at(-1).payload.customerStreet, selected.street);
+  const reopened = fixture(f.saves.at(-1).payload); reopened.render(); await reopened.save();
+  assert.equal(reopened.form.getValues('customerAddressLine2'), 'Apt 4B, Building C');
+  assert.deepEqual(reopened.saves, []);
+  await reopened.change('customerAddressLine2', ''); reopened.render(); await reopened.save();
+  assert.equal(reopened.saves[0].payload.customerAddressLine2, null);
+  f.unmount(); reopened.unmount();
+});
+
+test('Google subpremise populates only the optional field', async () => {
+  const f = fixture(); f.render(); f.applyAddress({ ...selected, addressLine2: '#12' }); f.render(); await f.save();
+  assert.equal(f.saves[0].payload.customerAddressLine2, '#12');
+  assert.equal(f.saves[0].payload.customerStreet, selected.street); f.unmount();
+});
+
 test('manual city and ZIP corrections survive saving and reopening', async () => {
   const f = fixture(); f.render();
   await f.change('customerCity', 'Manual city'); await f.change('customerPostalCode', '10001');

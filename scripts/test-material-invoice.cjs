@@ -84,6 +84,16 @@ test('discount is visible when present, omitted otherwise and values follow reco
   for (const value of ['Discount', '-€5.00', '€2.80', '€42.80', 'Currency: EUR', 'Payment: Unpaid', 'Pending payment', 'Full payment is required']) assert.ok(doc.body.textContent.includes(value), value);
 });
 
+test('company address details print as separate text and missing details add no blank line', () => {
+  const doc = invoice(sale, { ...company, addressLine2: '  Suite <5> & rear entrance  ' });
+  const seller = nodes(doc.body, node => node.attributes?.class === 'seller')[0];
+  assert.deepEqual(seller.children.slice(1, 4).map(node => node.textContent), ['100 Example Avenue', 'Suite <5> & rear entrance', 'Miami, FL 33101']);
+  assert.match(seller.outerHTML, /Suite &lt;5&gt; &amp; rear entrance/);
+  const withoutDetails = nodes(invoice().body, node => node.attributes?.class === 'seller')[0];
+  const emptyDetails = nodes(invoice(sale, { ...company, addressLine2: '  ' }).body, node => node.attributes?.class === 'seller')[0];
+  assert.equal(emptyDetails.outerHTML, withoutDetails.outerHTML);
+});
+
 test('canceled and draft orders render summaries, delivered and refunded states never imply pickup approval', () => {
   for (const status of ['CANCELED', 'DRAFT']) {
     const doc = invoice({ ...sale, status });

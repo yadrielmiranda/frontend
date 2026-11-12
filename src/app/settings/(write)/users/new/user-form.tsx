@@ -128,6 +128,7 @@ export function UserForm({
       username: user?.username || "",
 
       street: user?.street || "",
+      addressLine2: user?.addressLine2 ?? "",
       city: user?.city || "",
       state: user?.state || "",
       postalCode: user?.postalCode || "",
@@ -179,6 +180,7 @@ export function UserForm({
             email: data.email,
             phone: normalizedPhone, // ✅ aquí
             street: data.street,
+            addressLine2: data.addressLine2?.trim() ?? "",
             city: data.city,
             state: data.state,
             postalCode: data.postalCode,
@@ -194,6 +196,7 @@ export function UserForm({
             email: updatedUser.email,
             phone: updatedUser.phone,
             street: updatedUser.street,
+            addressLine2: updatedUser.addressLine2 ?? "",
             city: updatedUser.city,
             state: updatedUser.state,
             postalCode: updatedUser.postalCode,
@@ -258,6 +261,7 @@ export function UserForm({
           email: data.email,
           phone: normalizedPhone, // ✅ aquí
           street: data.street,
+          addressLine2: data.addressLine2?.trim() ?? "",
           city: data.city,
           state: data.state,
           postalCode: data.postalCode,
@@ -412,6 +416,7 @@ export function UserForm({
                 onAddressSelect={(address) => {
                   const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
                   setValue("street", address.street, options);
+                  if (typeof address.addressLine2 === "string") setValue("addressLine2", address.addressLine2, options);
                   setValue("city", address.city, options);
                   setValue("state", address.state, options);
                   setValue("postalCode", address.postalCode, options);
@@ -422,6 +427,18 @@ export function UserForm({
           {errors.street && (
             <p className="text-sm text-red-500 mt-1">{errors.street.message}</p>
           )}
+        </div>
+
+        <div className="md:col-span-2">
+          <Label htmlFor="user-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+          <Input
+            id="user-address-line2"
+            autoComplete="address-line2"
+            maxLength={150}
+            {...register("addressLine2", { maxLength: { value: 150, message: "Address details must be 150 characters or fewer." } })}
+            disabled={isAdminEditMode || isSubmitting}
+          />
+          {errors.addressLine2 && <p className="text-sm text-red-500 mt-1">{errors.addressLine2.message}</p>}
         </div>
 
         <div>

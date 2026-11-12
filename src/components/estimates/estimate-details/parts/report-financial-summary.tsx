@@ -751,7 +751,7 @@ export function ReportFinancialSummary({
         </h3>
       </div>
 
-      {installationSummary?.installationAddress && <p className="text-sm"><strong>Installation address: </strong>{[installationSummary.installationAddress.street, installationSummary.installationAddress.city, installationSummary.installationAddress.state, installationSummary.installationAddress.postalCode].join(", ")}</p>}
+      {installationSummary?.installationAddress && <p className="text-sm"><strong>Installation address: </strong>{[installationSummary.installationAddress.street, installationSummary.installationAddress.addressLine2, installationSummary.installationAddress.city, installationSummary.installationAddress.state, installationSummary.installationAddress.postalCode].filter(Boolean).join(", ")}</p>}
       {projectTotalOnly ? (
         externalDealerCharges ? (
           <ExternalDealerProjectScope summary={externalDealerCharges} />

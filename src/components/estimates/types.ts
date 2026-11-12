@@ -62,6 +62,7 @@ export interface EstimateFormValues {
   customerEmail?: string;
   customerPhone?: string;
   customerStreet?: string;
+  customerAddressLine2?: string;
   customerCity?: string;
   customerState?: string;
   customerPostalCode?: string;

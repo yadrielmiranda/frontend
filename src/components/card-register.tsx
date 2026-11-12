@@ -85,6 +85,8 @@ const registerSchema = z.object({
     message: "Street address is required.",
   }).max(150, "Street address must be 150 characters or fewer."),
 
+  addressLine2: z.string().trim().max(150, "Address details must be 150 characters or fewer.").optional(),
+
   city: z.string().min(1, {
     message: "City is required.",
   }).max(100, "City must be 100 characters or fewer."),
@@ -180,6 +182,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
       phone: "",
       username: "",
       street: "",
+      addressLine2: "",
       city: "",
       state: "",
       postalCode: "",
@@ -211,6 +214,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     if (isSubmitting) return;
     const options = { shouldDirty: true, shouldValidate: true };
     setValue("street", address.street, options);
+    if (typeof address.addressLine2 === "string") setValue("addressLine2", address.addressLine2, options);
     setValue("city", address.city, options);
     setValue("state", address.state, options);
     setValue("postalCode", address.postalCode, options);
@@ -414,6 +418,21 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             {errors.street && (
               <p className={errorClass}>{errors.street.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="addressLine2" className={labelClass}>
+              Apartment, suite, unit, etc. (optional)
+            </Label>
+            <Input
+              id="addressLine2"
+              autoComplete="address-line2"
+              maxLength={150}
+              className={inputClass}
+              disabled={isSubmitting}
+              {...register("addressLine2")}
+            />
+            {errors.addressLine2 && <p className={errorClass}>{errors.addressLine2.message}</p>}
           </div>
 
           <div className="space-y-2">

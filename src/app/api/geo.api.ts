@@ -15,6 +15,7 @@ export type PlaceSuggestion = {
 
 export type PlaceAddress = {
   street: string;
+  addressLine2?: string;
   city: string;
   state: string;
   postalCode: string;

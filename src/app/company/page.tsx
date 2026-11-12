@@ -62,6 +62,7 @@ export default async function CompanyPage() {
   const phone = company?.phone?.trim();
   const email = company?.email?.trim();
   const street = company?.street?.trim();
+  const addressLine2 = company?.addressLine2?.trim();
   const stateAndPostalCode = [company?.state?.trim(), company?.postalCode?.trim()]
     .filter(Boolean)
     .join(" ");
@@ -69,7 +70,7 @@ export default async function CompanyPage() {
     .filter(Boolean)
     .join(", ");
   const logoUrl = company?.logoUrl?.trim() || "/branding/authentic-login-logo.png";
-  const hasContact = Boolean(phone || email || street || locality);
+  const hasContact = Boolean(phone || email || street || addressLine2 || locality);
 
   return (
     <div className="bg-white text-slate-950">
@@ -134,12 +135,13 @@ export default async function CompanyPage() {
           <div>
             <p className="text-lg font-semibold">{companyName}</p>
             <address className="mt-5 space-y-5 text-sm not-italic">
-              {(street || locality) && (
+              {(street || addressLine2 || locality) && (
                 <div className="flex gap-3">
                   <MapPin aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
                   <div>
                     <p className="mb-1 font-medium">Business address</p>
                     {street && <p className="break-words leading-6 text-slate-600">{street}</p>}
+                    {addressLine2 && <p className="break-words leading-6 text-slate-600">{addressLine2}</p>}
                     {locality && <p className="leading-6 text-slate-600">{locality}</p>}
                   </div>
                 </div>

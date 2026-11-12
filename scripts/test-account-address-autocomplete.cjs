@@ -153,6 +153,35 @@ test('My Profile saves a manual correction after selecting Google and resets its
   assert.equal(f.button('Update Profile').props.disabled, true);
 });
 
+test('profile keeps optional details out of autocomplete and preserves, saves and clears them', async () => {
+  const f = fixture('user', { user: { ...user, addressLine2: 'Apt 4B' }, roles });
+  assert.equal(f.input('addressLine2').props.value, 'Apt 4B');
+  assert.equal(f.input('addressLine2').props.maxLength, 150);
+  assert.equal(f.input('addressLine2').props.autoComplete, 'address-line2');
+  const context = f.autocomplete().props.contextKey;
+  f.type('addressLine2', '  Building C, rear entrance  ');
+  assert.equal(f.autocomplete().props.contextKey, context);
+  assert.equal(f.autocomplete().props.value, user.street);
+  f.autocomplete().props.onAddressSelect(address);
+  await f.save();
+  assert.equal(f.requests[0].args[0].addressLine2, 'Building C, rear entrance');
+  assert.equal(f.requests[0].args[0].street, address.street);
+  assert.equal(f.input('addressLine2').props.value, 'Building C, rear entrance');
+  assert.equal(f.button('Update Profile').props.disabled, true);
+  f.type('addressLine2', ''); await f.save();
+  assert.equal(f.requests[1].args[0].addressLine2, '');
+  assert.equal(f.input('addressLine2').props.value, '');
+});
+
+test('profile accepts separate Google unit details and validates their length', async () => {
+  const f = fixture('user', { user, roles });
+  f.autocomplete().props.onAddressSelect({ ...address, addressLine2: 'Unit 12' });
+  assert.equal(f.input('addressLine2').props.value, 'Unit 12');
+  f.type('addressLine2', 'X'.repeat(151)); await f.save();
+  assert.match(f.errors.addressLine2.message, /150/);
+  assert.equal(f.requests.length, 0);
+});
+
 test('new users keep required street and ZIP validation, including selected long streets', async () => {
   const f = fixture('user', { roles }); f.render();
   Object.entries({ ...user, password: 'Test12345' }).forEach(([key, value]) => {
@@ -164,18 +193,44 @@ test('new users keep required street and ZIP validation, including selected long
   assert.match(f.errors.street.message, /150/); assert.equal(f.requests.length, 0);
   f.autocomplete().props.onAddressSelect(address); f.type('postalCode', 'bad'); await f.save();
   assert.match(f.errors.postalCode.message, /ZIP/); assert.equal(f.requests.length, 0);
-  f.type('postalCode', '33138'); f.type('city', 'El Portal'); await f.save();
+  f.type('postalCode', '33138'); f.type('city', 'El Portal'); f.type('addressLine2', 'Apt 8'); await f.save();
   assert.equal(f.requests[0].name, 'createUser'); assert.equal(f.requests[0].args[0].city, 'El Portal');
+  assert.equal(f.requests[0].args[0].addressLine2, 'Apt 8');
 });
 
 test('admin user edits keep address fields disabled and never submit profile changes', async () => {
   const f = fixture('user', { user, roles: [...roles, { id: 2, name: 'admin', markup: 0 }] });
   assert.equal(f.autocomplete().props.disabled, true); assert.equal(f.input('city').props.disabled, true);
+  assert.equal(f.input('addressLine2').props.disabled, true);
   await f.save(); assert.equal(f.requests[0].name, 'updateUser');
   assert.equal('street' in f.requests[0].args[1], false); assert.equal('city' in f.requests[0].args[1], false);
+  assert.equal('addressLine2' in f.requests[0].args[1], false);
 });
 
 for (const mode of ['company', 'dealer']) {
+  test(`${mode} branding retains, discards, saves and explicitly clears apartment details`, async () => {
+    const f = fixture('branding', { mode, branding: { id: 1, name: 'Test brand', ...user, addressLine2: 'Suite 20' } });
+    assert.equal(f.input('addressLine2').props.value, 'Suite 20');
+    assert.equal(f.input('addressLine2').props.maxLength, 150);
+    assert.equal(f.input('addressLine2').props.autoComplete, 'address-line2');
+    const context = f.autocomplete().props.contextKey;
+    f.type('addressLine2', 'Rear building');
+    assert.equal(f.autocomplete().props.contextKey, context);
+    f.click('Discard'); assert.equal(f.input('addressLine2').props.value, 'Suite 20');
+    f.autocomplete().props.onAddressSelect(address);
+    assert.equal(f.input('addressLine2').props.value, 'Suite 20');
+    f.autocomplete().props.onAddressSelect({ ...address, addressLine2: 'Unit 21' });
+    assert.equal(f.input('addressLine2').props.value, 'Unit 21');
+    f.type('addressLine2', 'X'.repeat(151)); await f.save();
+    assert.equal(f.requests.length, 0); assert.match(f.errors.addressLine2.message, /150/);
+    f.type('addressLine2', '  Suite 22  '); await f.save();
+    const method = mode === 'company' ? 'updateCompanyBranding' : 'updateDealerBranding';
+    assert.equal(f.requests.find(item => item.name === method).args[0].addressLine2, 'Suite 22');
+    assert.equal(f.input('addressLine2').props.value, 'Suite 22');
+    f.type('addressLine2', ''); await f.save();
+    assert.equal(f.requests.filter(item => item.name === method).at(-1).args[0].addressLine2, '');
+    assert.equal(f.input('addressLine2').props.value, '');
+  });
   test(`${mode} branding preserves existing/manual municipalities and saves the selected address`, async () => {
     const f = fixture('branding', { mode, branding: { id: 1, name: 'Test brand', brandingColor: '#123456', ...user } });
     assert.equal(f.autocomplete().props.value, 'Saved street'); assert.equal(f.input('city').props.value, 'El Portal');
@@ -210,17 +265,33 @@ const networkProps = { currentUserId: 1, isAdmin: false, initialData: { level: '
 test('network account address selection and manual city correction reach the existing create payload', async () => {
   const f = fixture('network', networkProps); f.click('New subdealer');
   assert.equal(f.autocomplete().props.required, true); assert.equal(f.input('postalCode').props.pattern, '[0-9]{5}');
+  assert.equal(f.input('addressLine2').props.required, false);
+  assert.equal(f.input('addressLine2').props.maxLength, 150);
+  assert.equal(f.input('addressLine2').props.autoComplete, 'address-line2');
+  const context = f.autocomplete().props.contextKey;
+  f.type('addressLine2', 'Unit 3'); assert.equal(f.autocomplete().props.contextKey, context);
   f.autocomplete().props.onAddressSelect(address); f.type('city', 'El Portal'); f.type('state', 'fl');
   await f.save({ firstName: 'Test', lastName: 'Dealer', username: 'testdealer', phone: '(305) 555-1234', password: 'Test12345', email: 'test@example.com' });
   assert.equal(f.requests[0].name, 'createNetworkAccount'); assert.equal(f.requests[0].args[0].city, 'El Portal');
   assert.equal(f.requests[0].args[0].state, 'FL'); assert.equal(f.requests[0].args[0].street, address.street);
+  assert.equal(f.requests[0].args[0].addressLine2, 'Unit 3');
 });
 
 test('network account close/reopen clears selected address and rejects overlong Google values visibly', () => {
-  const f = fixture('network', networkProps); f.click('New subdealer'); f.autocomplete().props.onAddressSelect(address);
+  const f = fixture('network', networkProps); f.click('New subdealer'); f.autocomplete().props.onAddressSelect({ ...address, addressLine2: 'Suite 8' });
+  assert.equal(f.input('addressLine2').props.value, 'Suite 8');
   f.click('Cancel'); f.click('New subdealer'); assert.equal(f.autocomplete().props.value, ''); assert.equal(f.input('city').props.value, '');
+  assert.equal(f.input('addressLine2').props.value, '');
   f.autocomplete().props.onAddressSelect({ ...address, street: 'S'.repeat(151) });
   assert.match(text(f.find(node => node.props.role === 'alert')), /too long/); assert.equal(f.autocomplete().props.value, '');
+});
+
+test('network account rejects overlong apartment details without making a create request', async () => {
+  const f = fixture('network', networkProps); f.click('New subdealer'); f.autocomplete().props.onAddressSelect(address);
+  f.type('addressLine2', 'X'.repeat(151));
+  await f.save({ phone: '(305) 555-1234' });
+  assert.equal(f.requests.length, 0);
+  assert.match(text(f.find(node => node.props.role === 'alert')), /Address details.*150/);
 });
 
 (async () => {

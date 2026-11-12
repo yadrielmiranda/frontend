@@ -80,7 +80,7 @@ export function getProfileSilent() {
 }
 
 type ProfileFields = "username" | "firstName" | "lastName" | "email" | "phone" |
-  "street" | "city" | "state" | "postalCode";
+  "street" | "addressLine2" | "city" | "state" | "postalCode";
 
 export function updateMyProfile(userData: Pick<UpdateUserDto, ProfileFields>) {
   return apiFetch<User>("/api/auth/profile", {

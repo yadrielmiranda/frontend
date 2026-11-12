@@ -28,7 +28,7 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [error, setError] = useState('');
-  const [address, setAddress] = useState({ street: '', city: '', state: '', postalCode: '' });
+  const [address, setAddress] = useState({ street: '', addressLine2: '', city: '', state: '', postalCode: '' });
   const parents = initialData.members.filter(member => member.level < 3 && member.isActive && !member.networkSalesBlocked);
   const parent = initialData.members.find(member => member.id === (editing?.parentDealerId ?? Number(parentId)));
   const allowInternal = parent?.level === 1 && parent.dealerMode === "INTERNAL";
@@ -58,10 +58,12 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
       } else {
         const phone = normalizeUSPhoneToE164(value('phone'));
         if (!phone || !/^\+1\d{10}$/.test(phone)) throw new Error('Enter a valid US phone number.');
+        if (value('addressLine2').length > 150) throw new Error('Address details must be 150 characters or fewer.');
         await createNetworkAccount({
           username: value('username'), firstName: value('firstName'), lastName: value('lastName'),
           email: value('email'), phone, password: String(data.get('password') ?? ''),
           street: value('street'), city: value('city'), state: value('state').toUpperCase(), postalCode: value('postalCode'),
+          addressLine2: value('addressLine2'),
           ...terms,
           ...(isAdmin ? { parentDealerId: Number(parentId) } : {}),
         });
@@ -77,7 +79,7 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
       <h1 className="text-4xl font-bold">{initialData.level === null ? 'Dealer network' : 'My dealers'}</h1>
       {initialData.canCreate && <Button variant="green" onClick={() => {
         setParentId(String(isAdmin ? parents[0]?.id ?? '' : currentUserId)); setMode('EXTERNAL'); setEarningsMode('MARKUP'); setError('');
-        setAddress({ street: '', city: '', state: '', postalCode: '' }); setCreating(true);
+        setAddress({ street: '', addressLine2: '', city: '', state: '', postalCode: '' }); setCreating(true);
       }}><Plus className="mr-2 h-4 w-4" />{isAdmin ? 'New account' : `New ${initialData.level === 'Subdealer' ? 'distributor' : 'subdealer'}`}</Button>}
     </div>
     {isAdmin || initialData.level !== null ? <DealerNetworkTree members={initialData.members.filter(member => member.id !== currentUserId)} currentUserId={currentUserId} showMarkupSource={isAdmin} busy={busy} onEdit={editTerms} onBusiness={setSuspending} /> : <>
@@ -131,15 +133,16 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
                   contextKey={JSON.stringify([address.city, address.state, address.postalCode, parentId])}
                   onChange={event => setAddress(current => ({ ...current, street: event.target.value }))}
                   onAddressSelect={selected => {
-                    if (selected.street.length > 150 || selected.city.length > 100) {
-                      setError('The selected address is too long. Enter a street with up to 150 characters and a city with up to 100 characters.');
+                    if (selected.street.length > 150 || (selected.addressLine2?.length ?? 0) > 150 || selected.city.length > 100) {
+                      setError('The selected address is too long. Use up to 150 characters for the street and address details, and up to 100 characters for the city.');
                       return;
                     }
-                    setAddress({ street: selected.street, city: selected.city, state: selected.state, postalCode: selected.postalCode });
+                    setAddress(current => ({ ...current, street: selected.street, addressLine2: selected.addressLine2 ?? current.addressLine2, city: selected.city, state: selected.state, postalCode: selected.postalCode }));
                     setError('');
                   }}
                 />
               </div>
+              <Field name="addressLine2" label="Apartment, suite, unit, etc. (optional)" required={false} maxLength={150} autoComplete="address-line2" value={address.addressLine2} onChange={event => setAddress(current => ({ ...current, addressLine2: event.target.value }))} />
               <div className="grid grid-cols-3 gap-3">
                 <Field name="city" label="City" maxLength={100} value={address.city} onChange={event => setAddress(current => ({ ...current, city: event.target.value }))} />
                 <Field name="state" label="State" maxLength={2} placeholder="FL" value={address.state} onChange={event => setAddress(current => ({ ...current, state: event.target.value }))} />

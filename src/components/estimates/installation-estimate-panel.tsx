@@ -72,11 +72,11 @@ type AddressSuggestion = {
 };
 
 const addressText = (value: InstallationAddress) =>
-  [value.street, value.city, value.state, value.postalCode].join(", ");
+  [value.street, value.addressLine2, value.city, value.state, value.postalCode].filter(Boolean).join(", ");
 
 const sameAddress = (left: InstallationAddress, right: InstallationAddress) =>
-  (["street", "city", "state", "postalCode"] as const).every(
-    key => left[key].trim().toUpperCase() === right[key].trim().toUpperCase(),
+  (["street", "addressLine2", "city", "state", "postalCode"] as const).every(
+    key => (left[key] ?? "").trim().toUpperCase() === (right[key] ?? "").trim().toUpperCase(),
   );
 
 function suggestedInstallationAddress(error: unknown): InstallationAddress | null {
@@ -89,6 +89,10 @@ function suggestedInstallationAddress(error: unknown): InstallationAddress | nul
   const keys = ["street", "city", "state", "postalCode"] as const;
   if (keys.some(key => typeof source[key] !== "string" || !source[key].trim())) return null;
   const address = Object.fromEntries(keys.map(key => [key, (source[key] as string).trim()])) as InstallationAddress;
+  if (source.addressLine2 != null) {
+    if (typeof source.addressLine2 !== "string" || source.addressLine2.trim().length > 150) return null;
+    address.addressLine2 = source.addressLine2.trim();
+  }
   if (address.street.length > 150 || address.city.length > 100 || address.state !== "FL" || !/^\d{5}(?:-\d{4})?$/.test(address.postalCode)) return null;
   return address;
 }
@@ -121,6 +125,7 @@ export function InstallationEstimatePanel({
   initialJob,
   currentUserId,
   isPrivileged,
+  isAdmin = false,
   canAssist = false,
   networkPaymentBlocked = false,
   allowAdditionalServiceNotes,
@@ -141,6 +146,7 @@ export function InstallationEstimatePanel({
   initialJob: InstallationJob | null;
   currentUserId: number;
   isPrivileged: boolean;
+  isAdmin?: boolean;
   canAssist?: boolean;
   networkPaymentBlocked?: boolean;
   allowAdditionalServiceNotes: boolean;
@@ -160,14 +166,15 @@ export function InstallationEstimatePanel({
   const mounted = useRef(true);
   const suggestionPanel = useRef<HTMLDivElement>(null);
   // Material-total refreshes do not change which address the user is confirming.
-  const requestContext = JSON.stringify([estimateId, suggestedAddress.street, suggestedAddress.city, suggestedAddress.state, suggestedAddress.postalCode, estimateStatus, order?.id, networkPaymentBlocked]);
+  const requestContext = JSON.stringify([estimateId, suggestedAddress.street, suggestedAddress.addressLine2, suggestedAddress.city, suggestedAddress.state, suggestedAddress.postalCode, estimateStatus, order?.id, networkPaymentBlocked]);
   const latestContext = useRef(requestContext);
   latestContext.current = requestContext;
   const clearAddressSuggestion = useCallback(() => {
     addressRevision.current++;
     setAddressSuggestion(null);
   }, []);
-  const completeAddress = (value: InstallationAddress) => Object.values(value).every(part => part.trim());
+  const completeAddress = (value: InstallationAddress) =>
+    (["street", "city", "state", "postalCode"] as const).every(key => value[key].trim());
   const beginAddress = (value: InstallationAddress) => {
     clearAddressSuggestion();
     const state = value.state.trim().toUpperCase();
@@ -236,11 +243,12 @@ export function InstallationEstimatePanel({
   const depositPaid = job ? paidBaseFor(job, "INSTALLATION_DEPOSIT") : 0;
   const canEditBeforePayment =
     Boolean(job) &&
-    (isOwner || canAssist) &&
+    (isOwner || isAdmin || canAssist) &&
     !order &&
     estimateStatus === "Active" &&
     job?.status !== "CANCELED" &&
     canEditInstallationBeforePayment(job, estimatePayments);
+  const canRemoveBeforePayment = canEditBeforePayment && (isOwner || isAdmin);
   const canConfigureRequest = canRequest || canEditBeforePayment;
 
   useEffect(() => {
@@ -343,6 +351,10 @@ export function InstallationEstimatePanel({
       toast.error("Use no more than 150 characters for the street and 100 for the city.");
       return;
     }
+    if ((requestAddress.addressLine2 ?? "").trim().length > 150) {
+      toast.error("Address details must be 150 characters or fewer.");
+      return;
+    }
     if (!/^\d{5}(?:-\d{4})?$/.test(requestAddress.postalCode.trim())) {
       toast.error("Enter a valid 5-digit ZIP code or ZIP+4.");
       return;
@@ -401,7 +413,10 @@ export function InstallationEstimatePanel({
       );
     } catch (error) {
       if (!isCurrent()) return;
-      const suggested = suggestedInstallationAddress(error);
+      const correctedAddress = suggestedInstallationAddress(error);
+      const suggested = correctedAddress
+        ? { ...correctedAddress, ...(requestAddress.addressLine2 !== undefined ? { addressLine2: requestAddress.addressLine2 } : {}) }
+        : null;
       if (suggested && !sameAddress(requestAddress, suggested)) {
         setAddressSuggestion({ entered: { ...requestAddress }, suggested, context, revision });
       } else {
@@ -428,7 +443,7 @@ export function InstallationEstimatePanel({
   };
 
   const removeRequest = async () => {
-    if (!job) return;
+    if (!job || busy || !canRemoveBeforePayment) return;
     setBusy(true);
     try {
       const result = await cancelInstallation(job.id);
@@ -500,7 +515,7 @@ export function InstallationEstimatePanel({
                   </div>
                 ) : addressChoice !== "different" ? (
                   <>
-                    <p className="text-sm">{[address.street, address.city, address.state, address.postalCode].join(", ")}</p>
+                    <p className="text-sm">{addressText(address)}</p>
                     <p className="text-sm font-medium">Is this the installation address?</p>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL"} onClick={() => { clearAddressSuggestion(); setAddressChoice("suggested"); setAddressConfirmed(true); }}>Use this address</Button>
@@ -512,8 +527,8 @@ export function InstallationEstimatePanel({
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {([['street', 'Street address'], ['city', 'City'], ['state', 'State'], ['postalCode', 'ZIP code']] as const).map(([key, label]) => (
-                        <div key={key} className={key === "street" ? "sm:col-span-2" : ""}>
+                      {([['street', 'Street address'], ['addressLine2', 'Apartment, suite, unit, etc. (optional)'], ['city', 'City'], ['state', 'State'], ['postalCode', 'ZIP code']] as const).map(([key, label]) => (
+                        <div key={key} className={key === "street" || key === "addressLine2" ? "sm:col-span-2" : ""}>
                           <Label htmlFor={`installation-${key}`}>{label}</Label>
                           {key === "state" ? (
                             <Select value={address.state} disabled={busy} onValueChange={state => { clearAddressSuggestion(); setAddress(current => ({ ...current, state })); setAddressConfirmed(false); }}>
@@ -539,11 +554,11 @@ export function InstallationEstimatePanel({
                                   toast.error("Installation is available only in Florida. Choose a Florida address.");
                                   return;
                                 }
-                                setAddress(selected);
+                                setAddress(current => ({ ...current, ...selected }));
                               }}
                             />
                           ) : (
-                            <Input id={`installation-${key}`} value={address[key]} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...current, [key]: event.target.value })); setAddressConfirmed(false); }} />
+                            <Input id={`installation-${key}`} value={address[key] ?? ""} disabled={busy} autoComplete={key === "addressLine2" ? "address-line2" : undefined} placeholder={key === "addressLine2" ? "e.g. Apt 4B, Suite 200, Building C" : undefined} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...current, [key]: event.target.value })); setAddressConfirmed(false); }} />
                           )}
                         </div>
                       ))}
@@ -834,8 +849,6 @@ export function InstallationEstimatePanel({
       appointment.type === "REMEASUREMENT" &&
       (appointment.status === "ACCEPTED" || appointment.status === "COMPLETED"),
   );
-  const canRemoveBeforePayment = canEditBeforePayment;
-
   const decide = async (decision: "APPROVED" | "REJECTED") => {
     setBusy(true);
     let decisionSaved = false;
@@ -906,7 +919,7 @@ export function InstallationEstimatePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {canEditBeforePayment && job.estimate.user.role?.name === "dealer" &&
+        {canEditBeforePayment && (isOwner || canAssist) && job.estimate.user.role?.name === "dealer" &&
           job.estimate.user.dealerMode === "INTERNAL" && !job.dealerMeasurementsAcceptedAt && (
           <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm text-blue-900">
@@ -958,7 +971,7 @@ export function InstallationEstimatePanel({
         )}
 
         {canEditBeforePayment && job.status === "DEPOSIT_PAYMENT_PENDING" && !job.installationAddressConfirmedAt && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Edit the installation request and confirm its address before continuing.</p>}
-        {canRemoveBeforePayment && (
+        {canEditBeforePayment && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm text-slate-600">
               Before starting payment, you can edit the installation request
@@ -979,7 +992,7 @@ export function InstallationEstimatePanel({
                 type="button"
                 variant="outline"
                 className="border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800"
-                disabled={busy || !isOwner}
+                disabled={busy || !canRemoveBeforePayment}
                 onClick={() => setRemoveDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -1035,7 +1048,7 @@ export function InstallationEstimatePanel({
           </div>
         )}
 
-        {job.installationAddress && <div className="rounded-lg border p-3 text-sm"><strong>Installation address</strong><p>{[job.installationAddress.street, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].join(", ")}</p></div>}
+        {job.installationAddress && <div className="rounded-lg border p-3 text-sm"><strong>Installation address</strong><p>{addressText(job.installationAddress)}</p></div>}
         {acceptedRemeasurement && !proposedRemeasurement && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             <strong className="block">Remeasurement date accepted</strong>

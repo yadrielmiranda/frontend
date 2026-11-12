@@ -130,7 +130,7 @@ test('warehouse selection updates all address fields while preserving prices and
   assert.equal(h.control('warehouse-state').props.value, 'FL');
   assert.equal(h.control('warehouse-zip').props.value, selected.postalCode);
   await h.submit();
-  assert.deepEqual(h.calls, [{ ...selected, revision: 3, maxDeliveryMiles: 100, basePrice: 150, includedMiles: 20, additionalMilePrice: 2.5 }]);
+  assert.deepEqual(h.calls, [{ ...selected, addressLine2: '', revision: 3, maxDeliveryMiles: 100, basePrice: 150, includedMiles: 20, additionalMilePrice: 2.5 }]);
 });
 test('warehouse manual city survives ZIP changes and invalidates pending autocomplete context', async () => {
   const h = warehouse(); h.select('warehouse-street', selected);
@@ -157,7 +157,7 @@ test('coverage selection and manual city changes preserve ranges and send one co
   const context = h.control('coverage-street').props.contextKey;
   h.input('coverage-city', 'Corrected Municipality'); h.input('coverage-zip', '33138');
   assert.notEqual(h.control('coverage-street').props.contextKey, context); await h.submit();
-  assert.deepEqual(h.calls[0], { revision: 4, originStreet: selected.street, originCity: 'Corrected Municipality', originState: 'FL', originPostalCode: '33138',
+  assert.deepEqual(h.calls[0], { revision: 4, originStreet: selected.street, originAddressLine2: '', originCity: 'Corrected Municipality', originState: 'FL', originPostalCode: '33138',
     maxDistanceMiles: 100, includedMiles: 20, hoursPerDay: 8, ranges: [{ upToMiles: 100, chargeType: 'FIXED', value: 50, dailyCharge: 20 }] });
 });
 test('coverage keeps company-address reuse and rejects invalid ZIP, missing range coverage and invalid workdays', async () => {
@@ -216,7 +216,7 @@ for (const type of ['STANDARD', 'PRE_DELIVERY', 'INSTALLATION_OVERRIDE', 'REDELI
       h.input('delivery-internal-reason', ' Site access requested ');
     }
     await h.calculate();
-    assert.deepEqual(h.calls[0], { id: 11, payload: { ...selected, city: 'Corrected Municipality', postalCode: '33138', type, taxable: false,
+    assert.deepEqual(h.calls[0], { id: 11, payload: { ...selected, addressLine2: null, city: 'Corrected Municipality', postalCode: '33138', type, taxable: false,
       internalReason: type === 'STANDARD' ? undefined : 'Site access requested' } });
     assert.equal(h.errors.at(-1), 'Validation remains on server');
   });
@@ -231,7 +231,7 @@ test('delivery retains complete-address, two-letter state and ZIP verification',
 test('delivery disables address editing and suggestions while address verification creates its charge', async () => {
   const pending = deferred(), h = delivery('STANDARD', () => pending.promise); h.open(); h.select('delivery-street', selected);
   h.click('Verify address & create charge');
-  for (const id of ['delivery-street', 'delivery-city', 'delivery-state', 'delivery-zip']) assert.equal(h.control(id).props.disabled, true);
+  for (const id of ['delivery-street', 'delivery-address-line2', 'delivery-city', 'delivery-state', 'delivery-zip']) assert.equal(h.control(id).props.disabled, true);
   pending.resolve({ id: 99, type: 'STANDARD', status: 'CANCELED', amount: '100', destinationStreet: selected.street,
     destinationCity: selected.city, destinationState: 'FL', destinationPostalCode: selected.postalCode }); await flush();
 });
@@ -251,6 +251,49 @@ test('programmatic installation selections retain their text but cannot bypass a
     assert.equal(h.calls.length, 0); assert.match(h.errors.at(-1), /150 characters|valid 5-digit ZIP/);
     if (patch.city) assert.equal(h.control('installation-city').props.value.length, 101, 'No silent truncation');
   }
+});
+for (const [fixture, prefix, property] of [[warehouse, 'warehouse', 'addressLine2'], [coverageFixture, 'coverage', 'originAddressLine2']]) {
+  test(`${prefix} saves, preserves and clears optional details separately from the Google address`, async () => {
+    const h = fixture(), id = `${prefix}-address-line2`;
+    const context = h.control(`${prefix}-street`).props.contextKey;
+    h.input(id, '  Suite 200, Building C  ');
+    assert.equal(h.control(`${prefix}-street`).props.contextKey, context);
+    h.select(`${prefix}-street`, selected);
+    assert.equal(h.control(id).props.value, '  Suite 200, Building C  ');
+    await h.submit();
+    assert.equal(h.calls[0][property], 'Suite 200, Building C');
+    assert.equal(h.calls[0][prefix === 'warehouse' ? 'street' : 'originStreet'], selected.street);
+    h.input(id, ''); await h.submit();
+    assert.equal(h.calls[1][property], '');
+    h.select(`${prefix}-street`, { ...selected, addressLine2: '#4B' });
+    assert.equal(h.control(id).props.value, '#4B');
+    h.click('Use company address');
+    assert.equal(h.control(id).props.value, '', 'Company address without a detail clears the previous location detail');
+  });
+}
+test('installation optional details survive Google selection and an empty detail permits calculation', async () => {
+  for (const detail of ['', 'Apt 4B']) {
+    const h = await installation();
+    h.input('installation-addressLine2', detail);
+    h.select('installation-street', selected);
+    assert.equal(h.control('installation-addressLine2').props.value, detail);
+    h.confirm(); h.permit(); await h.click('Calculate installation');
+    assert.equal(h.calls.length, 1);
+    assert.deepEqual(h.calls[0].payload.installationAddress, { ...selected, addressLine2: detail });
+  }
+});
+test('delivery sends optional details separately, accepts a Google subpremise and clears explicit empty details', async () => {
+  const h = delivery(); h.open();
+  const context = h.control('delivery-street').props.contextKey;
+  h.input('delivery-address-line2', '  Apt 4B  ');
+  assert.equal(h.control('delivery-street').props.contextKey, context);
+  h.select('delivery-street', selected); await h.calculate();
+  assert.equal(h.calls[0].payload.street, selected.street);
+  assert.equal(h.calls[0].payload.addressLine2, 'Apt 4B');
+  h.select('delivery-street', { ...selected, addressLine2: '#12' });
+  assert.equal(h.control('delivery-address-line2').props.value, '#12');
+  h.input('delivery-address-line2', ''); await h.calculate();
+  assert.equal(h.calls[1].payload.addressLine2, null);
 });
 test('programmatic delivery selections cannot bypass address length limits', async () => {
   const h = delivery(); h.open();

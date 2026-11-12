@@ -37,7 +37,7 @@ export function WarehousePickupAddress() {
         {loading
           ? "Loading pickup address..."
           : address
-            ? `${address.street}, ${address.city}, ${address.state} ${address.postalCode}`
+            ? [address.street, address.addressLine2?.trim(), address.city, `${address.state} ${address.postalCode}`].filter(Boolean).join(", ")
             : "Contact us to confirm the pickup address."}
       </p>
     </div>

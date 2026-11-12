@@ -14,6 +14,7 @@ export type Branding = {
   website: string | null;
 
   street: string | null;
+  addressLine2?: string | null;
   city: string | null;
   state: string | null;
   postalCode: string | null;
@@ -33,6 +34,7 @@ export type CreateBrandingData = {
   email?: string;
   website?: string;
   street?: string;
+  addressLine2?: string;
   city?: string;
   state?: string;
   postalCode?: string;

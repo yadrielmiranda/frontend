@@ -91,6 +91,9 @@ export function OrderDeliveryPanel({
       street: dealerCustomer
         ? (order.estimate.customerStreet ?? "")
         : (order.user.street ?? ""),
+      addressLine2: dealerCustomer
+        ? (order.estimate.customerAddressLine2 ?? "")
+        : (order.user.addressLine2 ?? ""),
       city: dealerCustomer
         ? (order.estimate.customerCity ?? "")
         : (order.user.city ?? ""),
@@ -186,6 +189,10 @@ export function OrderDeliveryPanel({
       toast.error("Use no more than 150 characters for the street and 100 for the city.");
       return;
     }
+    if (address.addressLine2.trim().length > 150) {
+      toast.error("Address details must be 150 characters or fewer.");
+      return;
+    }
     if (!/^[A-Za-z]{2}$/.test(address.state.trim())) {
       toast.error("Enter the two-letter state code, for example FL.");
       return;
@@ -204,6 +211,7 @@ export function OrderDeliveryPanel({
       const created = await createOrderDelivery(order.id, {
         type: formType,
         street: address.street.trim(),
+        addressLine2: address.addressLine2.trim() || null,
         city: address.city.trim(),
         state: address.state.trim().toUpperCase(),
         postalCode: address.postalCode.trim(),
@@ -538,13 +546,25 @@ export function OrderDeliveryPanel({
                 maxLength={150}
                 disabled={busy}
                 contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
-                onAddressSelect={setAddress}
+                onAddressSelect={(selected) => setAddress((current) => ({ ...current, ...selected }))}
                 onChange={(event) =>
                   setAddress((current) => ({
                     ...current,
                     street: event.target.value,
                   }))
                 }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="delivery-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+              <Input
+                id="delivery-address-line2"
+                value={address.addressLine2}
+                maxLength={150}
+                disabled={busy}
+                autoComplete="address-line2"
+                placeholder="e.g. Apt 4B, Suite 200, Building C"
+                onChange={(event) => setAddress((current) => ({ ...current, addressLine2: event.target.value }))}
               />
             </div>
             <div>
@@ -690,7 +710,7 @@ export function OrderDeliveryPanel({
                 <div>
                   <div className="text-muted-foreground">Destination</div>
                   <div className="font-medium">
-                    {delivery.destinationStreet}, {delivery.destinationCity},{" "}
+                    {[delivery.destinationStreet, delivery.destinationAddressLine2].filter(Boolean).join(", ")}, {delivery.destinationCity},{" "}
                     {delivery.destinationState} {delivery.destinationPostalCode}
                   </div>
                 </div>
@@ -762,7 +782,7 @@ export function OrderDeliveryPanel({
                 <OrderPaymentSection
                   target={paymentTarget}
                   title={`${deliveryName(delivery.type)} #${delivery.sequence}`}
-                  description={`${delivery.destinationStreet}, ${delivery.destinationCity}, ${delivery.destinationState} ${delivery.destinationPostalCode}`}
+                  description={[delivery.destinationStreet, delivery.destinationAddressLine2, delivery.destinationCity, `${delivery.destinationState} ${delivery.destinationPostalCode}`].filter(Boolean).join(", ")}
                   amount={Number(delivery.total)}
                 >
                   {canPay &&

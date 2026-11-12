@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Draft = {
   originStreet: string;
+  originAddressLine2: string;
   originCity: string;
   originState: string;
   originPostalCode: string;
@@ -33,6 +34,7 @@ type Draft = {
 };
 type CompanyAddress = {
   street: string;
+  addressLine2?: string | null;
   city: string;
   state: string;
   postalCode: string;
@@ -45,6 +47,7 @@ const selectClass =
 function toDraft(coverage: InstallationCoverage | null): Draft {
   return {
     originStreet: coverage?.originStreet ?? "",
+    originAddressLine2: coverage?.originAddressLine2 ?? "",
     originCity: coverage?.originCity ?? "",
     originState: coverage?.originState ?? "",
     originPostalCode: coverage?.originPostalCode ?? "",
@@ -76,6 +79,8 @@ function validateDraft(draft: Draft): string | null {
   }
   if (draft.originStreet.trim().length > 150 || draft.originCity.trim().length > 100)
     return "Use no more than 150 characters for the street and 100 for the city.";
+  if (draft.originAddressLine2.trim().length > 150)
+    return "Address details must be 150 characters or fewer.";
   if (!US_STATES.some((state) => state.value === draft.originState))
     return "Select a valid state.";
   if (!/^\d{5}(?:-\d{4})?$/.test(draft.originPostalCode.trim()))
@@ -160,6 +165,7 @@ export function InstallationCoverageClient({
       const result = await saveInstallationCoverage({
         revision: saved?.revision ?? 0,
         originStreet: draft.originStreet.trim(),
+        originAddressLine2: draft.originAddressLine2.trim(),
         originCity: draft.originCity.trim(),
         originState: draft.originState,
         originPostalCode: draft.originPostalCode.trim(),
@@ -218,6 +224,7 @@ export function InstallationCoverageClient({
                   onClick={() =>
                     change({
                       originStreet: companyAddress.street,
+                      originAddressLine2: companyAddress.addressLine2 ?? "",
                       originCity: companyAddress.city,
                       originState: US_STATES.some(
                         (state) =>
@@ -245,6 +252,7 @@ export function InstallationCoverageClient({
                   contextKey={JSON.stringify([draft.originCity, draft.originState, draft.originPostalCode])}
                   onAddressSelect={address => change({
                     originStreet: address.street,
+                    ...(typeof address.addressLine2 === "string" ? { originAddressLine2: address.addressLine2 } : {}),
                     originCity: address.city,
                     originState: address.state,
                     originPostalCode: address.postalCode,
@@ -252,6 +260,16 @@ export function InstallationCoverageClient({
                   onChange={(event) =>
                     change({ originStreet: event.target.value })
                   }
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+                <Label htmlFor="coverage-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+                <Input
+                  id="coverage-address-line2"
+                  autoComplete="address-line2"
+                  maxLength={150}
+                  value={draft.originAddressLine2}
+                  onChange={(event) => change({ originAddressLine2: event.target.value })}
                 />
               </div>
               <div className="space-y-2 lg:col-span-2">
