@@ -83,7 +83,7 @@ const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 52;
 const THREE_PANEL_SOURCE_BODY = {
   width: 6627,
   height: 1786,
-  jointWidth: 168,
+  jointWidth: 132,
 } as const;
 const INTERNAL_JOINT_WIDTH_RATIO =
   THREE_PANEL_SOURCE_BODY.jointWidth / THREE_PANEL_SOURCE_BODY.height;
@@ -262,28 +262,26 @@ function visiblePanelCells(panel: PanelGeometry, horizontalJointHeight: number):
   });
 }
 
-function GlazingStop({ glass, bead, seal, finish, glassPaint }: {
-  glass: Rect; bead: number; seal: number;
+function innerProfileRect(panel: PanelGeometry, bead: number, jointWidth: number): Rect {
+  // At an interlock the next glazing profile begins at the seam itself. The
+  // preceding module keeps its full return, making the visible overlap 3:1.
+  const leftBead = panel.index === 0 ? bead : jointWidth / 4;
+  return {
+    x: panel.glass.x - leftBead,
+    y: panel.glass.y - bead,
+    width: panel.glass.width + leftBead + bead,
+    height: panel.glass.height + 2 * bead,
+  };
+}
+
+function GlazingStop({ glass, seal, finish, glassPaint }: {
+  glass: Rect; seal: number;
   finish: ReturnType<typeof doorFinish>; glassPaint: string;
 }) {
   const { x, y, width, height } = glass;
   const right = x + width;
   const bottom = y + height;
-  const leftEdge = x - bead;
-  const rightEdge = right + bead;
-  const topEdge = y - bead;
-  const bottomEdge = bottom + bead;
-
   return <g data-part="window-wall-glazing-stop">
-    <rect x={leftEdge} y={topEdge} width={width + 2 * bead} height={height + 2 * bead}
-      fill="none" stroke={finish("#A7B0AF", -0.27)} strokeWidth={seal * 0.55} />
-    <path d={`M${leftEdge} ${topEdge}H${rightEdge}L${right} ${y}H${x}Z`}
-      fill={finish("#899593", -0.38)} fillOpacity=".18" />
-    <path d={`M${rightEdge} ${topEdge}V${bottomEdge}L${right} ${bottom}V${y}Z`}
-      fill={finish("#809192", -0.34)} fillOpacity=".24" />
-    <path d={`M${leftEdge} ${topEdge}L${x} ${y}V${bottom}L${leftEdge} ${bottomEdge}Z
-      M${leftEdge} ${bottomEdge}L${x} ${bottom}H${right}L${rightEdge} ${bottomEdge}Z`}
-      fill="white" fillOpacity=".16" />
     <rect x={x - seal} y={y - seal} width={width + 2 * seal} height={height + 2 * seal}
       fill={finish("#617071", -0.52)} />
     <path d={`M${x - seal / 2} ${bottom}V${y - seal / 2}H${right}`}
@@ -482,7 +480,7 @@ export function WindowWallDiagram({
     ),
   );
   const visibleCells = panels.flatMap((panel) => visiblePanelCells(panel, horizontalJointHeight));
-  const glazingBead = Math.min(32 * profilePixelScale, horizontalJointHeight * 0.28,
+  const glazingBead = Math.min(35 * profilePixelScale,
     ...visibleCells.map((cell) => Math.min(cell.width, cell.height) * 0.12));
   const resolvedMuntin = windowWallMuntinCells(muntin, panels, horizontalJointHeight);
   const gasketStrokeWidth = Math.max(
@@ -566,7 +564,8 @@ export function WindowWallDiagram({
       </defs>
 
       <g data-layer="WINDOW_WALL_STRUCTURE" data-artwork="vector">
-        {/* A continuous face shares the finish across the interlocking profiles. */}
+        {/* The exposed faces share the selected finish; the returns and seams
+            below describe the individual overlapping modules. */}
         <rect {...frame} fill={paint("jamb")} stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.55}
           data-part="window-wall-frame" />
         <path d={`M${frame.x} ${frame.y}H${frame.x + frame.width}V${frame.y + frame.height}H${frame.x}Z
@@ -586,28 +585,52 @@ export function WindowWallDiagram({
             fill="none" stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.55} />
         </g>}
 
+        {panels.map((panel) => {
+          const profile = innerProfileRect(panel, glazingBead, jointWidth);
+          return <g key={`profile-${panel.index}`}>
+            <rect {...profile} fill={paint("jamb")}
+              stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.75}
+              data-part="window-wall-inner-profile" data-panel-index={panel.index + 1} />
+            <path d={`M${profile.x + gasketStrokeWidth} ${profile.y + profile.height - gasketStrokeWidth}
+              V${profile.y + gasketStrokeWidth}H${profile.x + profile.width - gasketStrokeWidth}`}
+              fill="none" stroke="white" strokeOpacity=".35" strokeWidth={gasketStrokeWidth * 0.65} />
+          </g>;
+        })}
+
         <g data-layer="WINDOW_WALL_HORIZONTAL_JOINTS">
           {panels.map((panel) => resolvedHorizontalHeights.map((horizontalHeight) => {
             const centerY = panel.glass.y + (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
+            const profile = innerProfileRect(panel, glazingBead, jointWidth);
+            // C139's front elevation leaves 26% of the gap for each glass
+            // return and 48% for the flat transom face between them.
+            const faceHeight = horizontalJointHeight * 0.48;
+            const top = centerY - faceHeight / 2;
+            const bottom = centerY + faceHeight / 2;
             return <g key={`horizontal-${panel.index}-${horizontalHeight}`} data-horizontal-height={horizontalHeight}
               data-panel-index={panel.index + 1} data-profile-y={centerY - horizontalJointHeight / 2}
-              data-profile-height={horizontalJointHeight} />;
+              data-profile-height={horizontalJointHeight}>
+              <rect x={profile.x} y={top} width={profile.width} height={faceHeight}
+                fill={paint("finish")} data-part="window-wall-transom" data-panel-index={panel.index + 1} />
+              <path d={`M${profile.x} ${top}H${profile.x + profile.width}
+                M${profile.x} ${bottom}H${profile.x + profile.width}`}
+                fill="none" stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.75} />
+              <path d={`M${profile.x} ${top + gasketStrokeWidth}H${profile.x + profile.width}`}
+                fill="none" stroke="white" strokeOpacity=".4" strokeWidth={gasketStrokeWidth * 0.65} />
+            </g>;
           }))}
         </g>
 
         {visibleCells.map((glass, index) => <GlazingStop key={`glazing-${index}`} glass={glass}
-          bead={glazingBead} seal={gasketStrokeWidth} finish={finish} glassPaint={paint("glass")} />)}
+          seal={gasketStrokeWidth} finish={finish} glassPaint={paint("glass")} />)}
 
         <g data-layer="WINDOW_WALL_INTERNAL_JOINTS" fill="none">
-          {panels.slice(0, -1).map((panel) => {
-            const boundaryX = panel.frame.x + panel.frame.width;
-            const engagementX = boundaryX + jointWidth * 0.14;
+          {panels.slice(1).map((panel) => {
+            const seamX = innerProfileRect(panel, glazingBead, jointWidth).x;
             return <g key={`internal-joint-${panel.index}`} data-internal-attachment="RIGHT">
-              <path d={`M${boundaryX} ${frame.y}V${frame.y + frame.height}
-                M${engagementX} ${frame.y}V${frame.y + frame.height}`}
+              <path d={`M${seamX} ${frame.y}V${frame.y + frame.height}`}
                 data-part="window-wall-interlock-seams"
-                stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.6} />
-              <path d={`M${engagementX + gasketStrokeWidth * 0.7} ${frame.y}V${frame.y + frame.height}`}
+                stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.75} />
+              <path d={`M${seamX + gasketStrokeWidth * 0.7} ${frame.y}V${frame.y + frame.height}`}
                 stroke="white" strokeOpacity=".32" strokeWidth={gasketStrokeWidth * 0.55} />
             </g>;
           })}

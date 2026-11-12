@@ -241,18 +241,42 @@ module.exports = function register(ctx) {
     }
     assertClippedBars(html);
   });
-  test('Window Wall interlocking vertical seams stay continuous through the horizontal junctions', () => {
+  test('Window Wall interlocking profiles stay asymmetric and transoms end at their vertical profiles', () => {
     const html = render(WindowWallDiagram, { ...wallProps, panelCount: 3, horizontalHeights: [33.25, 60.875] });
     const frame = rect(tags(html, 'rect').find(item => item['data-part'] === 'window-wall-frame'));
+    const profiles = tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-inner-profile')
+      .sort((a, b) => Number(a['data-panel-index']) - Number(b['data-panel-index'])).map(rect);
+    const glass = tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-glass').map(rect);
+    const columns = profiles.map(profile => glass.filter(cell => contains(profile, cell)).sort((a, b) => a.y - b.y));
     const seams = tags(html, 'path').filter(item => item['data-part'] === 'window-wall-interlock-seams');
+    assert.equal(profiles.length, 3);
+    columns.forEach(column => assert.equal(column.length, 3));
     assert.equal(seams.length, 2);
     seams.forEach((seam, index) => {
       const coordinates = seam.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
-      assert.equal(coordinates.length, 6);
-      near(coordinates[0], frame.x + frame.width * (index + 1) / 3);
+      assert.equal(coordinates.length, 3);
+      const seamX = coordinates[0];
+      near(seamX, profiles[index + 1].x);
       near(coordinates[1], frame.y); near(coordinates[2], frame.y + frame.height);
-      assert.ok(coordinates[3] > coordinates[0], 'The mating profile remains visibly nested');
-      near(coordinates[4], frame.y); near(coordinates[5], frame.y + frame.height);
+      const leftGlass = columns[index][0], rightGlass = columns[index + 1][0];
+      const leftFace = seamX - leftGlass.x - leftGlass.width;
+      const rightFace = rightGlass.x - seamX;
+      assert.ok(rightFace > 0 && leftFace > rightFace * 2, 'The mating profile covers part of the next frame');
+      assert.ok(profiles[index].x + profiles[index].width < seamX, 'The preceding profile turns before the overlap');
+    });
+    const transoms = tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-transom');
+    assert.equal(transoms.length, 6);
+    transoms.forEach(item => {
+      const index = Number(item['data-panel-index']) - 1;
+      const transom = rect(item), profile = profiles[index];
+      near(transom.x, profile.x); near(transom.width, profile.width);
+      assert.ok(transom.height > 0 && contains(profile, transom));
+      const above = columns[index].find(cell => cell.y + cell.height < transom.y);
+      const below = columns[index].find(cell => cell.y > transom.y + transom.height);
+      assert.ok(above && below, 'A transom is bounded by the upper and lower glazing profiles');
+      glass.forEach(cell => assert.ok(transom.x + transom.width <= cell.x || transom.x >= cell.x + cell.width
+        || transom.y + transom.height <= cell.y || transom.y >= cell.y + cell.height,
+        'Transoms must not cover the glass'));
     });
   });
   test('Window Wall repeats one H2 V3 setting in all six crystals, clipped away from transoms', () => {
