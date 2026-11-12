@@ -10,8 +10,9 @@ const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 const tests = [], test = (name, run) => tests.push({ name, run });
-const storage = new Map(), timers = new Map(); let timerId = 0;
+const storage = new Map(), session = new Map(), timers = new Map(); let timerId = 0;
 global.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+global.sessionStorage = { getItem: key => session.get(key) ?? null, setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) };
 global.window = { setInterval: callback => { const id = ++timerId; timers.set(id, callback); return id; }, clearInterval: id => timers.delete(id) };
 const storageKey = 'technician-selected-pickup:3';
 const same = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
@@ -66,26 +67,26 @@ const pickup = h => nodes(h.render(), node => node.type === 'FactoryPickup')[0];
 const button = (h, name) => nodes(h.render(), node => node.type === 'Button' && text(node) === name)[0];
 function click(h, name) { const item = button(h, name); assert.ok(item && !item.props.disabled, `Missing or disabled ${name}`); return item.props.onClick(); }
 
-test('first successful active lookup opens the sole assigned pickup and only persists navigation', async () => {
+test('first successful active lookup opens the sole assigned pickup without persisting navigation', async () => {
   const h = harness(); await h.settle();
   assert.equal(pickup(h).props.pickupId, 12); assert.equal(pickup(h).props.surface, 'technician');
   assert.deepEqual(h.reads, [{ surface: 'technician', status: 'ACTIVE', page: 1, pageSize: 20 }]);
-  assert.deepEqual([...storage], [[storageKey, '12']]);
+  assert.deepEqual([...storage], []);
   assert.equal(timers.size, 0); assert.deepEqual(h.busy, [false]); assert.deepEqual(h.scanModes, [false]); h.dispose();
 });
 
-test('saved selection takes precedence and preserves pending recovery keys without consulting the list', async () => {
-  storage.set(storageKey, '45'); storage.set('technician-pickup-candidate:3:45', 'unconfirmed-scan');
-  const h = harness({ list: async () => { throw new Error('Restored pickup must not be replaced'); } }); await h.settle();
-  assert.equal(pickup(h).props.pickupId, 45); assert.equal(h.reads.length, 0);
-  assert.equal(storage.get('technician-pickup-candidate:3:45'), 'unconfirmed-scan'); h.dispose();
+test('legacy selected pickup cannot override the sole currently assigned active pickup', async () => {
+  storage.set(storageKey, '45');
+  const h = harness(); await h.settle();
+  assert.equal(pickup(h).props.pickupId, 12); assert.equal(h.reads.length, 1);
+  assert.equal(h.reads[0].status, 'ACTIVE'); assert.equal(storage.has(storageKey), false); h.dispose();
 });
 
 test('multiple assigned pickups show Start scanning and Continue scanning and open the chosen one', async () => {
   const h = harness({ list: async () => page([run(12), run(13, { collectedParts: 2, remainingParts: 3 })]) }); await h.settle();
   assert.equal(pickup(h), undefined); assert.ok(button(h, 'Start scanning')); assert.ok(button(h, 'Continue scanning'));
   click(h, 'Continue scanning'); await h.settle();
-  assert.equal(pickup(h).props.pickupId, 13); assert.equal(storage.get(storageKey), '13'); h.dispose();
+  assert.equal(pickup(h).props.pickupId, 13); assert.equal(storage.has(storageKey), false); h.dispose();
 });
 
 test('first empty list stays visible if a pickup appears during later polling', async () => {
@@ -137,8 +138,10 @@ test('a late active response cannot reopen a pickup after the technician chooses
 });
 
 test('initial offline entry does not read pickups and can auto-open after reconnecting', async () => {
+  storage.set(storageKey, '45');
   const h = harness({ props: { offline: true } }); await h.settle();
   assert.equal(h.reads.length, 0); assert.equal(pickup(h), undefined); assert.match(text(h.render()), /Connect to load/);
+  assert.equal(storage.has(storageKey), false);
   h.props.offline = false; await h.settle(); assert.equal(pickup(h).props.pickupId, 12); h.dispose();
 });
 
@@ -151,6 +154,7 @@ test('going offline cancels an in-flight navigation response without consuming t
 });
 
 test('failed initial lookup may auto-open after a successful retry without recording any collection', async () => {
+  storage.set(storageKey, '45');
   const h = harness({ list: async (_query, _surface, count) => { if (count === 1) throw new Error('Read unavailable'); return page([run()]); } }); await h.settle();
   assert.equal(pickup(h), undefined); assert.match(text(h.render()), /Read unavailable/);
   await h.poll(); assert.equal(pickup(h).props.pickupId, 12); assert.equal(h.reads.length, 2); h.dispose();
@@ -163,18 +167,83 @@ test('physical blocks are passed to the opened pickup and its busy state still d
   pickup(h).props.onBusy(false); assert.equal(button(h, 'Back to pickups').props.disabled, false); h.dispose();
 });
 
-test('warehouse surface keeps its list, creation action, manual opening and separate saved selection', async () => {
+test('warehouse surface keeps its list, creation action and manual opening without persistent selection', async () => {
   storage.set(storageKey, '45');
+  storage.set('warehouse-selected-pickup:3', '46');
   const h = harness({ props: { surface: 'warehouse' } }); await h.settle();
   assert.equal(pickup(h), undefined); assert.ok(button(h, 'Create pickup')); assert.ok(button(h, 'Open pickup'));
   assert.equal(h.reads[0].surface, 'warehouse'); click(h, 'Open pickup'); await h.settle();
   assert.equal(pickup(h).props.pickupId, 12); assert.equal(pickup(h).props.surface, 'warehouse');
-  assert.equal(storage.get('warehouse-selected-pickup:3'), '12'); assert.equal(storage.get(storageKey), '45'); h.dispose();
+  assert.equal(storage.has('warehouse-selected-pickup:3'), false); assert.equal(storage.get(storageKey), '45'); h.dispose();
 });
+
+for (const surface of ['technician', 'warehouse']) {
+  test(`${surface}: legacy navigation never bypasses a fresh empty or multiple active list`, async () => {
+    for (const items of [[], [run(45), run(46)]]) {
+      const key = `${surface}-selected-pickup:3`;
+      storage.set(key, '45');
+      const h = harness({ props: { surface }, list: async () => page(items) }); await h.settle();
+      assert.equal(pickup(h), undefined); assert.equal(h.reads.length, 1);
+      assert.equal(h.reads[0].status, 'ACTIVE'); assert.equal(storage.has(key), false);
+      assert.equal(button(h, 'Active').props['aria-pressed'], true); h.dispose();
+    }
+  });
+
+  test(`${surface}: entering removes only its own obsolete selection and preserves pending recovery`, async () => {
+    const key = `${surface}-selected-pickup:3`;
+    const otherSurface = surface === 'technician' ? 'warehouse' : 'technician';
+    const preserved = [
+      [`${surface}-pickup-candidate:3:45`, 'unconfirmed candidate'],
+      [`warehouse-reading:${surface}:3:pickup:45`, 'unconfirmed scan'],
+      [`${surface}-selected-pickup:4`, 'other account'],
+      [`${otherSurface}-selected-pickup:3`, 'other surface'],
+    ];
+    const savedSession = [
+      [`${surface}-customer-delivery:3`, 'signed delivery request'],
+      [`${surface}-pickup-customer-delivery:3:45`, 'order:2'],
+    ];
+    storage.set(key, '45'); preserved.forEach(([name, value]) => storage.set(name, value));
+    savedSession.forEach(([name, value]) => session.set(name, value));
+    const h = harness({ props: { surface }, list: async () => page([]) }); await h.settle();
+    assert.equal(storage.has(key), false);
+    for (const [name, value] of preserved) assert.equal(storage.get(name), value);
+    assert.deepEqual([...session], savedSession); h.dispose();
+  });
+
+  test(`${surface}: manually viewed closed pickup does not reopen after leaving and entering again`, async () => {
+    for (const closedStatus of ['PARTIAL', 'COMPLETED']) {
+      const closed = run(45, { status: closedStatus });
+      const h = harness({ props: { surface }, list: async query => page(query.status === 'CLOSED' ? [closed] : []) });
+      await h.settle(); click(h, 'Closed'); await h.settle(); click(h, 'View pickup'); await h.settle();
+      assert.equal(pickup(h).props.pickupId, 45); assert.equal(storage.has(`${surface}-selected-pickup:3`), false);
+      h.dispose();
+      const enteredAgain = harness({ props: { surface } }); await enteredAgain.settle();
+      assert.equal(enteredAgain.reads[0].status, 'ACTIVE');
+      if (surface === 'technician') assert.equal(pickup(enteredAgain).props.pickupId, 12);
+      else { assert.equal(pickup(enteredAgain), undefined); assert.ok(button(enteredAgain, 'Open pickup')); }
+      enteredAgain.dispose();
+    }
+  });
+
+  test(`${surface}: unavailable browser storage cannot restore stale navigation or block normal entry`, async () => {
+    const original = global.localStorage, key = `${surface}-selected-pickup:3`;
+    storage.set(key, '45');
+    global.localStorage = {
+      getItem() { throw new Error('Storage blocked'); }, setItem() { throw new Error('Storage blocked'); }, removeItem() { throw new Error('Storage blocked'); },
+    };
+    try {
+      const h = harness({ props: { surface } }); await h.settle();
+      assert.equal(h.reads[0].status, 'ACTIVE');
+      if (surface === 'technician') assert.equal(pickup(h).props.pickupId, 12);
+      else { assert.equal(pickup(h), undefined); click(h, 'Open pickup'); await h.settle(); assert.equal(pickup(h).props.pickupId, 12); }
+      assert.equal(storage.get(key), '45'); h.dispose();
+    } finally { global.localStorage = original; }
+  });
+}
 
 (async () => {
   for (const { name, run: execute } of tests) {
-    storage.clear(); timers.clear(); await execute(); process.stdout.write(`PASS ${name}\n`);
+    storage.clear(); session.clear(); timers.clear(); await execute(); process.stdout.write(`PASS ${name}\n`);
   }
   process.stdout.write(`${tests.length} technician pickup navigation checks passed.\n`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

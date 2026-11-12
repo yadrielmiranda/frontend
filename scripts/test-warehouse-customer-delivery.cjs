@@ -36,7 +36,7 @@ function loader(hooks = {}, api = {}, navigation = {}, auth = { user: { id: 10, 
       if (id === '../warehouse-shared') return { CountNotice: 'CountNotice', Pagination: 'Pagination', errorMessage: error => error.message };
       if (id === '../store-select') return { StoreSelect: 'StoreSelect' };
       if (id === '../scan-pad') return { ScanPad: 'ScanPad' };
-      if (id === '../unit-origin') return { UnitOrigin: 'UnitOrigin' };
+      if (id === '../unit-origin') return { ...load('app/warehouse/unit-origin.tsx'), UnitOrigin: 'UnitOrigin' };
       if (id === './customer-delivery-receipt') return { CustomerDeliveryReceipt: 'CustomerDeliveryReceipt' };
       const base = id.startsWith('@/') ? path.resolve(root, id.slice(2)) : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
       if (!base) return require(id);

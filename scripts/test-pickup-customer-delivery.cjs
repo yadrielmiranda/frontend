@@ -306,9 +306,14 @@ for (const surface of ['warehouse', 'technician']) test(`${surface}: PO delivery
   assert.deepEqual(h.calls.scans[0], [12, 'I1126831', 'scan-key']);
   assert.match(text(h.render()), /Delivery #41 recorded/);
 });
-test('canceling before signature returns to the same scanner without releasing or finishing', async () => {
-  const h = harness(); await h.settle(); button(h, 'Deliver to customer').props.onClick(); await h.settle();
-  panel(h).props.onClose(); await h.settle(); assert.ok(scanner(h)); assert.equal(h.calls.finishes, 0); assert.equal(storage.size, 0);
+for (const surface of ['warehouse', 'technician']) test(`${surface}: returning from delivery refreshes the same pickup without releasing or finishing`, async () => {
+  const h = harness(surface); await h.settle(); button(h, 'Deliver to customer').props.onClick(); await h.settle();
+  const readsBeforeReturn = h.calls.reads.length;
+  panel(h).props.onClose(); await h.settle();
+  assert.ok(scanner(h)); assert.equal(panel(h), undefined); assert.equal(h.calls.finishes, 0); assert.equal(storage.size, 0);
+  const refreshed = h.calls.reads.slice(readsBeforeReturn);
+  assert.ok(refreshed.length > 0); assert.ok(refreshed.every(id => id === 12));
+  assert.equal(h.run.status, 'ACTIVE');
 });
 test('reload preserves delivery context even when its released parts no longer appear as available', async () => {
   storage.set(contextKey('warehouse', 3, 12), 'external:1');
@@ -355,6 +360,157 @@ test('pending scan, offline and physical count cannot open a delivery', async ()
     button(h, 'Deliver to customer').props.onClick(); assert.equal(panel(h), undefined);
   }
 });
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+function deliveryFixture(surface, items = [{ ...option, availableParts: 2 }]) {
+  const scoped = { ...options, items: structuredClone(items), total: items.length };
+  return surface === 'technician' ? { surface, options: scoped }
+    : { surface, options: scoped, inventory: { ...structuredClone(inventory), items: items.length ? structuredClone(inventory.items) : [] } };
+}
+function deliveryHarness(surface, read = async () => deliveryFixture(surface)) {
+  let stateIndex = 0, refIndex = 0, effectIndex = 0, mounted = true;
+  const states = [], refs = [], effects = [], queue = [];
+  const calls = { loads: [], closes: 0, completed: [], lateUpdates: 0, forms: [] };
+  const hooks = {
+    useState(initial) { const i = stateIndex++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial;
+      return [states[i], value => { if (!mounted) calls.lateUpdates++; states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
+    useRef(initial) { const i = refIndex++; return refs[i] ??= { current: initial }; },
+    useEffect(callback, deps) {
+      const i = effectIndex++, old = effects[i];
+      if (!old || !deps || !old.deps || !deps.every((value, index) => Object.is(value, old.deps[index]))) {
+        const effect = effects[i] = { deps };
+        queue.push(() => { old?.cleanup?.(); effect.cleanup = callback(); });
+      }
+    },
+  };
+  const { emptyPickupCustomerDelivery } = dataLoader({}, {});
+  const Component = load('pickup-customer-delivery.tsx', {
+    react: { ...React, ...hooks },
+    '@/app/warehouse/unit-origin': { PoName: 'PoName' },
+    '@/app/warehouse/customer-deliveries/customer-delivery-client': { CustomerDeliveryClient: 'CustomerDeliveryClient' },
+    './customer-deliveries/customer-delivery-client': { TechnicianCustomerDeliveryClient: 'TechnicianCustomerDeliveryClient' },
+    './pickup-customer-delivery-data': { emptyPickupCustomerDelivery,
+      loadPickupCustomerDelivery: (...args) => { calls.loads.push(args); return read(...args); } },
+  }).PickupCustomerDelivery;
+  const props = { actorId: 3, surface, runId: 12, poKey: 'external:1', poNumber: '292427', blocked: false,
+    onClose() { calls.closes++; }, onComplete(delivery) { calls.completed.push(delivery); } };
+  return { calls, props,
+    render() {
+      assert.ok(mounted, 'Cannot render after unmount');
+      stateIndex = refIndex = effectIndex = 0;
+      const tree = Component(props);
+      calls.forms.push(...nodes(tree, value => value.type === 'CustomerDeliveryClient' || value.type === 'TechnicianCustomerDeliveryClient'));
+      while (queue.length) queue.shift()();
+      return tree;
+    },
+    async settle() { for (let i = 0; i < 3; i++) { this.render(); await new Promise(resolve => setImmediate(resolve)); } return this.render(); },
+    unmount() { mounted = false; effects.forEach(effect => effect?.cleanup?.()); },
+  };
+}
+const deliveryForm = h => nodes(h.render(), value => value.type === 'CustomerDeliveryClient' || value.type === 'TechnicianCustomerDeliveryClient')[0];
+
+for (const surface of ['warehouse', 'technician']) {
+  test(`${surface}: fresh empty or unavailable PO returns once without opening an empty delivery form`, async () => {
+    const unavailable = [[], [{ ...option, key: 'order:1', availableParts: 2 }],
+      [{ ...option, availableParts: 0 }], [{ ...option, availableParts: 2, lines: [] }],
+      [{ ...option, availableParts: 2, lines: [{ ...option.lines[0], inTransit: 0 }] }]];
+    for (const items of unavailable) {
+      const h = deliveryHarness(surface, async () => deliveryFixture(surface, items));
+      await h.settle(); await h.settle();
+      assert.equal(h.calls.closes, 1); assert.equal(h.calls.loads.length, 1);
+      assert.equal(h.calls.forms.length, 0); assert.deepEqual(h.calls.completed, []);
+      h.unmount();
+    }
+  });
+
+  test(`${surface}: available collected parts open the selected PO normally`, async () => {
+    const h = deliveryHarness(surface); await h.settle();
+    const form = deliveryForm(h);
+    assert.equal(form.type, surface === 'warehouse' ? 'CustomerDeliveryClient' : 'TechnicianCustomerDeliveryClient');
+    assert.equal(form.props.initialPoKey, 'external:1'); assert.equal(form.props.embedded.pickupRunId, 12);
+    assert.equal(h.calls.closes, 0); assert.deepEqual(h.calls.loads, [[surface, 12, 'external:1', '292427']]);
+    h.unmount();
+  });
+
+  test(`${surface}: saved signed requests, including invalid records, keep delivery recovery open`, async () => {
+    for (const saved of [JSON.stringify({ requestKey: 'signed-request', pickupRunId: 12 }), '{invalid-json']) {
+      const key = `${surface}-customer-delivery:3`;
+      storage.set(key, saved);
+      const h = deliveryHarness(surface, async () => { throw new Error('Recovery must not depend on fresh inventory'); });
+      await h.settle();
+      assert.ok(deliveryForm(h)); assert.equal(h.calls.closes, 0); assert.equal(h.calls.loads.length, 0);
+      assert.equal(storage.get(key), saved);
+      h.unmount(); storage.delete(key);
+    }
+  });
+
+  test(`${surface}: unavailable storage leaves recovery to the delivery form`, async () => {
+    const getItem = sessionStorage.getItem;
+    sessionStorage.getItem = () => { throw new Error('Storage unavailable'); };
+    try {
+      const h = deliveryHarness(surface); await h.settle();
+      assert.ok(deliveryForm(h)); assert.equal(h.calls.closes, 0); assert.equal(h.calls.loads.length, 0);
+      h.unmount();
+    } finally { sessionStorage.getItem = getItem; }
+  });
+
+  test(`${surface}: a signed request saved during loading is not discarded by an empty response`, async () => {
+    const waiting = deferred(), h = deliveryHarness(surface, () => waiting.promise);
+    h.render();
+    const key = `${surface}-customer-delivery:3`, signed = JSON.stringify({ requestKey: 'saved-during-load' });
+    storage.set(key, signed);
+    waiting.resolve(deliveryFixture(surface, [])); await h.settle();
+    assert.equal(h.calls.closes, 0); assert.ok(deliveryForm(h)); assert.equal(storage.get(key), signed);
+    h.unmount();
+  });
+
+  test(`${surface}: failed or offline reads keep retry controls and never return automatically`, async () => {
+    let attempt = 0;
+    const h = deliveryHarness(surface, async () => { if (attempt++ === 0) throw new Error('Network unavailable'); return deliveryFixture(surface); });
+    await h.settle();
+    assert.equal(h.calls.closes, 0); assert.equal(deliveryForm(h), undefined);
+    assert.match(text(h.render()), /Network unavailable/); assert.ok(button(h, 'Back to pickup'));
+    button(h, 'Try again').props.onClick(); await h.settle();
+    assert.ok(deliveryForm(h)); assert.equal(h.calls.closes, 0); assert.equal(h.calls.loads.length, 2);
+    h.unmount();
+  });
+
+  test(`${surface}: an empty response arriving after unmount cannot navigate or update state`, async () => {
+    const waiting = deferred(), h = deliveryHarness(surface, () => waiting.promise);
+    h.render(); h.unmount(); waiting.resolve(deliveryFixture(surface, []));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.calls.closes, 0); assert.equal(h.calls.lateUpdates, 0);
+  });
+
+  test(`${surface}: changing actor, pickup, PO or surface ignores the previous response`, async () => {
+    for (const changed of [{ actorId: 4 }, { runId: 13 }, { poKey: 'order:2' }, { poNumber: '292428' },
+      { surface: surface === 'warehouse' ? 'technician' : 'warehouse' }]) {
+      const first = deferred(), second = deferred(); let attempt = 0;
+      const h = deliveryHarness(surface, () => attempt++ === 0 ? first.promise : second.promise);
+      h.render(); Object.assign(h.props, changed); h.render();
+      first.resolve(deliveryFixture(surface, [])); await h.settle();
+      assert.equal(h.calls.closes, 0); assert.equal(deliveryForm(h), undefined); assert.equal(h.calls.loads.length, 2);
+      second.resolve(deliveryFixture(h.props.surface, [{ ...option, key: h.props.poKey, availableParts: 2 }])); await h.settle();
+      assert.ok(deliveryForm(h)); assert.equal(h.calls.closes, 0);
+      h.unmount();
+    }
+  });
+
+  test(`${surface}: rerendered callbacks do not reload or repeat automatic return and the latest callback is used`, async () => {
+    const waiting = deferred(), h = deliveryHarness(surface, () => waiting.promise); let latestCloses = 0;
+    h.render(); h.props.onClose = () => { latestCloses++; }; await h.settle();
+    assert.equal(h.calls.loads.length, 1);
+    waiting.resolve(deliveryFixture(surface, [])); await h.settle();
+    assert.equal(h.calls.closes, 0); assert.equal(latestCloses, 1);
+    h.props.onClose = () => { latestCloses++; }; await h.settle();
+    assert.equal(h.calls.loads.length, 1); assert.equal(latestCloses, 1); assert.equal(h.calls.forms.length, 0);
+    h.unmount();
+  });
+}
 
 (async () => { let failures = 0; for (const { name, run } of tests) { storage.clear(); try { await run(); console.log(`PASS ${name}`); }
   catch (error) { failures++; console.error(`FAIL ${name}\n${error.stack}`); } } console.log(`${tests.length - failures}/${tests.length} checks passed`); process.exitCode = failures ? 1 : 0; })();

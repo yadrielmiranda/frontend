@@ -153,6 +153,77 @@ test('embedded delivery refreshes only the current pickup and PO after a stock c
   assert.deepEqual(byType(h, 'SignaturePad').props.value, []);
 });
 
+test('embedded PO refresh returns to the pickup when no deliverable parts remain', async () => {
+  for (const items of [[], [{ ...pos[0], availableParts: 0, lines: [line(1126830, { inTransit: 0 })] }]]) {
+    let closed = 0, written = 0;
+    const h = harness(props({ initialPoKey: 'external:1', embedded: { pickupRunId: 71, onClose() { closed++; }, onComplete() {} } }), {
+      technicianCustomerDeliveryOptions: async () => ({ ...props().initial, items, total: items.length }),
+      technicianDeliverToCustomer: async () => { written++; },
+    });
+    click(h, 'Review PO selection'); click(h, 'Refresh PO');
+    await new Promise(done => setImmediate(done));
+    assert.equal(closed, 1); assert.equal(written, 0); assert.equal(storage.size, 0);
+  }
+});
+
+test('an empty PO refresh uses the current pickup callback and ignores an older response', async () => {
+  const responses = [];
+  let oldClosed = 0, currentClosed = 0;
+  const initial = props({ initialPoKey: 'external:1', embedded: { pickupRunId: 71, onClose() { oldClosed++; }, onComplete() {} } });
+  const h = harness(initial, { technicianCustomerDeliveryOptions: () => new Promise(resolve => responses.push(resolve)) });
+  click(h, 'Review PO selection');
+  const refresh = button(h, 'Refresh PO').props.onClick;
+  refresh(); refresh();
+  responses[1](props().initial); await new Promise(done => setImmediate(done));
+  responses[0]({ ...props().initial, items: [], total: 0 }); await new Promise(done => setImmediate(done));
+  assert.equal(oldClosed, 0);
+  click(h, 'Refresh PO');
+  initial.embedded = { ...initial.embedded, onClose() { currentClosed++; } };
+  h.render();
+  responses[2]({ ...props().initial, items: [], total: 0 }); await new Promise(done => setImmediate(done));
+  assert.equal(oldClosed, 0); assert.equal(currentClosed, 1);
+});
+
+test('failed PO refresh keeps the delivery open with its error', async () => {
+  let closed = 0;
+  const h = harness(props({ initialPoKey: 'external:1', embedded: { pickupRunId: 71, onClose() { closed++; }, onComplete() {} } }), {
+    technicianCustomerDeliveryOptions: async () => { throw new Error('Connection unavailable'); },
+  });
+  click(h, 'Review PO selection'); click(h, 'Refresh PO');
+  await new Promise(done => setImmediate(done));
+  assert.equal(closed, 0); assert.match(text(h.render()), /Connection unavailable/);
+});
+
+test('empty PO refresh preserves a signed request saved while availability was loading', async () => {
+  let closed = 0, resolve;
+  const h = harness(props({ initialPoKey: 'external:1', embedded: { pickupRunId: 71, onClose() { closed++; }, onComplete() {} } }), {
+    technicianCustomerDeliveryOptions: () => new Promise(done => { resolve = done; }),
+  });
+  click(h, 'Review PO selection'); click(h, 'Refresh PO');
+  const key = helpers.pendingCustomerDeliveryKey(3), selected = { [pos[0].key]: pos[0] };
+  const saved = JSON.stringify({
+    body: { ...helpers.technicianCustomerDeliveryRequest(selected, 'Ana', 'Perez', signature, 'pending-refresh'), pickupRunId: 71 },
+    receipt: helpers.technicianCustomerDeliveryPreview(selected, 'Ana', 'Perez', signature),
+  });
+  storage.set(key, saved);
+  resolve({ ...props().initial, items: [], total: 0 }); await new Promise(done => setImmediate(done));
+  assert.equal(closed, 0); assert.equal(storage.get(key), saved);
+});
+
+test('empty PO refresh cannot return when recovery storage is unavailable', async () => {
+  let closed = 0, resolve;
+  const h = harness(props({ initialPoKey: 'external:1', embedded: { pickupRunId: 71, onClose() { closed++; }, onComplete() {} } }), {
+    technicianCustomerDeliveryOptions: () => new Promise(done => { resolve = done; }),
+  });
+  click(h, 'Review PO selection'); click(h, 'Refresh PO');
+  const original = sessionStorage.getItem;
+  try {
+    sessionStorage.getItem = () => { throw new Error('Storage blocked'); };
+    resolve({ ...props().initial, items: [], total: 0 }); await new Promise(done => setImmediate(done));
+    assert.equal(closed, 0);
+  } finally { sessionStorage.getItem = original; }
+});
+
 test('embedded success shows the signed receipt and continues the same pickup without routing', async () => {
   let request, destination, completed;
   const saved = { ...helpers.technicianCustomerDeliveryPreview({ [pos[0].key]: pos[0] }, 'Ana', 'Perez', signature), id: 41, actor: 'Technician', createdAt: '2026-10-14T17:00:00Z' };

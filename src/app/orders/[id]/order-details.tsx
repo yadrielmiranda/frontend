@@ -48,17 +48,17 @@ export function OrderDetails({
 
   useEffect(() => {
     if (!paymentTarget) return;
-    // Los cobros adicionales se montan en un portal después del primer render.
-    const scrollToPayment = () => {
+    // Reajustar los enlaces directos tras montar los cobros adicionales en su portal.
+    const scrollToSection = () => {
       const anchor = window.location.hash.slice(1);
-      if (anchor === "estimate-payment" || anchor === "order-additional-payments") {
+      if (anchor === "estimate-payment" || anchor === "order-additional-payments" || anchor === "pickup-delivery") {
         document.getElementById(anchor)?.scrollIntoView({ block: "start" });
       }
     };
-    scrollToPayment();
-    window.addEventListener("hashchange", scrollToPayment);
-    return () => window.removeEventListener("hashchange", scrollToPayment);
-  }, [paymentTarget]);
+    scrollToSection();
+    window.addEventListener("hashchange", scrollToSection);
+    return () => window.removeEventListener("hashchange", scrollToSection);
+  }, [paymentTarget, order.id]);
 
   return (
     <div className="space-y-6">

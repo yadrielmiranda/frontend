@@ -53,6 +53,8 @@ export function TechnicianCustomerDeliveryClient({ actorId, initial, initialPoKe
   const [offline, setOffline] = useState(false), [savedId, setSavedId] = useState<number | null>(null);
   const [savedDelivery, setSavedDelivery] = useState<CustomerDelivery | null>(null);
   const serial = useRef(0), saveLock = useRef(false), heading = useRef<HTMLHeadingElement>(null);
+  const embeddedCallbacks = useRef(embedded);
+  embeddedCallbacks.current = embedded;
   const storageKey = pendingCustomerDeliveryKey(actorId);
   const selected = Object.values(selection);
   const preview = pending?.receipt ?? technicianCustomerDeliveryPreview(selection, firstName, lastName, signature);
@@ -94,13 +96,20 @@ export function TechnicianCustomerDeliveryClient({ actorId, initial, initialPoKe
         setData(next); setError("");
         if (embeddedMode) {
           const chosen = next.items.find(po => po.key === initialPoKey);
+          const available = Boolean(chosen && chosen.availableParts > 0 && chosen.lines.some(line => line.inTransit > 0));
+          if (!available && !saveLock.current) {
+            // A signed request must stay available for recovery even when its parts are gone.
+            let canReturn = false;
+            try { canReturn = !sessionStorage.getItem(storageKey); } catch { /* Keep the delivery open if recovery storage cannot be checked. */ }
+            if (canReturn) { embeddedCallbacks.current?.onClose(); return; }
+          }
           setSelection(chosen ? { [chosen.key]: chosen } : {});
           setSignature([]); setAccepted(false);
         }
       }
     } catch (reason) { if (sequence === serial.current) setError(message(reason)); }
     finally { if (sequence === serial.current) setLoading(false); }
-  }, [ready, ownerMatches, review, locked, offline, search, poKey, page, embeddedMode, initialPoKey, pickupRunId]);
+  }, [ready, ownerMatches, review, locked, offline, search, poKey, page, embeddedMode, initialPoKey, pickupRunId, storageKey]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 250);
     return () => { clearTimeout(timer); serial.current++; };

@@ -18,7 +18,6 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
   surface?: "technician" | "warehouse";
 }) {
   const [selection, setSelection] = useState<number | "new" | null>(null);
-  const [restored, setRestored] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<FactoryPickupListItem[]>([]);
   const [status, setStatus] = useState<"ACTIVE" | "CLOSED">("ACTIVE");
@@ -29,33 +28,24 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
   const [revision, setRevision] = useState(0);
   const autoOpenOnEntry = useRef(surface === "technician");
   const list = surface === "warehouse" ? warehousePickups : technicianPickups;
-  const storageKey = `${surface}-selected-pickup:${actorId}`;
 
   useEffect(() => {
+    // A previous visit must not bypass the fresh active list. Keep operation recovery keys intact.
     try {
-      const saved = Number(localStorage.getItem(storageKey));
-      if (Number.isSafeInteger(saved) && saved > 0) {
-        autoOpenOnEntry.current = false;
-        setSelection(saved);
-      }
-    } catch { /* Permite abrir manualmente una recogida si no hay almacenamiento. */ }
-    setRestored(true);
-  }, [storageKey]);
+      localStorage.removeItem(`${surface}-selected-pickup:${actorId}`);
+    } catch { /* Navigation does not depend on browser storage. */ }
+  }, [surface, actorId]);
 
   const choose = useCallback((next: number | "new" | null) => {
     autoOpenOnEntry.current = false;
     setSelection(next); setBusy(false); onBusy(false); onScanModeChange?.(false);
-    try {
-      if (typeof next === "number") localStorage.setItem(storageKey, String(next));
-      else localStorage.removeItem(storageKey);
-    } catch { /* Las lecturas conservan sus claves de reintento por recogida. */ }
-  }, [storageKey, onBusy, onScanModeChange]);
+  }, [onBusy, onScanModeChange]);
   const reportBusy = useCallback((value: boolean) => { setBusy(value); onBusy(value); }, [onBusy]);
   const back = useCallback(() => choose(null), [choose]);
   const created = useCallback((id: number) => choose(id), [choose]);
 
   useEffect(() => {
-    if (!restored || selection !== null || offline) return;
+    if (selection !== null || offline) return;
     let canceled = false;
     let pending = false;
     setLoading(true);
@@ -80,9 +70,8 @@ export function FactoryPickups({ actorId, offline, blocked, onBusy, onScanModeCh
     void refresh();
     const timer = window.setInterval(() => void refresh(), 5000);
     return () => { canceled = true; window.clearInterval(timer); };
-  }, [restored, selection, offline, list, status, page, revision, surface, choose]);
+  }, [selection, offline, list, status, page, revision, surface, choose]);
 
-  if (!restored) return <p role="status">Loading pickups…</p>;
   if (selection !== null) return <section className="space-y-4">
     <Button variant="outline" disabled={busy} onClick={back}>Back to pickups</Button>
     <FactoryPickup key={selection} actorId={actorId} surface={surface}

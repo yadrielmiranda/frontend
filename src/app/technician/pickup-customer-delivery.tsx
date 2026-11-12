@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CustomerDelivery } from "@/app/api/warehouse.api";
 import { Button } from "@/components/ui/button";
 import { PoName } from "@/app/warehouse/unit-origin";
@@ -15,19 +15,36 @@ export function PickupCustomerDelivery({ actorId, surface, runId, poKey, poNumbe
   const [data, setData] = useState<Awaited<ReturnType<typeof loadPickupCustomerDelivery>> | null>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const closePickupDelivery = useRef(onClose);
+  closePickupDelivery.current = onClose;
   useEffect(() => {
     let canceled = false;
     setError(""); setData(null);
     // Recover the original signed request even if its stock or pickup access has changed.
     // The delivery form validates storage and rechecks identity before its idempotent retry.
-    let pending = true;
-    try { pending = Boolean(sessionStorage.getItem(`${surface}-customer-delivery:${actorId}`)); } catch { /* Let the form explain unavailable storage. */ }
-    if (pending) {
+    const hasPendingDelivery = () => {
+      try { return Boolean(sessionStorage.getItem(`${surface}-customer-delivery:${actorId}`)); }
+      catch { return true; } // Let the form explain unavailable storage.
+    };
+    if (hasPendingDelivery()) {
       setData(emptyPickupCustomerDelivery(surface));
       return () => { canceled = true; };
     }
     void loadPickupCustomerDelivery(surface, runId, poKey, poNumber)
-      .then(value => { if (!canceled) setData(value); })
+      .then(value => {
+        if (canceled) return;
+        // Storage may have changed while loading. Preserve any signed request for recovery.
+        if (hasPendingDelivery()) {
+          setData(emptyPickupCustomerDelivery(surface));
+          return;
+        }
+        const chosen = value.options.items.find(po => po.key === poKey);
+        if (!chosen || chosen.availableParts <= 0 || !chosen.lines.some(line => line.inTransit > 0)) {
+          closePickupDelivery.current();
+          return;
+        }
+        setData(value);
+      })
       .catch(reason => { if (!canceled) setError(reason instanceof Error ? reason.message : "The delivery could not be opened."); });
     return () => { canceled = true; };
   }, [surface, actorId, runId, poKey, poNumber, revision]);

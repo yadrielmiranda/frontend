@@ -131,7 +131,7 @@ export function OrderDeliveryPanel({
       }
       setFulfillmentMethod("CUSTOMER_PICKUP");
       setFormType(null);
-      toast.success("Customer pickup selected.");
+      toast.success("Pickup selected.");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -162,7 +162,7 @@ export function OrderDeliveryPanel({
     setBusy(true);
     try {
       await completeOrderPickup(order.id);
-      toast.success("Customer pickup completed.");
+      toast.success("Pickup completed.");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -350,7 +350,7 @@ export function OrderDeliveryPanel({
     );
 
   return (
-    <section className="rounded-xl border bg-white p-5 shadow-sm">
+    <section id="pickup-delivery" className="scroll-mt-28 rounded-xl border bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Pickup &amp; Delivery</h2>
@@ -385,7 +385,7 @@ export function OrderDeliveryPanel({
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <strong className="flex items-center gap-2">
-                    <Store className="h-4 w-4" /> Warehouse pickup selected
+                    <Store className="h-4 w-4" /> Pickup selected
                   </strong>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {ready
@@ -403,7 +403,7 @@ export function OrderDeliveryPanel({
                       Change to delivery
                     </Button>
                   )}
-                  {isPrivileged && preparing && (
+                  {isAdmin && preparing && (
                     <Button
                       variant="outline"
                       disabled={busy}
@@ -442,7 +442,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Change to warehouse pickup
+                    <Store className="h-4 w-4" /> Change to pickup
                   </Button>
                 )}
                 {canCreateStandard && (
@@ -471,10 +471,10 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Warehouse pickup
+                    <Store className="h-4 w-4" /> Pickup
                   </Button>
                 )}
-                {isPrivileged && (
+                {isAdmin && (
                   <Button
                     variant="outline"
                     disabled={busy}
@@ -836,7 +836,7 @@ export function OrderDeliveryPanel({
                   <strong className="block">Payment checkout is active</strong>
                   <p className="mt-1">
                     Cancel this payment attempt before changing the order to
-                    free customer pickup. Returning to this page alone does not
+                    free pickup. Returning to this page alone does not
                     cancel Stripe checkout.
                   </p>
                   {isOwner && (
