@@ -1,5 +1,5 @@
 import React from "react";
-import { doorFinish, DoorFrameGradient, DoorLeafGradient } from "../door-finish";
+import { doorFinish, DoorFrameGradient, DoorGlassGradient, DoorLeafGradient } from "../door-finish";
 import { JOINED_JAMB_INCHES, type JoinedJambs } from "./series-600-frame-joint";
 
 type FrameSurfaceProps = {
@@ -19,15 +19,7 @@ export function FrenchDoorFrameSurface({
     <defs>
       <DoorLeafGradient id={id("finish")} finish={finish} joinedHeight={joined?.left || joined?.right ? height : undefined} />
       <DoorFrameGradient id={id("jamb")} finish={finish} />
-      <linearGradient id={id("glass")} x1="0%" y1="8%" x2="100%" y2="88%">
-        <stop stopColor="#ECEBED" />
-        <stop offset=".16" stopColor="#EAE9EB" />
-        <stop offset=".27" stopColor="#E3E2E4" />
-        <stop offset=".52" stopColor="#E2E1E3" />
-        <stop offset=".68" stopColor="#E6E5E7" />
-        <stop offset=".83" stopColor="#E2E1E3" />
-        <stop offset="1" stopColor="#E4E3E5" />
-      </linearGradient>
+      <DoorGlassGradient id={id("glass")} />
       {includeHardware && <>
         <linearGradient id={id("barrel")} x2="100%" y2="0%">
           <stop stopColor="#272529" stopOpacity=".48" />

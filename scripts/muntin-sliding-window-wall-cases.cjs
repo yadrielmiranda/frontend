@@ -193,6 +193,68 @@ module.exports = function register(ctx) {
   const wallPanels = () => [panel(1, 2, 3, 'All glass panels', 'O')];
   const wallProps = { width: 120, height: 90, panelCount: 2, horizontalHeights: [30, 60], showDimensions: false };
   const wall = muntin => render(WindowWallDiagram, { ...wallProps, muntin });
+  test('Window Wall is entirely vector for plain, divided and attached profiles in every finish', () => {
+    for (const frameColorHex of ['#FFFFFF', '#574B40', '#151515']) {
+      for (const activeOptionName of ['None', 'Left Attachment', 'Right Attachment']) {
+        for (const [panelCount, horizontalHeights] of [[1, []], [2, [33.25]], [3, [24.125, 60.875]]]) {
+          const html = render(WindowWallDiagram, { width: 120, height: 90, panelCount, horizontalHeights,
+            activeOptionName, frameColorHex, assetBasePath: '/unavailable-raster-assets/', showDimensions: false });
+          assert.equal(tags(html, 'image').length, 0, 'No network or raster asset is needed');
+          assert.equal(tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-glass').length,
+            panelCount * (horizontalHeights.length + 1));
+          assert.equal(tags(html, 'svg')[0]['data-artwork'], 'vector');
+          assert.equal(tags(html, 'g').filter(item => item['data-part'] === 'window-wall-attachment').length,
+            activeOptionName === 'None' ? 0 : 1);
+        }
+      }
+    }
+  });
+  test('Window Wall uses the shared door frame and glass finishes without recoloring its glass', () => {
+    const { DoorGlassGradient, DoorLeafGradient, doorFinish } = load('components/piece-diagram/renderers/door-finish.tsx');
+    const gradient = (Component, props) => render('svg', { children: React.createElement(Component, props) }).slice(5, -6);
+    for (const frameColorHex of ['#FFFFFF', '#574B40']) {
+      const html = render(WindowWallDiagram, { ...wallProps, frameColorHex, glassTintHex: '#91A4AF' });
+      const gradients = tags(html, 'linearGradient');
+      const glassId = gradients.find(item => item.id.endsWith('-glass')).id;
+      const frameId = gradients.find(item => item.id.endsWith('-finish')).id;
+      assert.ok(html.includes(gradient(DoorGlassGradient, { id: glassId })));
+      assert.ok(html.includes(gradient(DoorLeafGradient, { id: frameId, finish: doorFinish(frameColorHex) })));
+      const glazing = tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-glass');
+      glazing.forEach(item => assert.equal(item.fill, `url(#${glassId})`));
+      assert.equal(tags(html, 'rect').filter(item => item['data-glass-effect'] === 'TINT').length, glazing.length);
+    }
+  });
+  test('Window Wall tint, privacy, coating and grids share the actual glass cutouts between profiles', () => {
+    const html = render(WindowWallDiagram, { ...wallProps, horizontalHeights: [24.125, 60.875],
+      glassTintHex: '#91A4AF', hasPrivacy: true, hasCoating: true, muntin: resolved(wallPanels()) });
+    const glazing = tags(html, 'rect').filter(item => item['data-part'] === 'window-wall-glass').map(rect);
+    for (const effect of ['TINT', 'PRIVACY', 'COATING']) {
+      const overlays = tags(html, 'rect').filter(item => item['data-glass-effect'] === effect).map(rect);
+      assert.equal(overlays.length, glazing.length);
+      overlays.forEach((overlay, index) => sameRect(overlay, glazing[index]));
+    }
+    const gridClips = panels(html).map(group => clipFor(html, group));
+    assert.equal(gridClips.length, glazing.length);
+    for (const clip of gridClips) {
+      const glass = glazing.find(item => Math.abs(item.x - clip.x) < 1e-7 && Math.abs(item.y - clip.y) < 1e-7);
+      assert.ok(glass); sameRect(clip, glass);
+    }
+    assertClippedBars(html);
+  });
+  test('Window Wall interlocking vertical seams stay continuous through the horizontal junctions', () => {
+    const html = render(WindowWallDiagram, { ...wallProps, panelCount: 3, horizontalHeights: [33.25, 60.875] });
+    const frame = rect(tags(html, 'rect').find(item => item['data-part'] === 'window-wall-frame'));
+    const seams = tags(html, 'path').filter(item => item['data-part'] === 'window-wall-interlock-seams');
+    assert.equal(seams.length, 2);
+    seams.forEach((seam, index) => {
+      const coordinates = seam.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+      assert.equal(coordinates.length, 6);
+      near(coordinates[0], frame.x + frame.width * (index + 1) / 3);
+      near(coordinates[1], frame.y); near(coordinates[2], frame.y + frame.height);
+      assert.ok(coordinates[3] > coordinates[0], 'The mating profile remains visibly nested');
+      near(coordinates[4], frame.y); near(coordinates[5], frame.y + frame.height);
+    });
+  });
   test('Window Wall repeats one H2 V3 setting in all six crystals, clipped away from transoms', () => {
     const html = wall(resolved(wallPanels(), 'ogee'));
     const groups = panels(html);

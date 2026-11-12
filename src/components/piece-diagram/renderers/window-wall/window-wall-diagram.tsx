@@ -19,6 +19,7 @@ import {
   type GlassOverlayRect,
 } from "../glass-appearance";
 import { MuntinLayer, type MuntinGlassPanel, type ResolvedMuntin } from "../muntin-layer";
+import { doorFinish, DoorFrameGradient, DoorGlassGradient, DoorLeafGradient } from "../door-finish";
 
 export type WindowWallDimension = number | string;
 export type WindowWallAttachment = "NONE" | "LEFT" | "RIGHT";
@@ -49,12 +50,10 @@ type PanelGeometry = Readonly<{
   cells: readonly Rect[];
 }>;
 
-const RELEASE = "C139_SOURCE_PROFILE_AND_ENDS_FIXED";
+const RELEASE = "C139_VECTOR_SHARED_FINISHES";
 const VIEWBOX_SIZE = 2048;
 const DIMENSIONS = dimensionMetrics(VIEWBOX_SIZE);
 const DEFAULT_FRAME_COLOR = "#FFFFFF";
-const DEFAULT_ASSET_BASE_PATH =
-  "/product-visuals/window-wall-storefront/c139";
 
 const PRODUCT_REGION = {
   x: 270,
@@ -80,35 +79,6 @@ const PANEL_SOURCE = {
 const LEFT_ATTACHMENT_GLASS_INSET_LEFT_PX = 52;
 const RIGHT_ATTACHMENT_GLASS_INSET_RIGHT_PX = 52;
 
-const LEFT_ATTACHMENT_SOURCE = {
-  width: 2011,
-  height: 1572,
-  left: 143,
-  right: 92,
-  top: 96,
-  bottom: 96,
-} as const;
-
-const RIGHT_ATTACHMENT_SOURCE = {
-  width: LEFT_ATTACHMENT_SOURCE.width,
-  height: LEFT_ATTACHMENT_SOURCE.height,
-  // Cortes sobre los gaskets del perfil reflejado; así ninguna unión del
-  // nine-slice atraviesa el vidrio ni crea una franja vertical.
-  left: 95,
-  right: 103,
-  top: LEFT_ATTACHMENT_SOURCE.top,
-  bottom: LEFT_ATTACHMENT_SOURCE.bottom,
-} as const;
-
-const PANEL_NINE_SLICE_SOURCE = {
-  width: PANEL_SOURCE.width,
-  height: PANEL_SOURCE.height,
-  left: PANEL_SOURCE.glassInsetLeftPx,
-  right: PANEL_SOURCE.glassInsetRightPx,
-  top: PANEL_SOURCE.glassInsetTopPx,
-  bottom: PANEL_SOURCE.glassInsetBottomPx,
-} as const;
-
 // Medidas tomadas del cuerpo visible del render original de tres paneles.
 const THREE_PANEL_SOURCE_BODY = {
   width: 6627,
@@ -119,29 +89,6 @@ const INTERNAL_JOINT_WIDTH_RATIO =
   THREE_PANEL_SOURCE_BODY.jointWidth / THREE_PANEL_SOURCE_BODY.height;
 const HORIZONTAL_JOINT_HEIGHT_RATIO = 110 / PANEL_SOURCE.height;
 const GASKET_STROKE_WIDTH_RATIO = 3 / PANEL_SOURCE.height;
-
-const INTERNAL_JOINT_SOURCE = {
-  width: 192,
-  height: 2048,
-  top: 125,
-  bottom: 125,
-} as const;
-const INTERNAL_JOINT_CAP_RATIO =
-  INTERNAL_JOINT_SOURCE.top / INTERNAL_JOINT_SOURCE.height;
-
-const HORIZONTAL_JOINT_SOURCE = {
-  width: 2048,
-  height: 115,
-  left: 99,
-  right: 96,
-} as const;
-
-const ASSETS = {
-  panel: "window-wall-o.png",
-  leftAttachment: "window-wall-left-attachment.png",
-  internalJoint: "window-wall-internal-joint.png",
-  horizontalJoint: "window-wall-horizontal-joint.png",
-} as const;
 
 function parsePositiveDimension(
   value: WindowWallDimension,
@@ -219,10 +166,6 @@ function safeId(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, "") || "ae-window-wall";
 }
 
-function joinAssetPath(basePath: string, filename: string): string {
-  return `${basePath.replace(/\/+$/, "")}/${filename}`;
-}
-
 export function resolveWindowWallAttachment(
   activeOptionName?: string | null,
 ): WindowWallAttachment {
@@ -291,418 +234,63 @@ function windowWallMuntinCells(
   // expanded data is compatible only when all entries describe the same grid.
   if (muntin.panels.some((panel) => panel.horizontalLites !== selection.horizontalLites
     || panel.verticalLites !== selection.verticalLites)) return null;
-  const columns = panels.map((panel) => [...panel.cells].sort((left, right) => left.y - right.y));
+  const columns = panels.map((panel) => visiblePanelCells(panel, horizontalJointHeight)
+    .sort((left, right) => left.y - right.y));
   const rows = columns[0].length;
   const glassPanels: MuntinGlassPanel[] = [];
   const mappedPanels: ResolvedMuntin["panels"] = [];
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns.length; column++) {
       const cell = columns[column][row];
-      const insetTop = row > 0 ? horizontalJointHeight / 2 : 0;
-      const insetBottom = row < rows - 1 ? horizontalJointHeight / 2 : 0;
       const panelLabel = `Cell ${row + 1}:${column + 1}`;
       const panelIndex = row * columns.length + column + 1;
       mappedPanels.push({ ...selection, panelIndex, panelLabel, panelCode: "O" });
       glassPanels.push({ panelIndex, panelCode: "O", panelLabel,
-        rect: { ...cell, y: cell.y + insetTop, height: cell.height - insetTop - insetBottom },
+        rect: cell,
       });
     }
   }
   return { muntin: { ...muntin, panels: mappedPanels }, glassPanels };
 }
 
-function frameRingPath(frame: Rect, glass: Rect): string {
-  return [
-    `M ${frame.x} ${frame.y}`,
-    `H ${frame.x + frame.width}`,
-    `V ${frame.y + frame.height}`,
-    `H ${frame.x}`,
-    "Z",
-    `M ${glass.x} ${glass.y}`,
-    `H ${glass.x + glass.width}`,
-    `V ${glass.y + glass.height}`,
-    `H ${glass.x}`,
-    "Z",
-  ].join(" ");
+// Every effect and grid follows the daylight opening left by the transoms.
+function visiblePanelCells(panel: PanelGeometry, horizontalJointHeight: number): Rect[] {
+  return panel.cells.map((cell, index) => {
+    const insetTop = index < panel.cells.length - 1 ? horizontalJointHeight / 2 : 0;
+    const insetBottom = index > 0 ? horizontalJointHeight / 2 : 0;
+    return { ...cell, y: cell.y + insetTop, height: cell.height - insetTop - insetBottom };
+  });
 }
 
-function fitOpposingSlices(
-  first: number,
-  second: number,
-  available: number,
-): readonly [number, number] {
-  const total = first + second;
-  if (total <= available || total <= 0) return [first, second];
-
-  const scale = Math.max(0, available / total);
-  return [first * scale, second * scale];
-}
-
-function CroppedImage({
-  href,
-  source,
-  target,
-  sourceImageWidth,
-  sourceImageHeight,
-  slice,
-  filterId,
-  flipHorizontal,
-}: {
-  href: string;
-  source: Rect;
-  target: Rect;
-  sourceImageWidth: number;
-  sourceImageHeight: number;
-  slice: string;
-  filterId?: string;
-  flipHorizontal?: boolean;
+function GlazingStop({ glass, bead, seal, finish, glassPaint }: {
+  glass: Rect; bead: number; seal: number;
+  finish: ReturnType<typeof doorFinish>; glassPaint: string;
 }) {
-  if (
-    source.width <= 0 ||
-    source.height <= 0 ||
-    target.width <= 0 ||
-    target.height <= 0
-  ) {
-    return null;
-  }
+  const { x, y, width, height } = glass;
+  const right = x + width;
+  const bottom = y + height;
+  const leftEdge = x - bead;
+  const rightEdge = right + bead;
+  const topEdge = y - bead;
+  const bottomEdge = bottom + bead;
 
-  return (
-    <svg
-      x={target.x}
-      y={target.y}
-      width={target.width}
-      height={target.height}
-      viewBox={`${source.x} ${source.y} ${source.width} ${source.height}`}
-      preserveAspectRatio="none"
-      overflow="hidden"
-      data-slice={slice}
-    >
-      <image
-        href={href}
-        x={0}
-        y={0}
-        width={sourceImageWidth}
-        height={sourceImageHeight}
-        preserveAspectRatio="none"
-        filter={filterId ? `url(#${filterId})` : undefined}
-        transform={
-          flipHorizontal
-            ? `translate(${sourceImageWidth} 0) scale(-1 1)`
-            : undefined
-        }
-      />
-    </svg>
-  );
+  return <g data-part="window-wall-glazing-stop">
+    <rect x={leftEdge} y={topEdge} width={width + 2 * bead} height={height + 2 * bead}
+      fill="none" stroke={finish("#A7B0AF", -0.27)} strokeWidth={seal * 0.55} />
+    <path d={`M${leftEdge} ${topEdge}H${rightEdge}L${right} ${y}H${x}Z`}
+      fill={finish("#899593", -0.38)} fillOpacity=".18" />
+    <path d={`M${rightEdge} ${topEdge}V${bottomEdge}L${right} ${bottom}V${y}Z`}
+      fill={finish("#809192", -0.34)} fillOpacity=".24" />
+    <path d={`M${leftEdge} ${topEdge}L${x} ${y}V${bottom}L${leftEdge} ${bottomEdge}Z
+      M${leftEdge} ${bottomEdge}L${x} ${bottom}H${right}L${rightEdge} ${bottomEdge}Z`}
+      fill="white" fillOpacity=".16" />
+    <rect x={x - seal} y={y - seal} width={width + 2 * seal} height={height + 2 * seal}
+      fill={finish("#617071", -0.52)} />
+    <path d={`M${x - seal / 2} ${bottom}V${y - seal / 2}H${right}`}
+      fill="none" stroke={finish("#A7B2B0", -0.28)} strokeWidth={seal} />
+    <rect {...glass} fill={glassPaint} data-part="window-wall-glass" />
+  </g>;
 }
-
-function NineSliceImage({
-  href,
-  target,
-  sourceWidth,
-  sourceHeight,
-  sourceLeft,
-  sourceRight,
-  sourceTop,
-  sourceBottom,
-  targetLeft,
-  targetRight,
-  targetTop,
-  targetBottom,
-  sourceFilterId,
-  flipHorizontal,
-}: {
-  href: string;
-  target: Rect;
-  sourceWidth: number;
-  sourceHeight: number;
-  sourceLeft: number;
-  sourceRight: number;
-  sourceTop: number;
-  sourceBottom: number;
-  targetLeft: number;
-  targetRight: number;
-  targetTop: number;
-  targetBottom: number;
-  sourceFilterId?: string;
-  flipHorizontal?: boolean;
-}) {
-  const [fittedTargetLeft, fittedTargetRight] = fitOpposingSlices(
-    targetLeft,
-    targetRight,
-    target.width,
-  );
-  const [fittedTargetTop, fittedTargetBottom] = fitOpposingSlices(
-    targetTop,
-    targetBottom,
-    target.height,
-  );
-  const sourceXs = [0, sourceLeft, sourceWidth - sourceRight];
-  const sourceYs = [0, sourceTop, sourceHeight - sourceBottom];
-  const sourceWidths = [
-    sourceLeft,
-    sourceWidth - sourceLeft - sourceRight,
-    sourceRight,
-  ];
-  const sourceHeights = [
-    sourceTop,
-    sourceHeight - sourceTop - sourceBottom,
-    sourceBottom,
-  ];
-  const targetXs = [
-    target.x,
-    target.x + fittedTargetLeft,
-    target.x + target.width - fittedTargetRight,
-  ];
-  const targetYs = [
-    target.y,
-    target.y + fittedTargetTop,
-    target.y + target.height - fittedTargetBottom,
-  ];
-  const targetWidths = [
-    fittedTargetLeft,
-    target.width - fittedTargetLeft - fittedTargetRight,
-    fittedTargetRight,
-  ];
-  const targetHeights = [
-    fittedTargetTop,
-    target.height - fittedTargetTop - fittedTargetBottom,
-    fittedTargetBottom,
-  ];
-
-  return (
-    <>
-      {[0, 1, 2].flatMap((row) =>
-        [0, 1, 2].map((column) => (
-          <CroppedImage
-            key={`${row}-${column}`}
-            href={href}
-            source={{
-              x: sourceXs[column],
-              y: sourceYs[row],
-              width: sourceWidths[column],
-              height: sourceHeights[row],
-            }}
-            target={{
-              x: targetXs[column],
-              y: targetYs[row],
-              width: targetWidths[column],
-              height: targetHeights[row],
-            }}
-            sourceImageWidth={sourceWidth}
-            sourceImageHeight={sourceHeight}
-            slice={`${row}-${column}`}
-            filterId={
-              row === 1 && column === 1 ? sourceFilterId : undefined
-            }
-            flipHorizontal={flipHorizontal}
-          />
-        )),
-      )}
-    </>
-  );
-}
-
-function SourcePanel({
-  href,
-  frame,
-  attachment,
-  profilePixelScale,
-  showOuterLeft,
-  showOuterRight,
-  sourceFilterId,
-}: {
-  href: string;
-  frame: Rect;
-  attachment: WindowWallAttachment;
-  profilePixelScale: number;
-  showOuterLeft: boolean;
-  showOuterRight: boolean;
-  sourceFilterId?: string;
-}) {
-  const targetLeftExtension =
-    attachment === "LEFT"
-      ? PANEL_SOURCE.leftAttachmentExtensionPx * profilePixelScale
-      : 0;
-  const targetRightExtension =
-    attachment === "RIGHT"
-      ? PANEL_SOURCE.rightAttachmentExtensionPx * profilePixelScale
-      : 0;
-  const source =
-    attachment === "LEFT"
-      ? LEFT_ATTACHMENT_SOURCE
-      : attachment === "RIGHT"
-        ? RIGHT_ATTACHMENT_SOURCE
-        : PANEL_NINE_SLICE_SOURCE;
-  const target: Rect = {
-    x: frame.x - targetLeftExtension,
-    y: frame.y,
-    width: frame.width + targetLeftExtension + targetRightExtension,
-    height: frame.height,
-  };
-
-  return (
-    <g
-      data-layer="WINDOW_WALL_SOURCE_PANEL"
-      data-source-attachment={attachment}
-      data-outer-left={showOuterLeft ? "VISIBLE" : "JOINED"}
-      data-outer-right={showOuterRight ? "VISIBLE" : "JOINED"}
-    >
-      <NineSliceImage
-        href={href}
-        target={target}
-        sourceWidth={source.width}
-        sourceHeight={source.height}
-        sourceLeft={source.left}
-        sourceRight={source.right}
-        sourceTop={source.top}
-        sourceBottom={source.bottom}
-        targetLeft={
-          showOuterLeft ? source.left * profilePixelScale : 0
-        }
-        targetRight={
-          showOuterRight ? source.right * profilePixelScale : 0
-        }
-        targetTop={source.top * profilePixelScale}
-        targetBottom={source.bottom * profilePixelScale}
-        sourceFilterId={sourceFilterId}
-        flipHorizontal={attachment === "RIGHT"}
-      />
-    </g>
-  );
-}
-
-function VerticalProfile({
-  href,
-  target,
-  targetTop,
-  targetBottom,
-}: {
-  href: string;
-  target: Rect;
-  targetTop: number;
-  targetBottom: number;
-}) {
-  const [fittedTop, fittedBottom] = fitOpposingSlices(
-    targetTop,
-    targetBottom,
-    target.height,
-  );
-  const sourceHeights = [
-    INTERNAL_JOINT_SOURCE.top,
-    INTERNAL_JOINT_SOURCE.height -
-      INTERNAL_JOINT_SOURCE.top -
-      INTERNAL_JOINT_SOURCE.bottom,
-    INTERNAL_JOINT_SOURCE.bottom,
-  ];
-  const sourceYs = [
-    0,
-    INTERNAL_JOINT_SOURCE.top,
-    INTERNAL_JOINT_SOURCE.height - INTERNAL_JOINT_SOURCE.bottom,
-  ];
-  const targetHeights = [
-    fittedTop,
-    target.height - fittedTop - fittedBottom,
-    fittedBottom,
-  ];
-  const targetYs = [
-    target.y,
-    target.y + fittedTop,
-    target.y + target.height - fittedBottom,
-  ];
-
-  return (
-    <>
-      {[0, 1, 2].map((index) => (
-        <CroppedImage
-          key={index}
-          href={href}
-          source={{
-            x: 0,
-            y: sourceYs[index],
-            width: INTERNAL_JOINT_SOURCE.width,
-            height: sourceHeights[index],
-          }}
-          target={{
-            x: target.x,
-            y: targetYs[index],
-            width: target.width,
-            height: targetHeights[index],
-          }}
-          sourceImageWidth={INTERNAL_JOINT_SOURCE.width}
-          sourceImageHeight={INTERNAL_JOINT_SOURCE.height}
-          slice={`vertical-${index}`}
-        />
-      ))}
-    </>
-  );
-}
-
-function HorizontalProfile({
-  href,
-  target,
-  targetLeft,
-  targetRight,
-}: {
-  href: string;
-  target: Rect;
-  targetLeft: number;
-  targetRight: number;
-}) {
-  const [fittedLeft, fittedRight] = fitOpposingSlices(
-    targetLeft,
-    targetRight,
-    target.width,
-  );
-  const sourceWidths = [
-    HORIZONTAL_JOINT_SOURCE.left,
-    HORIZONTAL_JOINT_SOURCE.width -
-      HORIZONTAL_JOINT_SOURCE.left -
-      HORIZONTAL_JOINT_SOURCE.right,
-    HORIZONTAL_JOINT_SOURCE.right,
-  ];
-  const sourceXs = [
-    0,
-    HORIZONTAL_JOINT_SOURCE.left,
-    HORIZONTAL_JOINT_SOURCE.width - HORIZONTAL_JOINT_SOURCE.right,
-  ];
-  const targetWidths = [
-    fittedLeft,
-    target.width - fittedLeft - fittedRight,
-    fittedRight,
-  ];
-  const targetXs = [
-    target.x,
-    target.x + fittedLeft,
-    target.x + target.width - fittedRight,
-  ];
-
-  return (
-    <>
-      {[0, 1, 2].map((index) => (
-        <CroppedImage
-          key={index}
-          href={href}
-          source={{
-            x: sourceXs[index],
-            y: 0,
-            width: sourceWidths[index],
-            height: HORIZONTAL_JOINT_SOURCE.height,
-          }}
-          target={{
-            x: targetXs[index],
-            y: target.y,
-            width: targetWidths[index],
-            height: target.height,
-          }}
-          sourceImageWidth={HORIZONTAL_JOINT_SOURCE.width}
-          sourceImageHeight={HORIZONTAL_JOINT_SOURCE.height}
-          slice={`horizontal-${index}`}
-        />
-      ))}
-    </>
-  );
-}
-
 function Dimensions({
   frame,
   width,
@@ -792,7 +380,6 @@ export function WindowWallDiagram({
   hasPrivacy = false,
   muntin,
   showDimensions = true,
-  assetBasePath = DEFAULT_ASSET_BASE_PATH,
   idNamespace,
   className,
 }: WindowWallDiagramProps): React.ReactElement {
@@ -808,7 +395,8 @@ export function WindowWallDiagram({
   const attachment = requestedAttachment;
   const frameColor = normalizeFrameColor(frameColorHex);
   const namespace = safeId(`${idNamespace ?? "ae-window-wall"}-${reactId}`);
-  const sourceMarkFilterId = `${namespace}-remove-source-mark`;
+  const finish = doorFinish(frameColor);
+  const paint = (part: string) => `url(#${namespace}-${part})`;
   const productScale = Math.min(
     PRODUCT_REGION.width / resolvedWidth,
     PRODUCT_REGION.height / resolvedHeight,
@@ -893,6 +481,9 @@ export function WindowWallDiagram({
       minimumRowHeight * 0.4,
     ),
   );
+  const visibleCells = panels.flatMap((panel) => visiblePanelCells(panel, horizontalJointHeight));
+  const glazingBead = Math.min(32 * profilePixelScale, horizontalJointHeight * 0.28,
+    ...visibleCells.map((cell) => Math.min(cell.width, cell.height) * 0.12));
   const resolvedMuntin = windowWallMuntinCells(muntin, panels, horizontalJointHeight);
   const gasketStrokeWidth = Math.max(
     1.25,
@@ -904,14 +495,6 @@ export function WindowWallDiagram({
       62,
       ...cells.map((cell) => Math.min(cell.width, cell.height) * 0.12),
     ),
-  );
-  const internalJointAsset = joinAssetPath(
-    assetBasePath,
-    ASSETS.internalJoint,
-  );
-  const horizontalJointAsset = joinAssetPath(
-    assetBasePath,
-    ASSETS.horizontalJoint,
   );
   const attachmentLeftPadding =
     attachment === "LEFT"
@@ -964,7 +547,9 @@ export function WindowWallDiagram({
       data-family="WINDOW_WALL"
       data-release={RELEASE}
       data-view="EXTERIOR"
-      data-construction="C139_REFERENCE_MODULES"
+      data-construction="C139_VECTOR_PROFILES"
+      data-artwork="vector"
+      data-material-pipeline="STRUCTURE__DATABASE_GLASS__DATABASE_FRAME"
       data-panel-count={resolvedPanelCount}
       data-horizontal-heights={resolvedHorizontalHeights.join(",")}
       data-attachment={attachment}
@@ -975,223 +560,62 @@ export function WindowWallDiagram({
     >
       <title>{`Window Wall ${resolvedPanelCount} equal panels`}</title>
       <defs>
-        <filter id={sourceMarkFilterId} colorInterpolationFilters="sRGB">
-          <feColorMatrix
-            in="SourceGraphic"
-            type="matrix"
-            values={`
-              0 0 0 0 0
-              0 0 0 0 0
-              0 0 0 0 0
-              2 -1 -1 0 -0.25
-            `}
-            result="redMark"
-          />
-          <feMorphology
-            in="redMark"
-            operator="dilate"
-            radius="8"
-            result="sourceMarkArea"
-          />
-          <feGaussianBlur
-            in="sourceMarkArea"
-            stdDeviation="2"
-            result="sourceMarkAreaFeathered"
-          />
-          <feComposite
-            in="SourceGraphic"
-            in2="sourceMarkAreaFeathered"
-            operator="out"
-            result="sourceWithoutMark"
-          />
-          <feOffset
-            in="SourceGraphic"
-            dx="0"
-            dy="120"
-            result="cleanGlassAtMark"
-          />
-          <feComposite
-            in="cleanGlassAtMark"
-            in2="sourceMarkAreaFeathered"
-            operator="in"
-            result="markReplacement"
-          />
-          <feMerge>
-            <feMergeNode in="sourceWithoutMark" />
-            <feMergeNode in="markReplacement" />
-          </feMerge>
-        </filter>
+        <DoorFrameGradient id={`${namespace}-jamb`} finish={finish} />
+        <DoorLeafGradient id={`${namespace}-finish`} finish={finish} />
+        <DoorGlassGradient id={`${namespace}-glass`} />
       </defs>
 
-      <g data-layer="WINDOW_WALL_APPROVED_PANEL_SOURCES">
-        {panels.map((panel) => {
-          const sourceAttachment: WindowWallAttachment =
-            attachment === "LEFT" && panel.index === 0
-              ? "LEFT"
-              : attachment === "RIGHT" &&
-                  panel.index === resolvedPanelCount - 1
-                ? "RIGHT"
-                : "NONE";
-          const sourceAsset = joinAssetPath(
-            assetBasePath,
-            sourceAttachment === "LEFT" || sourceAttachment === "RIGHT"
-              ? ASSETS.leftAttachment
-              : ASSETS.panel,
-          );
+      <g data-layer="WINDOW_WALL_STRUCTURE" data-artwork="vector">
+        {/* A continuous face shares the finish across the interlocking profiles. */}
+        <rect {...frame} fill={paint("jamb")} stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.55}
+          data-part="window-wall-frame" />
+        <path d={`M${frame.x} ${frame.y}H${frame.x + frame.width}V${frame.y + frame.height}H${frame.x}Z
+          ${attachmentLeftPadding ? `M${frame.x - attachmentLeftPadding} ${frame.y + glassInsetTop / 2}H${frame.x}V${frame.y + frame.height - glassInsetBottom / 2}H${frame.x - attachmentLeftPadding}Z` : ""}
+          ${attachmentRightPadding ? `M${frame.x + frame.width} ${frame.y + glassInsetTop / 2}H${frame.x + frame.width + attachmentRightPadding}V${frame.y + frame.height - glassInsetBottom / 2}H${frame.x + frame.width}Z` : ""}`}
+          fill={paint("finish")} data-part="window-wall-profile-face" />
+        <path d={`M${frame.x} ${frame.y}H${frame.x + frame.width} M${frame.x} ${frame.y}V${frame.y + frame.height}`}
+          fill="none" stroke="white" strokeOpacity=".7" strokeWidth={gasketStrokeWidth * 0.6} />
+        <path d={`M${frame.x} ${frame.y + frame.height}H${frame.x + frame.width}V${frame.y}`}
+          fill="none" stroke={finish("#899593", -0.38)} strokeWidth={gasketStrokeWidth * 0.6} />
 
-          return (
-            <SourcePanel
-              key={`source-panel-${panel.index}`}
-              href={sourceAsset}
-              frame={panel.frame}
-              attachment={sourceAttachment}
-              profilePixelScale={profilePixelScale}
-              showOuterLeft={panel.index === 0}
-              showOuterRight={panel.index === resolvedPanelCount - 1}
-              sourceFilterId={sourceMarkFilterId}
-            />
-          );
-        })}
-      </g>
+        {attachment !== "NONE" && <g data-part="window-wall-attachment" data-attachment={attachment}>
+          <rect x={attachment === "LEFT" ? frame.x - attachmentLeftPadding : frame.x + frame.width}
+            y={frame.y + glassInsetTop / 2}
+            width={attachmentLeftPadding || attachmentRightPadding}
+            height={frame.height - (glassInsetTop + glassInsetBottom) / 2}
+            fill="none" stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.55} />
+        </g>}
 
-      {/* El PNG ya contiene el vidrio base; aquí solo van efectos transparentes. */}
-      <GlassAppearanceLayer
-        rects={cells}
-        glassTintHex={glassTintHex}
-        hasCoating={hasCoating}
-        hasPrivacy={hasPrivacy}
-      />
-
-      <g data-layer="WINDOW_WALL_INTERNAL_JOINTS">
-        {panels.slice(0, -1).map((panel) => {
-          const boundaryX = panel.frame.x + panel.frame.width;
-          return (
-            <g
-              key={`internal-joint-${panel.index}`}
-              data-internal-attachment="RIGHT"
-            >
-              <VerticalProfile
-                href={internalJointAsset}
-                target={{
-                  x: boundaryX - jointWidth / 2,
-                  y: frame.y,
-                  width: jointWidth,
-                  height: frame.height,
-                }}
-                targetTop={frame.height * INTERNAL_JOINT_CAP_RATIO}
-                targetBottom={frame.height * INTERNAL_JOINT_CAP_RATIO}
-              />
-            </g>
-          );
-        })}
-      </g>
-
-      <g
-        fill="none"
-        stroke="#20272B"
-        strokeWidth={gasketStrokeWidth}
-        strokeLinecap="square"
-        data-layer="WINDOW_WALL_INTERNAL_GASKET_BRIDGES"
-      >
-        {panels.slice(0, -1).flatMap((panel) => {
-          const boundaryX = panel.frame.x + panel.frame.width;
-          const nextPanel = panels[panel.index + 1];
-          const leftSourceEnd = boundaryX - glassInsetRight;
-          const leftJointEdge = boundaryX - jointWidth / 2;
-          const rightJointEdge = boundaryX + jointWidth / 2;
-          const rightSourceStart = nextPanel.frame.x + glassInsetLeft;
-
-          return [glassTop, glassBottom].flatMap((y, rowIndex) => [
-            <path
-              key={`left-bridge-${panel.index}-${rowIndex}`}
-              d={`M ${leftSourceEnd} ${y} H ${leftJointEdge}`}
-            />,
-            <path
-              key={`right-bridge-${panel.index}-${rowIndex}`}
-              d={`M ${rightJointEdge} ${y} H ${rightSourceStart}`}
-            />,
-          ]);
-        })}
-      </g>
-
-      <g data-layer="WINDOW_WALL_HORIZONTAL_JOINTS">
-        {panels.map((panel) =>
-          resolvedHorizontalHeights.map((horizontalHeight, index) => {
-            const centerY =
-              panel.glass.y +
-              (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
-            return (
-              <g
-                key={`horizontal-${panel.index}-${horizontalHeight}-${index}`}
-                data-horizontal-height={horizontalHeight}
-              >
-                <HorizontalProfile
-                  href={horizontalJointAsset}
-                  target={{
-                    x: panel.frame.x,
-                    y: centerY - horizontalJointHeight / 2,
-                    width: panel.frame.width,
-                    height: horizontalJointHeight,
-                  }}
-                  targetLeft={
-                    panel.index === 0
-                      ? exteriorGlassInsetLeft
-                      : glassInsetLeft
-                  }
-                  targetRight={
-                    panel.index === resolvedPanelCount - 1
-                      ? exteriorGlassInsetRight
-                      : glassInsetRight
-                  }
-                />
-              </g>
-            );
-          }),
-        )}
-      </g>
-
-      {frameColor !== DEFAULT_FRAME_COLOR ? (
-        <g
-          fill={frameColor}
-          style={{ mixBlendMode: "multiply" }}
-          data-layer="WINDOW_WALL_FRAME_FINISH"
-        >
-          {panels.map((panel) => (
-            <path
-              key={`frame-finish-${panel.index}`}
-              d={frameRingPath(panel.frame, panel.glass)}
-              fillRule="evenodd"
-              clipRule="evenodd"
-            />
-          ))}
-          {panels.slice(0, -1).map((panel) => (
-            <rect
-              key={`joint-finish-${panel.index}`}
-              x={panel.frame.x + panel.frame.width - jointWidth / 2}
-              y={frame.y}
-              width={jointWidth}
-              height={frame.height}
-            />
-          ))}
-          {panels.flatMap((panel) =>
-            resolvedHorizontalHeights.map((horizontalHeight, index) => {
-              const centerY =
-                panel.glass.y +
-                (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
-              return (
-                <rect
-                  key={`horizontal-finish-${panel.index}-${index}`}
-                  x={panel.frame.x}
-                  y={centerY - horizontalJointHeight / 2}
-                  width={panel.frame.width}
-                  height={horizontalJointHeight}
-                />
-              );
-            }),
-          )}
+        <g data-layer="WINDOW_WALL_HORIZONTAL_JOINTS">
+          {panels.map((panel) => resolvedHorizontalHeights.map((horizontalHeight) => {
+            const centerY = panel.glass.y + (1 - horizontalHeight / resolvedHeight) * panel.glass.height;
+            return <g key={`horizontal-${panel.index}-${horizontalHeight}`} data-horizontal-height={horizontalHeight}
+              data-panel-index={panel.index + 1} data-profile-y={centerY - horizontalJointHeight / 2}
+              data-profile-height={horizontalJointHeight} />;
+          }))}
         </g>
-      ) : null}
 
+        {visibleCells.map((glass, index) => <GlazingStop key={`glazing-${index}`} glass={glass}
+          bead={glazingBead} seal={gasketStrokeWidth} finish={finish} glassPaint={paint("glass")} />)}
+
+        <g data-layer="WINDOW_WALL_INTERNAL_JOINTS" fill="none">
+          {panels.slice(0, -1).map((panel) => {
+            const boundaryX = panel.frame.x + panel.frame.width;
+            const engagementX = boundaryX + jointWidth * 0.14;
+            return <g key={`internal-joint-${panel.index}`} data-internal-attachment="RIGHT">
+              <path d={`M${boundaryX} ${frame.y}V${frame.y + frame.height}
+                M${engagementX} ${frame.y}V${frame.y + frame.height}`}
+                data-part="window-wall-interlock-seams"
+                stroke={finish("#A7B0AF", -0.27)} strokeWidth={gasketStrokeWidth * 0.6} />
+              <path d={`M${engagementX + gasketStrokeWidth * 0.7} ${frame.y}V${frame.y + frame.height}`}
+                stroke="white" strokeOpacity=".32" strokeWidth={gasketStrokeWidth * 0.55} />
+            </g>;
+          })}
+        </g>
+      </g>
+
+      <GlassAppearanceLayer rects={visibleCells} glassTintHex={glassTintHex}
+        hasCoating={hasCoating} hasPrivacy={hasPrivacy} />
       {resolvedMuntin ? <MuntinLayer
         muntin={resolvedMuntin.muntin}
         glassPanels={resolvedMuntin.glassPanels}
@@ -1208,7 +632,7 @@ export function WindowWallDiagram({
         dominantBaseline="central"
         data-layer="WINDOW_WALL_PANEL_MARKS"
       >
-        {cells.map((cell, index) => (
+        {visibleCells.map((cell, index) => (
           <text
             key={`mark-${index}`}
             x={cell.x + cell.width / 2}

@@ -75,6 +75,12 @@ import { usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
 import { buildWindowWallMuntinLayout, hasAmbiguousWindowWallMuntinPanels, syncWindowWallMuntinPanels } from "./window-wall-muntin";
 
+// Keep dimension text while editing (for example "33 1/4" or "33.").
+// Calculation and submission normalize it to the numeric API representation.
+type PieceFormInputValues = Omit<PieceFormValues, "horizontalHeights"> & {
+  horizontalHeights?: (string | number)[] | null;
+};
+
 type NamedOption = {
   id: number;
   name: string;
@@ -156,9 +162,9 @@ const NUMBER_DIMENSION_FIELDS = [
 ] as const;
 
 function withoutInactiveDimensions(
-  values: PieceFormValues,
+  values: PieceFormInputValues,
   requirements: PieceDimensionRequirements,
-): PieceFormValues {
+): PieceFormInputValues {
   return {
     ...values,
     width: requirements.requiresWidth ? values.width : null,
@@ -335,7 +341,7 @@ export function PieceForm({
     trigger,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<PieceFormValues>({
+  } = useForm<PieceFormInputValues>({
     defaultValues: {
       ...initialData,
       idProd: initialData.idProd,
@@ -2544,6 +2550,18 @@ export function PieceForm({
       : [];
   }, [pieceValues.horizontalHeights]);
 
+  const horizontalHeightsForPreview = useMemo(
+    () => currentHorizontalHeights.flatMap((value) => {
+      try {
+        const normalized = normalizeInchesToEighthStep(value, "Horizontal Height", 1);
+        return normalized > 0 ? [normalized] : [];
+      } catch {
+        return [];
+      }
+    }),
+    [currentHorizontalHeights],
+  );
+
   const handleAddHorizontalHeight = () => {
     const current = Array.isArray(getValues("horizontalHeights"))
       ? (getValues("horizontalHeights") ?? [])
@@ -2576,10 +2594,8 @@ export function PieceForm({
       ? (getValues("horizontalHeights") ?? [])
       : [];
 
-    const numericValue = Number(rawValue || 0);
-
     const next = [...current];
-    next[heightIndex] = Number.isFinite(numericValue) ? numericValue : 0;
+    next[heightIndex] = rawValue;
 
     setValue("horizontalHeights", next, {
       shouldDirty: true,
@@ -2603,7 +2619,18 @@ export function PieceForm({
       className="relative flex min-h-0 flex-1 flex-col"
       onSubmit={handleSubmit((values) => {
         if (designSelectionError || doorDesignError) { toast.error(designSelectionError || doorDesignError); return; }
-        return onSubmit(withoutInactiveDimensions(values, dimensionRequirements));
+        const activeValues = withoutInactiveDimensions(values, dimensionRequirements);
+        try {
+          return onSubmit({
+            ...activeValues,
+            horizontalHeights: activeValues.horizontalHeights?.map((value, index) =>
+              normalizeInchesToEighthStep(value, `Horizontal Height ${index + 1}`, 1),
+            ) ?? null,
+          });
+        } catch (err) {
+          if (err instanceof DimensionParseError) toast.error(err.message);
+          else throw err;
+        }
       })}
     >
       <div ref={scrollContainerRef} className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto p-1 pb-40 sm:pb-24 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -3663,7 +3690,7 @@ export function PieceForm({
                                 <p className="text-xs text-muted-foreground">
                                   Positions from bottom. Min spacing{" "}
                                   {MIN_HORIZONTAL_HEIGHT_IN}
-                                  &quot;.
+                                  &quot;. Use decimals or fractions (33.25 or 33 1/4).
                                 </p>
                               </div>
 
@@ -3700,11 +3727,8 @@ export function PieceForm({
                                         autoComplete="off"
                                         type="text"
                                         disabled={isLocked}
-                                        value={
-                                          Number.isFinite(Number(value))
-                                            ? String(value)
-                                            : ""
-                                        }
+                                        value={value ?? ""}
+                                        aria-label={`Horizontal Height ${heightIndex + 1} (inches)`}
                                         onChange={(e) =>
                                           handleHorizontalHeightChange(
                                             heightIndex,
@@ -4504,7 +4528,7 @@ export function PieceForm({
                 configuration={selectedConfig?.conf}
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
-                piece={pieceValues}
+                piece={{ ...pieceValues, horizontalHeights: horizontalHeightsForPreview }}
                 garageDesign={designEnabled ? selectedGarageDesign : null}
                 frenchDoorDesignKey={currentDoorDesign?.artworkKey ?? null}
                 garageMaxSectionHeightIn={selectedSystem?.garageMaxSectionHeightIn == null ? undefined : Number(selectedSystem.garageMaxSectionHeightIn)}

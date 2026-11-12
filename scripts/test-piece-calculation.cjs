@@ -45,6 +45,10 @@ function jsxAttribute(tag, attr, predicate = () => true) {
 const submitDisabled = jsxAttribute("Button", "disabled", node => node.attributes.properties.some(prop =>
   ts.isJsxAttribute(prop) && prop.name.text === "type" && prop.initializer?.text === "submit"));
 const submitCallback = jsxAttribute("form", "onSubmit");
+const horizontalInput = attribute => jsxAttribute("Input", attribute, node => containsIdentifier(node, "handleHorizontalHeightChange"));
+const horizontalInputValue = horizontalInput("value");
+const horizontalInputChange = horizontalInput("onChange");
+const horizontalInputBlur = horizontalInput("onBlur");
 const guardNames = ["latestCalculationRef", "calculationValuesVersionRef"];
 // Before the fix these declarations/effects are absent. The same behavioral
 // tests therefore execute the original handler and reproduce its stale writes.
@@ -71,7 +75,8 @@ const handlerCode = compile([
     && node.expression.expression.getText(source) === 'useLayoutEffect' && node.getText(source).includes('garageFrameSelection.idFrameColor')).map(node => node.getText(source)),
   declaration("handleCalculate"), declaration("handleUnlock"),
   declaration("changeGarageDesign"), declaration("changeDoorDesign"),
-  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign, changeDoorDesign, doorDesignError, currentDoorDesign, doorDesignOptions };",
+  declaration("handleHorizontalHeightChange"), declaration("handleRemoveHorizontalHeight"),
+  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign, changeDoorDesign, doorDesignError, currentDoorDesign, doorDesignOptions, handleHorizontalHeightChange, handleRemoveHorizontalHeight };",
 ].join("\n"));
 const forbiddenNetwork = () => { throw new Error("Network access is forbidden in calculation tests"); };
 globalThis.fetch = forbiddenNetwork;
@@ -234,6 +239,22 @@ function fixture(options = {}) {
     calculate() { return handlers.calculate(); }, render,
     changeDesign(enabled, idDesign, idDesignColor, resetContext = false) { handlers.changeDesign(enabled, idDesign, idDesignColor, resetContext); render(); },
     changeDoorDesign(id) { handlers.changeDoorDesign(id); render(); },
+    horizontalValue(index) { return evaluate(`return (${horizontalInputValue});`, { value: form.getValues("horizontalHeights")[index] }); },
+    changeHorizontal(index, raw) {
+      evaluate(compile(`return (${horizontalInputChange});`), { heightIndex: index, handleHorizontalHeightChange: handlers.handleHorizontalHeightChange })({ target: { value: raw } });
+      render();
+    },
+    blurHorizontal(index) {
+      evaluate(compile(`return (${horizontalInputBlur});`), { ...dimensions, heightIndex: index,
+        handleHorizontalHeightChange: handlers.handleHorizontalHeightChange, MIN_HORIZONTAL_HEIGHT_IN: 18, toast: scope.toast,
+      })({ target: { value: this.horizontalValue(index) } });
+      render();
+    },
+    removeHorizontal(index) { handlers.handleRemoveHorizontalHeight(index); render(); },
+    horizontalPreview() {
+      return evaluate(compile([declaration("currentHorizontalHeights"), declaration("horizontalHeightsForPreview"), "return horizontalHeightsForPreview;"].join("\n")),
+        { ...dimensions, pieceValues: form.getValues(), useMemo: callback => callback() });
+    },
     unlock() { handlers.unlock(); render(); },
     previewArtwork() { return handlers.currentDoorDesign?.artworkKey ?? null; },
     offeredDesigns() { return handlers.doorDesignOptions; },
@@ -254,7 +275,7 @@ function fixture(options = {}) {
     async submit() {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
       const callback = evaluate(compile(declaration("withoutInactiveDimensions", source.statements) + `\nreturn (${submitCallback});`),
-        { handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
+        { ...dimensions, handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
           designSelectionError: state.designSelectionError, doorDesignError: handlers.doorDesignError, toast: scope.toast });
       await callback();
     },
@@ -468,6 +489,71 @@ test("horizontal heights edited through setValue invalidate the pending result",
   f.form.setValue("horizontalHeights", [36], { shouldDirty: true, shouldValidate: true });
   await f.resolve(0); await done; assertNotApplied(f);
   assert.deepEqual(f.form.getValues("horizontalHeights"), [36]); f.unmount();
+});
+
+for (const revision of [false, true]) {
+  for (const [raw, normalized] of [["33 1/4", 33.25], ["33.25", 33.25], ["33 1/8", 33.125], ["33.125", 33.125]]) {
+    test(`${revision ? "revision" : "estimate"}: horizontal ${raw} preserves typing and sends numeric eighths`, async () => {
+      const f = fixture({ revision, values: { height: "80", horizontalHeights: [18] }, requirements: { requiresHorizontalHeights: true } });
+      for (let length = 0; length <= raw.length; length++) {
+        f.changeHorizontal(0, raw.slice(0, length));
+        assert.equal(f.horizontalValue(0), raw.slice(0, length), "Do not coerce partial decimals or fractions during typing");
+      }
+      assert.deepEqual(f.horizontalPreview(), [normalized]);
+      const { done } = await f.start();
+      assert.deepEqual(f.requests[0].dto.horizontalHeights, [normalized]);
+      if (!revision) assert.deepEqual(f.prechecks[0].dto.horizontalHeights, [normalized]);
+      await f.resolve(0); await done; f.render(); await f.submit();
+      assert.deepEqual(f.submissions[0].horizontalHeights, [normalized]);
+      f.unmount();
+    });
+  }
+}
+
+test("horizontal blur normalizes both formats, and removal preserves the other drafts", () => {
+  const f = fixture({ values: { height: "100", horizontalHeights: [18, 40, 60] }, requirements: { requiresHorizontalHeights: true } });
+  f.changeHorizontal(0, "33 1/4"); f.blurHorizontal(0);
+  assert.equal(f.horizontalValue(0), "33.25");
+  f.changeHorizontal(1, "55.125"); f.blurHorizontal(1);
+  assert.equal(f.horizontalValue(1), "55.125");
+  f.changeHorizontal(2, "77 3/"); f.removeHorizontal(0);
+  assert.deepEqual(f.form.getValues("horizontalHeights"), ["55.125", "77 3/"]);
+  assert.deepEqual(f.horizontalPreview(), [55.125]);
+  f.unmount();
+});
+
+for (const [values, expectedError] of [
+  [["33.1"], /1\/8/],
+  [["33 1/16"], /denominador/],
+  [["33 1/"], /inválido/],
+  [[""], /greater than 0/],
+  [["17 7/8"], /less than 18/],
+  [["33 1/4", "51.125"], /less than 18/],
+  [["33 1/4", "33.25"], /duplicate/],
+  [["62.125"], /less than 18/],
+  [["80"], /less than Height/],
+]) {
+  test(`invalid horizontal positions ${JSON.stringify(values)} block calculation`, async () => {
+    const f = fixture({ values: { height: "80", horizontalHeights: values.map(() => 18) }, requirements: { requiresHorizontalHeights: true } });
+    values.forEach((value, index) => f.changeHorizontal(index, value));
+    await f.calculate();
+    assert.equal(f.requests.length, 0); assert.equal(f.prechecks.length, 0);
+    assert.match(f.errors.at(-1), expectedError); assert.equal(f.disabled(), true);
+    f.unmount();
+  });
+}
+
+test("horizontal eighth edits invalidate a pending calculation even before blur", async () => {
+  const f = fixture({ values: { height: "80", horizontalHeights: [33] }, requirements: { requiresHorizontalHeights: true } });
+  const { done } = await f.start();
+  f.changeHorizontal(0, "33.");
+  await f.resolve(0); await done; assertNotApplied(f);
+  assert.equal(f.horizontalValue(0), "33.");
+  f.changeHorizontal(0, "33.25");
+  const next = await f.start(); assert.deepEqual(f.requests[1].dto.horizontalHeights, [33.25]);
+  await f.resolve(1); await next.done; f.render(); await f.submit();
+  assert.deepEqual(f.submissions[0].horizontalHeights, [33.25]);
+  f.unmount();
 });
 test("change during form validation stops the obsolete flow before any API call", async () => {
   const f = fixture({ deferValidation: true }); const done = f.calculate(); await flush();
