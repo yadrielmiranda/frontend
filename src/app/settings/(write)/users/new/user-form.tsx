@@ -19,6 +19,7 @@ import {
 import { createUser, updateUser } from "@/app/api/users.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InternationalPhoneInput } from "@/components/international-phone-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,7 +33,7 @@ import { useState } from "react";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
-import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
+import { isValidPhone, normalizePhoneToE164 } from "@/lib/validators-phone";
 import { StateCombobox } from "@/components/StateCombobox";
 import { updateMyProfile } from "@/app/api/auth/me/auth.api";
 import {
@@ -158,11 +159,11 @@ export function UserForm({
   const onSubmit = handleSubmit(async (data) => {
     try {
       // ✅ Normalizamos aquí (solo submit), no en register
-      const normalizedPhone = normalizeUSPhoneToE164(data.phone);
+      const normalizedPhone = normalizePhoneToE164(data.phone);
 
       // Si phone es obligatorio en tu modelo, no dejes pasar null
       if (!normalizedPhone) {
-        throw new Error("Invalid US phone number.");
+        throw new Error("Invalid phone number.");
       }
 
       if (!isProfilePage && isInternalDealer && !selectedEarningsPlan?.isActive)
@@ -379,19 +380,23 @@ export function UserForm({
         </div>
 
         <div>
-          <Label>Phone{showRequiredMark && <RequiredMark />}</Label>
-          <Input
-            type="tel"
-            autoComplete="tel"
-            {...register("phone", {
+          <Label htmlFor="user-phone">Phone{showRequiredMark && <RequiredMark />}</Label>
+          <Controller
+            name="phone"
+            control={control}
+            rules={{
               required: "Phone is required",
-              validate: (v) => {
-                if (!v) return "Phone is required";
-                if (!isValidUSPhone(v)) return "Invalid US phone number";
-                return true;
-              },
-            })}
-            disabled={isAdminEditMode}
+              validate: (value) => isValidPhone(value) || "Invalid phone number",
+            }}
+            render={({ field }) => (
+              <InternationalPhoneInput
+                {...field}
+                id="user-phone"
+                autoComplete="tel"
+                disabled={isAdminEditMode || isSubmitting}
+                aria-invalid={Boolean(errors.phone)}
+              />
+            )}
           />
 
           {errors.phone && (

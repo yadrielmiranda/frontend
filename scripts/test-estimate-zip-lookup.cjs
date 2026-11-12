@@ -64,7 +64,7 @@ function fixture(values = {}, disabled = false) {
     evaluate(autosave, { ...scope, ...refs, canUseCustomerPricing: true, readOnly: disabled,
       needsRecalculation: false, estimate: { id: 41 }, headerSnapshot: JSON.stringify(form.getValues()),
       useCallback: fn => fn, useEffect(fn) { cleanup = fn(); }, trigger: form.trigger,
-      setPromotionEstimate() {}, toast: { error: message => toasts.push(message) },
+      setPromotionEstimate() {}, setHeaderSaveState() {}, toast: { error: message => toasts.push(message) },
       updateEstimateHeader: async (id, payload) => { saves.push({ id, payload }); return { id, ...payload }; },
       setTimeout(fn, delay) { assert.equal(delay, 600); timers.set(++timerId, fn); return timerId; },
       clearTimeout(id) { timers.delete(id); },

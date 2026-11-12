@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InternationalPhoneInput } from "@/components/international-phone-input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
@@ -42,7 +43,7 @@ import { AddressAutocomplete } from "@/components/address-autocomplete";
 import type { PlaceAddress } from "@/app/api/geo.api";
 import { isValidUSZip, normalizeUSZip } from "@/lib/validators-zip";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
-import { isValidUSPhone, normalizeUSPhoneToE164 } from "@/lib/validators-phone";
+import { isValidPhone, normalizePhoneToE164, isSmsPhoneSupported } from "@/lib/validators-phone";
 import {
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
@@ -71,9 +72,9 @@ const registerSchema = z.object({
 
   phone: z
     .string()
-    .transform((v) => normalizeUSPhoneToE164(v) ?? "")
-    .refine((v) => isValidUSPhone(v), {
-      message: "Please enter a valid US phone number.",
+    .transform((v) => normalizePhoneToE164(v) ?? "")
+    .refine((v) => isValidPhone(v), {
+      message: "Please enter a valid phone number.",
     }),
 
   username: z
@@ -192,6 +193,17 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     },
   });
 
+  const phone = useWatch({ control, name: "phone" });
+  const smsSupported = isSmsPhoneSupported(phone);
+  const internationalSmsUnavailable = isValidPhone(phone) && !smsSupported;
+
+  useEffect(() => {
+    if (!smsSupported) {
+      setValue("serviceConsent", false);
+      setValue("promotionsConsent", false);
+    }
+  }, [smsSupported, setValue]);
+
   useEffect(() => {
     let cancelled = false;
     setConsentProgram(null);
@@ -221,11 +233,13 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   };
 
   const handleRegister = async (data: RegisterFormData) => {
-    const wantsSms = data.serviceConsent || data.promotionsConsent;
+    const serviceConsent = isSmsPhoneSupported(data.phone) && data.serviceConsent;
+    const promotionsConsent = isSmsPhoneSupported(data.phone) && data.promotionsConsent;
+    const wantsSms = serviceConsent || promotionsConsent;
     if (!registrationEnabled || (wantsSms && !consentProgram)) return;
     if (!platformTermsLoaded || (platformTerms && platformTermsAccepted !== platformTerms.id)) return;
     try {
-      const result = await registerUser({ ...data, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
+      const result = await registerUser({ ...data, serviceConsent, promotionsConsent, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
         ...(referral ? { referralCode: referral.code } : {}),
         ...(platformTerms ? { platformTermsAccepted: true, platformTermsVersionId: platformTerms.id } : {}),
       });
@@ -351,13 +365,21 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               <RequiredMark />
             </Label>
 
-            <Input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="Enter your phone number"
-              className={inputClass}
-              {...register("phone")}
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field }) => (
+                <InternationalPhoneInput
+                  {...field}
+                  id="phone"
+                  autoComplete="tel"
+                  placeholder="Enter your phone number"
+                  className={inputClass}
+                  appearance="dark"
+                  disabled={isSubmitting}
+                  aria-invalid={Boolean(errors.phone)}
+                />
+              )}
             />
 
             {errors.phone && (
@@ -520,6 +542,8 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
           </div>
           <div className="space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 md:col-span-2">
             <p className="text-sm font-semibold text-white">SMS notifications</p>
+            {internationalSmsUnavailable && <p role="status" className="text-sm text-white/70">SMS notifications are not available for this phone number. You can still create your account.</p>}
+            {!smsSupported && !internationalSmsUnavailable && <p className="text-sm text-white/60">Enter a valid phone number to check SMS availability.</p>}
             {consentError ? (
               <div className="space-y-2">
                 <p role="alert" className={errorClass}>{consentError}</p>
@@ -531,7 +555,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               <>
                 <div className="space-y-1.5">
                   <label htmlFor="service-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
-                    <input id="service-consent" type="checkbox" disabled={isSubmitting} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby={errors.serviceConsent ? "registration-disclosure service-consent-error" : "registration-disclosure"} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("serviceConsent")} />
+                    <input id="service-consent" type="checkbox" disabled={isSubmitting || !smsSupported} aria-invalid={Boolean(errors.serviceConsent)} aria-describedby={errors.serviceConsent ? "registration-disclosure service-consent-error" : "registration-disclosure"} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500 disabled:cursor-not-allowed disabled:opacity-50" {...register("serviceConsent")} />
                     <span>{consentProgram.registration.serviceConsentText}</span>
                   </label>
                   {errors.serviceConsent && (
@@ -540,7 +564,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="promotions-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/90">
-                    <input id="promotions-consent" type="checkbox" disabled={isSubmitting} aria-describedby="registration-disclosure" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500" {...register("promotionsConsent")} />
+                    <input id="promotions-consent" type="checkbox" disabled={isSubmitting || !smsSupported} aria-describedby="registration-disclosure" className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-500 disabled:cursor-not-allowed disabled:opacity-50" {...register("promotionsConsent")} />
                     <span>{consentProgram.registration.promotionsConsentText}</span>
                   </label>
                 </div>

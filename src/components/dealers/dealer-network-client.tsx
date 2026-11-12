@@ -7,12 +7,13 @@ import { Plus, Pencil, Loader2, Search, Power, PowerOff, ClipboardCheck } from '
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InternationalPhoneInput } from '@/components/international-phone-input';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createNetworkAccount, updateNetworkMarkup, type DealerNetwork, type NetworkMember } from '@/app/api/dealer-network.api';
 import { NetworkBusinessDialog } from './network-business-dialog';
 import { DealerNetworkTree } from './dealer-network-tree';
-import { normalizeUSPhoneToE164 } from '@/lib/validators-phone';
+import { normalizePhoneToE164 } from '@/lib/validators-phone';
 
 export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
   initialData: DealerNetwork; currentUserId: number; isAdmin: boolean;
@@ -29,6 +30,7 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
   const inFlight = useRef(false);
   const [error, setError] = useState('');
   const [address, setAddress] = useState({ street: '', addressLine2: '', city: '', state: '', postalCode: '' });
+  const [phone, setPhone] = useState('');
   const parents = initialData.members.filter(member => member.level < 3 && member.isActive && !member.networkSalesBlocked);
   const parent = initialData.members.find(member => member.id === (editing?.parentDealerId ?? Number(parentId)));
   const allowInternal = parent?.level === 1 && parent.dealerMode === "INTERNAL";
@@ -56,12 +58,12 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
         await updateNetworkMarkup(editing.id, terms);
         toast.success('Account terms updated. Existing estimates keep their prices and taxes until recalculated.');
       } else {
-        const phone = normalizeUSPhoneToE164(value('phone'));
-        if (!phone || !/^\+1\d{10}$/.test(phone)) throw new Error('Enter a valid US phone number.');
+        const normalizedPhone = normalizePhoneToE164(phone);
+        if (!normalizedPhone) throw new Error('Enter a valid phone number.');
         if (value('addressLine2').length > 150) throw new Error('Address details must be 150 characters or fewer.');
         await createNetworkAccount({
           username: value('username'), firstName: value('firstName'), lastName: value('lastName'),
-          email: value('email'), phone, password: String(data.get('password') ?? ''),
+          email: value('email'), phone: normalizedPhone, password: String(data.get('password') ?? ''),
           street: value('street'), city: value('city'), state: value('state').toUpperCase(), postalCode: value('postalCode'),
           addressLine2: value('addressLine2'),
           ...terms,
@@ -79,7 +81,7 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
       <h1 className="text-4xl font-bold">{initialData.level === null ? 'Dealer network' : 'My dealers'}</h1>
       {initialData.canCreate && <Button variant="green" onClick={() => {
         setParentId(String(isAdmin ? parents[0]?.id ?? '' : currentUserId)); setMode('EXTERNAL'); setEarningsMode('MARKUP'); setError('');
-        setAddress({ street: '', addressLine2: '', city: '', state: '', postalCode: '' }); setCreating(true);
+        setAddress({ street: '', addressLine2: '', city: '', state: '', postalCode: '' }); setPhone(''); setCreating(true);
       }}><Plus className="mr-2 h-4 w-4" />{isAdmin ? 'New account' : `New ${initialData.level === 'Subdealer' ? 'distributor' : 'subdealer'}`}</Button>}
     </div>
     {isAdmin || initialData.level !== null ? <DealerNetworkTree members={initialData.members.filter(member => member.id !== currentUserId)} currentUserId={currentUserId} showMarkupSource={isAdmin} busy={busy} onEdit={editTerms} onBusiness={setSuspending} /> : <>
@@ -118,7 +120,10 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
                 <Field name="username" label="Username" minLength={4} maxLength={24} pattern="[A-Za-z][A-Za-z0-9._\-]{2,22}[A-Za-z0-9]" autoComplete="off" />
                 <Field name="password" label="Password" type="password" minLength={8} maxLength={255} autoComplete="new-password" />
                 <Field name="email" label="Email" type="email" maxLength={150} />
-                <Field name="phone" label="Phone" type="tel" placeholder="(305) 555-1234" />
+                <div className="space-y-1 text-sm font-medium">
+                  <label htmlFor="network-phone">Phone</label>
+                  <InternationalPhoneInput id="network-phone" name="phone" value={phone} onChange={setPhone} required disabled={busy} autoComplete="tel" />
+                </div>
               </div>
               <div className="text-sm font-medium">
                 <label htmlFor="network-street">Street address</label>

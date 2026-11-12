@@ -52,7 +52,7 @@ import { EstimatePaymentCard } from "./estimate-payment-card";
 import { PiecesDealerTable } from "./pieces-dealer-table";
 import { PiecesClientList } from "./pieces-client-list";
 import { PieceModal } from "./piece-modal";
-import { CustomerDetailsCard } from "./customer-details-card";
+import { CustomerDetailsCard, type CustomerDetailsSaveState } from "./customer-details-card";
 import {
   canSetCustomerOnEstimate,
   isAdminRole,
@@ -294,6 +294,7 @@ export function EstimateForm({
   const lastSavedHeaderRef = useRef("");
 
   const headerSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const [headerSaveState, setHeaderSaveState] = useState<CustomerDetailsSaveState>("idle");
 
   const [isExiting, setIsExiting] = useState(false);
   const expiredPromotion = usePromotionExpired(promotionEstimate);
@@ -455,6 +456,7 @@ export function EstimateForm({
         const isValid = await trigger(ESTIMATE_HEADER_FIELDS);
 
         if (!isValid) {
+          setHeaderSaveState("invalid");
           return false;
         }
 
@@ -462,17 +464,22 @@ export function EstimateForm({
         const serializedPayload = JSON.stringify(payload);
 
         if (serializedPayload === lastSavedHeaderRef.current) {
+          setHeaderSaveState("saved");
           return true;
         }
 
+        setHeaderSaveState("saving");
         try {
           const updatedEstimate = await updateEstimateHeader(estimate.id, payload);
           setPromotionEstimate(updatedEstimate);
 
           lastSavedHeaderRef.current = serializedPayload;
+          // A completed request must not mark newer edits as already saved.
+          setHeaderSaveState(JSON.stringify(buildEstimateHeaderPayload()) === serializedPayload ? "saved" : "pending");
 
           return true;
         } catch (error) {
+          setHeaderSaveState("error");
           toast.error(
             error instanceof Error
               ? error.message
@@ -491,6 +498,14 @@ export function EstimateForm({
     return saveTask;
   }, [estimate?.id, trigger, buildEstimateHeaderPayload, needsRecalculation, readOnly]);
 
+  const flushEstimateHeaderAutosave = useCallback(() => {
+    if (headerAutosaveTimeoutRef.current) {
+      clearTimeout(headerAutosaveTimeoutRef.current);
+      headerAutosaveTimeoutRef.current = null;
+    }
+    return saveEstimateHeader();
+  }, [saveEstimateHeader]);
+
   useEffect(() => {
     if (!estimate?.id) {
       return;
@@ -508,6 +523,9 @@ export function EstimateForm({
       clearTimeout(headerAutosaveTimeoutRef.current);
     }
 
+    if (!readOnly && !needsRecalculation && JSON.stringify(buildEstimateHeaderPayload()) !== lastSavedHeaderRef.current) {
+      setHeaderSaveState("pending");
+    }
     headerAutosaveTimeoutRef.current = setTimeout(() => {
       void saveEstimateHeader();
     }, 600);
@@ -522,6 +540,8 @@ export function EstimateForm({
     headerSnapshot,
     buildEstimateHeaderPayload,
     saveEstimateHeader,
+    readOnly,
+    needsRecalculation,
   ]);
 
   const handleExit = async () => {
@@ -1653,13 +1673,16 @@ export function EstimateForm({
             </fieldset>
 
             {canUseCustomerPricing && (
-              <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="mt-6 min-w-0">
+              <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="mt-6 min-w-0"
+                onBlur={() => { void flushEstimateHeaderAutosave(); }}>
                 <CustomerDetailsCard
                   register={register}
                   control={control}
                   setValue={setValue}
                   disabled={readOnly || needsRecalculation}
                   errors={errors}
+                  saveState={headerSaveState}
+                  onRetrySave={() => { void flushEstimateHeaderAutosave(); }}
                 />
               </fieldset>
             )}

@@ -21,6 +21,7 @@ export type SmsProgram = {
 };
 
 export type SmsPreferences = {
+  supported: boolean;
   enabled: boolean;
   promotionsEnabled: boolean;
   phone: string;

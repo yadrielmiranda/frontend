@@ -46,6 +46,7 @@ const mocks = {
   '@/app/api/platform-terms.api': { getCurrentPlatformTerms: async () => null, platformTermsPageUrl: () => '/terms' },
   '@/components/StateCombobox': ui,
   '@/components/address-autocomplete': { AddressAutocomplete: 'AddressAutocomplete' },
+  '@/components/international-phone-input': { InternationalPhoneInput: 'InternationalPhoneInput' },
 };
 const cache = new Map();
 function load(relative, enableRegistration = false) {
@@ -66,7 +67,7 @@ function load(relative, enableRegistration = false) {
     if (id in mocks) return mocks[id];
     if (id.startsWith('@/components/ui/')) return ui;
     if (id.startsWith('@/lib/')) return load(`${id.slice(2)}.ts`);
-    if (id === 'zod' || id === 'libphonenumber-js') return require(id);
+    if (id === 'zod' || id.startsWith('libphonenumber-js')) return require(id);
     throw new Error(`Unexpected registration dependency: ${id}`);
   }, exports);
   return exports;

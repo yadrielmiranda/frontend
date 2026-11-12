@@ -7,12 +7,15 @@ import { AddressAutocomplete } from "@/components/address-autocomplete";
 import type { PlaceAddress } from "@/app/api/geo.api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InternationalPhoneInput } from "@/components/international-phone-input";
 import { Label } from "@/components/ui/label";
 import type { EstimateFormValues } from "./types";
 import { StateCombobox } from "@/components/StateCombobox";
-import { normalizeUSPhoneToE164, isValidUSPhone } from "@/lib/validators-phone";
+import { isValidPhone } from "@/lib/validators-phone";
 import { normalizeEmail, isValidEmail } from "@/lib/validators-email";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
+
+export type CustomerDetailsSaveState = "idle" | "pending" | "saving" | "saved" | "invalid" | "error";
 
 type Props = {
   register: UseFormRegister<EstimateFormValues>;
@@ -20,6 +23,8 @@ type Props = {
   setValue: UseFormSetValue<EstimateFormValues>;
   disabled?: boolean;
   errors?: FieldErrors<EstimateFormValues>;
+  saveState?: CustomerDetailsSaveState;
+  onRetrySave?: () => void;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -31,7 +36,7 @@ const customerFieldClassName =
   "border-slate-400 shadow-none hover:border-slate-500 focus-visible:border-slate-500 focus-visible:ring-slate-500/10";
 const customerLabelClassName = "mb-1.5 block";
 
-export function CustomerDetailsCard({ register, control, setValue, disabled, errors }: Props) {
+export function CustomerDetailsCard({ register, control, setValue, disabled, errors, saveState = "idle", onRetrySave }: Props) {
   const addressContext = useWatch({
     control,
     name: ["customerCity", "customerState", "customerPostalCode"],
@@ -130,18 +135,20 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
             >
               Phone
             </Label>
-            <Input
-              id="customerPhone"
-              className={customerFieldClassName}
-              autoComplete="tel"
-              {...register("customerPhone", {
-                setValueAs: (v) => normalizeUSPhoneToE164(v),
-                validate: (v) => {
-                  const phone = normalizeUSPhoneToE164(v);
-                  if (!phone) return true;
-                  return isValidUSPhone(phone) || "Invalid US phone number";
-                },
-              })}
+            <Controller
+              control={control}
+              name="customerPhone"
+              rules={{ validate: (value) => !value?.trim() || isValidPhone(value) || "Invalid phone number" }}
+              render={({ field }) => (
+                <InternationalPhoneInput
+                  {...field}
+                  id="customerPhone"
+                  className={customerFieldClassName}
+                  autoComplete="tel"
+                  disabled={disabled}
+                  aria-invalid={Boolean(errors?.customerPhone)}
+                />
+              )}
             />
             <FieldError
               message={errors?.customerPhone?.message as string | undefined}
@@ -254,6 +261,20 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
             />
           </div>
         </div>
+        {!disabled && saveState !== "idle" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">
+            <span className={saveState === "error" || saveState === "invalid" ? "text-red-600" : saveState === "saved" ? "text-emerald-700" : "text-muted-foreground"}>
+              {saveState === "pending" && "Unsaved changes"}
+              {saveState === "saving" && "Saving…"}
+              {saveState === "saved" && "Saved"}
+              {saveState === "invalid" && "Not saved. Check the highlighted fields."}
+              {saveState === "error" && "Could not save these changes."}
+            </span>
+            {saveState === "error" && onRetrySave && (
+              <button type="button" className="underline underline-offset-2" onClick={onRetrySave}>Try again</button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

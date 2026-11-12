@@ -103,6 +103,7 @@ function fixture(kind, props, overrides = {}) {
     'next/navigation': { useRouter: () => ({ push() {}, refresh() {} }) },
     sonner: { toast: { success: message => notices.push(message), error: message => notices.push(message), message() {} } },
     '@/components/address-autocomplete': { AddressAutocomplete: 'AddressAutocomplete' },
+    '@/components/international-phone-input': { InternationalPhoneInput: 'InternationalPhoneInput' },
     '@/components/StateCombobox': { StateCombobox: 'StateCombobox' },
     '@/app/api/users.api': { createUser: api('createUser'), updateUser: api('updateUser') },
     '@/app/api/auth/me/auth.api': { updateMyProfile: api('updateMyProfile') },
@@ -121,14 +122,14 @@ function fixture(kind, props, overrides = {}) {
     return tree;
   }
   const find = predicate => { const node = all(render(), predicate)[0]; assert.ok(node, 'Expected form control'); return node; };
-  const input = name => find(node => ['Input', 'AddressAutocomplete'].includes(node.type) && node.props.name === name);
+  const input = name => find(node => ['Input', 'AddressAutocomplete', 'InternationalPhoneInput'].includes(node.type) && node.props.name === name);
   const button = label => find(node => node.type === 'Button' && text(node).trim() === label);
   return { render, find, input, button, requests, notices, errors, rules, values: () => structuredClone(values),
     autocomplete: () => find(node => node.type === 'AddressAutocomplete'),
-    type(name, value) { input(name).props.onChange({ target: { value } }); render(); },
+    type(name, value) { const node = input(name); node.props.onChange(node.type === 'InternationalPhoneInput' ? value : { target: { value } }); render(); },
     click(label) { button(label).props.onClick(); render(); },
     async save(extra = {}) {
-      const data = Object.fromEntries(all(render(), node => ['Input', 'AddressAutocomplete'].includes(node.type) && node.props.name)
+      const data = Object.fromEntries(all(render(), node => ['Input', 'AddressAutocomplete', 'InternationalPhoneInput'].includes(node.type) && node.props.name)
         .map(node => [node.props.name, node.props.value ?? node.props.defaultValue ?? '']));
       await find(node => node.type === 'form').props.onSubmit({ preventDefault() {}, currentTarget: { ...data, ...extra } });
       for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -185,7 +186,7 @@ test('profile accepts separate Google unit details and validates their length', 
 test('new users keep required street and ZIP validation, including selected long streets', async () => {
   const f = fixture('user', { roles }); f.render();
   Object.entries({ ...user, password: 'Test12345' }).forEach(([key, value]) => {
-    const node = all(f.render(), node => node.props.name === key && node.type === 'Input')[0];
+    const node = all(f.render(), node => node.props.name === key && ['Input', 'InternationalPhoneInput'].includes(node.type))[0];
     if (node) f.type(key, value);
   });
   await f.save(); assert.equal(f.requests.length, 0); assert.equal(f.errors.street.message, 'Street is required');
@@ -271,6 +272,7 @@ test('network account address selection and manual city correction reach the exi
   const context = f.autocomplete().props.contextKey;
   f.type('addressLine2', 'Unit 3'); assert.equal(f.autocomplete().props.contextKey, context);
   f.autocomplete().props.onAddressSelect(address); f.type('city', 'El Portal'); f.type('state', 'fl');
+  f.type('phone', '+13055551234');
   await f.save({ firstName: 'Test', lastName: 'Dealer', username: 'testdealer', phone: '(305) 555-1234', password: 'Test12345', email: 'test@example.com' });
   assert.equal(f.requests[0].name, 'createNetworkAccount'); assert.equal(f.requests[0].args[0].city, 'El Portal');
   assert.equal(f.requests[0].args[0].state, 'FL'); assert.equal(f.requests[0].args[0].street, address.street);
@@ -289,9 +291,37 @@ test('network account close/reopen clears selected address and rejects overlong 
 test('network account rejects overlong apartment details without making a create request', async () => {
   const f = fixture('network', networkProps); f.click('New subdealer'); f.autocomplete().props.onAddressSelect(address);
   f.type('addressLine2', 'X'.repeat(151));
+  f.type('phone', '+13055551234');
   await f.save({ phone: '(305) 555-1234' });
   assert.equal(f.requests.length, 0);
   assert.match(text(f.find(node => node.props.role === 'alert')), /Address details.*150/);
+});
+
+test('profile saves and retains an international phone after the successful reset', async () => {
+  const f = fixture('user', { user, roles });
+  f.type('phone', '+34 612 345 678');
+  await f.save();
+  assert.equal(f.requests[0].name, 'updateMyProfile');
+  assert.equal(f.requests[0].args[0].phone, '+34612345678');
+  assert.equal(f.input('phone').props.value, '+34612345678');
+  assert.equal(f.button('Update Profile').props.disabled, true);
+});
+
+test('profile refuses an incomplete international number without erasing it', async () => {
+  const f = fixture('user', { user, roles });
+  f.type('phone', '+34 612'); await f.save();
+  assert.equal(f.requests.length, 0);
+  assert.match(f.errors.phone.message, /Invalid phone/);
+  assert.equal(f.input('phone').props.value, '+34 612');
+});
+
+test('network creation submits its controlled international phone and resets it on reopen', async () => {
+  const f = fixture('network', networkProps); f.click('New subdealer');
+  f.type('phone', '+44 7911 123456');
+  await f.save({ phone: '7911123456' });
+  assert.equal(f.requests[0].args[0].phone, '+447911123456');
+  f.click('New subdealer');
+  assert.equal(f.input('phone').props.value, '');
 });
 
 (async () => {

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SmsDisclosure } from './sms-disclosure';
+import { isSmsPhoneSupported } from '@/lib/validators-phone';
 
 export function SmsConsentCard() {
   const [preferences, setPreferences] = useState<SmsPreferences | null>(null);
@@ -18,6 +19,7 @@ export function SmsConsentCard() {
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const mounted = useRef(false);
+  const supported = preferences ? (preferences.supported ?? isSmsPhoneSupported(preferences.phone)) : false;
 
   useEffect(() => {
     mounted.current = true;
@@ -43,7 +45,7 @@ export function SmsConsentCard() {
     if (!preferences || saving) return;
     setSaving(true);
     try {
-      const data = await updateSmsPreferences({ enabled, promotionsEnabled, phone: preferences.phone, version: preferences.program.version });
+      const data = await updateSmsPreferences({ enabled: supported && enabled, promotionsEnabled: supported && promotionsEnabled, phone: preferences.phone, version: preferences.program.version });
       if (!mounted.current) return;
       setPreferences(data);
       setEnabled(data.enabled);
@@ -77,17 +79,18 @@ export function SmsConsentCard() {
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-3">
               <div><p className="text-xs font-medium text-muted-foreground">Phone number</p><p className="mt-1 font-medium tabular-nums">{preferences.phone}</p></div>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${(preferences.enabled || preferences.promotionsEnabled) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{(preferences.enabled || preferences.promotionsEnabled) ? 'Subscribed' : 'Not subscribed'}</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${supported && (preferences.enabled || preferences.promotionsEnabled) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{!supported ? 'SMS unavailable' : (preferences.enabled || preferences.promotionsEnabled) ? 'Subscribed' : 'Not subscribed'}</span>
             </div>
-            {preferences.blockedBySms && (
+            {!supported && <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">SMS is not currently available for this phone number. You can use your account and receive updates in the portal and by email.</p>}
+            {supported && preferences.blockedBySms && (
               <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">SMS was stopped by text. Reply START to the same sending number, then refresh this page to subscribe again.</p>
             )}
             <div className="flex items-start gap-3">
-              <Checkbox id="sms-consent" checked={enabled} onCheckedChange={(checked) => setEnabled(checked === true)} disabled={saving || preferences.blockedBySms} aria-describedby="sms-disclosure" className="mt-0.5" />
+              <Checkbox id="sms-consent" checked={enabled} onCheckedChange={(checked) => setEnabled(checked === true)} disabled={saving || preferences.blockedBySms || (!supported && !enabled)} aria-describedby="sms-disclosure" className="mt-0.5" />
               <label htmlFor="sms-consent" className="cursor-pointer text-sm leading-relaxed">{preferences.program.consentText}</label>
             </div>
             <div className="flex items-start gap-3">
-              <Checkbox id="sms-promotions-consent" checked={promotionsEnabled} onCheckedChange={(checked) => setPromotionsEnabled(checked === true)} disabled={saving || preferences.blockedBySms} aria-describedby="sms-disclosure" className="mt-0.5" />
+              <Checkbox id="sms-promotions-consent" checked={promotionsEnabled} onCheckedChange={(checked) => setPromotionsEnabled(checked === true)} disabled={saving || preferences.blockedBySms || (!supported && !promotionsEnabled)} aria-describedby="sms-disclosure" className="mt-0.5" />
               <label htmlFor="sms-promotions-consent" className="cursor-pointer text-sm leading-relaxed">{preferences.program.registration.promotionsConsentText}</label>
             </div>
             <SmsDisclosure program={preferences.program} />
