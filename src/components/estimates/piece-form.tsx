@@ -3690,7 +3690,7 @@ export function PieceForm({
                                 <p className="text-xs text-muted-foreground">
                                   Positions from bottom. Min spacing{" "}
                                   {MIN_HORIZONTAL_HEIGHT_IN}
-                                  &quot;. Use decimals or fractions (33.25 or 33 1/4).
+                                  &quot;.
                                 </p>
                               </div>
 
