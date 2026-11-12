@@ -20,7 +20,10 @@ const mocks = {
   'next/navigation': { useRouter: () => ({ push: url => navigation.push(url), refresh: () => navigation.push('refresh') }) },
   'lucide-react': ui,
   sonner: { toast: { success: message => notices.push(message), error: message => notices.push(message) } },
-  '@/app/api/estimates.api': { deleteEstimate: async id => { mutations.push({ action: 'delete', id }); } },
+  '@/app/api/estimates.api': {
+    deleteEstimate: async id => { mutations.push({ action: 'delete', id }); },
+    recalculateEstimate: async (...args) => { mutations.push({ action: 'recalculate', args }); },
+  },
   '@/app/api/payments.api': {},
   '@/lib/estimate-status': {},
   '@/lib/formatters': {},
@@ -186,9 +189,60 @@ checkDelete('admin honors server refusal while the deposit is pending', {
 }, false, admin);
 const adminExpiredActions = renderActions({ ...base, status: { name: 'Expired' } }, admin);
 assert.ok(deleteItem(adminExpiredActions));
-assert.doesNotMatch(text(adminExpiredActions), /Recalculate Estimate|Pay now/,
-  'administrator deletion does not grant other owner actions');
-console.log('PASS administrator deletion does not expose owner payment or recalculation actions'); count++;
+assert.match(text(adminExpiredActions), /Recalculate Estimate/);
+assert.doesNotMatch(text(adminExpiredActions), /Pay now/,
+  'administrator recalculation does not grant owner payment actions');
+console.log('PASS administrator can recalculate another owner\'s expired estimate without gaining payment actions'); count++;
+
+function recalculateItem(tree) {
+  return all(tree, node => node.type === 'DropdownMenuItem' && text(node) === 'Recalculate Estimate')[0];
+}
+function checkRecalculate(name, actor, overrides, expected) {
+  const tree = renderActions({ ...base, status: { name: 'Expired' }, ...overrides }, actor);
+  assert.equal(Boolean(recalculateItem(tree)), expected, name);
+  assert.deepEqual(mutations, [], 'rendering must not recalculate');
+  console.log(`PASS ${name}`); count++;
+}
+for (const role of ['client', 'dealer']) {
+  checkRecalculate(`admin can recalculate an expired estimate owned by a ${role}`, admin,
+    { user: { role: { name: role } } }, true);
+  checkRecalculate(`${role} owner retains expired estimate recalculation`, { id: 7, role: { name: role } }, {}, true);
+}
+for (const actor of [owner, admin]) {
+  for (const overrides of [
+    { status: { name: 'Active' } },
+    { status: { name: 'Canceled' } },
+    { status: { name: 'Ordered' } },
+    { order: { id: 3 } },
+    { payments: [paid] },
+    { payments: [pending] },
+  ]) {
+    checkRecalculate(`${actor.role.name}: retains recalculation restriction ${JSON.stringify(overrides)}`, actor, overrides, false);
+  }
+}
+for (const role of ['client', 'dealer', 'operator']) {
+  checkRecalculate(`unrelated ${role} gains no recalculation action`, { id: 9, role: { name: role } }, {}, false);
+}
+checkRecalculate('missing actor cannot recalculate', null, {}, false);
+checkRecalculate('network assistance retains its current list recalculation permissions',
+  { id: 9, role: { name: 'dealer' } }, { dealerNetwork: { canAssist: true } }, false);
+assert.equal(recalculateItem(renderActions({ ...base, status: { name: 'Expired' },
+  user: { ...base.user, networkSalesBlocked: true } }, admin)).props.disabled, true);
+console.log('PASS admin recalculation retains the owner network sales block'); count++;
+
+async function checkAdminRecalculate() {
+  mutations.length = notices.length = navigation.length = 0;
+  state = [];
+  const estimate = { ...base, status: { name: 'Expired' } };
+  await recalculateItem(renderActions(estimate, admin)).props.onSelect();
+  assert.deepEqual(mutations, [{ action: 'recalculate', args: [17] }],
+    'sends only the estimate id; owner pricing is resolved by the backend');
+  assert.deepEqual(navigation, ['refresh']);
+  assert.deepEqual(notices, ['Estimate recalculated successfully.']);
+  assert.equal(recalculateItem(renderActions(estimate, admin)).props.disabled, undefined);
+  state = null;
+  console.log('PASS admin recalculation calls the existing endpoint and refreshes the estimate list'); count++;
+}
 
 async function checkDeleteConfirmation(actor) {
   const estimate = { ...base, installationJob: preliminaryInstallation };
@@ -217,7 +271,7 @@ async function checkDeleteConfirmation(actor) {
   state = null;
   console.log(`PASS ${actor.role.name}: confirms deletion of estimate and calculated installation in one operation`); count++;
 }
-checkDeleteConfirmation(owner).then(() => checkDeleteConfirmation(admin)).then(() => {
+checkDeleteConfirmation(owner).then(() => checkDeleteConfirmation(admin)).then(checkAdminRecalculate).then(() => {
 console.log(`${count} estimate payment access checks passed`);
 }).catch(error => {
   console.error(error);

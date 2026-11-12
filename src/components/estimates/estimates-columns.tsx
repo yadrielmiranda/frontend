@@ -357,7 +357,7 @@ export const getEstimateColumns = (
     {
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => {
+      cell: function EstimateActionsCell({ row }) {
         const estimate = row.original;
 
         const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -447,7 +447,8 @@ export const getEstimateColumns = (
           !isCanceled && isInternalDealer && isOwner && internalPaymentDue;
 
         const canRecalculate =
-          isExpired && !estimate.order && (isOwner || estimate.dealerNetwork?.canAssist) && !isPaymentLocked;
+          isExpired && !estimate.order &&
+          (isOwner || isAdminRole(currentUser?.role?.name)) && !isPaymentLocked;
 
         const handleDelete = async () => {
           try {
@@ -566,7 +567,7 @@ export const getEstimateColumns = (
                   </DropdownMenuItem>
                 )}
 
-                {showOwnerActions && canRecalculate && (
+                {canRecalculate && (
                   <DropdownMenuItem
                     onSelect={handleRecalculate}
                     disabled={isRecalculating || estimate.user?.networkSalesBlocked}
