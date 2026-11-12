@@ -1,0 +1,8 @@
+Country flag SVGs from country-flag-icons 1.5.13 (3x2 assets).
+Source: https://www.npmjs.com/package/country-flag-icons/v/1.5.13
+Project: https://github.com/catamphetamine/country-flag-icons
+License: MIT; see LICENSE in this directory.
+
+Only the 245 countries supported by libphonenumber-js are included.
+Assets are unmodified copies from the npm package and are served locally.
+Package SHA-1: 963596b7fca6602b4b389a4e7b711ef3f33cc0b1

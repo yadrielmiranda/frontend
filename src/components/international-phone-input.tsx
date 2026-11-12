@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useRef, useState, type ComponentProps } from "react";
+import Image from "next/image";
 import { getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js/max";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,11 @@ import { internationalPhoneInputValue, nationalPhoneInputValue, normalizePhoneTo
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = getCountries().map(code => ({ code, name: countryNames.of(code) ?? code, callingCode: getCountryCallingCode(code) }))
   .sort((a, b) => a.code === "US" ? -1 : b.code === "US" ? 1 : a.name.localeCompare(b.name, "en"));
+
+function CountryFlag({ country }: { country: CountryCode }) {
+  return <Image src={`/country-flags/${country}.svg`} alt="" aria-hidden="true"
+    width={22} height={15} unoptimized className="h-[15px] w-[22px] shrink-0 rounded-[2px] object-cover" />;
+}
 
 type Props = Omit<ComponentProps<typeof Input>, "value" | "defaultValue" | "onChange" | "type"> & {
   value?: string | null;
@@ -48,16 +54,17 @@ export const InternationalPhoneInput = forwardRef<HTMLInputElement, Props>(funct
     onChange(next);
   }
 
-  return <div className="@container min-w-0"><div className="grid grid-cols-1 gap-2 @min-[28rem]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+  return <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2">
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" role="combobox" aria-expanded={open}
           aria-label={`Phone country: ${countryName} (+${getCountryCallingCode(country)})`}
+          title={countryName}
           disabled={disabled || readOnly}
-          className={cn("w-full min-w-0 justify-between font-normal", dark && "h-11 border-white/15 bg-black/35 text-white hover:bg-black/45 hover:text-white", countryClassName)}>
-          <span className="truncate" title={countryName}>{countryName}</span>
-          <span className="ml-auto shrink-0">+{getCountryCallingCode(country)}</span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+          className={cn("w-auto min-w-0 justify-between gap-1.5 px-2.5 font-normal has-[>svg]:px-2.5", dark && "h-11 border-white/15 bg-black/35 text-white hover:bg-black/45 hover:text-white", countryClassName)}>
+          <CountryFlag country={country} />
+          <span>{country} +{getCountryCallingCode(country)}</span>
+          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn("w-80 max-w-[calc(100vw-2rem)] p-0", dark && "border-white/15 bg-[#080808] text-white")}>
@@ -75,8 +82,9 @@ export const InternationalPhoneInput = forwardRef<HTMLInputElement, Props>(funct
                   publish(national, option.code);
                   setOpen(false);
                 }}>
-                <Check aria-hidden="true" className={cn("mr-2 size-4", country === option.code ? "opacity-100" : "opacity-0")} />
-                {option.name} (+{option.callingCode})
+                <CountryFlag country={option.code} />
+                <span className="flex-1">{option.name} (+{option.callingCode})</span>
+                <Check aria-hidden="true" className={cn("size-4 shrink-0", country === option.code ? "opacity-100" : "opacity-0")} />
               </CommandItem>)}
             </CommandGroup>
           </CommandList>
@@ -103,5 +111,5 @@ export const InternationalPhoneInput = forwardRef<HTMLInputElement, Props>(funct
         }
         onBlur?.(event);
       }} />
-  </div></div>;
+  </div>;
 });
