@@ -170,7 +170,7 @@ export function SystemMuntinsClient({ initialData }: { initialData: SystemMuntin
       <Card>
         <CardHeader>
           <CardTitle>Assign a pattern</CardTitle>
-          <CardDescription>Select exact configuration and glass combinations. Applying a rule changes only those combinations.</CardDescription>
+          <CardDescription>Enabled and Not enabled show the saved availability for the selected pattern. Use the checkboxes to select combinations to modify, then apply your changes.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <fieldset disabled={pending} className="space-y-5">
@@ -192,12 +192,12 @@ export function SystemMuntinsClient({ initialData }: { initialData: SystemMuntin
               {!pattern.isActive && <p role="status" className="text-sm text-amber-700">This pattern is inactive. You can remove its existing assignments.</p>}
               {!data.configs.length || !data.crystals.length ? <p className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">Link configurations and glass to this system before assigning muntins.</p> : <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 text-sm"><Checkbox checked={checkedState(visibleTargets)} disabled={!visibleTargets.length || pending} onCheckedChange={(checked) => selectTargets(visibleTargets, checked === true)} />Select all shown</label>
-                  <div className="flex items-center gap-3"><span role="status" className="text-sm">{selectedTargets.length} selected</span><Button type="button" variant="ghost" size="sm" disabled={!selectedTargets.length} onClick={() => setSelection(new Set())}>Clear selection</Button></div>
+                  <label className="flex items-center gap-2 text-sm"><Checkbox checked={checkedState(visibleTargets)} disabled={!visibleTargets.length || pending} onCheckedChange={(checked) => selectTargets(visibleTargets, checked === true)} />Select all shown to modify</label>
+                  <div className="flex items-center gap-3"><span role="status" className="text-sm">{selectedTargets.length} selected to modify</span><Button type="button" variant="ghost" size="sm" disabled={!selectedTargets.length} onClick={() => setSelection(new Set())}>Clear selection</Button></div>
                 </div>
                 <div className="max-h-[32rem] overflow-auto rounded-md border" tabIndex={0} aria-label="Configuration and glass availability">
                   <table className="w-full border-collapse text-sm">
-                    <caption className="sr-only">{pattern.name} availability by configuration and glass. Check cells to change only those combinations.</caption>
+                    <caption className="sr-only">Saved {pattern.name} availability by configuration and glass. Checkboxes select combinations to modify; they do not indicate the saved status.</caption>
                     <thead className="sticky top-0 z-20 bg-muted"><tr>
                       <th scope="col" className="sticky left-0 z-30 min-w-40 border-b bg-muted p-3 text-left">Configuration / Glass</th>
                       {visibleGlass.map((crystal) => <th key={crystal.id} scope="col" className="min-w-48 border-b border-l p-3 text-left align-top">
@@ -211,12 +211,23 @@ export function SystemMuntinsClient({ initialData }: { initialData: SystemMuntin
                         const key = targetKey(target);
                         const rule = ruleByTarget.get(key);
                         return <td key={crystal.id} className={`border-b border-l align-top ${selection.has(key) ? "bg-primary/5" : ""}`}>
-                          <label className="flex min-h-24 cursor-pointer items-start gap-3 p-3">
-                            <Checkbox className="mt-0.5" checked={selection.has(key)} disabled={pending} onCheckedChange={(checked) => selectTargets([target], checked === true)} aria-label={`${config.conf} × ${crystal.glass}`} />
-                            <span className="space-y-1"><span className={`block text-sm ${rule ? "font-medium" : "text-muted-foreground"}`}>{rule ? ruleSummary(rule) : "Not allowed"}</span>
-                              {rule && <span className="block text-xs text-muted-foreground">{rule.targets.length > 1 ? `Shared across ${combinationLabel(rule.targets.length)}` : "1 combination"}</span>}
-                            </span>
-                          </label>
+                          <div className="flex min-h-28 flex-col gap-3 p-3">
+                            <div className="space-y-1.5">
+                              <Badge variant="outline" className={rule
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                                : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"}>
+                                <span aria-hidden="true" className={`size-2 rounded-full ${rule ? "bg-emerald-600 dark:bg-emerald-400" : "bg-slate-400"}`} />
+                                {rule ? "Enabled" : "Not enabled"}
+                              </Badge>
+                              {rule && hasType && <p className="text-xs text-muted-foreground">
+                                {rule.availability === "ALL" ? "All active types" : `Allowed types: ${typeNames(rule) || "No types selected."}`}
+                              </p>}
+                            </div>
+                            <label className="mt-auto flex min-h-9 cursor-pointer items-center gap-2 border-t pt-2 text-xs text-muted-foreground">
+                              <Checkbox checked={selection.has(key)} disabled={pending} onCheckedChange={(checked) => selectTargets([target], checked === true)} aria-label={`Select ${config.conf} × ${crystal.glass} to modify`} />
+                              Select to modify
+                            </label>
+                          </div>
                         </td>;
                       })}
                     </tr>)}</tbody>
