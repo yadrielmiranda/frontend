@@ -71,7 +71,7 @@ const ui = {
 };
 function fixture(overrides = {}) {
   const react = hooks(), calls = [], successes = [], errors = [], copied = [], shared = [];
-  let failure = null, release, hold = false;
+  let failure = null, release, hold = false, result = { sent: true };
   const props = {
     estimate: { id: 1, number: "190001", idUser: 7, customerEmail: "customer@example.com", status: { name: "Active" }, user: { role: { name: "dealer" }, dealerMode: "EXTERNAL" }, dealerNetwork: { canAssist: false } },
     userRole: "dealer", currentUserId: 7, currentUserDealerMode: "INTERNAL", initialPublicView: true,
@@ -83,8 +83,10 @@ function fixture(overrides = {}) {
     "@/components/estimates/material-revisions/material-revision-access": { MaterialRevisionAccess: "MaterialRevisionAccess" },
     "../agreements/dealer-agreement-panel": { DealerAgreementPanel: "DealerAgreementPanel" },
     "../estimate-lifecycle-actions": { EstimateLifecycleButton: "EstimateLifecycleButton" },
+    "../estimate-internal-note": { EstimateInternalNote: "EstimateInternalNote" },
     "@/components/navigation/back-link": { BackLink: "BackLink" },
     "./parts/estimate-report-shell": { EstimateReportShell: "EstimateReportShell" },
+    "./estimate-email-recipients": load("components/estimates/estimate-details/estimate-email-recipients.ts", {}),
     ...Object.fromEntries([
       ["client", "EstimateViewClient"], ["dealer-internal", "EstimateViewDealerInternal"],
       ["admin", "EstimateViewAdmin"], ["dealer-public", "EstimateViewDealerPublic"],
@@ -100,14 +102,15 @@ function fixture(overrides = {}) {
         calls.push({ action: "email", id, data });
         if (hold) await new Promise(resolve => { release = resolve; });
         if (failure) throw failure;
-        return { sent: true };
+        return result;
       },
     },
   });
   const render = () => nodes(react.render(() => EstimateDetails(props)));
   const button = label => render().find(node => node.type === "Button" && text(node) === label);
   const panel = () => render().find(node => node.type === "DealerAgreementPanel");
-  const input = () => render().find(node => node.type === "Input");
+  const input = () => render().find(node => node.type === "Input" && node.props.id === "estimate-email-recipient");
+  const ccInput = () => render().find(node => node.type === "Input" && node.props.id === "estimate-email-cc");
   const submit = () => render().find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
   const browser = () => {
     Object.defineProperty(global, "navigator", { configurable: true, value: {
@@ -115,13 +118,14 @@ function fixture(overrides = {}) {
     } });
     global.window = { location: { origin: "https://app.example.com", href: "" } };
   };
-  return { props, calls, successes, errors, copied, shared, render, button, panel, input, submit, browser,
+  return { props, calls, successes, errors, copied, shared, render, button, panel, input, ccInput, submit, browser,
     includeContract(value) {
       panel().props.onStatusChange({ defaultContract: { id: "owner-contract" }, current: null, history: [] });
       render().find(node => node.type === "input" && node.props.type === "checkbox").props.onChange({ target: { checked: value } });
       render();
     },
     setFailure(value) { failure = value ? (value instanceof Error ? value : new Error(value)) : null; },
+    setResult(value) { result = value; },
     hold() { hold = true; }, release() { hold = false; release(); },
   };
 }
@@ -165,25 +169,52 @@ test("opening and canceling only shows an editable, prefilled required email for
   const f = fixture(); f.button("Email").props.onClick();
   assert.equal(f.input().props.value, "customer@example.com");
   assert.equal(f.input().props.type, "email");
+  assert.notEqual(f.input().props.multiple, true);
   assert.equal(f.input().props.required, true);
+  assert.equal(f.input().props.maxLength, 254);
+  assert.equal(f.ccInput().props.value, "");
+  assert.equal(f.ccInput().props.type, "email");
+  assert.equal(f.ccInput().props.multiple, true);
+  assert.notEqual(f.ccInput().props.required, true);
+  assert.equal(f.ccInput().props.maxLength, 4096);
+  assert.ok(f.render().some(node => node.type === "label" && text(node) === "To"));
+  assert.ok(f.render().some(node => node.type === "label" && /CC\s*\(optional\)/.test(text(node))));
+  assert.match(text(f.render()), /commas/i);
+  assert.match(text(f.render()), /10 recipients/i);
   assert.deepEqual(f.calls, []);
   f.input().props.onChange({ target: { value: "someone@example.com" } });
+  f.ccInput().props.onChange({ target: { value: "copy@example.com" } });
   assert.equal(f.input().props.value, "someone@example.com");
   f.button("Cancel").props.onClick();
   assert.deepEqual(f.calls, []);
   assert.equal(f.input(), undefined);
   f.button("Email").props.onClick();
   assert.equal(f.input().props.value, "customer@example.com");
+  assert.equal(f.ccInput().props.value, "");
 });
 test("invalid or absent recipients never submit", async () => {
   const f = fixture(); f.button("Email").props.onClick();
-  for (const value of ["", "   ", "invalid", "a@", "a@b", "a b@example.com"]) {
+  for (const value of ["", "   ", "invalid", "a@", "a@b", "a b@example.com",
+    "valid@example.com, invalid", "valid@example.com,other@example.com", "valid@example.com,", ",valid@example.com",
+    "valid@example.com,,other@example.com", "valid@example.com;other@example.com",
+    `valid@example.com, ${"a".repeat(255)}@example.com`]) {
     f.input().props.onChange({ target: { value } });
     assert.equal(f.button("Send").props.disabled, true);
     await f.submit();
   }
   assert.deepEqual(f.calls, []);
   assert.ok(f.render().some(node => node.props.role === "alert"));
+});
+
+test("one invalid CC address or empty comma segment prevents the entire send", async () => {
+  const f = fixture(); f.button("Email").props.onClick();
+  for (const value of ["invalid", "valid@example.com, invalid", "valid@example.com,", ",valid@example.com",
+    "valid@example.com,,other@example.com", "valid@example.com;other@example.com", `${"a".repeat(255)}@example.com`]) {
+    f.ccInput().props.onChange({ target: { value } });
+    assert.equal(f.button("Send").props.disabled, true); await f.submit();
+  }
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.input().props.value, "customer@example.com");
 });
 test("Send uses the selected prices and contract flag and trims the edited recipient", async () => {
   for (const pricingMode of ["detailed", "total"]) for (const includeContract of [false, true]) {
@@ -198,6 +229,88 @@ test("Send uses the selected prices and contract flag and trims the edited recip
     assert.deepEqual(f.successes, ["Estimate email sent."]);
     assert.equal(f.panel().props.refreshKey, includeContract ? 1 : 0);
   }
+});
+
+test("To stays separate from normalized comma-separated CC addresses without duplicates", async () => {
+  const f = fixture(); f.button("Email").props.onClick();
+  f.input().props.onChange({ target: { value: " Primary@Example.com " } });
+  f.ccInput().props.onChange({ target: { value: " Copy@Example.com , second@example.com, PRIMARY@example.com, copy@example.com " } });
+  assert.equal(f.button("Send").props.disabled, false);
+  await f.submit();
+  assert.deepEqual(f.calls, [{ action: "email", id: 1, data: {
+    to: "primary@example.com", cc: "copy@example.com, second@example.com", pricingMode: "detailed", includeContract: false,
+  } }]);
+  assert.equal(f.input(), undefined); assert.deepEqual(f.successes, ["Estimate email sent."]);
+});
+
+test("optional empty CC or a CC duplicate of To omits CC from the request", async () => {
+  for (const cc of ["", "   ", " CUSTOMER@EXAMPLE.COM, customer@example.com "]) {
+    const f = fixture(); f.button("Email").props.onClick();
+    f.ccInput().props.onChange({ target: { value: cc } });
+    assert.equal(f.button("Send").props.disabled, false); await f.submit();
+    assert.deepEqual(f.calls[0].data, { to: "customer@example.com", pricingMode: "detailed", includeContract: false });
+  }
+});
+
+test("up to ten unique recipients are allowed while an eleventh prevents any send", async () => {
+  const recipients = Array.from({ length: 11 }, (_, index) => `person${index}@example.com`);
+  const f = fixture(); f.button("Email").props.onClick();
+  f.input().props.onChange({ target: { value: recipients[0] } });
+  f.ccInput().props.onChange({ target: { value: recipients.slice(1).join(", ") } });
+  assert.equal(f.button("Send").props.disabled, true); await f.submit();
+  assert.deepEqual(f.calls, []); assert.match(text(f.render()), /10/);
+  f.ccInput().props.onChange({ target: { value: [...recipients.slice(1, 10), recipients[0].toUpperCase(), recipients[1]].join(", ") } });
+  assert.equal(f.button("Send").props.disabled, false); await f.submit();
+  assert.equal(f.calls.length, 1); assert.equal(f.calls[0].data.to, recipients[0]);
+  assert.equal(f.calls[0].data.cc, recipients.slice(1, 10).join(", "));
+});
+
+test("partial acceptance preserves original To and CC roles and warns before an explicit resend", async () => {
+  const f = fixture(); f.includeContract(true); f.button("Email").props.onClick();
+  f.input().props.onChange({ target: { value: "rejected@example.com" } });
+  f.ccInput().props.onChange({ target: { value: "accepted@example.com" } });
+  f.setResult({ sent: false, accepted: ["accepted@example.com"], rejected: ["rejected@example.com"], unconfirmed: [] });
+  await f.submit(); await flush();
+  assert.equal(f.calls.length, 1); assert.deepEqual(f.successes, []);
+  assert.equal(f.input().props.value, "rejected@example.com");
+  assert.equal(f.ccInput().props.value, "accepted@example.com");
+  const alert = f.render().filter(node => node.props.role === "alert").map(text).join(" ");
+  assert.match(alert, /accepted@example\.com/); assert.match(alert, /rejected@example\.com/);
+  assert.match(alert, /accepted|sent/i); assert.match(alert, /reject/i);
+  assert.match(alert, /again|resend/i); assert.match(alert, /all/i);
+  assert.equal(f.panel().props.refreshKey, 1);
+  f.setResult({ sent: true }); await f.submit();
+  assert.equal(f.calls.length, 2); assert.equal(f.calls[1].data.to, "rejected@example.com");
+  assert.equal(f.calls[1].data.cc, "accepted@example.com");
+  assert.equal(f.calls[1].data.includeContract, true); assert.deepEqual(f.successes, ["Estimate email sent."]);
+});
+
+test("unconfirmed recipients keep original To and CC for manual checking without any automatic resend", async () => {
+  const f = fixture(); f.button("Email").props.onClick();
+  f.input().props.onChange({ target: { value: "accepted@example.com" } });
+  f.ccInput().props.onChange({ target: { value: "rejected@example.com, unknown@example.com" } });
+  f.setResult({ sent: false, accepted: ["accepted@example.com"], rejected: ["rejected@example.com"], unconfirmed: ["unknown@example.com"] });
+  await f.submit(); await flush();
+  assert.equal(f.calls.length, 1); assert.deepEqual(f.successes, []);
+  assert.equal(f.input().props.value, "accepted@example.com");
+  assert.equal(f.ccInput().props.value, "rejected@example.com, unknown@example.com");
+  const alert = f.render().filter(node => node.props.role === "alert").map(text).join(" ");
+  assert.match(alert, /accepted@example\.com/); assert.match(alert, /rejected@example\.com/); assert.match(alert, /unknown@example\.com/);
+  assert.match(alert, /confirm/i); assert.match(alert, /check/i);
+  assert.equal(f.panel().props.refreshKey, 0);
+});
+
+test("a partial result for an old estimate cannot replace recipients or show errors on the current estimate", async () => {
+  const f = fixture(); f.button("Email").props.onClick();
+  f.input().props.onChange({ target: { value: "accepted@example.com" } });
+  f.ccInput().props.onChange({ target: { value: "rejected@example.com" } });
+  f.setResult({ sent: false, accepted: ["accepted@example.com"], rejected: ["rejected@example.com"], unconfirmed: [] });
+  f.hold(); const sending = f.submit();
+  f.props.estimate = { ...f.props.estimate, id: 2, customerEmail: "current@example.com" };
+  assert.equal(f.input(), undefined); f.release(); await sending;
+  assert.deepEqual(f.successes, []); assert.equal(f.render().some(node => node.props.role === "alert"), false);
+  f.button("Email").props.onClick(); assert.equal(f.input().props.value, "current@example.com");
+  assert.equal(f.ccInput().props.value, "");
 });
 test("failed sends stay open for an explicit retry and never claim success", async () => {
   const f = fixture(); f.button("Email").props.onClick(); f.setFailure("Email delivery unavailable.");
@@ -224,6 +337,7 @@ test("a synchronous busy guard prevents double submits and locks sharing choices
   for (const label of ["Preparing…", "Share", "Email", "Customer Detailed Prices", "Customer Project Total", "Cancel"])
     assert.equal(f.button(label).props.disabled, true, label);
   assert.equal(f.input().props.disabled, true);
+  assert.equal(f.ccInput().props.disabled, true);
   assert.equal(f.render().find(node => node.type === "input" && node.props.type === "checkbox").props.disabled, true);
   f.render().find(node => node.type === "Dialog" && node.props.open).props.onOpenChange(false);
   assert.ok(f.input());
@@ -316,6 +430,14 @@ test("email API helper uses one POST, no browser URL, and a two-minute timeout",
   const data = { to: "customer@example.com", pricingMode: "total", includeContract: true };
   assert.deepEqual(await emailEstimateShare(15, data), { sent: true });
   assert.deepEqual(calls, [["/api/estimates/15/share-email", { method: "POST", body: data, timeoutMs: 120000 }]]);
+});
+
+test("email API helper preserves a multi-recipient partial result without converting it to success", async () => {
+  const calls = [], result = { sent: false, accepted: ["one@example.com"], rejected: ["two@example.com"], unconfirmed: [] };
+  const { emailEstimateShare } = load("app/api/estimates.api.ts", { "./_base": { apiFetch: async (...args) => { calls.push(args); return result; } } });
+  const data = { to: "one@example.com", cc: "two@example.com", pricingMode: "detailed", includeContract: false };
+  assert.deepEqual(await emailEstimateShare(15, data), result);
+  assert.equal(calls.length, 1); assert.deepEqual(calls[0][1].body, data);
 });
 test("server detail page supplies the actor's dealer mode rather than the owner's", async () => {
   const user = { id: 99, role: { name: "admin" }, dealerMode: "INTERNAL" };

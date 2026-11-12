@@ -315,11 +315,15 @@ export function getOrCreateEstimatePublicToken(
   );
 }
 
+export type EstimateShareEmailResult =
+  | { sent: true }
+  | { sent: false; accepted: string[]; rejected: string[]; unconfirmed: string[] };
+
 export function emailEstimateShare(
   id: number,
-  data: { to: string; pricingMode: "detailed" | "total"; includeContract: boolean },
+  data: { to: string; cc?: string; pricingMode: "detailed" | "total"; includeContract: boolean },
 ) {
-  return apiFetch<{ sent: true }>(`/api/estimates/${id}/share-email`, {
+  return apiFetch<EstimateShareEmailResult>(`/api/estimates/${id}/share-email`, {
     method: "POST",
     body: data,
     timeoutMs: 120000,

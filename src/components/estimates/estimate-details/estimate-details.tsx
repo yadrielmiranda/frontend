@@ -23,6 +23,7 @@ import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
 import { isAdminRole, isDealerRole, isOperatorRole } from "@/lib/rbac";
 import { toast } from "sonner";
 import { emailEstimateShare, getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
+import { MAX_ESTIMATE_EMAIL_INPUT_LENGTH, MAX_ESTIMATE_EMAIL_RECIPIENTS, parseEstimateEmailRecipients } from "./estimate-email-recipients";
 
 // =============================
 // ESTIMATE DETAILS
@@ -72,7 +73,7 @@ export function EstimateDetails({
   const copyField = useRef<HTMLTextAreaElement>(null);
   const [sharing, setSharing] = useState(false);
   const sharingBusy = useRef(false);
-  const [emailDraft, setEmailDraft] = useState<{ context: string; recipient: string } | null>(null);
+  const [emailDraft, setEmailDraft] = useState<{ context: string; recipient: string; cc: string } | null>(null);
   const [emailError, setEmailError] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [agreementRefresh, setAgreementRefresh] = useState(0);
@@ -193,7 +194,10 @@ export function EstimateDetails({
   activeShareContext.current = shareContext;
   const emailOpen = canEmailCustomerReport && emailDraft?.context === shareContext;
   const emailRecipient = emailOpen ? emailDraft.recipient : "";
-  const validEmailRecipient = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRecipient.trim()) && emailRecipient.trim().length <= 254;
+  const emailCc = emailOpen ? emailDraft.cc : "";
+  const emailRecipients = parseEstimateEmailRecipients(emailRecipient, emailCc);
+  const validEmailRecipient = !emailRecipients.error;
+  const emailValidationError = emailRecipient || emailCc ? emailRecipients.error : null;
 
   useEffect(() => {
     setEmailDraft(null);
@@ -207,7 +211,7 @@ export function EstimateDetails({
     event.preventDefault();
     if (sharingBusy.current || !emailOpen || activeShareContext.current !== shareContext) return;
     if (!validEmailRecipient) {
-      setEmailError("Enter a valid customer email address.");
+      setEmailError(emailRecipients.error ?? "Enter valid recipient email addresses.");
       return;
     }
     sharingBusy.current = true;
@@ -215,15 +219,25 @@ export function EstimateDetails({
     setEmailSending(true);
     setEmailError("");
     try {
-      await emailEstimateShare(estimate.id, {
-        to: emailRecipient.trim(),
+      const result = await emailEstimateShare(estimate.id, {
+        to: emailRecipients.to,
+        ...(emailRecipients.cc.length ? { cc: emailRecipients.cc.join(", ") } : {}),
         pricingMode: customerPricingMode,
         includeContract,
       });
       if (activeShareContext.current !== shareContext) return;
+      if (includeContract) setAgreementRefresh((value) => value + 1);
+      if (!result.sent) {
+        setEmailError([
+          `Email accepted for: ${result.accepted.join(", ")}.`,
+          result.rejected.length ? `Rejected: ${result.rejected.join(", ")}.` : "",
+          result.unconfirmed.length ? `Not confirmed: ${result.unconfirmed.join(", ")}. Check whether they received it before resending.` : "",
+          "Sending again will resend to all addresses in To and CC.",
+        ].filter(Boolean).join(" "));
+        return;
+      }
       toast.success("Estimate email sent.");
       setEmailDraft(null);
-      if (includeContract) setAgreementRefresh((value) => value + 1);
     } catch (error) {
       if (activeShareContext.current !== shareContext) return;
       setEmailError((error as Error).name === "AbortError"
@@ -414,15 +428,28 @@ export function EstimateDetails({
           </DialogHeader>
           <form onSubmit={handleEmailEstimate} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="estimate-email-recipient" className="text-sm font-medium">Customer email</label>
+              <label htmlFor="estimate-email-recipient" className="text-sm font-medium">To</label>
               <Input id="estimate-email-recipient" type="email" required maxLength={254} autoComplete="email"
+                aria-describedby="estimate-email-recipient-help"
                 value={emailRecipient} disabled={emailSending}
                 onChange={(event) => {
-                  setEmailDraft({ context: shareContext, recipient: event.target.value });
+                  setEmailDraft({ context: shareContext, recipient: event.target.value, cc: emailCc });
                   setEmailError("");
                 }} />
+              <p id="estimate-email-recipient-help" className="text-sm text-muted-foreground">Main recipient.</p>
             </div>
-            {emailError && <p role="alert" className="text-sm text-destructive">{emailError}</p>}
+            <div className="space-y-2">
+              <label htmlFor="estimate-email-cc" className="text-sm font-medium">CC <span className="font-normal text-muted-foreground">(optional)</span></label>
+              <Input id="estimate-email-cc" type="email" multiple maxLength={MAX_ESTIMATE_EMAIL_INPUT_LENGTH} autoComplete="off"
+                placeholder="email@example.com, another@example.com" aria-describedby="estimate-email-cc-help"
+                value={emailCc} disabled={emailSending}
+                onChange={(event) => {
+                  setEmailDraft({ context: shareContext, recipient: emailRecipient, cc: event.target.value });
+                  setEmailError("");
+                }} />
+              <p id="estimate-email-cc-help" className="text-sm text-muted-foreground">Separate multiple email addresses with commas. Up to {MAX_ESTIMATE_EMAIL_RECIPIENTS} recipients total.</p>
+            </div>
+            {(emailError || emailValidationError) && <p role="alert" className="text-sm text-destructive">{emailError || emailValidationError}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" disabled={emailSending} onClick={() => { if (!sharingBusy.current) setEmailDraft(null); }}>Cancel</Button>
               <Button type="submit" disabled={sharing || !validEmailRecipient}>{emailSending ? "Sending…" : "Send"}</Button>
@@ -550,7 +577,7 @@ export function EstimateDetails({
                       onClick={() => {
                         if (sharingBusy.current) return;
                         setEmailError("");
-                        setEmailDraft({ context: shareContext, recipient: estimate.customerEmail ?? "" });
+                        setEmailDraft({ context: shareContext, recipient: estimate.customerEmail ?? "", cc: "" });
                       }}>
                       <Mail className="mr-2 h-4 w-4" />Email
                     </Button>
