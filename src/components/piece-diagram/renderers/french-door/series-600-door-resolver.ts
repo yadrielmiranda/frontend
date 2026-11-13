@@ -31,7 +31,16 @@ type MixedResolution = {
   pieces: readonly PieceDiagramSeries600MixedPiece[];
 };
 
-export type Series600DoorResolution = (StandaloneResolution | MixedResolution) & { hideHardware?: boolean };
+type TransomResolution = {
+  kind: "TRANSOM";
+  configuration: "XT" | "XXT";
+  piece: { width: number; height: number; doorHeight: number };
+  exteriorHingeSide?: PieceDiagramExteriorHingeSide;
+  activeLeaf?: PieceDiagramActiveLeaf;
+  boreCount?: PieceDiagramBoreCount;
+};
+
+export type Series600DoorResolution = (StandaloneResolution | MixedResolution | TransomResolution) & { hideHardware?: boolean };
 
 const STANDALONE_CONFIGURATIONS = new Set<StandaloneConfiguration>([
   "X",
@@ -39,7 +48,7 @@ const STANDALONE_CONFIGURATIONS = new Set<StandaloneConfiguration>([
   "O",
 ]);
 
-const SHARED_FRENCH_DOOR_SERIES = new Set(["600", "650", "675", "950"]);
+const SHARED_FRENCH_DOOR_SERIES = new Set(["600", "650", "675", "800", "810", "950"]);
 
 function normalizeWords(value?: string | null): string {
   return (value ?? "")
@@ -413,6 +422,26 @@ export function resolveSharedFrenchDoor({
   if (!hasCatalogArtwork && !usesSharedFrenchDoorVisuals(systemName)) return null;
 
   const normalizedConfiguration = normalizeConfiguration(configuration);
+  if (normalizedConfiguration === "XT" || normalizedConfiguration === "XXT") {
+    const width = positiveDimension(piece?.width);
+    const height = positiveDimension(piece?.height);
+    const doorHeight = positiveDimension(piece?.doorHeight);
+    // The catalog supplies the opening height and the lower door height.
+    // Its dimension policy requires at least ten inches for the fixed transom.
+    if (width === null || height === null || doorHeight === null || height - doorHeight < 10 - 1e-9) return null;
+    const identity = resolveDoorIdentity({
+      doorKind: normalizedConfiguration === "XT" ? "X" : "XX",
+      activeOptionName,
+      preparationOptionName,
+    });
+    return {
+      kind: "TRANSOM",
+      configuration: normalizedConfiguration,
+      piece: { width, height, doorHeight },
+      ...identity,
+      hideHardware: !identity,
+    };
+  }
   // A newly configured series may have no handing options or use other hardware.
   // Use the leaf geometry to display its selected artwork, without claiming a hardware layout.
   const hideHardware = hasCatalogArtwork && normalizedConfiguration.includes("X") && (

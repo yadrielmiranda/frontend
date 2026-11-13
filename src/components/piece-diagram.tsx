@@ -15,6 +15,7 @@ import {
   CasementWindowDiagram,
 } from "./piece-diagram/renderers/casement/casement-window-diagram";
 import { PieceDiagram as Series600DoorDiagram } from "./piece-diagram/renderers/french-door/series-600-door-diagram";
+import { FrenchDoorTransomDiagram } from "./piece-diagram/renderers/french-door/french-door-transom-diagram";
 import { resolveSharedFrenchDoor } from "./piece-diagram/renderers/french-door/series-600-door-resolver";
 import { frenchDoorArtwork } from "./piece-diagram/renderers/french-door/french-door-design-artwork";
 import {
@@ -448,7 +449,16 @@ export function PieceDiagram({
     } as const;
 
     const doorDiagram =
-      resolvedSharedFrenchDoor.kind === "MIXED" ? (
+      resolvedSharedFrenchDoor.kind === "TRANSOM" ? (
+        <FrenchDoorTransomDiagram
+          {...sharedDoorProps}
+          configuration={resolvedSharedFrenchDoor.configuration}
+          {...resolvedSharedFrenchDoor.piece}
+          exteriorHingeSide={resolvedSharedFrenchDoor.exteriorHingeSide}
+          activeLeaf={resolvedSharedFrenchDoor.activeLeaf}
+          boreCount={resolvedSharedFrenchDoor.boreCount}
+        />
+      ) : resolvedSharedFrenchDoor.kind === "MIXED" ? (
         <Series600DoorDiagram
           {...sharedDoorProps}
           visualTemplate="ECO_SERIES_600_MIXED_ASSEMBLY_EXTERIOR"
@@ -492,7 +502,7 @@ export function PieceDiagram({
         dataAttributes={{
           "data-dimension-mode": dimensionMode,
           "data-diagram-family": "FRENCH_DOOR",
-          "data-diagram-renderer": "SERIES_600_SHARED",
+          "data-diagram-renderer": resolvedSharedFrenchDoor.kind === "TRANSOM" ? "FRENCH_DOOR_TRANSOM" : "SERIES_600_SHARED",
         }}
       >
         {doorDiagram}

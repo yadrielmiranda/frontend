@@ -182,7 +182,7 @@ function formatDimension(value: number): string {
   return Number(value.toFixed(3)).toString();
 }
 
-function normalizeFrameColor(value?: string | null): string {
+export function normalizeFrameColor(value?: string | null): string {
   const candidate = value?.trim() ?? DEFAULT_FRAME_COLOR;
   const short = candidate.match(/^#([0-9a-fA-F]{3})$/);
   if (short) {
@@ -639,6 +639,39 @@ function resolveMixedLayout(
     totalWidth: boundaries.at(-1)!,
     height,
   };
+}
+
+/** The existing French leaves without a canvas, for assemblies with a transom. */
+export function FrenchDoorStructure({
+  configuration,
+  exteriorHingeSide = "right",
+  activeLeaf = "left",
+  boreCount = 2,
+  showHardware = false,
+  showMovement = false,
+  idNamespace,
+  ...material
+}: SharedMaterialProps & {
+  width: number;
+  height: number;
+  configuration: "X" | "XX";
+  exteriorHingeSide?: PieceDiagramExteriorHingeSide;
+  activeLeaf?: PieceDiagramActiveLeaf;
+  boreCount?: PieceDiagramBoreCount;
+  showMovement?: boolean;
+  idNamespace?: string;
+}) {
+  const reactId = useId();
+  const props = {
+    ...material,
+    showHardware,
+    frameColor: normalizeFrameColor(material.frameColorHex),
+    movementIndicatorColor: showMovement ? DEFAULT_MOVEMENT_INDICATOR_COLOR : undefined,
+    movementIndicatorId: safeId(idNamespace ?? `ae-french-door-structure-${reactId}`),
+  };
+  return configuration === "X"
+    ? <XStructure {...props} hingeSide={exteriorHingeSide} />
+    : <XXStructure {...props} structureId={resolveXXStructureId(undefined, activeLeaf, boreCount)} />;
 }
 
 function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel[] {

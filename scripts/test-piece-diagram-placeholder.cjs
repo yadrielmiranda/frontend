@@ -58,6 +58,27 @@ const assertPlaceholder = html => {
   assert.match(html, /Complete the piece details to see the preview/);
   assert.doesNotMatch(html, /<svg\b|<rect\b|<image\b/);
 };
+const frenchDoorCatalog = [
+  { systemName: 'Serie 800', singlePreparation: '3P-Lock + C Handle + Push Bar',
+    doublePreparation: 'Act:3P-Lock/Inact:2P-Lock + C Handle + Push Bar' },
+  { systemName: 'Serie 810', singlePreparation: '3P-Lock + Hardware Valli Bronze',
+    doublePreparation: 'Act:3P-Lock/Inact:2P-Lock + Hardware Summit White' },
+];
+const frenchDoorAppearance = { frameColorHex: '#876543', glassTintHex: '#123456', showDimensions: true };
+const frenchDoorTransoms = [
+  { configuration: 'XT', width: 36, height: 100, doorHeight: 80, leaves: 1 },
+  { configuration: 'XXT', width: 72, height: 110, doorHeight: 90, leaves: 2 },
+];
+function assertFrenchDoor(html, configuration, width, label) {
+  assert.match(html, /<svg\b/, `${label}: a complete door renders its drawing`);
+  assert.doesNotMatch(html, /data-diagram-state="unavailable"/);
+  assert.match(html, /data-diagram-renderer="SERIES_600_SHARED"/);
+  assert.match(html, new RegExp(`aria-label="French Door ${configuration}, ${width} by 80 inches"`));
+  assert.match(html, /fill="#876543"/, 'The selected frame color reaches the artwork');
+  assert.match(html, /<rect\b[^>]*fill="#123456"[^>]*data-glass-effect="TINT"/, 'The selected tint reaches the glass');
+  assert.match(html, new RegExp(`W\\. ${width}&quot;`));
+  assert.match(html, /H\. 80&quot;/);
+}
 let passed = 0;
 function test(name, run) { run(); passed += 1; console.log(`PASS ${name}`); }
 for (const variant of ['editor', 'report']) {
@@ -89,6 +110,108 @@ for (const variant of ['editor', 'report']) {
       diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 675', configuration: 'OXXO', dimensionMode: 'ECO_NOVO_DOOR',
       piece: { width: 272, height: 116, doorWidth: 68, leftSideliteWidth: 34, leftPanels: 3 }, variant,
     }));
+  });
+  test(`${variant}: Serie 800 and 810 single doors preserve handing, appearance and dimensions`, () => {
+    for (const { systemName, singlePreparation } of frenchDoorCatalog) {
+      for (const side of ['Left', 'Right']) {
+        const html = render(PieceDiagram, {
+          diagramFamily: 'FRENCH_DOOR', systemName, configuration: 'X', dimensionMode: 'STANDARD',
+          piece: { width: 36, height: 80 }, activeOptionName: `${side} Active`,
+          preparationOptionName: singlePreparation, ...frenchDoorAppearance, variant,
+        });
+        assertFrenchDoor(html, 'X', 36, `${systemName} ${side} Active`);
+        assert.match(html, new RegExp(`data-hinge-side="${side.toLowerCase()}"`));
+      }
+    }
+  });
+  test(`${variant}: Serie 800 and 810 double doors use their catalog preparation and active leaf`, () => {
+    for (const { systemName, doublePreparation } of frenchDoorCatalog) {
+      for (const side of ['Left', 'Right']) {
+        const html = render(PieceDiagram, {
+          diagramFamily: 'FRENCH_DOOR', systemName, configuration: 'XX', dimensionMode: 'STANDARD',
+          piece: { width: 72, height: 80 }, activeOptionName: `${side} Active`,
+          preparationOptionName: doublePreparation, ...frenchDoorAppearance, variant,
+        });
+        assertFrenchDoor(html, 'XX', 72, `${systemName} ${side} Active`);
+        assert.match(html, new RegExp(`data-active-leaf="${side.toLowerCase()}"`));
+        assert.match(html, /data-bore-count="3"/);
+      }
+    }
+  });
+  test(`${variant}: similar series names and incomplete Serie 800/810 doors stay neutral`, () => {
+    for (const { systemName, singlePreparation } of frenchDoorCatalog) {
+      const props = {
+        diagramFamily: 'FRENCH_DOOR', systemName, configuration: 'X', dimensionMode: 'STANDARD',
+        activeOptionName: 'Left Active', preparationOptionName: singlePreparation, variant,
+      };
+      assertPlaceholder(render(PieceDiagram, { ...props, systemName: `${systemName}0`, piece: { width: 36, height: 80 } }));
+      assertPlaceholder(render(PieceDiagram, { ...props, piece: { height: 80 } }));
+    }
+  });
+  test(`${variant}: French Door transoms preserve lower leaves, a fixed top, finishes and section dimensions`, () => {
+    for (const { systemName } of frenchDoorCatalog) {
+      for (const { configuration, width, height, doorHeight, leaves } of frenchDoorTransoms) {
+        const props = { diagramFamily: 'FRENCH_DOOR', systemName, configuration,
+          piece: { width, height, doorHeight }, ...frenchDoorAppearance, variant };
+        const html = render(PieceDiagram, props);
+        assert.match(html, /data-diagram-renderer="FRENCH_DOOR_TRANSOM"/);
+        assert.match(html, /<svg\b/);
+        assert.doesNotMatch(html, /data-diagram-state="unavailable"/);
+        assert.match(html, new RegExp(`data-door-height="${doorHeight}"`));
+        assert.match(html, /data-transom-height="20"/);
+        assert.equal((html.match(/data-part="(?:single|double)-leaf"/g) ?? []).length, leaves);
+        assert.equal((html.match(/data-part="transom-glass"/g) ?? []).length, 1);
+        assert.equal((html.match(/data-part="french-door-transom"/g) ?? []).length, 1);
+        assert.match(html, /data-part="french-door-leaves" transform="translate\(0 20\)"/, 'The door leaves sit below the fixed transom');
+        assert.match(html, /data-frame-color="#876543"/);
+        assert.match(html, /stop-color="#876543"/, 'The selected frame finish colors the artwork');
+        assert.equal((html.match(/<rect\b[^>]*fill="#123456"[^>]*data-glass-effect="TINT"/g) ?? []).length, leaves + 1);
+        assert.doesNotMatch(html, /data-part="(?:lock-bore|barrel-hinge)"|data-hinge-side=|data-active-leaf=/,
+          'No unselected handing or hardware is invented');
+        for (const dimension of ['width', 'height', 'door-height', 'transom-height']) {
+          assert.match(html, new RegExp(`data-dimension="${dimension}"`));
+        }
+        for (const [axis, value] of [['W', width], ['H', height], ['H', doorHeight], ['H', 20]]) {
+          assert.match(html, new RegExp(`${axis}\\.? ${value}(?:&quot;|″)`));
+        }
+        const hidden = render(PieceDiagram, { ...props, showDimensions: false });
+        assert.doesNotMatch(hidden, /data-dimension="(?:width|height|door-height|transom-height)"/);
+        assert.equal((hidden.match(/data-part="(?:single|double)-leaf"/g) ?? []).length, leaves);
+      }
+    }
+  });
+  test(`${variant}: French Door transoms require a valid door height and at least ten inches above`, () => {
+    for (const { systemName } of frenchDoorCatalog) {
+      for (const { configuration, width } of frenchDoorTransoms) {
+        const props = { diagramFamily: 'FRENCH_DOOR', systemName, configuration, variant };
+        for (const doorHeight of [undefined, 'bad', 0, 100, 101, 90.001]) {
+          assertPlaceholder(render(PieceDiagram, { ...props, piece: { width, height: 100, doorHeight } }));
+        }
+        for (const [height, doorHeight] of [[100, 90], [65.67, 55.67]]) {
+          const html = render(PieceDiagram, { ...props, piece: { width, height, doorHeight } });
+          assert.match(html, /data-diagram-renderer="FRENCH_DOOR_TRANSOM"/, `${systemName} ${configuration}: a ten-inch transom is valid`);
+          assert.match(html, /<svg\b/);
+          assert.doesNotMatch(html, /data-diagram-state="unavailable"/);
+        }
+      }
+    }
+  });
+  test(`${variant}: French Door transom muntins target each pane once using the internal top-first layout`, () => {
+    for (const { configuration, width, height, doorHeight, leaves } of frenchDoorTransoms) {
+      const positions = leaves === 1 ? ['Top', 'Bottom'] : ['Top', 'Left', 'Right'];
+      const panels = Array.from({ length: leaves + 1 }, (_, index) => ({
+        panelIndex: index + 1, panelCode: index === 0 ? 'O' : 'X',
+        panelLabel: positions[index], horizontalLites: index + 2, verticalLites: 2,
+      }));
+      const html = render(PieceDiagram, { diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 810', configuration,
+        piece: { width, height, doorHeight }, muntin: { profile: 'flat', panels: [...panels].reverse() }, variant });
+      assert.match(html, /data-diagram-renderer="FRENCH_DOOR_TRANSOM"/);
+      assert.equal((html.match(/data-part="muntin-layer"/g) ?? []).length, 1);
+      assert.equal((html.match(/data-part="muntin-panel"/g) ?? []).length, leaves + 1);
+      for (const panel of panels) {
+        assert.match(html, new RegExp(`data-part="muntin-panel"[^>]*data-panel-index="${panel.panelIndex}"[^>]*data-glass-position="${panel.panelLabel}"[^>]*data-horizontal-lites="${panel.horizontalLites}"`));
+      }
+    }
   });
   test(`${variant}: real rectangular fixed window is preserved`, () => {
     const html = render(PieceDiagram, { diagramFamily: 'FIXED_SHAPE', configuration: 'Picture Window', piece: { width: 40, height: 80 }, variant });
