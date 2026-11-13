@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props) => typeof type === "function" && type.name === "AddressConfirmationPanel" ? type(props) : ({ type, props });
 const ui = new Proxy({}, { get: (_, name) => name });
 const all = (node, predicate) => Array.isArray(node) ? node.flatMap(child => all(child, predicate))
   : node && typeof node === 'object' ? [...(predicate(node) ? [node] : []), ...all(node.props?.children, predicate)] : [];
@@ -29,6 +29,8 @@ function load(relative, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
+    if (id === '@/lib/use-address-confirmation') return load('lib/use-address-confirmation.ts', mocks);
+    if (id === '@/components/address-confirmation-panel') return load('components/address-confirmation-panel.tsx', mocks);
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === 'lucide-react' || id.startsWith('@/components/') || id.startsWith('./')) return ui;
     if (id === 'next/link') return { default: 'Link' };
@@ -40,8 +42,8 @@ function load(relative, mocks = {}) {
   return module.exports;
 }
 
-async function fixture({ initialJob = null, save, beforeRequest, ...extraProps } = {}) {
-  const states = [], refs = [], memos = [], effects = [], errors = [], successes = [], calls = [], commits = [];
+async function fixture({ initialJob = null, save, review, beforeRequest, ...extraProps } = {}) {
+  const states = [], refs = [], memos = [], effects = [], errors = [], successes = [], calls = [], commits = [], reviews = [];
   let si = 0, ri = 0, mi = 0, ei = 0, pending = [], dirty = false;
   const props = { estimateId: 103, estimateOwnerId: 20, currentUserId: 20, suggestedAddress: entered,
     estimateStatus: 'Active', order: null, estimatePayments: [], pieces: [{ id: 1, mark: 'A', qty: 1 }], initialJob,
@@ -66,6 +68,10 @@ async function fixture({ initialJob = null, save, beforeRequest, ...extraProps }
     return save ? save(payload, calls.length) : calls.length === 1 ? Promise.reject(correction()) : Promise.resolve(resultJob(payload.installationAddress));
   };
   const Component = load('components/estimates/installation-estimate-panel.tsx', {
+    '@/app/api/address-confirmations.api': { reviewAddress: async (purpose, address) => {
+      reviews.push({ purpose, address: structuredClone(address) });
+      return review ? review(purpose, address, reviews.length) : { status: 'VALIDATED', address };
+    } },
     react: hooks, sonner: { toast: { error: value => errors.push(value), success: value => successes.push(value) } },
     '@/app/api/installations.api': {
       getEstimateInstallation: async () => initialJob,
@@ -86,15 +92,15 @@ async function fixture({ initialJob = null, save, beforeRequest, ...extraProps }
   const click = label => button(label).props.onClick();
   const control = id => find(node => node.props?.id === id);
   render(); await flush(); render();
-  click(initialJob ? 'Edit installation' : 'Request installation price'); click('Use this address');
+  click(initialJob ? 'Edit installation' : 'Request installation price'); click('Use this address'); await flush(); render();
   find(node => node.type === 'RadioGroup').props.onValueChange('COMPANY'); render();
   const calculate = async () => { click(initialJob ? 'Save installation changes' : 'Calculate installation'); await flush(); render(); };
-  return { render, find, button, click, control, calculate, errors, successes, calls, commits,
+  return { render, find, button, click, control, calculate, errors, successes, calls, commits, reviews,
     input(id, value) { control(id).props.onChange({ target: { value } }); render(); },
     update(next) { Object.assign(props, next); render(); },
     unmount() { effects.forEach(effect => effect?.cleanup?.()); },
-    hasSuggestion() { return text(render()).includes('Google suggests this installation address'); },
-    async accept() { click('Use suggested address and calculate'); await flush(); render(); },
+    hasSuggestion() { return text(render()).includes('Confirm the suggested address'); },
+    async accept() { click('Use suggested address'); await flush(); render(); await calculate(); },
   };
 }
 
@@ -131,7 +137,7 @@ test('edit preserves the entered address and cancel dismisses the correction wit
   const f = await fixture(); await f.calculate(); f.click('Edit my address');
   assert.equal(f.hasSuggestion(), false); assert.equal(f.control('installation-city').props.value, 'West Miami');
   assert.equal(f.control('installation-postalCode').props.value, '33144');
-  assert.equal(f.find(node => node.type === 'Checkbox' && !node.props.id).props.checked, false);
+  assert.equal(f.button('Calculate installation').props.disabled, true);
   f.input('installation-city', 'Manual city');
   assert.equal(f.calls.length, 1);
   f.click('Cancel'); assert.ok(text(f.render()).includes('Request installation price')); assert.equal(f.calls.length, 1);
@@ -142,7 +148,7 @@ test('a failed calculation retains the accepted corrected address for retry or e
   await f.calculate(); await f.accept();
   assert.equal(f.control('installation-city').props.value, 'Coral Gables');
   assert.equal(f.control('installation-postalCode').props.value, '33144-5717');
-  assert.equal(f.find(node => node.type === 'Checkbox' && !node.props.id).props.checked, true);
+  assert.equal(f.button('Calculate installation').props.disabled, false);
   assert.equal(f.hasSuggestion(), false); assert.deepEqual(f.errors, ['Route unavailable']);
   await f.calculate(); assert.deepEqual(f.calls.at(-1).payload.installationAddress, suggested);
 });
@@ -161,8 +167,8 @@ test('duplicate clicks cannot submit during the estimate pre-save or confirmatio
   const calculate = f.button('Calculate installation').props.onClick;
   calculate(); calculate(); await flush(); assert.equal(saves, 1); assert.equal(f.calls.length, 0);
   first.resolve(true); await flush(); f.render(); assert.equal(f.calls.length, 1);
-  const accept = f.button('Use suggested address and calculate').props.onClick;
-  accept(); accept(); await flush(); assert.equal(f.calls.length, 2);
+  const accept = f.button('Use suggested address').props.onClick;
+  accept(); accept(); await flush(); f.render(); f.click('Calculate installation'); await flush(); assert.equal(f.calls.length, 2);
   retry.resolve(resultJob()); await flush(); assert.equal(f.successes.length, 1);
 });
 
@@ -184,7 +190,7 @@ test('a deferred totals refresh during verification does not discard the address
   await f.calculate(); f.update({ refreshKey: 'header-rendered-after-save' });
   first.reject(correction()); await flush();
   assert.equal(f.hasSuggestion(), true);
-  f.click('Use suggested address and calculate'); await flush();
+  f.click('Use suggested address'); await flush(); f.render(); f.click('Calculate installation'); await flush();
   f.update({ refreshKey: 'another-material-total-refresh' });
   retry.resolve(resultJob()); await flush();
   assert.equal(f.calls.length, 2); assert.equal(f.successes.length, 1);
@@ -200,7 +206,7 @@ test('an actual estimate or address change during prerequisite save still cancel
 
 test('estimate changes dismiss a correction and invalidate a previously captured acceptance handler', async () => {
   for (const change of [{ estimateId: 104 }, { suggestedAddress: { ...entered, city: 'Miami' } }]) {
-    const f = await fixture(); await f.calculate(); const oldAccept = f.button('Use suggested address and calculate').props.onClick;
+    const f = await fixture(); await f.calculate(); const oldAccept = f.button('Use suggested address').props.onClick;
     f.update(change); oldAccept(); await flush();
     assert.equal(f.hasSuggestion(), false); assert.equal(f.calls.length, 1);
   }
@@ -219,7 +225,7 @@ test('manual edits invalidate a pending response without losing the new address'
   const response = deferred(); const f = await fixture({ save: () => response.promise });
   f.click('Use a different address');
   f.control('installation-street').props.onAddressSelect(entered);
-  f.find(node => node.type === 'Checkbox' && !node.props.id).props.onCheckedChange(true);
+  f.click('Use this address'); await flush(); f.render();
   const city = f.control('installation-city').props.onChange;
   await f.calculate(); city({ target: { value: 'New city' } }); f.render();
   response.reject(correction()); await flush();
@@ -237,7 +243,7 @@ test('missing, invalid, out-of-state, unchanged and unrelated suggestions remain
 });
 
 test('the existing selection text does not claim Google has already verified the address', async () => {
-  const f = await fixture(); assert.ok(text(f.render()).includes('Installation address selected.'));
+  const f = await fixture(); assert.ok(text(f.render()).includes('Address verified. You can continue with the calculation.'));
   assert.ok(!text(f.render()).includes('Installation address confirmed.'));
 });
 

@@ -20,6 +20,8 @@ function load(relative, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
+    if (id === '@/lib/use-address-confirmation') return load('lib/use-address-confirmation.ts', mocks);
+    if (id === '@/app/api/address-confirmations.api') return { reviewAddress: async (_, address) => ({ status: 'VALIDATED', address }) };
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === 'lucide-react' || id.startsWith('@/components/') || id.startsWith('./')) return ui;
     if (id === 'next/link') return { default: 'Link' };
@@ -28,7 +30,7 @@ function load(relative, mocks = {}) {
     if (id === '@/lib/formatters') return load('lib/formatters.ts');
     if (id === '@/lib/installation-flow') return { hasStartedInstallationPayment: () => false, paidBaseFor: () => 0, canEditInstallationBeforePayment: () => true, titleCase: value => value };
     if (id === '@/lib/installation-additional-service') return {};
-    if (id === '@/lib/card-payment') return {};
+    if (id === '@/lib/card-payment') return load('lib/card-payment.ts', mocks);
     if (id.startsWith('@/app/api/')) return {};
     throw new Error(`Unmocked dependency ${id}`);
   }, module, module.exports);
@@ -63,6 +65,8 @@ function harness(file, name, props, apiMocks = {}) {
   const control = id => find(node => node.props?.id === id);
   const button = label => find(node => node.type === 'Button' && text(node).trim() === label);
   return { render, find, control, button, errors,
+    update(next) { Object.assign(props, next); render(); },
+    unmount() { effects.forEach(effect => effect?.cleanup?.()); },
     input(id, value) { control(id).props.onChange({ target: { value } }); },
     select(id, address) { const input = control(id); assert.equal(input.type, 'AddressAutocomplete'); input.props.onAddressSelect({ ...address }); },
     click(label) { return button(label).props.onClick(event()); },
@@ -105,7 +109,7 @@ async function installation(extraProps = {}, requestImpl) {
   } });
   h.render(); await flush(); h.click('Request installation price'); h.click('Use a different address');
   return { ...h, calls, editing,
-    confirm() { h.find(node => node.type === 'Checkbox').props.onCheckedChange(true); },
+    async confirm() { h.click('Use this address'); await flush(); h.render(); },
     permit(value = 'INDEPENDENT') { h.find(node => node.type === 'RadioGroup').props.onValueChange(value); },
   };
 }
@@ -121,7 +125,7 @@ function delivery(type = 'STANDARD', createImpl, extraProps = {}) {
     createOrderDelivery(id, payload) { calls.push({ id, payload }); return createImpl ? createImpl() : Promise.reject(new Error('Validation remains on server')); },
   } });
   const labels = { STANDARD: 'Calculate delivery', PRE_DELIVERY: 'Add separate pre-delivery', INSTALLATION_OVERRIDE: 'Charge delivery with installation', REDELIVERY: 'Add redelivery charge' };
-  return { ...h, calls, open() { h.click(labels[type]); }, async calculate() { h.click('Verify address & create charge'); await flush(); } };
+  return { ...h, calls, open() { h.click(labels[type]); }, async calculate() { h.click('Use this address'); await flush(); h.render(); h.click('Calculate delivery charge'); await flush(); } };
 }
 
 test('warehouse selection updates all address fields while preserving prices and revision', async () => {
@@ -176,34 +180,34 @@ test('coverage disables suggestions during save and preserves input limits', asy
 test('installation selections require explicit confirmation and the existing permit decision', async () => {
   const h = await installation(); h.select('installation-street', selected); await h.click('Calculate installation');
   assert.match(h.errors.at(-1), /Confirm a complete installation address/); assert.equal(h.calls.length, 0);
-  h.confirm(); await h.click('Calculate installation'); assert.match(h.errors.at(-1), /permit management/);
+  await h.confirm(); await h.click('Calculate installation'); assert.match(h.errors.at(-1), /permit management/);
   h.permit(); await h.click('Calculate installation');
   assert.deepEqual(h.calls[0], { id: 10, payload: { installationAddress: selected, installationAddressConfirmed: true, permitRequested: false, selectedServices: [] } });
   assert.equal(h.editing.at(-1), false);
 });
 test('installation rejects non-Florida autocomplete selections without relabeling their state', async () => {
-  const h = await installation(); h.select('installation-street', selected); h.confirm();
+  const h = await installation(); h.select('installation-street', selected); await h.confirm();
   h.select('installation-street', { street: '200 Georgia Avenue', city: 'Atlanta', state: 'GA', postalCode: '30301' });
   assert.match(h.errors.at(-1), /only in Florida/);
   assert.equal(h.control('installation-street').props.value, selected.street);
   assert.equal(h.control('installation-city').props.value, selected.city);
-  assert.equal(h.find(node => node.type === 'Checkbox').props.checked, false);
+  assert.equal(h.button('Calculate installation').props.disabled, true);
   await h.click('Calculate installation'); assert.equal(h.calls.length, 0);
 });
 test('installation manual city and ZIP changes reset confirmation and cancel stale selection context', async () => {
-  const h = await installation(); h.select('installation-street', selected); h.confirm();
+  const h = await installation(); h.select('installation-street', selected); await h.confirm();
   const context = h.control('installation-street').props.contextKey;
   h.input('installation-city', 'Corrected Municipality'); h.input('installation-postalCode', '33138');
-  assert.equal(h.find(node => node.type === 'Checkbox').props.checked, false);
+  assert.equal(h.button('Calculate installation').props.disabled, true);
   assert.notEqual(h.control('installation-street').props.contextKey, context);
-  h.confirm(); h.permit(); await h.click('Calculate installation');
+  await h.confirm(); h.permit(); await h.click('Calculate installation');
   assert.equal(h.calls[0].payload.installationAddress.city, 'Corrected Municipality');
 });
 test('installation prevents late suggestions while recalculation is pending and honors the pre-save callback', async () => {
-  const pending = deferred(), h = await installation({}, () => pending.promise); h.select('installation-street', selected); h.confirm(); h.permit();
+  const pending = deferred(), h = await installation({}, () => pending.promise); h.select('installation-street', selected); await h.confirm(); h.permit();
   const calculation = h.click('Calculate installation'); assert.equal(h.control('installation-street').props.disabled, true);
   pending.resolve(null); await calculation;
-  const blocked = await installation({ beforeRequest: async () => false }); blocked.select('installation-street', selected); blocked.confirm(); blocked.permit();
+  const blocked = await installation({ beforeRequest: async () => false }); blocked.select('installation-street', selected); await blocked.confirm(); blocked.permit();
   await blocked.click('Calculate installation'); assert.equal(blocked.calls.length, 0);
 });
 for (const type of ['STANDARD', 'PRE_DELIVERY', 'INSTALLATION_OVERRIDE', 'REDELIVERY']) {
@@ -230,7 +234,7 @@ test('delivery retains complete-address, two-letter state and ZIP verification',
 });
 test('delivery disables address editing and suggestions while address verification creates its charge', async () => {
   const pending = deferred(), h = delivery('STANDARD', () => pending.promise); h.open(); h.select('delivery-street', selected);
-  h.click('Verify address & create charge');
+  h.click('Use this address'); await flush(); h.render(); h.click('Calculate delivery charge');
   for (const id of ['delivery-street', 'delivery-address-line2', 'delivery-city', 'delivery-state', 'delivery-zip']) assert.equal(h.control(id).props.disabled, true);
   pending.resolve({ id: 99, type: 'STANDARD', status: 'CANCELED', amount: '100', destinationStreet: selected.street,
     destinationCity: selected.city, destinationState: 'FL', destinationPostalCode: selected.postalCode }); await flush();
@@ -247,8 +251,8 @@ test('programmatic warehouse and coverage selections cannot bypass street, city,
 test('programmatic installation selections retain their text but cannot bypass address length or ZIP limits', async () => {
   const h = await installation(); h.permit();
   for (const patch of [{ street: 'S'.repeat(151) }, { city: 'C'.repeat(101) }, { postalCode: '33138-12345' }]) {
-    h.select('installation-street', { ...selected, ...patch }); h.confirm(); await h.click('Calculate installation');
-    assert.equal(h.calls.length, 0); assert.match(h.errors.at(-1), /150 characters|valid 5-digit ZIP/);
+    h.select('installation-street', { ...selected, ...patch }); await h.confirm(); await h.click('Calculate installation');
+    assert.equal(h.calls.length, 0); assert.match(h.errors.at(-1), /150 characters|valid 5-digit ZIP|Confirm a complete installation address/);
     if (patch.city) assert.equal(h.control('installation-city').props.value.length, 101, 'No silent truncation');
   }
 });
@@ -277,7 +281,7 @@ test('installation optional details survive Google selection and an empty detail
     h.input('installation-addressLine2', detail);
     h.select('installation-street', selected);
     assert.equal(h.control('installation-addressLine2').props.value, detail);
-    h.confirm(); h.permit(); await h.click('Calculate installation');
+    await h.confirm(); h.permit(); await h.click('Calculate installation');
     assert.equal(h.calls.length, 1);
     assert.deepEqual(h.calls[0].payload.installationAddress, { ...selected, addressLine2: detail });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import type {
   DeliveryType,
+  InstallationAddress,
   InstallationJob,
   OrderDelivery,
   OrderFulfillmentMethod,
@@ -37,6 +38,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { AddressConfirmationPanel } from "@/components/address-confirmation-panel";
+import { useAddressConfirmation, withoutLocation } from "@/lib/use-address-confirmation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/formatters";
@@ -111,11 +114,26 @@ export function OrderDeliveryPanel({
   const [fulfillmentMethod, setFulfillmentMethod] =
     useState<OrderFulfillmentMethod>(order.fulfillmentMethod);
   const [formType, setFormType] = useState<DeliveryType | null>(null);
-  const [address, setAddress] = useState(initialAddress);
+  const [address, setAddress] = useState<InstallationAddress>(initialAddress);
   const [internalReason, setInternalReason] = useState("");
   const [taxable, setTaxable] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
+
+  const addressRevision = useRef(0);
+  const requestInFlight = useRef(false);
+  const mounted = useRef(true);
+  const requestContext = JSON.stringify([order.id, formType, initialAddress, order.status.name, installationActive, isOwner, isPrivileged, isAdmin]);
+  const latestContext = useRef(requestContext);
+  latestContext.current = requestContext;
+  useEffect(() => { mounted.current = true; const lifetime = addressRevision; return () => { mounted.current = false; lifetime.current++; }; }, []);
+  const confirmation = useAddressConfirmation({ purpose: "DELIVERY", address, contextKey: requestContext,
+    onAddressChange: setAddress, disabled: busy });
+  const editAddress = (update: (current: InstallationAddress) => InstallationAddress) => {
+    addressRevision.current++;
+    confirmation.invalidate();
+    setAddress(current => withoutLocation(update(current)));
+  };
 
   const replaceDelivery = (updated: OrderDelivery) => {
     setDeliveries((current) =>
@@ -175,7 +193,7 @@ export function OrderDeliveryPanel({
   };
 
   const calculateDelivery = async () => {
-    if (!formType) return;
+    if (!formType || busy || requestInFlight.current || confirmation.checking) return;
     if (
       !address.street.trim() ||
       !address.city.trim() ||
@@ -189,7 +207,7 @@ export function OrderDeliveryPanel({
       toast.error("Use no more than 150 characters for the street and 100 for the city.");
       return;
     }
-    if (address.addressLine2.trim().length > 150) {
+    if ((address.addressLine2 ?? "").trim().length > 150) {
       toast.error("Address details must be 150 characters or fewer.");
       return;
     }
@@ -206,12 +224,17 @@ export function OrderDeliveryPanel({
       return;
     }
 
+    if (!confirmation.isConfirmed) { toast.error("Confirm the delivery address before creating its charge."); return; }
+    requestInFlight.current = true;
+    const revision = addressRevision.current, context = requestContext;
+    const isCurrent = () => mounted.current && revision === addressRevision.current && context === latestContext.current;
     setBusy(true);
     try {
       const created = await createOrderDelivery(order.id, {
         type: formType,
+        ...(address.confirmedLocation ? { confirmedLocation: address.confirmedLocation } : {}),
         street: address.street.trim(),
-        addressLine2: address.addressLine2.trim() || null,
+        addressLine2: (address.addressLine2 ?? "").trim() || null,
         city: address.city.trim(),
         state: address.state.trim().toUpperCase(),
         postalCode: address.postalCode.trim(),
@@ -219,6 +242,7 @@ export function OrderDeliveryPanel({
         internalReason:
           formType === "STANDARD" ? undefined : internalReason.trim(),
       });
+      if (!isCurrent()) return;
       setDeliveries((current) => [...current, created]);
       if (formType !== "REDELIVERY") {
         setFulfillmentMethod(
@@ -233,9 +257,10 @@ export function OrderDeliveryPanel({
       toast.success("Delivery address verified and charge added for payment.");
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      if (isCurrent() && !confirmation.handleFinalError(error)) toast.error((error as Error).message);
     } finally {
-      setBusy(false);
+      requestInFlight.current = false;
+      if (mounted.current) setBusy(false);
     }
   };
 
@@ -546,9 +571,9 @@ export function OrderDeliveryPanel({
                 maxLength={150}
                 disabled={busy}
                 contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
-                onAddressSelect={(selected) => setAddress((current) => ({ ...current, ...selected }))}
+                onAddressSelect={(selected) => editAddress((current) => ({ ...current, ...selected }))}
                 onChange={(event) =>
-                  setAddress((current) => ({
+                  editAddress((current) => ({
                     ...current,
                     street: event.target.value,
                   }))
@@ -559,12 +584,12 @@ export function OrderDeliveryPanel({
               <Label htmlFor="delivery-address-line2">Apartment, suite, unit, etc. (optional)</Label>
               <Input
                 id="delivery-address-line2"
-                value={address.addressLine2}
+                value={address.addressLine2 ?? ""}
                 maxLength={150}
                 disabled={busy}
                 autoComplete="address-line2"
                 placeholder="e.g. Apt 4B, Suite 200, Building C"
-                onChange={(event) => setAddress((current) => ({ ...current, addressLine2: event.target.value }))}
+                onChange={(event) => editAddress((current) => ({ ...current, addressLine2: event.target.value }))}
               />
             </div>
             <div>
@@ -576,7 +601,7 @@ export function OrderDeliveryPanel({
                 disabled={busy}
                 autoComplete="address-level2"
                 onChange={(event) =>
-                  setAddress((current) => ({
+                  editAddress((current) => ({
                     ...current,
                     city: event.target.value,
                   }))
@@ -593,7 +618,7 @@ export function OrderDeliveryPanel({
                   maxLength={2}
                   autoComplete="address-level1"
                   onChange={(event) =>
-                    setAddress((current) => ({
+                    editAddress((current) => ({
                       ...current,
                       state: event.target.value.toUpperCase(),
                     }))
@@ -611,7 +636,7 @@ export function OrderDeliveryPanel({
                   autoComplete="postal-code"
                   placeholder="12345 or 12345-6789"
                   onChange={(event) =>
-                    setAddress((current) => ({
+                    editAddress((current) => ({
                       ...current,
                       postalCode: event.target.value,
                     }))
@@ -620,6 +645,10 @@ export function OrderDeliveryPanel({
               </div>
             </div>
           </div>
+
+          <AddressConfirmationPanel confirmation={confirmation} address={address} purpose="delivery"
+            disabled={busy || confirmation.checking} onEdit={() => editAddress(current => current)} />
+          <Button type="button" disabled={busy || confirmation.checking} onClick={() => void confirmation.review()}>Use this address</Button>
 
           {formType !== "STANDARD" && (
             <div>
@@ -656,6 +685,8 @@ export function OrderDeliveryPanel({
               variant="outline"
               disabled={busy}
               onClick={() => {
+                addressRevision.current++;
+                confirmation.invalidate();
                 setFormType(null);
                 setInternalReason("");
                 setTaxable(false);
@@ -663,8 +694,8 @@ export function OrderDeliveryPanel({
             >
               Cancel
             </Button>
-            <Button disabled={busy} onClick={() => void calculateDelivery()}>
-              <MapPin className="h-4 w-4" /> Verify address &amp; create charge
+            <Button disabled={busy || confirmation.checking || !confirmation.isConfirmed} onClick={() => void calculateDelivery()}>
+              <MapPin className="h-4 w-4" /> Calculate delivery charge
             </Button>
           </div>
         </div>

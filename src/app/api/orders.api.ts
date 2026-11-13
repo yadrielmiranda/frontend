@@ -100,6 +100,7 @@ export function completeOrderPickup(orderId: number) {
 }
 
 export type CreateOrderDeliveryInput = {
+  confirmedLocation?: import("@/lib/types").AddressLocation;
   type?: DeliveryType;
   street?: string;
   addressLine2?: string | null;

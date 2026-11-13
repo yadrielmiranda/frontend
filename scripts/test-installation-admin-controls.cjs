@@ -24,6 +24,7 @@ function load(relative, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', compiled.get(filename))(id => {
     if (id in mocks) return mocks[id];
+    if (id === '@/app/api/address-confirmations.api') return { reviewAddress: async (_, address) => ({ status: 'VALIDATED', address }) };
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === '@/components/delete-conf-dialog') return load('components/delete-conf-dialog.tsx', mocks);
     if (id === '@/components/installations/additional-service-fields') return load('components/installations/additional-service-fields.tsx', mocks);
@@ -129,6 +130,7 @@ test('non-owner admin saves the correct job with the selected address, permit, a
   assert.equal(f.hasButton(waiveLabel), false, 'Admin access does not add deposit waiver permission');
   f.click('Edit installation');
   f.click('Use this address');
+  await f.settle();
   f.find(node => node.type === 'RadioGroup').props.onValueChange('COMPANY');
   f.control('additional-service-7').props.onCheckedChange(true);
   f.find(node => node.type === 'Input' && node.props.type === 'number').props.onChange({ target: { value: '3' } });

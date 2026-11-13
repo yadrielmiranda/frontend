@@ -817,7 +817,8 @@ export interface InstallationServiceMinimumSnapshot {
   adjustment: string | number;
 }
 
-export type InstallationAddress = { street: string; addressLine2?: string | null; city: string; state: string; postalCode: string };
+export type AddressLocation = { lat: number; lng: number };
+export type InstallationAddress = { street: string; addressLine2?: string | null; city: string; state: string; postalCode: string; confirmedLocation?: AddressLocation };
 
 export interface InstallationQuote {
   profileRateAdjustmentsSnapshot?: { schema: 1; adjustments: InstallationProfileAdjustment[] } | null;
@@ -1133,6 +1134,7 @@ export type DeliveryStatus =
   | "CANCELED";
 
 export interface OrderDelivery {
+  destinationLocation?: AddressLocation | null;
   id: number;
   orderId: number;
   sequence: number;

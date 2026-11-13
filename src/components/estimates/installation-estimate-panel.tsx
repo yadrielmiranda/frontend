@@ -42,6 +42,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { AddressConfirmationPanel } from "@/components/address-confirmation-panel";
+import { addressText, useAddressConfirmation, withoutLocation } from "@/lib/use-address-confirmation";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,39 +65,6 @@ type RequestedRow = {
   draft: AdditionalServiceDraft;
 };
 type EstimatePieceTarget = { id: number; mark: string; qty: number };
-
-type AddressSuggestion = {
-  entered: InstallationAddress;
-  suggested: InstallationAddress;
-  context: string;
-  revision: number;
-};
-
-const addressText = (value: InstallationAddress) =>
-  [value.street, value.addressLine2, value.city, value.state, value.postalCode].filter(Boolean).join(", ");
-
-const sameAddress = (left: InstallationAddress, right: InstallationAddress) =>
-  (["street", "addressLine2", "city", "state", "postalCode"] as const).every(
-    key => (left[key] ?? "").trim().toUpperCase() === (right[key] ?? "").trim().toUpperCase(),
-  );
-
-function suggestedInstallationAddress(error: unknown): InstallationAddress | null {
-  if (!error || typeof error !== "object" || !("status" in error) || error.status !== 400 || !("data" in error)) return null;
-  const data = error.data;
-  if (!data || typeof data !== "object" || !("code" in data) || data.code !== "INSTALLATION_ADDRESS_CONFIRMATION_REQUIRED" || !("suggestedAddress" in data)) return null;
-  const value = data.suggestedAddress;
-  if (!value || typeof value !== "object") return null;
-  const source = value as Record<string, unknown>;
-  const keys = ["street", "city", "state", "postalCode"] as const;
-  if (keys.some(key => typeof source[key] !== "string" || !source[key].trim())) return null;
-  const address = Object.fromEntries(keys.map(key => [key, (source[key] as string).trim()])) as InstallationAddress;
-  if (source.addressLine2 != null) {
-    if (typeof source.addressLine2 !== "string" || source.addressLine2.trim().length > 150) return null;
-    address.addressLine2 = source.addressLine2.trim();
-  }
-  if (address.street.length > 150 || address.city.length > 100 || address.state !== "FL" || !/^\d{5}(?:-\d{4})?$/.test(address.postalCode)) return null;
-  return address;
-}
 
 const draftText = (value: string | number | null | undefined) =>
   value === null || value === undefined ? "" : String(value);
@@ -159,20 +128,13 @@ export function InstallationEstimatePanel({
 }) {
   const [address, setAddress] = useState<InstallationAddress>(suggestedAddress);
   const [addressChoice, setAddressChoice] = useState<"suggested" | "different" | null>(null);
-  const [addressConfirmed, setAddressConfirmed] = useState(false);
-  const [addressSuggestion, setAddressSuggestion] = useState<AddressSuggestion | null>(null);
   const addressRevision = useRef(0);
   const requestInFlight = useRef(false);
   const mounted = useRef(true);
-  const suggestionPanel = useRef<HTMLDivElement>(null);
   // Material-total refreshes do not change which address the user is confirming.
   const requestContext = JSON.stringify([estimateId, suggestedAddress.street, suggestedAddress.addressLine2, suggestedAddress.city, suggestedAddress.state, suggestedAddress.postalCode, estimateStatus, order?.id, networkPaymentBlocked]);
   const latestContext = useRef(requestContext);
   latestContext.current = requestContext;
-  const clearAddressSuggestion = useCallback(() => {
-    addressRevision.current++;
-    setAddressSuggestion(null);
-  }, []);
   const completeAddress = (value: InstallationAddress) =>
     (["street", "city", "state", "postalCode"] as const).every(key => value[key].trim());
   const beginAddress = (value: InstallationAddress) => {
@@ -183,7 +145,6 @@ export function InstallationEstimatePanel({
       ? { street: "", city: "", state: "FL", postalCode: "" }
       : { ...value, state: state || "FL" });
     setAddressChoice(complete ? null : "different");
-    setAddressConfirmed(false);
   };
   const [job, setJob] = useState<InstallationJob | null>(initialJob);
   const [services, setServices] = useState<InstallationService[]>([]);
@@ -195,6 +156,22 @@ export function InstallationEstimatePanel({
   const [decisionComment, setDecisionComment] = useState("");
   const [appointmentResponseNote, setAppointmentResponseNote] = useState("");
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+
+  const confirmation = useAddressConfirmation({ purpose: "INSTALLATION", address, contextKey: requestContext,
+    onAddressChange: next => {
+      setAddress(next);
+      if (addressText(next) !== addressText(address)) setAddressChoice("different");
+    }, disabled: busy || networkPaymentBlocked });
+  const invalidateConfirmation = confirmation.invalidate;
+  const clearAddressSuggestion = useCallback(() => {
+    addressRevision.current++;
+    invalidateConfirmation();
+  }, [invalidateConfirmation]);
+  const editingAddress = () => {
+    clearAddressSuggestion();
+    setAddress(current => withoutLocation(current));
+    setAddressChoice("different");
+  };
 
   const commitJob = useCallback(
     (nextJob: InstallationJob | null) => {
@@ -213,24 +190,16 @@ export function InstallationEstimatePanel({
     [clearAddressSuggestion, onRequestEditingChange],
   );
 
-  useEffect(() => {
-    setAddressSuggestion(null);
-  }, [requestContext]);
 
   useEffect(() => {
     mounted.current = true;
+    const lifetime = addressRevision;
     return () => {
       mounted.current = false;
-      addressRevision.current++;
+      lifetime.current++;
     };
   }, []);
 
-  useEffect(() => {
-    if (addressSuggestion) {
-      suggestionPanel.current?.focus();
-      suggestionPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [addressSuggestion]);
 
   const checkoutStarted = hasStartedInstallationPayment(estimatePayments);
   const canRequest =
@@ -335,10 +304,10 @@ export function InstallationEstimatePanel({
     setRequestEditing(true);
   };
 
-  const submitRequest = async (acceptedAddress?: InstallationAddress) => {
+  const submitRequest = async () => {
     if (requestInFlight.current || busy || networkPaymentBlocked || !canConfigureRequest) return;
-    const requestAddress = acceptedAddress ?? address;
-    const requestAddressConfirmed = Boolean(acceptedAddress) || addressConfirmed;
+    const requestAddress = address;
+    const requestAddressConfirmed = confirmation.isConfirmed;
     if (!requestAddressConfirmed || !completeAddress(requestAddress)) {
       toast.error("Confirm a complete installation address.");
       return;
@@ -413,33 +382,11 @@ export function InstallationEstimatePanel({
       );
     } catch (error) {
       if (!isCurrent()) return;
-      const correctedAddress = suggestedInstallationAddress(error);
-      const suggested = correctedAddress
-        ? { ...correctedAddress, ...(requestAddress.addressLine2 !== undefined ? { addressLine2: requestAddress.addressLine2 } : {}) }
-        : null;
-      if (suggested && !sameAddress(requestAddress, suggested)) {
-        setAddressSuggestion({ entered: { ...requestAddress }, suggested, context, revision });
-      } else {
-        toast.error((error as Error).message);
-      }
+      if (!confirmation.handleFinalError(error)) toast.error((error as Error).message);
     } finally {
       requestInFlight.current = false;
       if (mounted.current) setBusy(false);
     }
-  };
-
-  const acceptAddressSuggestion = async () => {
-    if (!addressSuggestion || busy || requestInFlight.current || networkPaymentBlocked) return;
-    if (addressSuggestion.context !== latestContext.current || addressSuggestion.revision !== addressRevision.current || !sameAddress(address, addressSuggestion.entered)) {
-      clearAddressSuggestion();
-      return;
-    }
-    const suggested = addressSuggestion.suggested;
-    clearAddressSuggestion();
-    setAddress(suggested);
-    setAddressChoice("different");
-    setAddressConfirmed(true);
-    await submitRequest(suggested);
   };
 
   const removeRequest = async () => {
@@ -492,37 +439,17 @@ export function InstallationEstimatePanel({
             <>
               <fieldset disabled={busy} className="space-y-3 rounded-xl border border-red-200 p-4">
                 <legend className="px-1 font-semibold">Installation address</legend>
-                {addressSuggestion ? (
-                  <div ref={suggestionPanel} tabIndex={-1} role="region" aria-labelledby="installation-address-suggestion-title" aria-live="polite" className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/60 p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                    <div>
-                      <h3 id="installation-address-suggestion-title" className="font-semibold">Google suggests this installation address</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Review the corrected address before continuing with the installation calculation.</p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-md border border-slate-200 bg-white p-3">
-                        <p className="text-xs font-medium text-muted-foreground">Address you entered</p>
-                        <p className="mt-1 text-sm">{addressText(addressSuggestion.entered)}</p>
-                      </div>
-                      <div className="rounded-md border border-blue-300 bg-white p-3">
-                        <p className="text-xs font-medium text-blue-800">Suggested by Google</p>
-                        <p className="mt-1 text-sm font-medium">{addressText(addressSuggestion.suggested)}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" className="h-auto min-h-9 whitespace-normal" disabled={busy || networkPaymentBlocked} onClick={() => void acceptAddressSuggestion()}>Use suggested address and calculate</Button>
-                      <Button type="button" variant="outline" disabled={busy} onClick={() => { clearAddressSuggestion(); setAddressChoice("different"); setAddressConfirmed(false); }}>Edit my address</Button>
-                    </div>
-                  </div>
-                ) : addressChoice !== "different" ? (
+                <AddressConfirmationPanel confirmation={confirmation} address={address} purpose="installation"
+                  disabled={busy || networkPaymentBlocked || confirmation.checking} onEdit={editingAddress} />
+                {addressChoice !== "different" ? (
                   <>
                     <p className="text-sm">{addressText(address)}</p>
                     <p className="text-sm font-medium">Is this the installation address?</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL"} onClick={() => { clearAddressSuggestion(); setAddressChoice("suggested"); setAddressConfirmed(true); }}>Use this address</Button>
-                      <Button type="button" variant="outline" onClick={() => { clearAddressSuggestion(); setAddress({ street: "", city: "", state: "FL", postalCode: "" }); setAddressChoice("different"); setAddressConfirmed(false); }}>Use a different address</Button>
+                      <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL" || confirmation.checking || networkPaymentBlocked} onClick={() => { setAddressChoice("suggested"); void confirmation.review(); }}>Use this address</Button>
+                      <Button type="button" variant="outline" onClick={() => { clearAddressSuggestion(); setAddress({ street: "", city: "", state: "FL", postalCode: "" }); setAddressChoice("different");  }}>Use a different address</Button>
                     </div>
                     {address.state !== "FL" && <p className="text-sm text-amber-800">Installation is available only in Florida. Enter a Florida installation address.</p>}
-                    {addressConfirmed && <p className="text-sm text-emerald-700">Installation address selected.</p>}
                   </>
                 ) : (
                   <>
@@ -531,7 +458,7 @@ export function InstallationEstimatePanel({
                         <div key={key} className={key === "street" || key === "addressLine2" ? "sm:col-span-2" : ""}>
                           <Label htmlFor={`installation-${key}`}>{label}</Label>
                           {key === "state" ? (
-                            <Select value={address.state} disabled={busy} onValueChange={state => { clearAddressSuggestion(); setAddress(current => ({ ...current, state })); setAddressConfirmed(false); }}>
+                            <Select value={address.state} disabled={busy} onValueChange={state => { clearAddressSuggestion(); setAddress(current => ({ ...withoutLocation(current), state }));  }}>
                               <SelectTrigger id="installation-state" className="w-full"><SelectValue placeholder="Select state" /></SelectTrigger>
                               <SelectContent><SelectItem value="FL">Florida (FL)</SelectItem></SelectContent>
                             </Select>
@@ -544,26 +471,24 @@ export function InstallationEstimatePanel({
                               contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
                               onChange={event => {
                                 clearAddressSuggestion();
-                                setAddress(current => ({ ...current, street: event.target.value }));
-                                setAddressConfirmed(false);
+                                setAddress(current => ({ ...withoutLocation(current), street: event.target.value }));
                               }}
                               onAddressSelect={selected => {
                                 clearAddressSuggestion();
-                                setAddressConfirmed(false);
                                 if (selected.state !== "FL") {
                                   toast.error("Installation is available only in Florida. Choose a Florida address.");
                                   return;
                                 }
-                                setAddress(current => ({ ...current, ...selected }));
+                                setAddress(current => ({ ...withoutLocation(current), ...selected }));
                               }}
                             />
                           ) : (
-                            <Input id={`installation-${key}`} value={address[key] ?? ""} disabled={busy} autoComplete={key === "addressLine2" ? "address-line2" : undefined} placeholder={key === "addressLine2" ? "e.g. Apt 4B, Suite 200, Building C" : undefined} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...current, [key]: event.target.value })); setAddressConfirmed(false); }} />
+                            <Input id={`installation-${key}`} value={address[key] ?? ""} disabled={busy} autoComplete={key === "addressLine2" ? "address-line2" : undefined} placeholder={key === "addressLine2" ? "e.g. Apt 4B, Suite 200, Building C" : undefined} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...withoutLocation(current), [key]: event.target.value }));  }} />
                           )}
                         </div>
                       ))}
                     </div>
-                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={addressConfirmed} onCheckedChange={value => { clearAddressSuggestion(); setAddressConfirmed(value === true); }} />This is the installation address.</label>
+                    <Button type="button" disabled={busy || networkPaymentBlocked || confirmation.checking} onClick={() => void confirmation.review()}>Use this address</Button>
                   </>
                 )}
                 <p className="text-xs text-muted-foreground">Availability and pricing will be verified for this address.</p>
@@ -819,7 +744,7 @@ export function InstallationEstimatePanel({
                 >
                   Cancel
                 </Button>
-                <Button type="button" disabled={busy || networkPaymentBlocked || Boolean(addressSuggestion)} onClick={() => void submitRequest()}>
+                <Button type="button" disabled={busy || networkPaymentBlocked || !confirmation.isConfirmed || confirmation.checking} onClick={() => void submitRequest()}>
                   {busy
                     ? job
                       ? "Saving…"
