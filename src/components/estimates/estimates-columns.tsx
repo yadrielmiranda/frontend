@@ -541,7 +541,7 @@ export const getEstimateColumns = (
 
                     <DropdownMenuSubContent>
                       <DropdownMenuItem asChild>
-                        <Link href={`/estimates/${estimate.id}`}>
+                        <Link href={`/estimates/${estimate.id}?view=details`}>
                           Dealer View
                         </Link>
                       </DropdownMenuItem>
@@ -555,7 +555,7 @@ export const getEstimateColumns = (
                   </DropdownMenuSub>
                 ) : (
                   <DropdownMenuItem asChild>
-                    <Link href={`/estimates/${estimate.id}`}>View Details</Link>
+                    <Link href={`/estimates/${estimate.id}?view=details`}>View Details</Link>
                   </DropdownMenuItem>
                 )}
 

@@ -48,8 +48,11 @@ export default async function EstimateDetailPage({
   }
 
   const initialPublicView = resolvedSearchParams.view === "public";
+  const returnToEdit = resolvedSearchParams.from === "edit";
+  const explicitDetails = returnToEdit || resolvedSearchParams.view === "details";
 
-  if (estimate.status?.name === "Pending order review" && !initialPublicView) return redirect(`/estimates/${estimate.id}/edit`);
+  // Un enlace directo abre la revisión; View Details debe poder abrir el reporte.
+  if (estimate.status?.name === "Pending order review" && !initialPublicView && !explicitDetails) return redirect(`/estimates/${estimate.id}/edit`);
 
   if (initialPublicView && !isDealerRole(estimate.user.role.name)) {
     return redirect(`/estimates/${estimate.id}`);
@@ -65,7 +68,7 @@ export default async function EstimateDetailPage({
       initialCustomerPricingMode={
         resolvedSearchParams.pricing === "total" ? "total" : "detailed"
       }
-      returnToEdit={resolvedSearchParams.from === "edit"}
+      returnToEdit={returnToEdit}
     />
   );
 }

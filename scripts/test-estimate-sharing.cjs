@@ -455,6 +455,84 @@ test("server detail page supplies the actor's dealer mode rather than the owner'
   assert.equal(tree.props.currentUserDealerMode, "INTERNAL");
   assert.equal(tree.props.currentUserId, 99);
 });
+
+function detailPageFixture({ user = { id: 99, role: { name: "admin" } }, status = "Pending order review", ownerRole = "dealer", canAssist = false } = {}) {
+  const estimate = { id: 215, idUser: 7, user: { role: { name: ownerRole } }, status: { name: status }, dealerNetwork: { canAssist } };
+  const { default: page } = load("app/estimates/[id]/page.tsx", {
+    "react/jsx-runtime": ui["react/jsx-runtime"],
+    "next/navigation": {
+      notFound: () => { throw new Error("not found"); },
+      redirect: url => { throw new Error(`redirect:${url}`); },
+    },
+    "@/app/api/estimates.api": { getEstimate: async () => estimate },
+    "@/lib/session": { getCurrentUser: async () => user },
+    "@/components/estimates/estimate-details": { EstimateDetails: "EstimateDetails" },
+    "@/app/api/_base": { isApiError: () => false },
+    "@/lib/rbac": load("lib/rbac.ts", {}),
+  });
+  return query => page({ params: Promise.resolve({ id: "215" }), searchParams: Promise.resolve(query) });
+}
+
+test("pending review opens explicit details from the editor or list for authorized actors", async () => {
+  for (const user of [
+    { id: 99, role: { name: "admin" } }, { id: 99, role: { name: "operator" } },
+    { id: 7, role: { name: "dealer" } }, { id: 7, role: { name: "client" } },
+  ]) {
+    const page = detailPageFixture({ user, ownerRole: user.role.name === "client" ? "client" : "dealer" });
+    for (const query of [{ from: "edit" }, { view: "details" }, { from: "edit", view: "details" }]) {
+      const tree = await page(query);
+      assert.equal(tree.type, "EstimateDetails");
+      assert.equal(tree.props.returnToEdit, query.from === "edit");
+      assert.equal(tree.props.initialPublicView, false);
+      assert.equal(tree.props.currentUserId, user.id);
+    }
+  }
+  const assisted = await detailPageFixture({ user: { id: 8, role: { name: "dealer" } }, canAssist: true })({ view: "details" });
+  assert.equal(assisted.type, "EstimateDetails");
+});
+
+test("pending review keeps default navigation in the editor and preserves customer reports", async () => {
+  const page = detailPageFixture();
+  for (const query of [{}, { from: "list" }, { view: "unknown" }, { pricing: "total" }]) {
+    await assert.rejects(page(query), /^Error: redirect:\/estimates\/215\/edit$/);
+  }
+  const publicReport = await page({ view: "public", pricing: "total" });
+  assert.equal(publicReport.props.initialPublicView, true);
+  assert.equal(publicReport.props.initialCustomerPricingMode, "total");
+  assert.equal(publicReport.props.returnToEdit, false);
+});
+
+test("explicit details never bypass authentication or estimate ownership checks", async () => {
+  for (const user of [null, { id: 8, role: { name: "dealer" } }, { id: 8, role: { name: "client" } }]) {
+    const page = detailPageFixture({ user });
+    for (const query of [{ from: "edit" }, { view: "details" }, { from: "edit", view: "details" }]) {
+      await assert.rejects(page(query), /^Error: not found$/);
+    }
+  }
+});
+
+test("active and ordered estimates retain default report navigation", async () => {
+  for (const status of ["Active", "Ordered"]) {
+    const tree = await detailPageFixture({ status })({});
+    assert.equal(tree.type, "EstimateDetails");
+    assert.equal(tree.props.returnToEdit, false);
+    assert.equal(tree.props.initialPublicView, false);
+  }
+});
+
+test("report and pricing toggles preserve the explicit return to the estimate editor", () => {
+  const f = fixture({ userRole: "admin", currentUserId: 99, initialPublicView: false, returnToEdit: true });
+  f.props.estimate.status.name = "Pending order review";
+  for (const label of ["Dealer Report", "Customer Detailed Prices", "Customer Project Total", "Admin Report"]) {
+    f.button(label).props.onClick();
+    const back = f.render().find(node => node.type === "BackLink");
+    assert.equal(back.props.href, "/estimates/1/edit", label);
+    assert.equal(back.props.label, "Back to Edit Estimate", label);
+  }
+  const listView = fixture({ returnToEdit: false });
+  assert.equal(listView.render().find(node => node.type === "BackLink").props.href, "/estimates");
+});
+
 (async () => {
   const navigatorDescriptor = Object.getOwnPropertyDescriptor(global, "navigator"), previousWindow = global.window;
   try {

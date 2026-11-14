@@ -72,6 +72,15 @@ function check(name, actor, overrides, expected) {
   const editorLinks = all(actions, node => node.type === 'Link' && node.props.href === '/estimates/17/edit');
   assert.equal(editorLinks.length, expected === 'View Details' ? 0 : 1, name);
   if (editorLinks.length) assert.equal(text(editorLinks[0]), expected, name);
+  const reportLabel = actor.role.name === 'dealer' ? 'Dealer View' : 'View Details';
+  const reportLinks = all(actions, node => node.type === 'Link' && text(node) === reportLabel);
+  assert.equal(reportLinks.length, 1, `${name}: explicit report menu action`);
+  assert.equal(reportLinks[0].props.href, '/estimates/17?view=details', `${name}: report menu must bypass pending-review redirect`);
+  if (actor.role.name === 'dealer') {
+    const publicLinks = all(actions, node => node.type === 'Link' && text(node) === 'Customer View');
+    assert.equal(publicLinks.length, 1, name);
+    assert.equal(publicLinks[0].props.href, '/estimates/17?view=public', `${name}: customer report stays separate`);
+  }
   if (estimate.payments.length) assert.doesNotMatch(text(actions), /Delete Estimate/, name);
   console.log(`PASS ${name}`); count++;
 }
