@@ -13,15 +13,20 @@ import { getPrivacies } from "@/app/api/privacies.api";
 import { getMuntinPatterns } from "@/app/api/muntin-patterns.api";
 import { getMuntinTypes } from "@/app/api/muntin-types.api";
 
-export default async function MaterialRevisionsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MaterialRevisionsPage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
+}) {
   if (!await getCurrentUser()) notFound();
   const id = Number((await params).id);
   if (!Number.isSafeInteger(id) || id < 1) notFound();
   let initialData;
   try { initialData = await getMaterialRevisions(id); }
   catch (error) { if (isApiError(error) && [403, 404].includes(error.status)) notFound(); throw error; }
+  const query = await searchParams;
+  const readOnly = query.view === "history";
   const [productsWithBrands, systemsWithConfigs, frameColors, crystals, tints, coatings, privacies, muntinPatterns, muntinTypes] = await Promise.all([
     getProductsWithBrands(), getSystemsWithConfigs(), getFColors(), getCrystals(), getTints(), getCoatings(), getPrivacies(), getMuntinPatterns({ active: true }), getMuntinTypes({ active: true }),
   ]);
-  return <MaterialRevisionClient initialData={initialData} productsWithBrands={productsWithBrands} systemsWithConfigs={systemsWithConfigs} frameColors={frameColors} crystals={crystals} tints={tints} coatings={coatings} privacies={privacies} muntinPatterns={muntinPatterns} muntinTypes={muntinTypes} />;
+  return <MaterialRevisionClient initialData={initialData} readOnly={readOnly} productsWithBrands={productsWithBrands} systemsWithConfigs={systemsWithConfigs} frameColors={frameColors} crystals={crystals} tints={tints} coatings={coatings} privacies={privacies} muntinPatterns={muntinPatterns} muntinTypes={muntinTypes} />;
 }

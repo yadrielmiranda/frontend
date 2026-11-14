@@ -10,8 +10,12 @@ export type MaterialRevisionSummary = {
   paid: string; approvedCredit: string; balance: string; creditBalance: string;
   provisionalInstallation: boolean;
 };
+export type MaterialRevisionCustomer = {
+  name: string; firstName: string; lastName: string; email: string; phone: string;
+  street: string; addressLine2: string; city: string; state: string; postalCode: string;
+};
 export type MaterialRevisionItem = {
-  key: string; action: "ADD" | "UPDATE"; originalPieceId: number | null;
+  key: string; action: "ADD" | "UPDATE" | "REMOVE"; originalPieceId: number | null;
   label: string; originalLabel: string | null; changeDescription: string[];
   input: CreatePieceData; price: string; subtotal: string;
   customerPrice?: string; customerSubtotal?: string;
@@ -23,11 +27,15 @@ export type MaterialRevision = {
   canEdit: boolean; canApprove: boolean; canCancel: boolean;
   original: MaterialRevisionSummary; revised: MaterialRevisionSummary | null;
   items: MaterialRevisionItem[];
+  customer?: MaterialRevisionCustomer | null;
+  originalCustomer?: MaterialRevisionCustomer | null;
 };
 export type MaterialRevisionsData = {
   estimateId: number; estimateNumber: string; orderId: number | null; installationId: number | null;
   installationRevisionId?: number | null;
   isOwner: boolean; canBegin: boolean; canReviseExisting: boolean; dealerPricing: boolean;
+  canEditCustomer?: boolean; canRemovePieces?: boolean; canChangeQuantity?: boolean;
+  currentCustomer?: MaterialRevisionCustomer; customer?: MaterialRevisionCustomer;
   defaultDealerMarkup: number; canRequestSignature: boolean; unavailableReason: string | null;
   pieces: Array<{ id: number; label: string; input: CreatePieceData }>;
   current: MaterialRevision | null; history: MaterialRevision[];
@@ -47,3 +55,7 @@ export const submitMaterialRevision = (id: number, revisionId: number, accepted:
   apiFetch<MaterialRevisionsData>(`${url(id)}/${revisionId}/submit`, { method: "POST", body: { accepted }, timeoutMs: 120000 });
 export const decideMaterialRevision = (id: number, revisionId: number, decision: "APPROVE" | "REJECT" | "CANCEL", accepted = false) =>
   apiFetch<MaterialRevisionsData>(`${url(id)}/${revisionId}/decision`, { method: "POST", body: { decision, accepted }, timeoutMs: 120000 });
+export const removeMaterialRevisionPiece = (id: number, revisionId: number, originalPieceId: number) =>
+  apiFetch<MaterialRevisionsData>(`${url(id)}/${revisionId}/remove-piece`, { method: "POST", body: { originalPieceId }, timeoutMs: 120000 });
+export const saveMaterialRevisionCustomer = (id: number, revisionId: number, customer: Partial<MaterialRevisionCustomer>) =>
+  apiFetch<MaterialRevisionsData>(`${url(id)}/${revisionId}/customer`, { method: "POST", body: customer, timeoutMs: 120000 });

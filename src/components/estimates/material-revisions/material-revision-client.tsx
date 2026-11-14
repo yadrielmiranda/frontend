@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PieceModal } from "../piece-modal";
@@ -12,9 +11,10 @@ import type { CreatePieceData } from "@/lib/types";
 import { BackLink } from "@/components/navigation/back-link";
 import { revisionPieceForm, revisionPieceInput } from "./piece-values";
 import { garageDesignDescription, pieceFrameColor, pieceHasSolidGarageDesign } from "../piece-garage-design";
+import { RevisionCustomerComparison, RevisionCustomerDetails, revisionCustomerChanges } from "./revision-customer-details";
 import {
   beginMaterialRevision, calculateMaterialRevisionPiece, decideMaterialRevision, getMaterialRevisions,
-  removeMaterialRevisionItem, saveMaterialRevisionPiece, submitMaterialRevision,
+  removeMaterialRevisionItem, removeMaterialRevisionPiece, saveMaterialRevisionCustomer, saveMaterialRevisionPiece, submitMaterialRevision,
   type MaterialRevision, type MaterialRevisionItem, type MaterialRevisionsData, type MaterialRevisionSummary,
 } from "@/app/api/material-revisions.api";
 
@@ -37,9 +37,9 @@ function Totals({ before, after, dealerPricing }: { before: MaterialRevisionSumm
     ["Payments already credited", "paid"], ["Approved credit", "approvedCredit"], ["Remaining balance", "balance"],
   ];
   return <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="mb-3 text-left text-lg font-semibold">Revised project totals</caption>
-    <thead><tr className="border-b"><th className="pb-2 text-left">Amount</th><th className="pb-2 text-right">Current</th><th className="pb-2 text-right">Revised</th></tr></thead>
+    <thead><tr className="border-b"><th className="pb-2 text-left">Amount</th><th className="pb-2 pl-3 text-right">Current</th><th className="pb-2 pl-3 text-right">Revised</th><th className="pb-2 pl-3 text-right">Difference</th></tr></thead>
     <tbody>{rows.filter(([, key]) => before[key] != null && after[key] != null).map(([label, key]) => <tr key={key} className={`border-b ${key === "projectTotal" || key === "balance" ? "font-semibold" : ""}`}><td className="py-3 pr-3">{label}</td>
-      <td className="py-3 pl-3 text-right">{money(before[key] as string)}</td><td className="py-3 pl-3 text-right">{money(after[key] as string)}</td></tr>)}</tbody></table>
+      <td className="py-3 pl-3 text-right">{money(before[key] as string)}</td><td className="py-3 pl-3 text-right">{money(after[key] as string)}</td><td className="py-3 pl-3 text-right">{money(Number(after[key]) - Number(before[key]))}</td></tr>)}</tbody></table>
     <p className="mt-4 font-medium">{after.paymentsVisible === false ? "Change in customer project total" : "Change in total payable"}: {money(after.paymentsVisible === false ? Number(after.customerProjectTotal) - Number(before.customerProjectTotal) : Number(after.projectTotal) - Number(before.projectTotal))}</p>
     {Number(after.creditBalance) > 0 && <p className="mt-2 text-sm">Credit balance: {money(after.creditBalance)}. No refund is issued automatically.</p>}
     {after.provisionalInstallation && <p className="mt-2 text-sm text-muted-foreground">Installation is provisional until measurement and installation quote approval are complete. New units remain pending measurement.</p>}
@@ -80,8 +80,7 @@ function Specifications({ input, catalogs }: { input: CreatePieceData; catalogs:
   </div>;
 }
 
-export function MaterialRevisionClient({ initialData, ...catalogs }: Catalogs & { initialData: MaterialRevisionsData }) {
-  const router = useRouter();
+export function MaterialRevisionClient({ initialData, readOnly = false, ...catalogs }: Catalogs & { initialData: MaterialRevisionsData; readOnly?: boolean }) {
   const [data, setData] = useState(initialData);
   const [reason, setReason] = useState("");
   const [factoryConfirmed, setFactoryConfirmed] = useState(false);
@@ -90,42 +89,99 @@ export function MaterialRevisionClient({ initialData, ...catalogs }: Catalogs & 
   const [error, setError] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [pieceId, setPieceId] = useState("");
+  const [customerDraft, setCustomerDraft] = useState(initialData.customer ?? initialData.currentCustomer);
+  const operationPending = useRef(false);
+  const operationSequence = useRef(0);
+  const mounted = useRef(true);
+  const latestEstimateId = useRef(initialData.estimateId);
+  latestEstimateId.current = initialData.estimateId;
   const current = data.current;
-  useEffect(() => { setData(initialData); }, [initialData]);
+  const canEdit = Boolean(current?.canEdit && !readOnly);
+  const canApprove = Boolean(current?.canApprove && !readOnly);
+  const effectiveCustomer = data.customer ?? data.currentCustomer;
+  const customerDirty = Boolean(canEdit && data.canEditCustomer && effectiveCustomer && customerDraft && revisionCustomerChanges(effectiveCustomer, customerDraft).length);
+  const customerDirtyRef = useRef(customerDirty);
+  customerDirtyRef.current = customerDirty;
+  const customerContext = JSON.stringify([data.estimateId, current?.id, effectiveCustomer]);
+  const draftContext = useRef(customerContext);
+  const customerChanged = Boolean(current?.customer && current.originalCustomer && revisionCustomerChanges(current.originalCustomer, current.customer).length);
+  const availablePieces = data.pieces.filter(piece => !current?.items.some(item => item.originalPieceId === piece.id));
+  const selectedPiece = availablePieces.find(piece => piece.id === Number(pieceId));
+  const revisionTitle = data.orderId ? "Order revision" : "Estimate revision";
   useEffect(() => {
-    if (!current || current.canEdit || busy || editor) return;
+    setData(previous => customerDirtyRef.current && previous.estimateId === initialData.estimateId &&
+      previous.current?.id === initialData.current?.id && initialData.current?.canEdit ? previous : initialData);
+  }, [initialData]);
+  useEffect(() => {
+    mounted.current = true;
+    const sequence = operationSequence;
+    sequence.current++;
+    operationPending.current = false;
+    setBusy(false); setAccepted(false); setEditor(null); setPieceId(""); setError("");
+    return () => { mounted.current = false; sequence.current++; };
+  }, [initialData.estimateId]);
+  useEffect(() => {
+    if (draftContext.current === customerContext) return;
+    draftContext.current = customerContext;
+    setCustomerDraft(effectiveCustomer);
+  }, [effectiveCustomer, customerContext]);
+  useEffect(() => {
+    if (!current || (current.canEdit && !readOnly) || busy || editor) return;
     let alive = true;
     const timer = window.setInterval(async () => {
       if (document.hidden) return;
       try { const next = await getMaterialRevisions(data.estimateId); if (alive) setData(next); } catch { /* Se conserva la última revisión; Refresh permite reintentar. */ }
     }, 30000);
     return () => { alive = false; clearInterval(timer); };
-  }, [current?.id, current?.status, current?.canEdit, busy, editor, data.estimateId]);
+  }, [current, readOnly, busy, editor, data.estimateId]);
   const update = async (operation: () => Promise<MaterialRevisionsData>, success?: string) => {
-    if (busy) return false;
+    if (busy || operationPending.current) return false;
+    const request = ++operationSequence.current;
+    const estimateId = data.estimateId;
+    const isCurrent = () => mounted.current && request === operationSequence.current && latestEstimateId.current === estimateId;
+    operationPending.current = true;
     setBusy(true); setError("");
-    try { setData(await operation()); setAccepted(false); if (success) toast.success(success); router.refresh(); return true; }
-    catch (e) { const message = e instanceof Error ? e.message : "The revision could not be saved."; setError(message); toast.error(message); return false; }
-    finally { setBusy(false); }
+    try {
+      const next = await operation();
+      if (!isCurrent()) return false;
+      setData(next); setAccepted(false); if (success) toast.success(success); return next;
+    } catch (e) {
+      if (isCurrent()) { const message = e instanceof Error ? e.message : "The revision could not be saved."; setError(message); toast.error(message); }
+      return false;
+    } finally { if (isCurrent()) { operationPending.current = false; setBusy(false); } }
   };
   const openPiece = (input?: CreatePieceData, originalPieceId?: number, itemKey?: string) => {
+    if (!canEdit || busy || customerDirty) return;
     setEditor({ key: `${Date.now()}-${itemKey ?? originalPieceId ?? "new"}`, originalPieceId, itemKey,
       initialData: revisionPieceForm(input, data.defaultDealerMarkup) });
   };
   const savePiece = async (values: PieceFormValues) => {
-    if (!current || !editor) return;
+    if (!current || !editor || !canEdit) return;
     if (await update(() => saveMaterialRevisionPiece(data.estimateId, current.id, {
       originalPieceId: editor.originalPieceId, itemKey: editor.itemKey, piece: revisionPieceInput(values, catalogs.productsWithBrands),
     }), "Piece saved in the revision. Original material remains unchanged.")) setEditor(null);
   };
+  const saveCustomer = async () => {
+    if (!current || !canEdit || !data.canEditCustomer || !effectiveCustomer || !customerDraft || !customerDirty) return;
+    const patch = Object.fromEntries(revisionCustomerChanges(effectiveCustomer, customerDraft).map(({ key }) => [key, customerDraft[key].trim()]));
+    if ("name" in patch && !patch.name) { setError("Enter the estimate name."); return; }
+    const next = await update(() => saveMaterialRevisionCustomer(data.estimateId, current.id, patch), "Customer changes saved in the revision.");
+    if (next) setCustomerDraft(next.customer ?? next.currentCustomer);
+  };
+  const proposeRemoval = async () => {
+    if (!current || !canEdit || !data.canRemovePieces || customerDirty || !selectedPiece) return;
+    if (!window.confirm(`Remove ${selectedPiece.label} (${selectedPiece.input.qty} units) from the proposed revision? The current piece stays in place until approval.`)) return;
+    if (await update(() => removeMaterialRevisionPiece(data.estimateId, current.id, selectedPiece.id), "Piece removal added to the revision.")) setPieceId("");
+  };
   const confirmDecision = (decision: "CANCEL" | "REJECT") => {
-    if (!current || !window.confirm(`${decision === "CANCEL" ? "Cancel" : "Reject"} this revision? The original material and payments will remain unchanged.`)) return;
+    if (!current || readOnly || (decision === "CANCEL" ? !current.canCancel : !canApprove) || !window.confirm(`${decision === "CANCEL" ? "Cancel" : "Reject"} this revision? The current estimate and payments will remain unchanged.`)) return;
     void update(() => decideMaterialRevision(data.estimateId, current.id, decision), "Revision closed. Original material and payments preserved.");
   };
   const itemCard = (item: MaterialRevisionItem, editable: boolean) => <article key={item.key} className="rounded-lg border p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide">{item.action === "ADD" ? "New piece" : "Changed piece"}</p><h3 className="mt-1 font-semibold">{item.label}</h3></div>
-      {editable && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => openPiece(item.input, item.originalPieceId ?? undefined, item.key)}>Edit change</Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (current && window.confirm("Remove this pending change? The original piece will not be removed.")) void update(() => removeMaterialRevisionItem(data.estimateId, current.id, item.key)); }}>Remove change</Button></div>}</div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide">{item.action === "REMOVE" ? "Piece removal" : item.action === "ADD" ? "New piece" : "Changed piece"}</p><h3 className="mt-1 font-semibold">{item.label}</h3></div>
+      {editable && <div className="flex flex-wrap gap-2">{item.action !== "REMOVE" && <Button size="sm" variant="outline" disabled={busy || customerDirty} onClick={() => openPiece(item.input, item.originalPieceId ?? undefined, item.key)}>Edit change</Button>}
+        <Button size="sm" variant="outline" disabled={busy || customerDirty} onClick={() => { if (current && window.confirm(item.action === "REMOVE" ? "Undo this proposed removal? The original piece will remain in the estimate." : "Remove this pending change? The original piece will not be removed.")) void update(() => removeMaterialRevisionItem(data.estimateId, current.id, item.key)); }}>{item.action === "REMOVE" ? "Undo removal" : "Remove change"}</Button></div>}</div>
+    {item.action === "REMOVE" && <p className="mt-2 text-sm font-medium text-amber-900">{item.input.qty} units removed in this proposal. The original piece stays in place until approval.</p>}
     <Specifications input={item.input} catalogs={catalogs} />
     <div className="mt-3 space-y-1 text-sm">{item.changeDescription.map((change, index) => <p key={index}>{change}</p>)}</div>
     <p className="mt-3 font-medium">{data.dealerPricing ? "Dealer material subtotal" : "Material subtotal"}: {money(item.subtotal)}{item.customerSubtotal != null ? ` · Customer material subtotal: ${money(item.customerSubtotal)}` : ""}</p>
@@ -133,50 +189,65 @@ export function MaterialRevisionClient({ initialData, ...catalogs }: Catalogs & 
   </article>;
   return <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><BackLink href={data.orderId ? `/orders/${data.orderId}` : `/estimates/${data.estimateId}`} label={data.orderId ? "Back to order" : "Back to estimate"} />
-      <h1 className="mt-3 text-2xl font-bold">Material revisions · Estimate #{data.estimateNumber}</h1></div>
+      <h1 className="mt-3 text-2xl font-bold">{readOnly ? "Revision history" : `${revisionTitle}s`} · Estimate #{data.estimateNumber}</h1></div>
       <div className="flex gap-2">{data.installationId && <Button variant="outline" asChild><Link href={`/installations/${data.installationId}`}>Installation details</Link></Button>}
-        <Button variant="outline" disabled={busy || !!editor} onClick={() => void update(() => getMaterialRevisions(data.estimateId))}>Refresh</Button></div></div>
-    <p className="text-sm text-muted-foreground">Only this revision changes. Original pieces, agreed prices, payment records and deposits remain in place until the required approval and signature are complete.</p>
+        <Button variant="outline" disabled={busy || !!editor || customerDirty} onClick={() => void update(() => getMaterialRevisions(data.estimateId))}>Refresh</Button></div></div>
+    <p className="text-sm text-muted-foreground">Review customer details, pieces and installation together. The current estimate remains in effect until the required approval and signature are complete. Existing payments stay credited.</p>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm">{error}</div>}
-    {!current && data.installationRevisionId && <section className={`${panel} space-y-3`}>
+    {!readOnly && !current && data.installationRevisionId && <section className={`${panel} space-y-3`}>
       <h2 className="text-lg font-semibold">Continue the remeasurement revision</h2>
       <p className="text-sm">Measurements and additional pieces belong to the same installation revision. Continue there and submit the changes together.</p>
       <Button asChild><Link href={`/installations/${data.installationRevisionId}#material-revision`}>Continue revision</Link></Button>
     </section>}
-    {!current && !data.installationRevisionId && data.canBegin && <section className={`${panel} space-y-4`}><h2 className="text-lg font-semibold">{data.canReviseExisting ? (data.orderId ? "Revise order" : "Revise material") : "Add a new piece"}</h2>
+    {!readOnly && !current && !data.installationRevisionId && data.canBegin && <section className={`${panel} space-y-4`}><h2 className="text-lg font-semibold">{data.canReviseExisting ? (data.orderId ? "Revise order" : "Revise estimate") : "Add a new piece"}</h2>
+      <p className="text-sm text-muted-foreground">Prepare the proposed changes and compare the updated total before approval.</p>
       <label className="block text-sm font-medium">Reason for the revision<textarea className="mt-2 min-h-24 w-full rounded-md border p-3" maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="For example: Customer requested Right Active, or an additional window." /></label>
       {data.orderId && <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={factoryConfirmed} onChange={event => setFactoryConfirmed(event.target.checked)} /><span>I have verified that this order has not been sent to the manufacturer. An empty PO alone does not confirm this.</span></label>}
       {!data.canReviseExisting && <p className="text-sm text-muted-foreground">You can add new pieces before remeasurement. Existing pieces remain locked. New units will be included in the measurement visit.</p>}
       <Button disabled={busy || !reason.trim() || (!!data.orderId && !factoryConfirmed)} onClick={() => void update(() => beginMaterialRevision(data.estimateId, reason.trim(), factoryConfirmed))}>{busy ? "Preparing…" : "Start revision"}</Button>
     </section>}
-    {!current && !data.installationRevisionId && !data.canBegin && data.unavailableReason && <p className={panel}>{data.unavailableReason}</p>}
+    {!readOnly && !current && !data.installationRevisionId && !data.canBegin && data.unavailableReason && <p className={panel}>{data.unavailableReason}</p>}
     {current && <section className={`${panel} space-y-5`}>
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Revision {current.version} · {statusText[current.status]}</h2>{current.canCancel && <Button variant="outline" disabled={busy} onClick={() => confirmDecision("CANCEL")}>Cancel revision</Button>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Revision {current.version} · {statusText[current.status]}</h2>{!readOnly && current.canCancel && <Button variant="outline" disabled={busy} onClick={() => confirmDecision("CANCEL")}>Cancel revision</Button>}</div>
       <p className="whitespace-pre-wrap text-sm">{current.reason}</p>
       <p className="text-sm text-muted-foreground">Created {date(current.createdAt)}. Production and affected payments remain on hold while the revision is pending.</p>
-      {current.canEdit && <div className="flex flex-wrap gap-3 rounded-lg bg-slate-50 p-4"><Button disabled={busy} onClick={() => openPiece()}>Add Piece</Button>
+      {canEdit && data.canEditCustomer && customerDraft && <RevisionCustomerDetails value={customerDraft} disabled={busy || !!editor} dirty={customerDirty}
+        onChange={value => { setCustomerDraft(value); setAccepted(false); }} onSave={() => void saveCustomer()} onDiscard={() => setCustomerDraft(effectiveCustomer)} />}
+      <RevisionCustomerComparison before={current.originalCustomer} after={current.customer} />
+      <h3 className="text-lg font-semibold">Pieces</h3>
+      {customerDirty && <p role="status" className="text-sm text-amber-900">Save or discard customer changes before editing pieces or submitting the revision.</p>}
+      {canEdit && <div className="flex flex-wrap gap-3 rounded-lg bg-slate-50 p-4"><Button disabled={busy || customerDirty} onClick={() => openPiece()}>Add Piece</Button>
         {data.canReviseExisting && <><select aria-label="Piece to revise" className="min-w-0 max-w-full rounded-md border bg-white px-3 py-2 text-sm" value={pieceId} onChange={event => setPieceId(event.target.value)}><option value="">Select an existing piece</option>
-          {data.pieces.filter(piece => !current.items.some(item => item.originalPieceId === piece.id)).map(piece => <option key={piece.id} value={piece.id}>{piece.label}</option>)}</select>
-          <Button variant="outline" disabled={busy || !pieceId} onClick={() => { const piece = data.pieces.find(item => item.id === Number(pieceId)); if (piece) openPiece(piece.input, piece.id); }}>Modify Piece</Button></>}
+          {availablePieces.map(piece => <option key={piece.id} value={piece.id}>{piece.label}</option>)}</select>
+          <Button variant="outline" disabled={busy || customerDirty || !selectedPiece} onClick={() => { if (selectedPiece) openPiece(selectedPiece.input, selectedPiece.id); }}>Modify Piece</Button>
+          {data.canRemovePieces && <Button variant="outline" disabled={busy || customerDirty || !selectedPiece} onClick={() => void proposeRemoval()}>Remove Piece</Button>}</>}
       </div>}
-      {current.items.length ? <div className="space-y-4">{current.items.map(item => itemCard(item, current.canEdit))}</div> : <p className="text-sm text-muted-foreground">No changes yet. Add a piece or modify an existing piece to calculate the revision.</p>}
+      {current.items.length ? <div className="space-y-4">{current.items.map(item => itemCard(item, canEdit))}</div> : <p className="text-sm text-muted-foreground">No piece changes in this revision.</p>}
+      {data.installationId && <section className="space-y-3 rounded-lg border bg-slate-50 p-4" aria-label="Installation in this revision">
+        <h3 className="text-lg font-semibold">Installation</h3>
+        <p className="text-sm">Changes to pieces update the installation quote in this revision.</p>
+        {current.revised?.provisionalInstallation && <p className="text-sm text-muted-foreground">The installation amount remains provisional until the required measurements and quote approval are complete.</p>}
+        <p className="text-sm text-muted-foreground">The installation address and services are managed separately in the installation details.</p>
+        <Button asChild variant="outline"><Link href={`/installations/${data.installationId}`}>View installation</Link></Button>
+      </section>}
+      <h3 className="text-lg font-semibold">Review changes</h3>
       <Totals before={current.original} after={current.revised} dealerPricing={data.dealerPricing} />
-      {(current.canEdit || current.canApprove) && current.items.length > 0 && <div className="space-y-4 border-t pt-4">
-        <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>{data.isOwner ? "I accept the listed material changes, quantities, prices and updated project total." : "I have reviewed the listed changes and totals and will submit them to the estimate owner for approval."}</span></label>
+      {(canEdit || canApprove) && (current.items.length > 0 || customerChanged) && <div className="space-y-4 border-t pt-4">
+        <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" disabled={busy || customerDirty} checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>{data.isOwner ? "I accept the listed customer details, piece changes, quantities, installation and updated project total." : "I have reviewed the listed changes and totals and will submit them to the estimate owner for approval."}</span></label>
         {current.requiresSignature && <p className="text-sm text-muted-foreground">A signed agreement already exists. These changes will not apply until the customer signs the updated agreement.</p>}
-        <div className="flex gap-3">{current.canEdit ? <Button disabled={busy || !accepted} onClick={() => void update(() => submitMaterialRevision(data.estimateId, current.id, accepted))}>{busy ? "Saving…" : data.isOwner ? "Accept revision" : "Request owner approval"}</Button>
-          : <><Button disabled={busy || !accepted} onClick={() => void update(() => decideMaterialRevision(data.estimateId, current.id, "APPROVE", accepted))}>{busy ? "Saving…" : "Accept revision"}</Button><Button variant="outline" disabled={busy} onClick={() => confirmDecision("REJECT")}>Reject revision</Button></>}</div>
+        <div className="flex flex-wrap gap-3">{canEdit ? <Button disabled={busy || customerDirty || !accepted} onClick={() => { if (!customerDirty && accepted) void update(() => submitMaterialRevision(data.estimateId, current.id, accepted)); }}>{busy ? "Saving…" : data.isOwner ? "Accept revision" : "Request owner approval"}</Button>
+          : <><Button disabled={busy || !accepted} onClick={() => { if (accepted) void update(() => decideMaterialRevision(data.estimateId, current.id, "APPROVE", accepted)); }}>{busy ? "Saving…" : "Accept revision"}</Button><Button variant="outline" disabled={busy} onClick={() => confirmDecision("REJECT")}>Reject revision</Button></>}</div>
       </div>}
-      {current.status === "PENDING_APPROVAL" && !current.canApprove && <p className="rounded-lg border bg-slate-50 p-4 text-sm">The estimate owner must review and accept this revision. The original material has not changed.</p>}
+      {current.status === "PENDING_APPROVAL" && !canApprove && <p className="rounded-lg border bg-slate-50 p-4 text-sm">The estimate owner must review and accept this revision. The current estimate has not changed.</p>}
       {current.status === "AWAITING_SIGNATURE" && <div className="space-y-3 rounded-lg border bg-slate-50 p-4"><p className="font-medium">Customer signature required</p><p className="text-sm">The owner has approved the revision. The original material and signed agreement remain in force until the customer signs the new version.</p>
         {data.canRequestSignature ? <><p className="text-sm">Open the customer report, select <strong>Include contract</strong>, and share the updated agreement. The revision applies automatically after a valid signature.</p><Button asChild variant="outline"><Link href={`/estimates/${data.estimateId}?view=public`}>Open customer report</Link></Button></>
           : <p className="text-sm">The dealer who owns the estimate must share the updated contract through the existing customer-signature flow.</p>}
       </div>}
     </section>}
     {data.history.length > 0 && <section className={`${panel} space-y-4`}><h2 className="text-xl font-semibold">Revision history</h2>{data.history.map(revision => <details key={revision.id} className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Revision {revision.version} · {statusText[revision.status]} · {date(revision.appliedAt ?? revision.closedAt ?? revision.createdAt)}</summary>
-      <div className="mt-4 space-y-4"><p className="whitespace-pre-wrap text-sm">{revision.reason}</p>{revision.items.map(item => itemCard(item, false))}<Totals before={revision.original} after={revision.revised} dealerPricing={data.dealerPricing} /></div>
+      <div className="mt-4 space-y-4"><p className="whitespace-pre-wrap text-sm">{revision.reason}</p><RevisionCustomerComparison before={revision.originalCustomer} after={revision.customer} />{revision.items.map(item => itemCard(item, false))}<Totals before={revision.original} after={revision.revised} dealerPricing={data.dealerPricing} /></div>
     </details>)}</section>}
-    {editor && current?.canEdit && <PieceModal {...catalogs} open onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor.originalPieceId ? "Revise Piece" : "Add Piece to revision"} pieceKey={editor.key} initialData={editor.initialData} index={0} onSave={savePiece} onCancel={() => { if (!busy) setEditor(null); }} canUseCustomerPricing={data.dealerPricing} estimateId={data.estimateId} startUnlocked lockQuantity={!!editor.originalPieceId} lockDealerMarkup={!!editor.originalPieceId}
+    {editor && current && canEdit && <PieceModal {...catalogs} open onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor.originalPieceId ? "Revise Piece" : "Add Piece to revision"} pieceKey={editor.key} initialData={editor.initialData} index={0} onSave={savePiece} onCancel={() => { if (!busy) setEditor(null); }} canUseCustomerPricing={data.dealerPricing} estimateId={data.estimateId} startUnlocked lockQuantity={!!editor.originalPieceId && !data.canChangeQuantity} lockDealerMarkup={!!editor.originalPieceId}
       existingDesignContext={editor.originalPieceId ? data.pieces.find(piece => piece.id === editor.originalPieceId)?.input : undefined}
       onCalculate={values => calculateMaterialRevisionPiece(data.estimateId, current.id, { originalPieceId: editor.originalPieceId, itemKey: editor.itemKey, piece: revisionPieceInput(values, catalogs.productsWithBrands) })} />}
   </div>;

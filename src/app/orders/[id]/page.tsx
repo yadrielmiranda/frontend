@@ -48,7 +48,7 @@ export default async function OrderDetailsPage({
 
   return (
     <div className="container mx-auto py-10 max-w-5xl">
-      <MaterialRevisionAccess estimateId={order.idEst} />
+      <MaterialRevisionAccess estimateId={order.idEst} context="order" />
       <OrderDetails
         order={order}
         installation={installation}

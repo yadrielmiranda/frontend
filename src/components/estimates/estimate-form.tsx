@@ -1622,11 +1622,11 @@ export function EstimateForm({
         )}
 
         <PromotionBanner estimate={promotionEstimate} />
-        {readOnly && (
+        {readOnly && estimate?.status?.name !== "Pending order review" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             {depositWaived
               ? "This installation is locked after payment starts or while a revision is in progress."
-              : "Material is read-only after the installation deposit starts. Remeasurement changes are prepared in Operations and apply only after your approval. Installation actions below remain available."}
+              : "This estimate is read-only. Use a revision to request changes. Existing payments stay credited."}
           </div>
         )}
 

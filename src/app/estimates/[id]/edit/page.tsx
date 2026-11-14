@@ -122,7 +122,7 @@ export default async function EditEstimatePage({
               Estimate #{estimate.number}
             </CardTitle>
             <CardDescription>
-              {pendingOrderReview ? "Payment confirmed. This estimate is awaiting administrative order review." : canEdit
+              {pendingOrderReview ? "Review the complete estimate before creating the order." : canEdit
                 ? "Update the details for this estimate."
                 : installation?.dealerMeasurementsAcceptedAt
                   ? "Installation uses the current measurements and price."
@@ -131,7 +131,7 @@ export default async function EditEstimatePage({
           </CardHeader>
 
           <CardContent className="min-w-0 px-4 sm:px-6">
-            <MaterialRevisionAccess estimateId={estimateId} />
+            {!pendingOrderReview && <MaterialRevisionAccess estimateId={estimateId} />}
             {pendingOrderReview && <OrderReviewPanel estimateId={estimateId} isAdmin={isAdminRole(user.role.name)} blockedReason={estimate.paymentSchedule?.orderReviewBlockedReason} />}
             <EstimateForm
               estimate={estimate}
