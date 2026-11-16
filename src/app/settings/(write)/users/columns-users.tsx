@@ -61,9 +61,18 @@ export const columns: ColumnDef<User>[] = [
     filterFn: "includesString",
   },
   {
-    accessorKey: "email",
+    id: "email",
+    accessorFn: (user) => user.role.name === "technician" ? user.contactEmail ?? "" : user.email,
     header: "Email",
     filterFn: "includesString",
+    cell: ({ row, getValue }) => (
+      <div>
+        <span>{getValue<string>() || "—"}</span>
+        {row.original.role.name === "technician" && row.original.contactEmail && (
+          <p className="text-xs text-muted-foreground">Contact email</p>
+        )}
+      </div>
+    ),
   },
   {
     id: "roleName",

@@ -67,6 +67,7 @@ export function deleteMyAccount() {
 
 export type TechnicianAccountData = {
   firstName: string; lastName: string; username: string; password: string;
+  contactEmail?: string | null;
 };
 
 export const createTechnician = (data: TechnicianAccountData) =>

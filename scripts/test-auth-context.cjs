@@ -170,6 +170,14 @@ test('initial profile success publishes the normalized real profile and notifica
   assert.deepEqual(f.value.notifications, notifications); assert.equal(f.notice(), null); assert.ok(f.hasChildren());
   assert.deepEqual(f.calls.map(call => call.endpoint), ['/api/auth/profile', '/api/notifications']);
 }));
+
+test('technician contact email stays separate from the login identity', using(async f => {
+  await f.mount(response({ ...account(7, 'technician'), contactEmail: 'shared@example.test' }));
+  assert.equal(f.value.user.contactEmail, 'shared@example.test');
+  assert.equal(f.value.user.email, '');
+  assert.equal(f.value.user.username, 'account-7');
+  assert.equal(f.value.user.role.name, 'technician');
+}));
 test('expired access refreshes once and publishes the verified profile normally', using(async f => {
   f.enqueue('/api/auth/refresh', response({ message: 'Refreshed' }));
   f.enqueue('/api/auth/profile', denied(), response(account())); await f.mount();

@@ -28,6 +28,7 @@ export function TechnicianAccountForm({ user }: { user?: User }) {
       firstName: String(form.get("firstName") ?? "").trim(),
       lastName: String(form.get("lastName") ?? "").trim(),
       username: String(form.get("username") ?? "").trim(),
+      contactEmail: String(form.get("contactEmail") ?? "").trim().toLowerCase() || null,
     };
     if (!isValidUsername(data.username)) {
       setError(USERNAME_VALIDATION_MESSAGE);
@@ -52,6 +53,7 @@ export function TechnicianAccountForm({ user }: { user?: User }) {
       <div className="space-y-2"><Label htmlFor="tech-last">Last name</Label><Input id="tech-last" name="lastName" required maxLength={100} defaultValue={user?.lastName} disabled={busy} /></div>
       <div className="space-y-2"><Label htmlFor="tech-username">Username</Label><Input id="tech-username" name="username" required minLength={USERNAME_MIN_LENGTH} maxLength={USERNAME_MAX_LENGTH} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" defaultValue={user?.username} disabled={busy} /></div>
       <div className="space-y-2"><Label htmlFor="tech-password">{user ? "New password (optional)" : "Password"}</Label><Input id="tech-password" name="password" type="password" required={!user} minLength={8} maxLength={72} autoComplete="new-password" disabled={busy} /><p className="text-xs text-muted-foreground">{user ? "Leave empty to keep the current password. A change signs out existing sessions." : "At least 8 characters."}</p></div>
+      <div className="space-y-2 sm:col-span-2"><Label htmlFor="tech-contact-email">Contact email (optional)</Label><Input id="tech-contact-email" name="contactEmail" type="email" maxLength={254} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" defaultValue={user?.contactEmail ?? ""} disabled={busy} aria-describedby="tech-contact-email-help" /><p id="tech-contact-email-help" className="text-xs text-muted-foreground">{!user && "Receive the welcome email here. "}You can use the same email as another account. Technicians sign in with their username.</p></div>
     </div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     <Button type="submit" className="min-h-10 rounded-lg px-5 font-semibold hover:bg-red-700" disabled={busy}>{busy ? "Saving…" : user ? "Save technician" : "Create technician"}</Button>

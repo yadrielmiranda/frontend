@@ -7,6 +7,8 @@ export type ApiUser = Omit<User, ContactField> & { [K in ContactField]: string |
 export function userView(user: ApiUser): User {
   return {
     ...user,
+    // El correo de contacto del técnico nunca reemplaza al correo de acceso.
+    contactEmail: user.contactEmail ?? null,
     email: user.email ?? "", phone: user.phone ?? "", street: user.street ?? "",
     addressLine2: user.addressLine2 ?? "",
     city: user.city ?? "", state: user.state ?? "", postalCode: user.postalCode ?? "",
