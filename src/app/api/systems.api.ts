@@ -235,6 +235,39 @@ export function getSystem(id: number) {
   return apiFetch<System>(`/api/systems/${id}`);
 }
 
+export type SystemInstallationApproval =
+  | { status: "available"; url: string; approvalId: string; variant: string }
+  | { status: "not_found" | "ambiguous" };
+
+export function getSystemInstallationApproval(id: number) {
+  return apiFetch<SystemInstallationApproval>(
+    `/api/systems/${id}/installation-approval`,
+    { cache: "no-store", timeoutMs: 15000 },
+  );
+}
+
+export type SystemApprovals = {
+  systemId: number;
+  systemName: string;
+  brandName: string;
+  productName: string;
+  status: "available" | "not_found" | "ambiguous";
+  approvalId?: string | null;
+  variant?: string | null;
+  installationUrl?: string | null;
+  evaluationUrl?: string | null;
+  officialUrl?: string | null;
+};
+
+export function getSystemsApprovals(systemIds: readonly number[]) {
+  const ids = [...new Set(systemIds.filter(id => Number.isSafeInteger(id) && id > 0))]
+    .sort((a, b) => a - b);
+  return apiFetch<{ systems: SystemApprovals[] }>(
+    `/api/systems/approvals?ids=${ids.join(",")}`,
+    { cache: "no-store", timeoutMs: 15000 },
+  );
+}
+
 /**
  * Crea un nuevo sistema.
  */

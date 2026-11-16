@@ -84,6 +84,7 @@ function fixture(overrides = {}) {
     "../agreements/dealer-agreement-panel": { DealerAgreementPanel: "DealerAgreementPanel" },
     "../estimate-lifecycle-actions": { EstimateLifecycleButton: "EstimateLifecycleButton" },
     "../estimate-internal-note": { EstimateInternalNote: "EstimateInternalNote" },
+    "../estimate-product-approvals": { EstimateProductApprovals: "EstimateProductApprovals" },
     "@/components/navigation/back-link": { BackLink: "BackLink" },
     "./parts/estimate-report-shell": { EstimateReportShell: "EstimateReportShell" },
     "./estimate-email-recipients": load("components/estimates/estimate-details/estimate-email-recipients.ts", {}),

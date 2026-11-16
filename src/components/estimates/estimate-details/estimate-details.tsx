@@ -6,6 +6,7 @@ import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contra
 import { DealerAgreementPanel } from '../agreements/dealer-agreement-panel';
 import { EstimateLifecycleButton } from '../estimate-lifecycle-actions';
 import { EstimateInternalNote } from '../estimate-internal-note';
+import { EstimateProductApprovals } from '../estimate-product-approvals';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { DealerMode, EstimateWithRelations } from "@/lib/types";
@@ -586,6 +587,10 @@ export function EstimateDetails({
               )}
             </div>
           )}
+        </div>
+
+        <div className="mb-6 print:hidden">
+          <EstimateProductApprovals pieces={estimate.pieces} />
         </div>
 
         {reportMode !== "customer" && (

@@ -113,7 +113,7 @@ export default async function EditEstimatePage({
     <div className="min-h-screen min-w-0 overflow-x-hidden bg-gray-50 py-4 md:px-4 md:py-6">
       <div className="min-w-0 w-full">
         <div className="mb-4 flex items-center justify-between">
-          <BackLink href="/estimates" label="Back to Estimate" />
+          <BackLink href="/estimates" label="Back to Estimates" />
         </div>
 
         <Card className="relative min-w-0 max-w-full shadow-lg">

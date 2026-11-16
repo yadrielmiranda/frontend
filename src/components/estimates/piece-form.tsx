@@ -54,6 +54,7 @@ import type {
 } from "@/lib/types";
 
 import { PieceDiagram } from "@/components/piece-diagram";
+import { SystemApprovalLink } from "@/components/systems/system-approval-link";
 import { resolveFormMuntinForDiagram } from "@/components/piece-diagram/muntin-data";
 import { PromotionPrice } from "@/components/promotions/promotion-price";
 import {
@@ -2759,7 +2760,10 @@ export function PieceForm({
                   </div>
 
                   <div>
-                    <Label className={fieldLabelClass}>System</Label>
+                    <div className="mb-2 flex h-5 items-center gap-1.5">
+                      <Label className="text-sm font-semibold text-slate-800">System</Label>
+                      <SystemApprovalLink systemId={systemId} />
+                    </div>
                     <Controller
                       name="idSyst"
                       control={control}

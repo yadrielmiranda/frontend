@@ -46,6 +46,7 @@ import type {
 import { ColorUpdateAlertDialog } from "./color-update-alert-dialog";
 import { EstimateDetailsLeft } from "./estimate-details-left";
 import { EstimateInternalNote } from "./estimate-internal-note";
+import { EstimateProductApprovals } from "./estimate-product-approvals";
 import { ManualDiscountEditor } from "./manual-discount-editor";
 import { EstimateFinancialSummary } from "./estimate-financial-summary";
 import { EstimatePaymentCard } from "./estimate-payment-card";
@@ -1687,6 +1688,8 @@ export function EstimateForm({
               </fieldset>
             )}
           </div>
+
+          <EstimateProductApprovals pieces={watchedPieces ?? []} />
 
           {estimate?.id && <EstimateInternalNote estimateId={estimate.id} userRole={role} />}
 
