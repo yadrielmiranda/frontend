@@ -45,16 +45,17 @@ test('batch helper normalizes one authenticated uncached request for the unique 
   assert.deepEqual(calls, [['/api/systems/approvals?ids=7,8', { cache: 'no-store', timeoutMs: 15000 }]]);
 });
 
-test('estimates start collapsed and only load documents when the user opens the block', () => {
+test('estimates start collapsed and preload documents, while empty estimates make no request', () => {
   for (const ids of [pieces(0, null, undefined, -1), pieces(700)]) {
     const f = fixture(ids, false);
-    assert.equal(f.requests.length, 0);
+    const hasSystem = ids.some(piece => piece.idSyst === 700);
+    assert.equal(f.requests.length, hasSystem ? 1 : 0);
     assert.equal(f.find(n => n.type === 'details').props.open, false);
     assert.match(f.find(n => n.type === 'details').props.className, /print:hidden/);
     assert.equal(links(f).length, 0);
     assert.doesNotMatch(text(tree(f)), /Add a piece|Loading product approvals/);
     f.toggle(true);
-    if (ids.some(piece => piece.idSyst === 700)) {
+    if (hasSystem) {
       assert.deepEqual(f.requests.map(request => request.ids), [[700]]);
     } else {
       assert.equal(f.requests.length, 0);
@@ -101,14 +102,21 @@ test('late responses and late errors cannot replace a newer selected system set'
   assert.doesNotMatch(text(tree(f)), /could not be loaded/);
 });
 
-test('closing cancels pending display, closed changes do not fetch, and reopening refreshes once', async () => {
-  const f = fixture(); f.toggle(false); f.update({ pieces: pieces(800, 800) });
+test('opening and closing retain in-flight and ready results, while closed system changes preload again', async () => {
+  const f = fixture(pieces(700), false);
+  f.toggle(true); f.toggle(false);
+  assert.deepEqual(f.requests.map(r => r.ids), [[700]]);
   f.requests[0].resolve(result(700)); await flush();
   assert.equal(f.requests.length, 1); assert.equal(links(f).length, 0);
-  f.toggle(true); assert.deepEqual(f.requests.map(r => r.ids), [[700], [800]]);
-  f.requests[1].resolve(result(800)); await flush(); assert.equal(links(f).length, 3);
-  f.toggle(false); f.toggle(true); assert.equal(links(f).length, 0);
-  assert.deepEqual(f.requests.map(r => r.ids), [[700], [800], [800]]);
+  f.toggle(true); assert.deepEqual(names(f), ['Serie 700']);
+  assert.doesNotMatch(text(tree(f)), /Loading product approvals/);
+  f.toggle(false); f.update({ pieces: pieces(800, 800) });
+  assert.deepEqual(f.requests.map(r => r.ids), [[700], [800]]);
+  f.requests[1].resolve(result(800)); await flush(); assert.equal(links(f).length, 0);
+  f.toggle(true); assert.deepEqual(names(f), ['Serie 800']);
+  assert.doesNotMatch(text(tree(f)), /Loading product approvals/);
+  f.toggle(false); f.toggle(true); assert.equal(links(f).length, 3);
+  assert.deepEqual(f.requests.map(r => r.ids), [[700], [800]]);
 });
 
 test('missing, blank and unsafe URLs are omitted without substituting another document', async () => {
@@ -145,9 +153,15 @@ test('an incomplete or mismatched batch never shows documents from an unrelated 
   }
 });
 
-test('unmounted blocks ignore pending responses', async () => {
+test('unmounted blocks ignore pending responses and a new visit makes a fresh request', async () => {
   const f = fixture(); f.unmount(); f.requests[0].resolve(result(700)); await flush();
   assert.equal(links(f).length, 0);
+  const nextVisit = fixture(pieces(700), false);
+  assert.deepEqual(nextVisit.requests.map(r => r.ids), [[700]]);
+  nextVisit.toggle(true);
+  assert.match(text(tree(nextVisit)), /Loading product approvals/);
+  nextVisit.requests[0].resolve(result(700)); await flush();
+  assert.equal(links(nextVisit).length, 3);
 });
 
 test('both actual entry points use live piece IDs outside disabled fields and printable reports', () => {

@@ -67,8 +67,10 @@ export function EstimateProductApprovals({ pieces }: {
   const [attempt, setAttempt] = useState(0);
   const [bound, setBound] = useState<BoundApprovals | null>(null);
 
+  // Preload on entry and keep the result for this mounted screen. Folding the
+  // section only changes visibility; a new system selection or retry refetches.
   useEffect(() => {
-    if (!open || !key) {
+    if (!key) {
       setBound(null);
       return;
     }
@@ -91,7 +93,7 @@ export function EstimateProductApprovals({ pieces }: {
       }
     })();
     return () => { active = false; };
-  }, [key, open, attempt]);
+  }, [key, attempt]);
 
   // A changed selection must not display links from the previous request.
   const state: ApprovalState = bound?.key === key && bound.attempt === attempt
