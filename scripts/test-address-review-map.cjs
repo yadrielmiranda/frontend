@@ -96,6 +96,36 @@ test('editing an address removes its pin and invalidates confirmation', async ()
   assert.equal(f.reviews.at(-1).address.confirmedLocation, undefined);
   assert.equal(f.calls.length, 0);
 });
+
+test('final installation verification failure clears confirmed status and requires a fresh review', async () => {
+  const address = { ...entered, addressLine2: 'LOT 132' };
+  const failure = Object.assign(new Error('We could not verify this installation address.'), {
+    status: 400, data: { code: 'ADDRESS_VERIFICATION_FAILED' },
+  });
+  const f = await fixture({ suggestedAddress: address,
+    review: (_, candidate) => candidate.confirmedLocation ? { status: 'VALIDATED', address: candidate } : location,
+    save: (payload, count) => count === 1 ? Promise.reject(failure) : Promise.resolve(resultJob(payload.installationAddress)),
+  });
+  await selectPin(f); await f.calculate();
+  assert.equal(f.calls.length, 1); assert.equal(f.button('Calculate installation').props.disabled, true);
+  assert.match(text(f.render()), /We could not verify this installation address/);
+  assert.doesNotMatch(text(f.render()), /Address verified/); assert.deepEqual(f.errors, []);
+  f.click('Try address again'); await flush(); f.render();
+  assert.deepEqual(f.reviews.at(-1).address, { ...address, confirmedLocation: point });
+  assert.equal(f.button('Calculate installation').props.disabled, false); assert.equal(f.calls.length, 1);
+  await f.calculate(); assert.equal(f.calls.length, 2);
+  assert.deepEqual(f.calls[1].payload.installationAddress, { ...address, confirmedLocation: point });
+});
+
+test('unrelated final route or price errors preserve a verified address for an explicit calculation retry', async () => {
+  for (const code of ['ROUTE_UNAVAILABLE', 'PRICE_UNAVAILABLE']) {
+    const f = await fixture({ save: () => Promise.reject(Object.assign(new Error(code), { status: 400, data: { code } })) });
+    await f.calculate();
+    assert.equal(f.button('Calculate installation').props.disabled, false);
+    assert.match(text(f.render()), /Address verified/);
+    assert.deepEqual(f.errors, [code]); assert.equal(f.calls.length, 1);
+  }
+});
 test('stale review is discarded after edits, estimate changes, cancel, and unmount', async () => {
   for (const action of ['edit', 'context', 'cancel', 'unmount']) {
     const pending = deferred();
@@ -165,6 +195,51 @@ test('delivery context changes discard late review and final create responses', 
   const click = g.button('Calculate delivery charge').props.onClick; click(); click(); await flush(); assert.equal(g.calls.length, 1);
   g.update({ order: { ...g.order, id: 23 } }); charge.reject(locationError); await flush();
   assert.equal(g.controller().state.kind, 'idle'); assert.deepEqual(g.errors, []);
+});
+
+test('final delivery verification failure returns to review without losing the chosen point or unit', async () => {
+  let attempts = 0;
+  const failure = Object.assign(new Error('We could not verify this delivery address.'), {
+    status: 400, data: { code: 'ADDRESS_VERIFICATION_FAILED' },
+  });
+  const f = delivery('STANDARD', async candidate => candidate.confirmedLocation ? { status: 'VALIDATED', address: candidate } : location,
+    () => ++attempts === 1 ? Promise.reject(failure) : Promise.resolve({ id: 99, type: 'STANDARD', status: 'CANCELED', amount: '100' }));
+  f.input('delivery-address-line2', 'LOT 132'); await f.verify();
+  await f.controller().review({ ...f.reviews[0].address, confirmedLocation: point }); f.render();
+  await f.calculate();
+  assert.equal(f.controller().state.kind, 'error'); assert.equal(f.controller().isConfirmed, false);
+  assert.equal(f.button('Calculate delivery charge').props.disabled, true); assert.deepEqual(f.errors, []);
+  await f.verify(); assert.equal(f.controller().isConfirmed, true); assert.equal(f.calls.length, 1);
+  await f.calculate(); assert.equal(f.calls.length, 2);
+  assert.deepEqual(f.calls[1].payload.confirmedLocation, point);
+  assert.equal(f.calls[1].payload.addressLine2, 'LOT 132');
+});
+
+test('a failed pickup interrupts address checking and permits retry without accepting its late review', async () => {
+  for (const resolveDuringPickup of [true, false]) {
+    const pendingReview = deferred(), pendingPickup = deferred(); let reviewCalls = 0;
+    const order = { id: 11, idEst: 10, user: { ...entered, role: { name: 'client' } }, estimate: {},
+      status: { name: 'Preparing for pickup' }, deliveries: [], fulfillmentMethod: null };
+    const h = harness('components/orders/order-delivery-panel.tsx', 'OrderDeliveryPanel', {
+      order, installation: null, isOwner: true, isPrivileged: true, isAdmin: true, cardSurchargeFraction: 0,
+      canRecordManualPayment: false, paymentTarget: null,
+    }, {
+      '@/app/api/address-confirmations.api': { reviewAddress: (_, address) => ++reviewCalls === 1
+        ? pendingReview.promise : Promise.resolve({ status: 'VALIDATED', address }) },
+      '@/app/api/orders.api': { selectOrderPickup: () => pendingPickup.promise },
+    });
+    const controller = () => h.find(node => node.type === 'AddressConfirmationPanel').props.confirmation;
+    h.click('Calculate delivery'); h.click('Use this address'); h.render();
+    assert.equal(controller().state.kind, 'checking');
+    h.click('Pickup'); h.render();
+    if (resolveDuringPickup) { pendingReview.resolve({ status: 'VALIDATED', address: entered }); await flush(); h.render(); }
+    pendingPickup.reject(new Error('Pickup failed')); await flush(); h.render();
+    assert.equal(controller().state.kind, 'idle'); assert.equal(h.button('Use this address').props.disabled, false);
+    h.click('Use this address'); await flush(); h.render();
+    assert.equal(reviewCalls, 2); assert.equal(controller().isConfirmed, true);
+    if (!resolveDuringPickup) { pendingReview.resolve(location); await flush(); h.render(); }
+    assert.equal(controller().isConfirmed, true, 'The interrupted response cannot replace the new validation');
+  }
 });
 
 function loaderFixture() {

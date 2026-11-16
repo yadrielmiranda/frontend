@@ -66,6 +66,12 @@ export function useAddressConfirmation({ purpose, address, contextKey, onAddress
     inFlight.current = null;
     setBound(current => current?.key === key && current.context === contextKey ? current : null);
   }, [key, contextKey]);
+  useEffect(() => {
+    if (!disabled) return;
+    revision.current++;
+    inFlight.current = null;
+    setBound(current => current?.value.kind === "checking" ? null : current);
+  }, [disabled]);
   const state: AddressConfirmationState = bound?.key === key && bound.context === contextKey ? bound.value : { kind: "idle" };
   const validForPurpose = (value: unknown): value is InstallationAddress =>
     validAddress(value) && (purpose !== "INSTALLATION" || value.state === "FL");
@@ -119,6 +125,15 @@ export function useAddressConfirmation({ purpose, address, contextKey, onAddress
     if (!error || typeof error !== "object" || !("status" in error) || error.status !== 400 || !("data" in error)) return false;
     const data = error.data as Record<string, unknown> | null;
     if (!data) return false;
+    if (data.code === "ADDRESS_VERIFICATION_FAILED") {
+      revision.current++;
+      inFlight.current = null;
+      const message = error instanceof Error && error.message ? error.message
+        : typeof data.message === "string" && data.message ? data.message
+          : "We could not verify this address. Review it and try again.";
+      bind({ kind: "error", message });
+      return true;
+    }
     if (data.code === "ADDRESS_LOCATION_CONFIRMATION_REQUIRED" && isAddressLocation(data.center)
       && typeof data.maxAdjustmentMeters === "number" && data.maxAdjustmentMeters > 0 && data.maxAdjustmentMeters <= 500) {
       bind({ kind: "location", center: data.center, maxAdjustmentMeters: data.maxAdjustmentMeters });
