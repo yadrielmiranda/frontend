@@ -256,7 +256,8 @@ export function SystemFrameColorsClient({
         <span className="font-medium">
           base price × Base Multiplier − Amount to Subtract
         </span>
-        . Turning it off keeps its values and uses the original base price.
+        . A positive amount subtracts; a negative amount adds. Turning it off
+        keeps its values and uses the original base price.
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Associated Frame Colors</h2>
@@ -365,7 +366,7 @@ export function SystemFrameColorsClient({
                     <TableCell key={field}>
                       <Input
                         type="text"
-                        inputMode="decimal"
+                        inputMode={field === "basePriceDeduction" ? "text" : "decimal"}
                         value={row[field]}
                         disabled={coefficientsDisabled}
                         aria-label={`${row.color} ${label}`}
