@@ -28,6 +28,7 @@ import { useLoginDialog } from "@/contexts/LoginDialogContext";
 import { logoutUser } from "@/app/api/auth/me/auth.api";
 import { isDealerRole } from "@/lib/rbac";
 import { navigateAfterSessionChange } from "@/lib/auth-session";
+import { PortalInstallMenuItem } from "@/components/pwa/portal-install-button";
 
 export function UserDropdown() {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -173,6 +174,8 @@ export function UserDropdown() {
               <UserCircle className="h-4 w-4 text-slate-500" />
               Profile
             </DropdownMenuItem>
+
+            <PortalInstallMenuItem onSelected={() => setIsDropdownOpen(false)} />
 
             {isDealerRole(roleName) && (
               <DropdownMenuItem

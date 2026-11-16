@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { CardLogin } from "@/components/card-login";
+import { PortalInstallButton } from "@/components/pwa/portal-install-button";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -473,6 +474,7 @@ export default function HomePage() {
       contentMaxWidth="max-w-md"
     >
       <CardLogin appearance="dark" />
+      <PortalInstallButton appearance="dark" />
     </AuthPageShell>
   );
 }
