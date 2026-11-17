@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { companyV7Metadata, type CompanyV7Locale, type CompanyV7PageName } from "@/components/company-v7/company-v7-content";
+import { companyMetadata, type CompanyLocale, type CompanyPageName } from "@/components/company/company-content";
 
-export function companyPageMetadata(page: CompanyV7PageName, locale: CompanyV7Locale): Metadata {
-  const source = companyV7Metadata[page][locale];
+export function companyPageMetadata(page: CompanyPageName, locale: CompanyLocale): Metadata {
+  const source = companyMetadata[page][locale];
   return {
     title: source.title,
     description: source.description,

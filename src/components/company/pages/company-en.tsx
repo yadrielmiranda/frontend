@@ -33,7 +33,7 @@ export function CompanyEnContent() {
             </p>
           </div>
           <figure>
-            <img src="/company-v7/project-pool.jpg" alt="A row of glass patio doors beside an outdoor swimming pool" width="1080" height="815" fetchPriority="high" />
+            <img src="/company/project-pool.jpg" alt="A row of glass patio doors beside an outdoor swimming pool" width="1080" height="815" fetchPriority="high" />
             <figcaption>
               <span>
                 {"PROJECT SPOTLIGHT"}
@@ -111,7 +111,7 @@ export function CompanyEnContent() {
           </p>
           <div className="products">
             <article>
-              <img src="/company-v7/project-windows.jpg" alt="White-framed windows along a covered exterior wall" width="560" height="334" loading="lazy" />
+              <img src="/company/project-windows.jpg" alt="White-framed windows along a covered exterior wall" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"WINDOWS"}
@@ -125,7 +125,7 @@ export function CompanyEnContent() {
               </div>
             </article>
             <article>
-              <img src="/company-v7/project-sliding.jpg" alt="White-framed sliding glass doors during installation" width="560" height="334" loading="lazy" />
+              <img src="/company/project-sliding.jpg" alt="White-framed sliding glass doors during installation" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"SLIDING DOORS"}
@@ -139,7 +139,7 @@ export function CompanyEnContent() {
               </div>
             </article>
             <article>
-              <img src="/company-v7/project-entry.jpg" alt="White entry door with a full-height glass panel" width="560" height="334" loading="lazy" />
+              <img src="/company/project-entry.jpg" alt="White entry door with a full-height glass panel" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"EXTERIOR HINGED DOORS"}

@@ -36,7 +36,7 @@ export function CompanyEsContent() {
             </p>
           </div>
           <figure>
-            <img src="/company-v7/project-pool.jpg" alt="Una fila de puertas de vidrio frente a una piscina exterior" width="1080" height="815" fetchPriority="high" />
+            <img src="/company/project-pool.jpg" alt="Una fila de puertas de vidrio frente a una piscina exterior" width="1080" height="815" fetchPriority="high" />
             <figcaption>
               <span>
                 {"PROYECTO DESTACADO"}
@@ -114,7 +114,7 @@ export function CompanyEsContent() {
           </p>
           <div className="products">
             <article>
-              <img src="/company-v7/project-windows.jpg" alt="Ventanas de marco blanco a lo largo de una pared exterior cubierta" width="560" height="334" loading="lazy" />
+              <img src="/company/project-windows.jpg" alt="Ventanas de marco blanco a lo largo de una pared exterior cubierta" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"VENTANAS"}
@@ -128,7 +128,7 @@ export function CompanyEsContent() {
               </div>
             </article>
             <article>
-              <img src="/company-v7/project-sliding.jpg" alt="Puertas corredizas de vidrio con marco blanco durante la instalación" width="560" height="334" loading="lazy" />
+              <img src="/company/project-sliding.jpg" alt="Puertas corredizas de vidrio con marco blanco durante la instalación" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"PUERTAS CORREDIZAS"}
@@ -142,7 +142,7 @@ export function CompanyEsContent() {
               </div>
             </article>
             <article>
-              <img src="/company-v7/project-entry.jpg" alt="Puerta de entrada blanca con un panel de vidrio de altura completa" width="560" height="334" loading="lazy" />
+              <img src="/company/project-entry.jpg" alt="Puerta de entrada blanca con un panel de vidrio de altura completa" width="560" height="334" loading="lazy" />
               <div>
                 <p className="tag">
                   {"PUERTAS ABATIBLES EXTERIORES"}

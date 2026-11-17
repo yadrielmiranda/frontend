@@ -1,8 +1,8 @@
-import { CompanyV7Page } from "@/components/company-v7/company-v7-page";
+import { CompanyPage } from "@/components/company/company-page";
 import { companyPageMetadata } from "@/lib/company-page-metadata";
 
 export const metadata = companyPageMetadata("resources", "es");
 
 export default function Page() {
-  return <CompanyV7Page page="resources" locale="es" />;
+  return <CompanyPage page="resources" locale="es" />;
 }

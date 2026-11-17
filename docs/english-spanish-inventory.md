@@ -6,12 +6,12 @@ Fecha del inventario: 17 de noviembre de 2026.
 
 ## Alcance y tamaño
 
-El portal utiliza TypeScript y JavaScript, con Next.js en el frontend y NestJS en el backend. Company V7 ya ofrece cinco páginas públicas en inglés y español; el portal operativo todavía no tiene un sistema general de idiomas ni una preferencia de idioma en el usuario.
+El portal utiliza TypeScript y JavaScript, con Next.js en el frontend y NestJS en el backend. Company ya ofrece cinco páginas públicas en inglés y español; el portal operativo todavía no tiene un sistema general de idiomas ni una preferencia de idioma en el usuario.
 
 El inventario del código encontró:
 
-- **168 rutas de página**, de las cuales 10 corresponden a las cinco páginas bilingües de Company V7. Muchas rutas reutilizan formularios; otras contienen varias vistas y diálogos según el rol.
-- **401 archivos del frontend con textos candidatos**: 5.628 apariciones y 3.808 textos distintos en el primer barrido, excluyendo Company V7. Incluyen repeticiones y algunos nombres que se conservarían; no representan una cantidad definitiva de traducciones ni incluyen todos los textos dinámicos o editables de la base de datos.
+- **168 rutas de página**, de las cuales 10 corresponden a las cinco páginas bilingües de Company. Muchas rutas reutilizan formularios; otras contienen varias vistas y diálogos según el rol.
+- **401 archivos del frontend con textos candidatos**: 5.628 apariciones y 3.808 textos distintos en el primer barrido, excluyendo Company. Incluyen repeticiones y algunos nombres que se conservarían; no representan una cantidad definitiva de traducciones ni incluyen todos los textos dinámicos o editables de la base de datos.
 - **94 rutas de Settings**, distribuidas entre el índice y 37 subáreas.
 - **1.970 puntos de construcción de excepciones HTTP en 131 archivos del backend**. Son ubicaciones de código, no errores detectados durante el uso ni frases únicas.
 - **37 llamadas de formato con idioma fijo en 26 archivos del frontend**: 36 usan `en-US` y una `es-ES`. Otras dependen del idioma del navegador.
@@ -33,7 +33,7 @@ Los conteos excluyen dependencias, compilados y pruebas. Corresponden al código
 | Pagos y enlaces públicos | 8 | Estimados compartidos, acuerdos, pagos, ventas y resultados del checkout |
 | Settings | 94 | Usuarios, roles, productos, sistemas, colores, cristales, opciones, precios, instalaciones y demás ajustes |
 | Términos y SMS | 5 | Documentos, consentimiento, privacidad y condiciones |
-| Company V7 | 10 | Cinco páginas lógicas ya bilingües; conectar con la selección general del idioma |
+| Company | 10 | Cinco páginas lógicas ya bilingües; conectar con la selección general del idioma |
 | **Total** | **168** | |
 
 ## Elementos compartidos y datos
@@ -93,7 +93,7 @@ No hay una fecha o estimación de esfuerzo acordada. La implementación queda pe
 
 Rutas relativas a los repositorios de frontend y backend:
 
-- Frontend: `src/app/layout.tsx`, `src/app/providers.tsx` y `src/components/company-v7/company-v7-shell.tsx`.
+- Frontend: `src/app/layout.tsx`, `src/app/providers.tsx` y `src/components/company/company-shell.tsx`.
 - Textos compartidos: `src/components/data-table.tsx`, `src/components/top-bar.tsx`, `src/components/user-dropdown.tsx` y `src/lib/formatters.ts`.
 - Áreas extensas: `src/components/estimates/piece-form.tsx`, `src/app/installations/[id]/installation-detail-client.tsx` y `src/app/warehouse/customer-deliveries/customer-delivery-runs-client.tsx`.
 - Backend: `prisma/schema.prisma`, `src/payments/payments.service.ts`, `src/notifications/notification-email.service.ts` y `src/notifications/notifications.service.ts`.

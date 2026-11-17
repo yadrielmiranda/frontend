@@ -1,6 +1,6 @@
-import "./company-v7.css";
-import type { CompanyV7Locale, CompanyV7PageName } from "./company-v7-content";
-import { CompanyV7Shell } from "./company-v7-shell";
+import "./company.css";
+import type { CompanyLocale, CompanyPageName } from "./company-content";
+import { CompanyShell } from "./company-shell";
 import { CompanyEnContent } from "./pages/company-en";
 import { ForAiEnContent } from "./pages/for-ai-en";
 import { ResourcesEnContent } from "./pages/resources-en";
@@ -20,7 +20,7 @@ const content = {
   "compare-impact-products": { en: CompareImpactProductsEnContent, es: CompareImpactProductsEsContent },
 };
 
-export function CompanyV7Page({ page, locale = "en" }: { page: CompanyV7PageName; locale?: CompanyV7Locale }) {
+export function CompanyPage({ page, locale = "en" }: { page: CompanyPageName; locale?: CompanyLocale }) {
   const Content = content[page][locale];
-  return <CompanyV7Shell page={page} locale={locale}><Content /></CompanyV7Shell>;
+  return <CompanyShell page={page} locale={locale}><Content /></CompanyShell>;
 }

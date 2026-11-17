@@ -1,8 +1,8 @@
 /* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { CompanyV7Locale, CompanyV7PageName } from "./company-v7-content";
-import { companyV7Path } from "./company-v7-content";
+import type { CompanyLocale, CompanyPageName } from "./company-content";
+import { companyPath } from "./company-content";
 
 function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alternateHref: string }) {
   return (
@@ -25,7 +25,7 @@ function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alte
       <header className="mast">
         <div className="wrap bar">
           <a href="#main" className="logo" aria-label="Authentic Evolution Co. About">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" width="56" height="56" alt="" />
+            <img className="brand-image" src="/company/authentic-brand.webp" width="56" height="56" alt="" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -66,7 +66,7 @@ function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alte
       <footer>
         <div className="wrap foot">
           <a href="#main" className="logo" aria-label="Authentic Evolution Co.">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" width="56" height="56" alt="" />
+            <img className="brand-image" src="/company/authentic-brand.webp" width="56" height="56" alt="" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -127,7 +127,7 @@ function EditorialEnShell({ children, alternateHref }: { children: ReactNode; al
       <header className="mast">
         <div className="wrap bar">
           <Link className="logo" href="/company">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" alt="" width="56" height="56" />
+            <img className="brand-image" src="/company/authentic-brand.webp" alt="" width="56" height="56" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -191,7 +191,7 @@ function CompanyEsShell({ children, alternateHref }: { children: ReactNode; alte
       <header className="mast">
         <div className="wrap bar">
           <a href="#main" className="logo" aria-label="Acerca de Authentic Evolution Co.">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" width="56" height="56" alt="" />
+            <img className="brand-image" src="/company/authentic-brand.webp" width="56" height="56" alt="" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -232,7 +232,7 @@ function CompanyEsShell({ children, alternateHref }: { children: ReactNode; alte
       <footer>
         <div className="wrap foot">
           <a href="#main" className="logo" aria-label="Authentic Evolution Co.">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" width="56" height="56" alt="" />
+            <img className="brand-image" src="/company/authentic-brand.webp" width="56" height="56" alt="" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -293,7 +293,7 @@ function EditorialEsShell({ children, alternateHref }: { children: ReactNode; al
       <header className="mast">
         <div className="wrap bar">
           <Link className="logo" href="/es/company">
-            <img className="brand-image" src="/company-v7/authentic-brand.webp" alt="" width="56" height="56" />
+            <img className="brand-image" src="/company/authentic-brand.webp" alt="" width="56" height="56" />
             <span>
               {"AUTHENTIC"}
               <br />
@@ -336,11 +336,11 @@ function EditorialEsShell({ children, alternateHref }: { children: ReactNode; al
   );
 }
 
-export function CompanyV7Shell({ children, page, locale }: { children: ReactNode; page: CompanyV7PageName; locale: CompanyV7Locale }) {
+export function CompanyShell({ children, page, locale }: { children: ReactNode; page: CompanyPageName; locale: CompanyLocale }) {
   const Shell = page === "company" ? (locale === "es" ? CompanyEsShell : CompanyEnShell) : (locale === "es" ? EditorialEsShell : EditorialEnShell);
   return (
-    <div className="company-v7" lang={locale}>
-      <Shell alternateHref={companyV7Path(page, locale === "en" ? "es" : "en")}>{children}</Shell>
+    <div className="company" lang={locale}>
+      <Shell alternateHref={companyPath(page, locale === "en" ? "es" : "en")}>{children}</Shell>
     </div>
   );
 }

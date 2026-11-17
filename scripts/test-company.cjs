@@ -1,8 +1,8 @@
-/* Independent V7 content/public-route regression checks.
+/* Independent company content/public-route regression checks.
  * The fixture records the supplied, approved HTML and original image hashes.
  * No Downloads folder, Python, database, account creation or SMS is needed.
- * node scripts/test-company-v7.cjs
- * node scripts/test-company-v7.cjs --base-url http://127.0.0.1:3000
+ * node scripts/test-company.cjs
+ * node scripts/test-company.cjs --base-url http://127.0.0.1:3000
  * The optional HTTP checks make public GET requests only, without cookies.
  */
 const assert = require('node:assert/strict');
@@ -12,7 +12,7 @@ const crypto = require('node:crypto');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const reference = require('./data/company-v7-reference.json');
+const reference = require('./data/company-reference.json');
 const sourceRoot = path.resolve(__dirname, '../src');
 const publicRoot = path.resolve(__dirname, '../public');
 const officialOrigin = 'https://www.authenticevolutionco.com';
@@ -35,7 +35,7 @@ const normalizedHref = value => {
   if (!relative.startsWith('/')) return relative;
   return relative.replace(/\/(?=[#?]|$)/, '');
 };
-const normalizedImage = value => value.replace(/^\/company-v7\//, '/');
+const normalizedImage = value => value.replace(/^\/company\//, '/');
 const sorted = values => values.map(value => JSON.stringify(value)).sort();
 
 function loader(mocks = {}) {
@@ -68,7 +68,7 @@ function loader(mocks = {}) {
 
 const load = loader();
 const { COMPANY_PUBLIC_ROUTES, isCompanyPublicRoute } = load(path.join(sourceRoot, 'lib/company-public-routes.ts'));
-test('Public bypass contains exactly the ten published V7 routes', () => {
+test('Public bypass contains exactly the ten published company routes', () => {
   assert.deepEqual([...COMPANY_PUBLIC_ROUTES].sort(), reference.pages.map(page => page.route).sort());
   for (const page of reference.pages) {
     assert.equal(isCompanyPublicRoute(page.route), true);
@@ -125,22 +125,22 @@ function verifyContent(html, expected) {
   assert.deepEqual(sorted(links), sorted(expected.links.map(link => ({ ...link, href: normalizedHref(link.href) }))), `${expected.route}: approved links`);
   const images = voidElements(visible, 'img').map(node => ({ src: normalizedImage(node.src), alt: node.alt, width: node.width, height: node.height }));
   assert.deepEqual(sorted(images), sorted(expected.images), `${expected.route}: approved image source, dimensions and alternative text`);
-  assert.ok(new RegExp(`class="[^"]*company-v7[^\"]*"[^>]*lang="${expected.locale}"|lang="${expected.locale}"[^>]*class="[^\"]*company-v7`).test(visible), 'Localized public wrapper');
+  assert.ok(new RegExp(`class="[^"]*company[^\"]*"[^>]*lang="${expected.locale}"|lang="${expected.locale}"[^>]*class="[^\"]*company`).test(visible), 'Localized public wrapper');
   assert.doesNotMatch(visible, /authentic-company-preview|chatgpt\.site|Opening technician workspace|Session expired|Loading terms/i);
 }
 
 test('Original photography and logo remain byte-for-byte unchanged', () => {
   for (const asset of reference.assets) {
-    const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(publicRoot, 'company-v7', asset.name))).digest('hex');
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(publicRoot, 'company', asset.name))).digest('hex');
     assert.equal(actual, asset.sha256, asset.name);
   }
 });
 
-const { CompanyV7Page } = load(path.join(sourceRoot, 'components/company-v7/company-v7-page.tsx'));
+const { CompanyPage } = load(path.join(sourceRoot, 'components/company/company-page.tsx'));
 for (const page of reference.pages) {
   test(`${page.route}: approved content is fully present in server-rendered HTML`, () => {
     const type = page.route.split('/').at(-1);
-    const html = renderToStaticMarkup(React.createElement(CompanyV7Page, { page: type, locale: page.locale }));
+    const html = renderToStaticMarkup(React.createElement(CompanyPage, { page: type, locale: page.locale }));
     verifyContent(html, page);
   });
 }
@@ -192,9 +192,9 @@ if (baseIndex !== -1) {
     for (const page of reference.pages) assert.ok(body.includes(`<loc>${officialOrigin}${page.route}</loc>`), page.route);
     assert.doesNotMatch(body, /chatgpt\.site/);
   });
-  test('Public V7 assets are reachable with their original contents', async () => {
+  test('Public company assets are reachable with their original contents', async () => {
     for (const asset of reference.assets) {
-      const response = await get(`/company-v7/${asset.name}`);
+      const response = await get(`/company/${asset.name}`);
       const actual = crypto.createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex');
       assert.equal(actual, asset.sha256, asset.name);
     }
@@ -207,6 +207,6 @@ if (baseIndex !== -1) {
     try { await run(); console.log(`PASS ${name}`); }
     catch (error) { failures++; console.error(`FAIL ${name}\n${error.stack}`); }
   }
-  console.log(`${tests.length - failures}/${tests.length} company V7 checks passed.`);
+  console.log(`${tests.length - failures}/${tests.length} company checks passed.`);
   if (failures) process.exitCode = 1;
 })().catch(error => { console.error(error); process.exitCode = 1; });

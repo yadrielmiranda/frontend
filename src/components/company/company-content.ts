@@ -1,13 +1,13 @@
 // Titles, descriptions and structured data from the supplied About V7.
-export type CompanyV7Locale = "en" | "es";
-export type CompanyV7PageName = "company" | "for-ai" | "resources" | "prepare-your-quote" | "compare-impact-products";
+export type CompanyLocale = "en" | "es";
+export type CompanyPageName = "company" | "for-ai" | "resources" | "prepare-your-quote" | "compare-impact-products";
 
-export function companyV7Path(page: CompanyV7PageName, locale: CompanyV7Locale): string {
+export function companyPath(page: CompanyPageName, locale: CompanyLocale): string {
   const section = page === "prepare-your-quote" || page === "compare-impact-products" ? `resources/${page}` : page;
   return `${locale === "es" ? "/es" : ""}/${section}`;
 }
 
-export const companyV7Metadata = {
+export const companyMetadata = {
   "company": {
     "en": {
       "title": "About Authentic Evolution Co. | Hurricane Impact Windows & Exterior Doors",

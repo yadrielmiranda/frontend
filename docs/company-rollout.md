@@ -1,10 +1,10 @@
-# About V7 y revisión SMS — publicación y pruebas
+# Company y revisión SMS — publicación y pruebas
 
 Fecha de revisión: 17 de noviembre de 2026.
 
 ## Alcance
 
-El About V7 entregado por Anthony se integró en React, TypeScript y JavaScript dentro del portal Next.js existente. Conserva los textos, el diseño y los cinco archivos originales de imágenes; los enlaces internos usan el mismo dominio de la página abierta.
+El contenido de Company entregado por Anthony se integró en React, TypeScript y JavaScript dentro del portal Next.js existente. Conserva los textos, el diseño y los cinco archivos originales de imágenes; los enlaces internos usan el mismo dominio de la página abierta.
 
 | Inglés | Español |
 | --- | --- |
@@ -24,7 +24,7 @@ Esta actualización incluye frontend y backend. No añade dependencias, Python, 
 
 | Comprobación | Resultado |
 | --- | --- |
-| About V7: contenido de las diez páginas, acceso público aislado del portal, metadatos, idiomas, redirecciones de slash final, sitemap, llms y hashes de imágenes | 28 pruebas aprobadas |
+| Company: contenido de las diez páginas, acceso público aislado del portal, metadatos, idiomas, redirecciones de slash final, sitemap, llms y hashes de imágenes | 28 pruebas aprobadas |
 | Backend: consentimiento, registro, eventos SMS y regresiones relacionadas | 109 pruebas aprobadas |
 | Frontend: registro y presentación del consentimiento SMS | 9 pruebas aprobadas |
 | Total de pruebas automatizadas anteriores | 146 aprobadas |
@@ -33,21 +33,21 @@ Esta actualización incluye frontend y backend. No añade dependencias, Python, 
 | Configuración completa de TypeScript del backend, incluyendo archivos ajenos al build de producción | Cuatro errores preexistentes de exports relacionados con `CrystalsService`, `TintsController` y `TintsService`; no provienen de esta actualización |
 | Comparación visual con el original en escritorio de 1440 px y móvil de 390 px; revisión de español en tablet de 768 px | Diseño e imágenes verificados, sin desbordamiento horizontal |
 | Navegación pública y registro local | Revisados con API simulada; no se crearon cuentas ni se enviaron correos o SMS |
-| Build completo de producción del frontend (`next build`) | Aprobado; 120 páginas estáticas generadas, incluidas las diez de V7 |
+| Build completo de producción del frontend (`next build`) | Aprobado; 120 páginas estáticas generadas, incluidas las diez de Company |
 
-Para repetir la verificación de V7 desde el directorio del frontend:
+Para repetir la verificación de Company desde el directorio del frontend:
 
 ```bash
-node scripts/test-company-v7.cjs
+node scripts/test-company.cjs
 ```
 
 Con el frontend de pruebas ya iniciado, el siguiente comando añade consultas HTTP públicas de solo lectura:
 
 ```bash
-node scripts/test-company-v7.cjs --base-url http://127.0.0.1:3000
+node scripts/test-company.cjs --base-url http://127.0.0.1:3000
 ```
 
-La referencia de comparación está incluida en `scripts/data/company-v7-reference.json`; no depende de la carpeta Downloads ni del ZIP original.
+La referencia de comparación está incluida en `scripts/data/company-reference.json`; no depende de la carpeta Downloads ni del ZIP original.
 
 ## Publicación por Git
 
