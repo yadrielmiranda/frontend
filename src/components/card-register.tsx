@@ -378,10 +378,14 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                   appearance="dark"
                   disabled={isSubmitting}
                   aria-invalid={Boolean(errors.phone)}
+                  aria-describedby="phone-sms-choice"
                 />
               )}
             />
 
+            <p id="phone-sms-choice" className="text-xs leading-relaxed text-white/60">
+              Providing a phone number does not enroll you in SMS. Choose optional SMS notifications below.
+            </p>
             {errors.phone && (
               <p className={errorClass}>{errors.phone.message}</p>
             )}
@@ -571,7 +575,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                 <div className="space-y-2 border-t border-white/10 pt-3 text-xs leading-relaxed text-white/60">
                   <p id="registration-disclosure">{consentProgram.disclosure}</p>
                   <p className="flex flex-wrap gap-x-4 gap-y-2">
-                    <Link href="/sms/terms" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">SMS Terms</Link>
+                    <Link href="/sms/terms" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">SMS Terms of Service</Link>
                     <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-300 underline underline-offset-4 hover:text-blue-200">SMS Privacy Policy</Link>
                   </p>
                 </div>

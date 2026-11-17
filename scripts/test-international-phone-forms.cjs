@@ -34,8 +34,8 @@ function load(relative, mocks) {
   return module.exports;
 }
 
-function fixture(kind = 'registration') {
-  let form, index = 0, effects = [];
+function fixture(kind = 'registration', { programFails = false } = {}) {
+  let form, defaults, index = 0, effects = [];
   const slots = [], requests = [], phoneRules = {};
   const hooks = {
     useState(initial) { const slot = index++; if (!(slot in slots)) slots[slot] = typeof initial === 'function' ? initial() : initial;
@@ -48,6 +48,7 @@ function fixture(kind = 'registration') {
   const rhf = {
     useForm(options) {
       if (!form) {
+        defaults = { ...options.defaultValues };
         form = createFormControl({ ...options, defaultValues: valid });
         form.subscribe({ formState: { values: true, errors: true }, callback() {} });
       }
@@ -70,7 +71,10 @@ function fixture(kind = 'registration') {
     '@/components/StateCombobox': { StateCombobox: 'StateCombobox' },
     '@/app/api/auth/me/auth.api': { registerUser: async data => { requests.push(data); return { deliveryAvailable: true }; } },
     '@/app/api/referrals.api': { resolveReferral: async () => ({ valid: true }) },
-    '@/app/api/sms.api': { getSmsProgram: async () => ({ registration: {}, version: 'phone-test' }) },
+    '@/app/api/sms.api': { getSmsProgram: async () => {
+      if (programFails) throw new Error('Messaging terms unavailable');
+      return { registration: {}, version: 'phone-test' };
+    } },
     '@/app/api/platform-terms.api': { getCurrentPlatformTerms: async () => null, platformTermsPageUrl: () => '/terms' },
   };
   const Component = kind === 'registration' ? load('components/card-register.tsx', mocks).CardRegister
@@ -85,11 +89,51 @@ function fixture(kind = 'registration') {
   }
   async function settle() { let tree; for (let i = 0; i < 5; i++) { tree = render(); await new Promise(done => setImmediate(done)); } return tree; }
   render();
-  return { requests, phoneRules, render, settle, values: () => form.getValues(),
+  return { requests, phoneRules, render, settle, defaults: () => defaults, values: () => form.getValues(),
     set(name, value) { form.setValue(name, value); },
     async submit() { const tree = render(); await all(tree, node => node.type === 'form')[0].props.onSubmit(); },
   };
 }
+
+test('registration leaves both SMS choices unchecked after a supported number is entered', async () => {
+  const f = fixture();
+  assert.equal(f.defaults().serviceConsent, false);
+  assert.equal(f.defaults().promotionsConsent, false);
+  f.set('phone', ''); await f.settle();
+  f.set('phone', '+13055551234');
+  const tree = await f.settle();
+  assert.equal(f.values().serviceConsent, false);
+  assert.equal(f.values().promotionsConsent, false);
+  assert.match(text(tree), /Providing a phone number does not enroll you in SMS/);
+  const links = all(tree, node => node.type === 'Link').map(node => node.props.href);
+  assert.ok(links.includes('/sms/terms'));
+  assert.ok(links.includes('/sms/privacy'));
+  assert.match(text(tree), /SMS Terms of Service/);
+  assert.match(text(tree), /SMS Privacy Policy/);
+  await f.submit();
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].serviceConsent, false);
+  assert.equal(f.requests[0].promotionsConsent, false);
+});
+
+test('registration submits each SMS category independently', async () => {
+  for (const category of ['serviceConsent', 'promotionsConsent']) {
+    const f = fixture(); await f.settle();
+    f.set(category, true); await f.submit();
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].serviceConsent, category === 'serviceConsent');
+    assert.equal(f.requests[0].promotionsConsent, category === 'promotionsConsent');
+  }
+});
+
+test('unavailable messaging terms do not block registration without SMS', async () => {
+  const f = fixture('registration', { programFails: true }); await f.settle();
+  await f.submit();
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].serviceConsent, false);
+  assert.equal(f.requests[0].promotionsConsent, false);
+  assert.equal(f.requests[0].consentVersion, undefined);
+});
 
 test('registration accepts a foreign number and normalizes it without SMS opt-in', async () => {
   const f = fixture(); await f.settle(); f.set('phone', '+34 612 345 678');

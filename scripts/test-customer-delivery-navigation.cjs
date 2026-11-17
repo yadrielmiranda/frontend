@@ -56,17 +56,18 @@ const openPoPicker = h => { const trigger = button(h, 'Add POs'); assert(trigger
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 const equalDeps = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
 function harness(relative, exportName, props, overrides = {}) {
-  const states = [], refs = [], effects = [], memos = [], queue = [];
-  let si = 0, ri = 0, ei = 0, mi = 0;
+  const states = [], refs = [], effects = [], memos = [], ids = [], queue = [];
+  let si = 0, ri = 0, ei = 0, mi = 0, ii = 0;
   const hooks = { ...React,
     useState(initial) { const i = si++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
     useRef(initial) { const i = ri++; return refs[i] ??= { current: initial }; },
+    useId() { const i = ii++; return ids[i] ??= `synthetic-id-${i}`; },
     useCallback(callback, deps) { const i = mi++; if (!equalDeps(memos[i]?.deps, deps)) memos[i] = { deps, callback }; return memos[i].callback; },
     useEffect(callback, deps) { const i = ei++; if (!equalDeps(effects[i]?.deps, deps)) { const previous = effects[i]; effects[i] = { deps }; queue.push(() => { previous?.cleanup?.(); effects[i].cleanup = callback(); }); } },
   };
   const Component = load(relative, { ...overrides, react: hooks })[exportName];
   const h = { props,
-    render() { si = ri = ei = mi = 0; const tree = Component(props); while (queue.length) queue.shift()(); return tree; },
+    render() { si = ri = ei = mi = ii = 0; const tree = Component({ ...props }); while (queue.length) queue.shift()(); return tree; },
     async settle() { for (let i = 0; i < 4; i++) { h.render(); await flush(); } return h.render(); },
     dispose() { effects.forEach(effect => effect.cleanup?.()); },
   };
@@ -86,7 +87,7 @@ function scanHarness(props = {}) {
 }
 let keyId = 0;
 function deliveryHarness({ props = {}, api = {} } = {}) {
-  const urls = [], busy = [], scanModes = [];
+  const urls = [], busy = [], scanModes = [], progressRefresh = [];
   const h = harness('app/warehouse/customer-deliveries/customer-delivery-runs-client.tsx', 'CustomerDeliveryRunsClient', {
     actorId: 10, actorRole: 'admin', initialList: page([run()]), initialRun: run(), initialStores: [store], initialStoreId: '1',
     embedded: true, basePath: `${canonical}&storeId=1`, onBusy: value => busy.push(value), onScanModeChange: value => scanModes.push(value), ...props,
@@ -101,8 +102,12 @@ function deliveryHarness({ props = {}, api = {} } = {}) {
     '../warehouse-shared': { errorMessage: error => error.message, Pagination: 'Pagination' },
     './customer-delivery-receipt': { CustomerDeliveryReceipt: 'CustomerDeliveryReceipt' },
     './customer-delivery-po-picker': { CustomerDeliveryPoPicker: 'CustomerDeliveryPoPicker' },
+    './customer-delivery-progress': { DeliveryPoProgress: 'DeliveryPoProgress', DeliveryProgressSummary: 'DeliveryProgressSummary' },
+    './customer-delivery-progress-refresh': { useCustomerDeliveryProgressRefresh: options => {
+      progressRefresh.push(options); return { syncError: '', invalidateProgress() {} };
+    } },
   });
-  return Object.assign(h, { urls, busy, scanModes });
+  return Object.assign(h, { urls, busy, scanModes, progressRefresh });
 }
 function serverPage(relative, role = 'admin', runError = null) {
   const calls = [];
@@ -217,8 +222,9 @@ test('embedded delivery list opens and returns through the canonical Scan URL', 
 });
 test('available POs appear only after opening Add POs while included POs remain on the main delivery', () => {
   const h = deliveryHarness();
-  assert.equal(ofType(h, 'CustomerDeliveryPoPicker'), undefined); assert.match(text(h.render()), /PO 293232/);
+  assert.equal(ofType(h, 'CustomerDeliveryPoPicker'), undefined); assert.equal(ofType(h, 'DeliveryPoProgress').props.run.orders[0].poNumber, '293232');
   openPoPicker(h); assert.equal(ofType(h, 'Dialog').props.open, true);
+  assert.equal(h.progressRefresh.at(-1).paused, true, 'PO selection must keep its visible run snapshot stable');
   assert.equal(ofType(h, 'CustomerDeliveryPoPicker').props.run.id, 7); h.dispose();
 });
 test('saving selected POs closes the picker and updates the included list before it is reopened', async () => {
@@ -227,7 +233,7 @@ test('saving selected POs closes the picker and updates the included list before
   const h = deliveryHarness({ api: { addCustomerDeliveryPos: async (...args) => { calls.push(args); return updated; } } });
   openPoPicker(h); assert.equal(await ofType(h, 'CustomerDeliveryPoPicker').props.onAdd(['external:2']), true);
   assert.deepEqual(calls, [[7, ['external:2']]]); assert.equal(ofType(h, 'CustomerDeliveryPoPicker'), undefined);
-  assert.match(text(h.render()), /PO 293233/); openPoPicker(h);
+  assert(ofType(h, 'DeliveryPoProgress').props.run.orders.some(order => order.poNumber === '293233')); openPoPicker(h);
   assert(ofType(h, 'CustomerDeliveryPoPicker').props.run.orders.some(order => order.key === 'external:2')); h.dispose();
 });
 test('pending PO save blocks dismissal and failed save leaves picker open with the error', async () => {
@@ -242,7 +248,9 @@ test('pending PO save blocks dismissal and failed save leaves picker open with t
 test('embedded scanner propagates pending and camera focus to Scan navigation', () => {
   const h = deliveryHarness(); const scanner = ofType(h, 'ScanPad');
   scanner.props.onPendingChange(true); h.render(); assert.equal(h.busy.at(-1), true);
+  assert.equal(h.progressRefresh.at(-1).paused, true);
   scanner.props.onPendingChange(false); h.render(); assert.equal(h.busy.at(-1), false);
+  assert.equal(h.progressRefresh.at(-1).paused, false);
   scanner.props.onScanModeChange(true); h.render(); assert.equal(h.scanModes.at(-1), true);
   h.dispose(); assert.equal(h.busy.at(-1), false); assert.equal(h.scanModes.at(-1), false);
 });
@@ -272,8 +280,10 @@ test('storage is selected before scanning, stays locked during a reading and can
   const restored = deliveryHarness({ props: { ...props, initialRun: first }, api });
   assert.match(text(restored.render()), /Scanning from: Overflow/);
   ofType(restored, 'ScanPad').props.onSaved(await ofType(restored, 'ScanPad').props.onRead('1133926-DOOR', 'a0000000-0000-4000-8000-000000000011'));
-  assert.deepEqual(calls.map(call => call.storeId), [1, 2]); assert.match(text(restored.render()), /1 pieces · 2 physical parts/);
-  assert.match(text(restored.render()), /From Main/); assert.match(text(restored.render()), /From Overflow/); restored.dispose();
+  assert.deepEqual(calls.map(call => call.storeId), [1, 2]);
+  assert.equal(ofType(restored, 'DeliveryProgressSummary').props.run.totalPieces, 1);
+  assert.equal(ofType(restored, 'DeliveryProgressSummary').props.run.totalParts, 2);
+  assert.deepEqual(ofType(restored, 'DeliveryPoProgress').props.run.allocations.map(item => item.storeName), ['Main', 'Overflow']); restored.dispose();
 });
 test('changing embedded callback identities never briefly unlocks a pending scan', () => {
   const h = deliveryHarness(); ofType(h, 'ScanPad').props.onPendingChange(true); h.render();
@@ -306,6 +316,7 @@ test('mobile Change operation restarts only the embedded scanner and preserves t
 test('uncertain signed close keeps embedded parent locked after remount', async () => {
   const api = { closeCustomerDeliveryRun: async () => { throw new Error('Lost response'); } };
   const h = deliveryHarness({ api }); await click(h, 'Review and close delivery');
+  h.render(); assert.equal(h.progressRefresh.at(-1).paused, true, 'signature review must freeze automatic progress replacement');
   for (const [id, value] of [['delivery-first-name', 'Synthetic'], ['delivery-last-name', 'Recipient']])
     nodes(h.render(), node => node.props?.id === id)[0].props.onChange({ target: { value } });
   ofType(h, 'SignaturePad').props.onChange([[{ x: .1, y: .1 }, { x: .2, y: .4 }, { x: .3, y: .2 }, { x: .4, y: .5 }, { x: .6, y: .2 }]]);

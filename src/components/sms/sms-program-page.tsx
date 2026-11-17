@@ -3,7 +3,7 @@ import { getSmsProgram } from '@/app/api/sms.api';
 
 export async function SmsProgramPage({ kind }: { kind: 'overview' | 'terms' | 'privacy' }) {
   const program = await getSmsProgram();
-  const title = kind === 'terms' ? 'SMS Terms' : kind === 'privacy' ? 'SMS Privacy Policy' : 'SMS notifications';
+  const title = kind === 'terms' ? 'SMS Terms of Service' : kind === 'privacy' ? 'SMS Privacy Policy' : 'SMS notifications';
   const sections = kind === 'privacy' ? program.privacy : program.terms;
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
@@ -29,7 +29,7 @@ export async function SmsProgramPage({ kind }: { kind: 'overview' | 'terms' | 'p
               <p className="text-sm text-slate-600">{program.registration.promotionsDisclosure}</p>
               <p className="text-sm leading-relaxed text-slate-600">{program.disclosure}</p>
               <p className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-blue-600">
-                <Link href="/sms/terms" className="underline underline-offset-4">SMS Terms</Link>
+                <Link href="/sms/terms" className="underline underline-offset-4">SMS Terms of Service</Link>
                 <Link href="/sms/privacy" className="underline underline-offset-4">SMS Privacy Policy</Link>
               </p>
             </div>
@@ -64,7 +64,7 @@ export async function SmsProgramPage({ kind }: { kind: 'overview' | 'terms' | 'p
       )}
       <nav aria-label="SMS information" className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-t pt-5 text-sm text-blue-600">
         <Link href="/sms" className="hover:underline">SMS notifications</Link>
-        <Link href="/sms/terms" className="hover:underline">SMS Terms</Link>
+        <Link href="/sms/terms" className="hover:underline">SMS Terms of Service</Link>
         <Link href="/sms/privacy" className="hover:underline">SMS Privacy Policy</Link>
       </nav>
     </div>

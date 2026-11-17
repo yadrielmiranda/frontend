@@ -22,7 +22,7 @@ function setup({ pending = null, initial = page([group]) } = {}) {
     './releases/po-installation-release-dialog': { PoInstallationReleaseDialog: 'PoInstallationReleaseDialog', pendingPoInstallationRelease: () => pending },
     './store-select': { StoreSelect: 'StoreSelect' }, './transfer-form': { TransferForm: 'TransferForm' },
     './release-actions': { WarehouseReleaseActions: 'WarehouseReleaseActions' },
-    './unit-origin': { UnitOrigin: 'UnitOrigin', unitOriginLabel: () => 'External PO' },
+    './unit-origin': require('./warehouse-origin-test-helpers.cjs'),
     './warehouse-shared': { errorMessage: e => e.message, Pagination: 'Pagination', CountNotice: 'CountNotice', storeBreakdown: () => '', dateLabel: () => '' },
   });
   return Object.assign(h, { auth, empty: () => { latest = page([]); } });

@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Trash2,
   Warehouse,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,13 +59,15 @@ import {
 import { PoName, poDisplayName } from "../unit-origin";
 import { ScanPad } from "../scan-pad";
 import { errorMessage, Pagination } from "../warehouse-shared";
-import { factoryPartLabel, factoryPartsText } from "../factory-parts";
+import { factoryPartLabel } from "../factory-parts";
 import {
   CustomerDeliveryPrintStyles,
   CustomerDeliveryReceipt,
 } from "./customer-delivery-receipt";
 import { hasDeliverySignature } from "./customer-delivery-selection";
 import { CustomerDeliveryPoPicker } from "./customer-delivery-po-picker";
+import { DeliveryPoProgress, DeliveryProgressSummary } from "./customer-delivery-progress";
+import { useCustomerDeliveryProgressRefresh } from "./customer-delivery-progress-refresh";
 
 type CreateRequest = { requestKey: string; storeId?: number | null };
 type ScanStorage = { storeId: number | null; storeName: string };
@@ -234,22 +235,6 @@ export function CustomerDeliveryRunsClient({
             storeId: shown?.storeId ?? null,
             storeName: shown?.storeName ?? "",
           };
-  const allocations =
-    run?.allocations ??
-    run?.items.flatMap((item) =>
-      item.origins?.length
-        ? item.origins.map((origin) => ({ ...item, ...origin }))
-        : !run.multiStore
-          ? [
-              {
-                ...item,
-                storeId: run.storeId,
-                storeName: run.storeName || "Unassigned",
-              },
-            ]
-          : [],
-    ) ??
-    [];
   const operationBusy =
     !ready ||
     busy ||
@@ -258,6 +243,14 @@ export function CustomerDeliveryRunsClient({
     pendingScan;
   const parentCallbacks = useRef({ onBusy, onScanModeChange });
   parentCallbacks.current = { onBusy, onScanModeChange };
+  const { syncError, invalidateProgress } = useCustomerDeliveryProgressRefresh({
+    actorId, actorRole, run, list, status,
+    paused: operationBusy || offline || !ownerMatches || review || poPickerOpen ||
+      storagePickerOpen || Boolean(poPrompt || removePrompt) || signature.length > 0,
+    canRefresh: () => !lock.current && liveIdentity.current && !scanContextRef.current?.reading,
+    onRun: setRun,
+    onList: setList,
+  });
 
   useEffect(() => {
     setPoPickerOpen(false);
@@ -284,6 +277,7 @@ export function CustomerDeliveryRunsClient({
     setAcceptPartial(false);
   };
   function saveScanContext(value: ScanContext) {
+    invalidateProgress();
     localStorage.setItem(
       `${storagePrefix}:source:${value.runId}`,
       JSON.stringify(value),
@@ -298,6 +292,7 @@ export function CustomerDeliveryRunsClient({
   }
   async function loadStorageOptions() {
     if (!run || sourceLocked) return;
+    invalidateProgress();
     const runId = run.id;
     const request = ++storageRequests.serial;
     setStorageOptions(null);
@@ -525,6 +520,7 @@ export function CustomerDeliveryRunsClient({
 
   async function refreshList(page = 1, nextStatus = status) {
     if (lock.current || !ownerMatches || offline || locked || managementPrompt) return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -541,6 +537,7 @@ export function CustomerDeliveryRunsClient({
     }
   }
   function chooseRun(next: CustomerDeliveryRun) {
+    invalidateProgress();
     setRun(next);
     onScanModeChange?.(false);
     setNotice("");
@@ -555,6 +552,7 @@ export function CustomerDeliveryRunsClient({
   }
   async function openRun(id: number) {
     if (lock.current || disabled || scanning || locked || managementPrompt) return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -569,6 +567,7 @@ export function CustomerDeliveryRunsClient({
   }
   async function createDelivery() {
     if (lock.current || disabled || locked || managementPrompt || (blocked && !pendingCreate)) return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -610,6 +609,7 @@ export function CustomerDeliveryRunsClient({
     const keys = [...new Set(poKeys)];
     if (!keys.length) return false;
     const runId = run.id;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -734,6 +734,7 @@ export function CustomerDeliveryRunsClient({
       blocked
     )
       return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -771,6 +772,7 @@ export function CustomerDeliveryRunsClient({
       management
     )
       return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -826,6 +828,7 @@ export function CustomerDeliveryRunsClient({
         (shown.hasPending && !acceptPartial))
     )
       return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -875,6 +878,7 @@ export function CustomerDeliveryRunsClient({
   }
   async function backToList() {
     if (disabled || scanning || pendingScan || locked) return;
+    invalidateProgress();
     if (manual) { router.push("/warehouse"); return; }
     setRun(null);
     onScanModeChange?.(false);
@@ -920,6 +924,7 @@ export function CustomerDeliveryRunsClient({
     const value = pendingManagement ?? managementPrompt;
     if (!value || lock.current || disabled || scanning || pendingScan ||
       pendingClose || pendingRemoval || pendingCreate || (blocked && !pendingManagement)) return;
+    invalidateProgress();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -1016,6 +1021,11 @@ export function CustomerDeliveryRunsClient({
           Connect to continue this delivery. Confirmed scans are already saved.
         </p>
       )}
+      {syncError && !offline && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
+          {syncError}
+        </p>
+      )}
       {blocked && (
         <p
           role="status"
@@ -1083,6 +1093,7 @@ export function CustomerDeliveryRunsClient({
                     Open a delivery to add POs and continue scanning saved
                     parts.
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground">Progress updates automatically every 5 seconds.</p>
                 </div>
                 <Button disabled={disabled || blocked || locked} onClick={createDelivery}>
                   Create delivery
@@ -1139,10 +1150,7 @@ export function CustomerDeliveryRunsClient({
                           .map((order) => [`PO ${order.poNumber}`, poDisplayName(order)].filter(Boolean).join(" · "))
                           .join(" · ") || "Add POs to get started"}
                       </p>
-                      <p className="text-sm">
-                        {item.totalPieces} pieces · {item.totalParts} physical
-                        parts {item.status === "CLOSED" ? "delivered" : "saved"}
-                      </p>
+                      <DeliveryProgressSummary run={item} />
                       <p className="text-xs text-muted-foreground">
                         Created by {item.createdBy} ·{" "}
                         {new Date(item.createdAt).toLocaleDateString()}
@@ -1199,6 +1207,9 @@ export function CustomerDeliveryRunsClient({
             <span className="text-sm text-muted-foreground">
               {run.status === "CLOSED" ? "Closed" : "In progress"}
             </span>
+            {run.status === "ACTIVE" && !review && <span className="text-xs text-muted-foreground">
+              Progress updates automatically every 5 seconds.
+            </span>}
             {run.status === "ACTIVE" && run.canDelete && (
               <Button variant="ghost" size="sm"
                 className="ml-auto text-red-700 hover:text-red-800"
@@ -1442,40 +1453,24 @@ export function CustomerDeliveryRunsClient({
                     )}
                   </Dialog>}
                 </div>
-                {run.orders.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No POs added yet.
-                  </p>
-                ) : (
-                  <ul className="flex flex-wrap gap-2">
-                    {run.orders.map((order) => (
-                      <li
-                        key={order.key}
-                        className="flex max-w-full items-center gap-2 rounded-lg border bg-slate-50 py-1 pl-3 pr-1 text-sm"
-                      >
-                        <span className="min-w-0 break-words font-semibold">
-                          PO {order.poNumber}<PoName unit={order} />
-                          <span className="ml-2 text-xs font-normal text-muted-foreground">
-                            {order.source === "EXTERNAL"
-                              ? "External PO"
-                              : `Order ${order.orderNumber}`}
-                          </span>
-                        </span>
-                        <Button type="button" variant="ghost" size="icon"
-                          className="size-8 shrink-0 text-slate-500 hover:text-red-700"
-                          aria-label={`Remove PO ${order.poNumber}`}
-                          title={(order.canRemove ?? order.totalParts === 0)
-                            ? `Remove PO ${order.poNumber}`
-                            : "Correct this PO's recorded parts before removing it."}
-                          disabled={sourceLocked || blocked || Boolean(pendingCreate) ||
-                            !(order.canRemove ?? order.totalParts === 0)}
-                          onClick={() => askRemovePo(order)}>
-                          <X className="size-4" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <DeliveryPoProgress
+                  key={run.id}
+                  run={run}
+                  manual={manual}
+                  removePoDisabled={sourceLocked || blocked || Boolean(pendingCreate)}
+                  removePartDisabled={sourceLocked}
+                  onRemovePo={askRemovePo}
+                  onRemovePart={(item, allocation, partType) => {
+                    invalidateProgress();
+                    setRemovePrompt({
+                      barcode: `${item.lineNumber}-${partType}`,
+                      partType,
+                      requestKey: warehouseRequestKey(),
+                      storeId: allocation.storeId,
+                      storeName: allocation.storeName,
+                    });
+                  }}
+                />
               </section>
               {manual && <p className="text-sm text-muted-foreground">These parts are saved for delivery. No scanning is needed. Stock is updated when the customer signs and you close the delivery.</p>}
               {(!manual || pendingScan) && <div className="space-y-3">
@@ -1612,10 +1607,8 @@ export function CustomerDeliveryRunsClient({
               <section className="space-y-4 rounded-2xl border bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">{manual ? "Parts in this delivery" : "Scanned and saved"}</h2>
-                    <p className="mt-1 text-sm">
-                      {run.totalPieces} pieces · {run.totalParts} physical parts
-                    </p>
+                    <h2 className="text-lg font-semibold">Delivery progress</h2>
+                    <DeliveryProgressSummary run={run} manual={manual} />
                   </div>
                   <Button
                     disabled={
@@ -1632,105 +1625,6 @@ export function CustomerDeliveryRunsClient({
                     Review and close delivery
                   </Button>
                 </div>
-                {run.items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {manual ? "No parts are recorded in this delivery." : "Scan the first physical part to begin."}
-                  </p>
-                ) : (
-                  <ul className="divide-y">
-                    {run.items.map((item) => (
-                      <li key={item.lineNumber} className="space-y-1 py-3">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-700" />
-                          <div className="min-w-0">
-                            <p className="break-words text-sm font-medium">
-                              {item.description ||
-                                [item.product, item.system, item.configuration]
-                                  .filter(Boolean)
-                                  .join(" · ") ||
-                                "Piece"}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              PO {item.poNumber}<PoName unit={item} /> · Line {item.lineNumber}
-                              {item.mark ? ` · Mark: ${item.mark}` : ""}
-                            </p>
-                            <p className="mt-1 text-sm">
-                              {item.quantity} physical parts
-                              {item.parts
-                                ? ` · ${factoryPartsText(item.parts)}`
-                                : ""}
-                            </p>
-                            <div className="mt-3 space-y-3">
-                              {allocations
-                                .filter(
-                                  (allocation) =>
-                                    allocation.lineNumber === item.lineNumber &&
-                                    allocation.quantity > 0,
-                                )
-                                .map((allocation) => (
-                                  <div
-                                    key={`${item.lineNumber}:${allocation.storeId ?? "unassigned"}`}
-                                    className="space-y-2 rounded-lg border bg-slate-50 px-3 py-2"
-                                  >
-                                    <p className="text-xs text-slate-600">
-                                      <span className="font-medium">
-                                        From {allocation.storeName}
-                                      </span>{" "}
-                                      · {allocation.quantity}{" "}
-                                      {allocation.quantity === 1
-                                        ? "part"
-                                        : "parts"}
-                                      {allocation.parts
-                                        ? ` · ${factoryPartsText(allocation.parts)}`
-                                        : ""}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {(["DOOR", "FRAME", "WINDOW"] as const)
-                                        .filter(
-                                          (type) =>
-                                            (allocation.parts?.[type] ?? 0) > 0,
-                                        )
-                                        .map((type) => (
-                                          <Button
-                                            key={type}
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                              disabled ||
-                                              scanning ||
-                                              pendingScan ||
-                                              locked
-                                            }
-                                            onClick={() =>
-                                              setRemovePrompt({
-                                                barcode: `${item.lineNumber}-${type}`,
-                                                partType: type,
-                                                requestKey:
-                                                  warehouseRequestKey(),
-                                                storeId: allocation.storeId,
-                                                storeName: allocation.storeName,
-                                              })
-                                            }
-                                          >
-                                            Remove one{" "}
-                                            {type === "DOOR"
-                                              ? "panel"
-                                              : type === "FRAME"
-                                                ? "frame"
-                                                : "part"}
-                                            {` from ${allocation.storeName}`}
-                                          </Button>
-                                        ))}
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </section>
             </>
           )}

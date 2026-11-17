@@ -4,12 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 // @ts-ignore: CSS import without type declarations
 import "./globals.css";
-import { AppShell } from "@/components/app-shell";
-import { Providers } from "./providers";
-
-import { GlobalLoginDialog } from "@/components/auth/global-login-dialog";
-import { LoginDialogBridge } from "@/components/auth/login-dialog-bridge";
-import { PortalInstallProvider } from "@/components/pwa/portal-install-provider";
+import { SiteShell } from "@/components/site-shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,14 +43,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <PortalInstallProvider>
-            <LoginDialogBridge />
-            <GlobalLoginDialog />
-
-            <AppShell>{children}</AppShell>
-          </PortalInstallProvider>
-        </Providers>
+        <SiteShell>{children}</SiteShell>
 
         {/* Toaster abajo para que no tape dropdowns */}
         <Toaster richColors position="bottom-left" />
