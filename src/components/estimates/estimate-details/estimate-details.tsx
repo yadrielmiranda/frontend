@@ -13,7 +13,7 @@ import type { DealerMode, EstimateWithRelations } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Printer, Copy, Share2, Mail } from "lucide-react";
+import { Printer, Copy, Share2, Send, Mail, MessageSquare } from "lucide-react";
 import { BackLink } from "@/components/navigation/back-link";
 
 import { EstimateReportShell } from "./parts/estimate-report-shell";
@@ -23,8 +23,11 @@ import { EstimateViewAdmin } from "./views/estimate-view-admin";
 import { EstimateViewDealerPublic } from "./views/estimate-view-dealer-public";
 import { isAdminRole, isDealerRole, isOperatorRole } from "@/lib/rbac";
 import { toast } from "sonner";
-import { emailEstimateShare, getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
+import { sendEstimateShare, getOrCreateEstimatePublicToken, type EstimateSendChannel, type EstimateSendResult } from "@/app/api/estimates.api";
 import { MAX_ESTIMATE_EMAIL_INPUT_LENGTH, MAX_ESTIMATE_EMAIL_RECIPIENTS, parseEstimateEmailRecipients } from "./estimate-email-recipients";
+import { normalizePhoneToE164, isSmsPhoneSupported } from "@/lib/validators-phone";
+import { estimateSendFeedback } from "./estimate-send-result";
+import { isApiError } from "@/app/api/_base";
 
 // =============================
 // ESTIMATE DETAILS
@@ -32,6 +35,7 @@ import { MAX_ESTIMATE_EMAIL_INPUT_LENGTH, MAX_ESTIMATE_EMAIL_RECIPIENTS, parseEs
 
 type ReportMode = "admin" | "dealer" | "customer";
 type CustomerPricingMode = "detailed" | "total";
+type SendDraft = { context: string; recipient: string; cc: string; phone: string; channel: EstimateSendChannel };
 type ReportOption = {
   key: string;
   label: string;
@@ -74,17 +78,18 @@ export function EstimateDetails({
   const copyField = useRef<HTMLTextAreaElement>(null);
   const [sharing, setSharing] = useState(false);
   const sharingBusy = useRef(false);
-  const [emailDraft, setEmailDraft] = useState<{ context: string; recipient: string; cc: string } | null>(null);
-  const [emailError, setEmailError] = useState("");
-  const [emailSending, setEmailSending] = useState(false);
+  const [sendDraft, setSendDraft] = useState<SendDraft | null>(null);
+  const [sendError, setSendError] = useState("");
+  const [sendOutcome, setSendOutcome] = useState<EstimateSendResult | null>(null);
+  const [sending, setSending] = useState(false);
   const [agreementRefresh, setAgreementRefresh] = useState(0);
   const [includeContract, setIncludeContract] = useState(false);
   const [agreementStatus, setAgreementStatus] = useState<AgreementStatus | null>(null);
   const isCanceled = estimate.status?.name === "Canceled";
   useEffect(() => { setIncludeContract(false); setAgreementStatus(null); }, [estimate.id, isCanceled]);
   useEffect(() => {
-    if (agreementStatus && !agreementStatus.defaultContract && !emailDraft && !sharingBusy.current) setIncludeContract(false);
-  }, [agreementStatus, emailDraft, sharing]);
+    if (agreementStatus && !agreementStatus.defaultContract && !sendDraft && !sharingBusy.current) setIncludeContract(false);
+  }, [agreementStatus, sendDraft, sharing]);
   const ownerRole = estimate.user?.role?.name ?? null;
   const ownerIsDealer = isDealerRole(ownerRole);
   const currentUserIsDealer = isDealerRole(userRole);
@@ -184,70 +189,99 @@ export function EstimateDetails({
   const canShareCustomerReport =
     !isCanceled && ownerIsDealer && reportMode === "customer" &&
     (isAdminRole(userRole) || (currentUserIsDealer && (currentUserIsOwner || estimate.dealerNetwork?.canAssist === true)));
-  const canEmailCustomerReport = canShareCustomerReport &&
+  const canSendCustomerReport = canShareCustomerReport &&
     (isAdminRole(userRole) || currentUserDealerMode === "INTERNAL");
   const shareContext = JSON.stringify([
-    estimate.id, estimate.customerEmail, estimate.idUser, currentUserId,
+    estimate.id, estimate.customerEmail, estimate.customerPhone, estimate.idUser, currentUserId,
     userRole, currentUserDealerMode, canShareCustomerReport, reportMode,
     customerPricingMode, includeContract,
   ]);
   const activeShareContext = useRef(shareContext);
   activeShareContext.current = shareContext;
-  const emailOpen = canEmailCustomerReport && emailDraft?.context === shareContext;
-  const emailRecipient = emailOpen ? emailDraft.recipient : "";
-  const emailCc = emailOpen ? emailDraft.cc : "";
+  const sendOpen = canSendCustomerReport && sendDraft?.context === shareContext;
+  const emailRecipient = sendOpen ? sendDraft.recipient : "";
+  const emailCc = sendOpen ? sendDraft.cc : "";
+  const smsPhone = sendOpen ? sendDraft.phone : "";
+  const sendChannel = sendOpen ? sendDraft.channel : "email";
+  const sendEmail = sendChannel !== "sms";
+  const sendSms = sendChannel !== "email";
   const emailRecipients = parseEstimateEmailRecipients(emailRecipient, emailCc);
   const validEmailRecipient = !emailRecipients.error;
   const emailValidationError = emailRecipient || emailCc ? emailRecipients.error : null;
+  const normalizedSmsPhone = normalizePhoneToE164(smsPhone);
+  const validSmsPhone = isSmsPhoneSupported(smsPhone);
+  const validRecipients = (!sendEmail || validEmailRecipient) && (!sendSms || validSmsPhone);
+  const feedback = sendOutcome ? estimateSendFeedback(sendOutcome) : null;
+  const blockedEmail = !!sendOutcome?.email && !feedback?.retryEmail;
+  const blockedSms = !!sendOutcome?.sms && !feedback?.retrySms;
+  const canRetrySelection = !(sendEmail && blockedEmail) && !(sendSms && blockedSms);
 
   useEffect(() => {
-    setEmailDraft(null);
-    setEmailError("");
+    setSendDraft(null);
+    setSendError("");
+    setSendOutcome(null);
     setReadyCopy(null);
     setReadyShare(null);
   }, [shareContext]);
   useEffect(() => () => { activeShareContext.current = ""; }, []);
 
-  const handleEmailEstimate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSendEstimate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (sharingBusy.current || !emailOpen || activeShareContext.current !== shareContext) return;
-    if (!validEmailRecipient) {
-      setEmailError(emailRecipients.error ?? "Enter valid recipient email addresses.");
+    if (sharingBusy.current || !sendOpen || activeShareContext.current !== shareContext || !canRetrySelection) return;
+    if (!validRecipients) {
+      setSendError(sendEmail && !validEmailRecipient ? emailRecipients.error ?? "Enter valid recipient email addresses."
+        : "Enter a valid SMS phone number with country code +1.");
       return;
     }
     sharingBusy.current = true;
     setSharing(true);
-    setEmailSending(true);
-    setEmailError("");
+    setSending(true);
+    setSendError("");
     try {
-      const result = await emailEstimateShare(estimate.id, {
-        to: emailRecipients.to,
-        ...(emailRecipients.cc.length ? { cc: emailRecipients.cc.join(", ") } : {}),
+      const result = await sendEstimateShare(estimate.id, {
+        channel: sendChannel,
+        ...(sendEmail ? { to: emailRecipients.to, ...(emailRecipients.cc.length ? { cc: emailRecipients.cc.join(", ") } : {}) } : {}),
+        ...(sendSms ? { phone: normalizedSmsPhone! } : {}),
         pricingMode: customerPricingMode,
         includeContract,
       });
       if (activeShareContext.current !== shareContext) return;
       if (includeContract) setAgreementRefresh((value) => value + 1);
       if (!result.sent) {
-        setEmailError([
-          `Email accepted for: ${result.accepted.join(", ")}.`,
-          result.rejected.length ? `Rejected: ${result.rejected.join(", ")}.` : "",
-          result.unconfirmed.length ? `Not confirmed: ${result.unconfirmed.join(", ")}. Check whether they received it before resending.` : "",
-          "Sending again will resend to all addresses in To and CC.",
-        ].filter(Boolean).join(" "));
+        const combined = { ...sendOutcome, ...result };
+        setSendOutcome(combined);
+        const next = estimateSendFeedback(combined);
+        setSendDraft(previous => {
+          if (!previous) return previous;
+          const rejected = result.email?.status === "partial" && !result.email.unconfirmed?.length ? result.email.rejected : undefined;
+          return { ...previous, channel: next.retryChannel ?? previous.channel,
+            ...(rejected?.length ? { recipient: rejected[0], cc: rejected.slice(1).join(", ") } : {}) };
+        });
         return;
       }
-      toast.success("Estimate email sent.");
-      setEmailDraft(null);
+      toast.success(sendChannel === "both" ? "Estimate sent by email and SMS." : sendChannel === "sms" ? "Estimate SMS sent." : "Estimate email sent.");
+      setSendDraft(null);
+      setSendOutcome(null);
     } catch (error) {
       if (activeShareContext.current !== shareContext) return;
-      setEmailError((error as Error).name === "AbortError"
-        ? "Sending timed out. Check whether the email arrived before trying again."
+      const confirmedNotSent = isApiError(error) && typeof error.data === "object" && error.data !== null &&
+        "code" in error.data && error.data.code === "ESTIMATE_SHARE_NOT_SENT";
+      const deliveryUnconfirmed = !confirmedNotSent && (!isApiError(error) || error.status < 400 || error.status >= 500 || error.status === 408);
+      if (deliveryUnconfirmed) {
+        setSendOutcome({
+          ...sendOutcome,
+          sent: false,
+          ...(sendEmail ? { email: { status: "unknown" as const } } : {}),
+          ...(sendSms ? { sms: { status: "unknown" as const } } : {}),
+        });
+      }
+      setSendError(deliveryUnconfirmed
+        ? `${(error as Error).name === "AbortError" ? "Sending timed out." : "Sending was not confirmed."} Check whether the selected messages arrived before trying again.`
         : (error as Error).message || "Could not send the estimate. Please try again.");
     } finally {
       sharingBusy.current = false;
       setSharing(false);
-      setEmailSending(false);
+      setSending(false);
     }
   };
 
@@ -419,41 +453,70 @@ export function EstimateDetails({
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
-      <Dialog open={emailOpen} onOpenChange={(open) => { if (!open && !sharingBusy.current) setEmailDraft(null); }}>
-        <DialogContent showCloseButton={!emailSending}>
+      <Dialog open={sendOpen} onOpenChange={(open) => { if (!open && !sharingBusy.current) setSendDraft(null); }}>
+        <DialogContent showCloseButton={!sending}>
           <DialogHeader>
-            <DialogTitle>Email estimate</DialogTitle>
+            <DialogTitle>Send estimate</DialogTitle>
             <DialogDescription>
               Send estimate #{estimate.number} with {customerPricingMode === "total" ? "the project total" : "detailed prices"}{includeContract ? " and the owner's contract" : " without a contract"}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEmailEstimate} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="estimate-email-recipient" className="text-sm font-medium">To</label>
-              <Input id="estimate-email-recipient" type="email" required maxLength={254} autoComplete="email"
-                aria-describedby="estimate-email-recipient-help"
-                value={emailRecipient} disabled={emailSending}
-                onChange={(event) => {
-                  setEmailDraft({ context: shareContext, recipient: event.target.value, cc: emailCc });
-                  setEmailError("");
-                }} />
-              <p id="estimate-email-recipient-help" className="text-sm text-muted-foreground">Main recipient.</p>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="estimate-email-cc" className="text-sm font-medium">CC <span className="font-normal text-muted-foreground">(optional)</span></label>
-              <Input id="estimate-email-cc" type="email" multiple maxLength={MAX_ESTIMATE_EMAIL_INPUT_LENGTH} autoComplete="off"
-                placeholder="email@example.com, another@example.com" aria-describedby="estimate-email-cc-help"
-                value={emailCc} disabled={emailSending}
-                onChange={(event) => {
-                  setEmailDraft({ context: shareContext, recipient: emailRecipient, cc: event.target.value });
-                  setEmailError("");
-                }} />
-              <p id="estimate-email-cc-help" className="text-sm text-muted-foreground">Separate multiple email addresses with commas. Up to {MAX_ESTIMATE_EMAIL_RECIPIENTS} recipients total.</p>
-            </div>
-            {(emailError || emailValidationError) && <p role="alert" className="text-sm text-destructive">{emailError || emailValidationError}</p>}
+          <form onSubmit={handleSendEstimate} className="space-y-4">
+            <fieldset disabled={sending} className="space-y-2">
+              <legend className="mb-2 text-sm font-medium">Send by</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {([['email', 'Email', Mail], ['sms', 'SMS', MessageSquare], ['both', 'Both', Send]] as const).map(([channel, label, Icon]) => (
+                  <label key={channel} className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 ${sendChannel === channel ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200'} ${((channel !== 'sms' && blockedEmail) || (channel !== 'email' && blockedSms)) ? 'cursor-not-allowed opacity-50' : ''}`}>
+                    <input type="radio" name="estimate-send-channel" value={channel} checked={sendChannel === channel}
+                      disabled={(channel !== 'sms' && blockedEmail) || (channel !== 'email' && blockedSms)}
+                      className="sr-only"
+                      onChange={() => { setSendDraft(previous => previous && { ...previous, channel }); setSendError(''); }} />
+                    <Icon className="h-4 w-4" aria-hidden="true" />{label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {sendEmail && <>
+              <div className="space-y-2">
+                <label htmlFor="estimate-email-recipient" className="text-sm font-medium">To</label>
+                <Input id="estimate-email-recipient" type="email" required maxLength={254} autoComplete="email"
+                  aria-describedby="estimate-email-recipient-help"
+                  value={emailRecipient} disabled={sending || blockedEmail}
+                  onChange={(event) => {
+                    setSendDraft(previous => previous && { ...previous, recipient: event.target.value });
+                    setSendError("");
+                  }} />
+                <p id="estimate-email-recipient-help" className="text-sm text-muted-foreground">Main email recipient.</p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="estimate-email-cc" className="text-sm font-medium">CC <span className="font-normal text-muted-foreground">(optional)</span></label>
+                <Input id="estimate-email-cc" type="email" multiple maxLength={MAX_ESTIMATE_EMAIL_INPUT_LENGTH} autoComplete="off"
+                  placeholder="email@example.com, another@example.com" aria-describedby="estimate-email-cc-help"
+                  value={emailCc} disabled={sending || blockedEmail}
+                  onChange={(event) => {
+                    setSendDraft(previous => previous && { ...previous, cc: event.target.value });
+                    setSendError("");
+                  }} />
+                <p id="estimate-email-cc-help" className="text-sm text-muted-foreground">Separate multiple email addresses with commas. Up to {MAX_ESTIMATE_EMAIL_RECIPIENTS} recipients total.</p>
+              </div>
+            </>}
+            {sendSms && <div className="space-y-2">
+              <label htmlFor="estimate-sms-phone" className="text-sm font-medium">Mobile number</label>
+              <Input id="estimate-sms-phone" type="tel" required maxLength={80} autoComplete="tel"
+                placeholder="+1 (786) 555-0123" aria-describedby="estimate-sms-phone-help"
+                value={smsPhone} disabled={sending || blockedSms}
+                onChange={(event) => { setSendDraft(previous => previous && { ...previous, phone: event.target.value }); setSendError(''); }} />
+              <p id="estimate-sms-phone-help" className="text-sm text-muted-foreground">Send the customer link to this number. SMS supports numbers with country code +1.</p>
+            </div>}
+            {feedback && <div role="status" className="space-y-1 rounded-md border bg-slate-50 p-3 text-sm">
+              {feedback.messages.map((message, index) => <p key={index}>{message}</p>)}
+            </div>}
+            {(sendError || (sendEmail && emailValidationError) || (sendSms && smsPhone && !validSmsPhone)) && <p role="alert" className="text-sm text-destructive">
+              {sendError || (sendEmail && emailValidationError) || "Enter a valid SMS phone number with country code +1."}
+            </p>}
             <DialogFooter>
-              <Button type="button" variant="outline" disabled={emailSending} onClick={() => { if (!sharingBusy.current) setEmailDraft(null); }}>Cancel</Button>
-              <Button type="submit" disabled={sharing || !validEmailRecipient}>{emailSending ? "Sending…" : "Send"}</Button>
+              <Button type="button" variant="outline" disabled={sending} onClick={() => { if (!sharingBusy.current) setSendDraft(null); }}>{sendOutcome ? "Close" : "Cancel"}</Button>
+              <Button type="submit" disabled={sharing || !validRecipients || !canRetrySelection}>{sending ? "Sending…" : "Send"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -565,7 +628,7 @@ export function EstimateDetails({
 
                   <Button
                     type="button"
-                    variant={canEmailCustomerReport ? "outline" : "default"}
+                    variant={canSendCustomerReport ? "outline" : "default"}
                     size="sm"
                     disabled={sharing}
                     onClick={handleSharePublicLink}
@@ -573,14 +636,15 @@ export function EstimateDetails({
                     <Share2 className="mr-2 h-4 w-4" />
                     Share
                   </Button>
-                  {canEmailCustomerReport && (
+                  {canSendCustomerReport && (
                     <Button type="button" variant="default" size="sm" disabled={sharing}
                       onClick={() => {
                         if (sharingBusy.current) return;
-                        setEmailError("");
-                        setEmailDraft({ context: shareContext, recipient: estimate.customerEmail ?? "", cc: "" });
+                        setSendError("");
+                        setSendOutcome(null);
+                        setSendDraft({ context: shareContext, recipient: estimate.customerEmail ?? "", cc: "", phone: estimate.customerPhone ?? "", channel: "email" });
                       }}>
-                      <Mail className="mr-2 h-4 w-4" />Email
+                      <Send className="mr-2 h-4 w-4" />Send
                     </Button>
                   )}
                 </div>

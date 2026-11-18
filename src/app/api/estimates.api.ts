@@ -330,6 +330,37 @@ export function emailEstimateShare(
   });
 }
 
+export type EstimateSendChannel = "email" | "sms" | "both";
+export type EstimateSendResult = {
+  sent: boolean;
+  email?: {
+    status: "sent" | "partial" | "failed" | "unknown";
+    message?: string;
+    accepted?: string[];
+    rejected?: string[];
+    unconfirmed?: string[];
+  };
+  sms?: { status: "sent" | "failed" | "unknown"; message?: string };
+};
+
+export function sendEstimateShare(
+  id: number,
+  data: {
+    channel: EstimateSendChannel;
+    to?: string;
+    cc?: string;
+    phone?: string;
+    pricingMode: "detailed" | "total";
+    includeContract: boolean;
+  },
+) {
+  return apiFetch<EstimateSendResult>(`/api/estimates/${id}/share-message`, {
+    method: "POST",
+    body: data,
+    timeoutMs: 120000,
+  });
+}
+
 export function getPublicEstimate(token: string) {
   return apiFetch<EstimateWithRelations>(`/api/public/estimates/${token}`, {
     cache: "no-store",
