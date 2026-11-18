@@ -182,7 +182,7 @@ export function ReceiptsClient({ initial, initialStores, actorId = 0, actorRole 
           <h2 className="text-xl font-semibold">Pending receipt</h2>
           <p className="mt-1 text-sm text-muted-foreground">Choose the POs that have arrived from the factory. Only previously collected parts are included; no second scan is required.</p>
         </div>
-        <Button asChild variant="outline" disabled={editingLocked}><Link href="/warehouse/scan" aria-disabled={editingLocked} tabIndex={editingLocked ? -1 : undefined} onClick={event => { if (editingLocked) event.preventDefault(); }}>Receive by scanning</Link></Button>
+        <Button asChild variant="outline" disabled={editingLocked}><Link href="/warehouse/scan?action=RECEIVE" aria-disabled={editingLocked} tabIndex={editingLocked ? -1 : undefined} onClick={event => { if (editingLocked) event.preventDefault(); }}>Receive by scanning</Link></Button>
       </div>
       <div className="flex flex-wrap gap-3">
         <div className="relative min-w-60 flex-1">

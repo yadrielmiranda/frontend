@@ -73,11 +73,11 @@ function harness(relative, exportName, props, overrides = {}) {
   };
   h.render(); return h;
 }
-function scanHarness(props = {}) {
+function scanHarness(props = {}, api = {}) {
   const urls = [];
   const h = harness('app/warehouse/scan/scan-client.tsx', 'ScanClient', { actorId: 10, isAdmin: true, activeCountId: null, initialStores: [store], ...props }, {
     'next/navigation': { useRouter: () => ({ replace: url => urls.push(url) }) },
-    '@/app/api/warehouse.api': { warehouseInventory: async () => ({ activeCountId: null }), warehouseStores: async () => [store] },
+    '@/app/api/warehouse.api': { warehouseInventory: async () => ({ activeCountId: null }), warehouseStores: async () => [store], warehouseRequestKey: () => 'synthetic-undo', ...api },
     '../store-select': { StoreSelect: 'StoreSelect' }, '../scan-pad': { ScanPad: 'ScanPad' },
     '@/app/technician/factory-pickups': { FactoryPickups: 'FactoryPickups' },
     '../customer-deliveries/customer-delivery-runs-client': { CustomerDeliveryRunsClient: 'CustomerDeliveryRunsClient' },
@@ -129,16 +129,61 @@ const isCustomerUrl = (url, expected = {}) => {
 };
 
 test('warehouse navigation retains Scan and has no separate customer-delivery tab', () => {
-  const h = harness('app/warehouse/warehouse-navigation.tsx', 'WarehouseNavigation', {}, { 'next/navigation': { usePathname: () => '/warehouse/scan' } });
+  const h = harness('app/warehouse/warehouse-navigation.tsx', 'WarehouseNavigation', { isAdmin: true }, {
+    'next/navigation': { usePathname: () => '/warehouse/scan', useSearchParams: () => new URLSearchParams() },
+  });
   const links = nodes(h.render(), node => node.type === 'a');
   assert(links.some(node => node.props.href === '/warehouse/scan' && text(node).includes('Scan')));
   assert(!links.some(node => node.props.href.startsWith('/warehouse/customer-deliveries'))); h.dispose();
 });
-test('Scan release choice opens customer deliveries in place like factory pickups', () => {
-  const h = scanHarness(); click(h, 'Release from warehouse'); click(h, 'Deliver to customer');
-  assert(ofType(h, 'CustomerDeliveryRunsClient')); assert.equal(ofType(h, 'ScanPad'), undefined);
-  assert.equal(nodes(h.render(), node => node.type === 'a' && text(node) === 'Deliver to customer').length, 0);
-  click(h, 'Collect from factory'); assert(ofType(h, 'FactoryPickups')); assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined); h.dispose();
+test('warehouse header and tabs hide only for an explicit admin Scan operation and return with the chooser', () => {
+  let pathname = '/warehouse/scan', query = '';
+  const h = harness('app/warehouse/warehouse-navigation.tsx', 'WarehouseNavigation', { isAdmin: true }, {
+    'next/navigation': { usePathname: () => pathname, useSearchParams: () => new URLSearchParams(query) },
+  });
+  for (const action of ['COLLECT', 'RECEIVE', 'RELEASE']) {
+    query = `action=${action}`; assert.equal(h.render(), null, `Hide warehouse navigation for ${action}`);
+  }
+  query = 'action=RELEASE&destination=customer'; assert.equal(h.render(), null);
+  query = ''; assert.match(text(h.render()), /Warehouse/);
+  query = 'action=invalid'; assert.match(text(h.render()), /Warehouse/);
+  query = 'action=RECEIVE'; h.props.isAdmin = false; assert.match(text(h.render()), /Warehouse/);
+  h.props.isAdmin = true; pathname = '/warehouse/receipts'; assert.match(text(h.render()), /Warehouse/); h.dispose();
+});
+const operationLabels = ['Collect from factory', 'Receive at warehouse', 'Release from warehouse'];
+const destinationLabels = ['Deliver to customer', 'Release to installation'];
+const assertNoChoices = h => {
+  for (const label of [...operationLabels, ...destinationLabels]) assert.equal(button(h, label), undefined, `Unexpected ${label} selector`);
+};
+test('admin Scan starts with only operation choices and no selected task', () => {
+  const h = scanHarness();
+  for (const label of operationLabels) assert(button(h, label));
+  for (const type of ['StoreSelect', 'ScanPad', 'FactoryPickups', 'CustomerDeliveryRunsClient']) assert.equal(ofType(h, type), undefined);
+  for (const label of destinationLabels) assert.equal(button(h, label), undefined);
+  assert.equal(button(h, 'Back to scan options'), undefined); assert.deepEqual(h.urls, []); h.dispose();
+});
+test('each admin Scan option has its own task and returns to the main choices', () => {
+  const h = scanHarness();
+  click(h, 'Collect from factory'); assert.equal(h.urls.at(-1), '/warehouse/scan?action=COLLECT');
+  assert(ofType(h, 'FactoryPickups')); assertNoChoices(h); assert.equal(ofType(h, 'StoreSelect'), undefined);
+  click(h, 'Back to scan options'); assert.equal(h.urls.at(-1), '/warehouse/scan');
+  assert.equal(ofType(h, 'FactoryPickups'), undefined);
+  click(h, 'Receive at warehouse'); assert.equal(h.urls.at(-1), '/warehouse/scan?action=RECEIVE');
+  assert(ofType(h, 'StoreSelect')); assertNoChoices(h); assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined);
+  click(h, 'Back to scan options'); click(h, 'Release from warehouse');
+  assert.equal(h.urls.at(-1), '/warehouse/scan?action=RELEASE');
+  for (const label of operationLabels) assert.equal(button(h, label), undefined);
+  for (const label of destinationLabels) assert(button(h, label));
+  assert.equal(ofType(h, 'ScanPad'), undefined); assert.equal(ofType(h, 'StoreSelect'), undefined);
+  click(h, 'Deliver to customer'); isCustomerUrl(h.urls.at(-1));
+  assert(ofType(h, 'CustomerDeliveryRunsClient')); assertNoChoices(h); assert.equal(ofType(h, 'ScanPad'), undefined);
+  click(h, 'Back to scan options'); assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined);
+  click(h, 'Release from warehouse'); click(h, 'Release to installation');
+  assert.equal(h.urls.at(-1), '/warehouse/scan?action=RELEASE&destination=installation');
+  assert(ofType(h, 'StoreSelect')); assertNoChoices(h);
+  assert(nodes(h.render(), node => node.type === 'a' && text(node) === 'Select POs and quantities without scanning').length);
+  click(h, 'Back to scan options'); assert.equal(h.urls.at(-1), '/warehouse/scan');
+  for (const label of operationLabels) assert(button(h, label)); h.dispose();
 });
 test('Scan customer deep link restores the delivery and store into the embedded view', () => {
   const h = scanHarness({ initialAction: 'RELEASE', initialCustomerDelivery: true, initialDeliveries: page([run()]), initialDelivery: run(), initialStoreId: '1' });
@@ -160,25 +205,59 @@ test('manual PO deep link opens the recorded-parts view without scan operation c
   assert.equal(button(h, 'Collect from factory'), undefined); assert.equal(button(h, 'Release to installation'), undefined);
   assert.doesNotMatch(text(h.render()), /Scan parts|scan each part/); h.dispose();
 });
-test('switching from installation keeps the currently selected warehouse for customer creation', () => {
+test('Back to scan options clears the selected warehouse and saved reading before another task', () => {
   const h = scanHarness({ initialAction: 'RELEASE', initialRelease: true });
-  ofType(h, 'StoreSelect').props.onChange('1'); click(h, 'Deliver to customer');
-  const child = ofType(h, 'CustomerDeliveryRunsClient'); assert.equal(child.props.initialStoreId, '1');
-  isCustomerUrl(child.props.basePath, { storeId: '1' }); isCustomerUrl(h.urls.at(-1), { storeId: '1' }); h.dispose();
+  ofType(h, 'StoreSelect').props.onChange('1');
+  ofType(h, 'ScanPad').props.onSaved({ movement: { id: 1, type: 'RELEASE', createdAt: '2026-11-18T18:00:00Z' }, stock: {} });
+  assert(button(h, 'Undo last reading'));
+  click(h, 'Back to scan options'); assert.equal(button(h, 'Undo last reading'), undefined); assert.equal(h.urls.at(-1), '/warehouse/scan');
+  click(h, 'Receive at warehouse'); assert.equal(ofType(h, 'StoreSelect').props.value, ''); assert.equal(ofType(h, 'ScanPad'), undefined);
+  click(h, 'Back to scan options'); click(h, 'Release from warehouse'); click(h, 'Deliver to customer');
+  const child = ofType(h, 'CustomerDeliveryRunsClient'); assert.equal(child.props.initialStoreId, '');
+  isCustomerUrl(child.props.basePath, { storeId: null }); isCustomerUrl(h.urls.at(-1), { storeId: null }); h.dispose();
 });
 test('same-page Scan navigation changes operation without retaining the prior customer panel', () => {
   const h = scanHarness({ initialAction: 'RELEASE', initialCustomerDelivery: true, initialDeliveries: page([run()]), initialDelivery: run() });
   assert(ofType(h, 'CustomerDeliveryRunsClient'));
   Object.assign(h.props, { initialAction: 'RECEIVE', initialCustomerDelivery: false, initialDelivery: null }); h.render();
-  assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined); assert.equal(button(h, 'Receive at warehouse').props['aria-pressed'], true); h.dispose();
+  assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined); assert(ofType(h, 'StoreSelect')); assertNoChoices(h);
+  Object.assign(h.props, { initialAction: undefined }); h.render();
+  assert.equal(ofType(h, 'StoreSelect'), undefined); for (const label of operationLabels) assert(button(h, label)); h.dispose();
 });
 test('parent operation switching stays locked while a delivery scan or signed close is pending', () => {
   const h = scanHarness({ initialAction: 'RELEASE', initialCustomerDelivery: true, initialDeliveries: page([run()]), initialDelivery: run() });
   const child = ofType(h, 'CustomerDeliveryRunsClient'); child.props.onBusy(true);
-  for (const label of ['Collect from factory', 'Receive at warehouse', 'Release from warehouse', 'Release to installation'])
-    assert.equal(button(h, label).props.disabled, true, `${label} must stay locked`);
-  child.props.onBusy(false); assert.equal(button(h, 'Receive at warehouse').props.disabled, false);
-  click(h, 'Receive at warehouse'); assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined); h.dispose();
+  assert.equal(button(h, 'Back to scan options').props.disabled, true); assertNoChoices(h);
+  button(h, 'Back to scan options').props.onClick(); assert(ofType(h, 'CustomerDeliveryRunsClient')); assert.deepEqual(h.urls, []);
+  child.props.onBusy(false); assert.equal(button(h, 'Back to scan options').props.disabled, false);
+  click(h, 'Back to scan options'); click(h, 'Receive at warehouse'); assert.equal(ofType(h, 'CustomerDeliveryRunsClient'), undefined); h.dispose();
+});
+test('pickup and direct-scanner pending work also prevent leaving their dedicated task', () => {
+  for (const initialAction of ['COLLECT', 'RECEIVE']) {
+    const h = scanHarness({ initialAction, initialStoreId: '1' });
+    const child = ofType(h, initialAction === 'COLLECT' ? 'FactoryPickups' : 'ScanPad');
+    const busy = child.props.onBusy ?? child.props.onPendingChange; busy(true);
+    const back = button(h, 'Back to scan options'); assert.equal(back.props.disabled, true);
+    back.props.onClick(); assert.deepEqual(h.urls, []); assert.equal(ofType(h, child.type).type, child.type);
+    busy(false); click(h, 'Back to scan options'); assert.equal(h.urls.at(-1), '/warehouse/scan'); h.dispose();
+  }
+});
+test('reversing a direct reading locks Back until the operation completes', async () => {
+  let finish;
+  const saved = { movement: { id: 1, type: 'RECEIVE', createdAt: '2026-11-18T18:00:00Z' }, stock: {} };
+  const h = scanHarness({ initialAction: 'RECEIVE', initialStoreId: '1' }, { warehouseUndo: async () => new Promise(resolve => { finish = resolve; }) });
+  ofType(h, 'ScanPad').props.onSaved(saved); const undoing = click(h, 'Undo last reading'); await flush();
+  assert.equal(button(h, 'Back to scan options').props.disabled, true);
+  button(h, 'Back to scan options').props.onClick(); assert.deepEqual(h.urls, []);
+  finish(saved); await undoing; assert.equal(button(h, 'Back to scan options').props.disabled, false);
+  click(h, 'Back to scan options'); assert.equal(button(h, 'Undo last reading'), undefined); h.dispose();
+});
+test('operators retain the receive default and their existing operation choices', () => {
+  const h = scanHarness({ isAdmin: false });
+  assert.equal(button(h, 'Receive at warehouse').props['aria-pressed'], true);
+  assert(button(h, 'Release from warehouse')); assert.equal(button(h, 'Collect from factory'), undefined);
+  assert.equal(button(h, 'Back to scan options'), undefined); assert(ofType(h, 'StoreSelect'));
+  click(h, 'Release from warehouse'); assert(button(h, 'Release to installation')); h.dispose();
 });
 test('operators cannot open customer creation even with an explicit customer deep link', () => {
   const h = scanHarness({ isAdmin: false, initialAction: 'RELEASE', initialCustomerDelivery: true, initialDeliveries: page([run()]), initialDelivery: run() });
@@ -196,6 +275,20 @@ test('Scan page restores admin customer runs and never reads customer deliveries
   const installationPage = serverPage('app/warehouse/scan/page.tsx');
   const installation = await installationPage.render({ action: 'RELEASE', destination: 'installation', storeId: 'unassigned' });
   assert.equal(installation.props.initialRelease, true); assert.equal(installation.props.initialStoreId, 'unassigned'); assert(!installationPage.calls.some(([type]) => type === 'run'));
+});
+test('server Scan defaults to admin choices and preserves explicit tasks and operator receiving', async () => {
+  for (const query of [{}, { action: 'unknown' }, { destination: 'customer', runId: '7' }]) {
+    const p = serverPage('app/warehouse/scan/page.tsx'); const tree = await p.render(query);
+    assert.equal(tree.props.initialAction, undefined); assert.equal(tree.props.initialCustomerDelivery, false);
+    assert.equal(tree.props.initialRelease, false); assert.deepEqual(p.calls.map(([type]) => type), ['list']);
+  }
+  for (const action of ['COLLECT', 'RECEIVE', 'RELEASE']) {
+    const p = serverPage('app/warehouse/scan/page.tsx'); const tree = await p.render({ action });
+    assert.equal(tree.props.initialAction, action); assert.equal(tree.props.initialCustomerDelivery, false);
+    assert.equal(tree.props.initialRelease, false); assert.deepEqual(p.calls.map(([type]) => type), ['list']);
+  }
+  const operator = serverPage('app/warehouse/scan/page.tsx', 'operator');
+  assert.equal((await operator.render({})).props.initialAction, 'RECEIVE'); assert.deepEqual(operator.calls, []);
 });
 test('deleted delivery deep links recover the list for admin and technician without hiding other API errors', async () => {
   const query = { action: 'RELEASE', destination: 'customer', runId: '7' };
@@ -292,15 +385,15 @@ test('changing embedded callback identities never briefly unlocks a pending scan
   assert.equal(h.busy.length, oldEvents); assert.deepEqual(nextBusy, [true]); assert.deepEqual(nextModes, []);
   h.dispose(); assert.equal(nextBusy.at(-1), false); assert.equal(nextModes.at(-1), false);
 });
-test('mobile Change operation restarts only the embedded scanner and preserves the current delivery', async () => {
+test('mobile Stop scanning restarts only the embedded scanner and preserves the current delivery', async () => {
   const parent = scanHarness({ initialAction: 'RELEASE', initialCustomerDelivery: true, initialDeliveries: page([run()]), initialDelivery: run(), initialStoreId: '1' });
   const before = ofType(parent, 'CustomerDeliveryRunsClient');
   before.props.onScanModeChange(true);
-  assert(button(parent, 'Change operation')); click(parent, 'Change operation');
+  assert(button(parent, 'Stop scanning')); click(parent, 'Stop scanning');
   const after = ofType(parent, 'CustomerDeliveryRunsClient');
   assert.equal(after.key, before.key); assert.equal(after.props.scannerRevision, (before.props.scannerRevision ?? 0) + 1);
   assert.deepEqual(after.props.initialRun, before.props.initialRun); assert.deepEqual(after.props.initialList, before.props.initialList);
-  assert.equal(after.props.initialStoreId, '1'); assert.equal(button(parent, 'Release from warehouse').props['aria-pressed'], true);
+  assert.equal(after.props.initialStoreId, '1'); assertNoChoices(parent); assert(button(parent, 'Back to scan options'));
   assert.equal(parent.urls.length, 0); parent.dispose();
 
   const saved = run({ totalParts: 2, items: [{ ...receipt.items[0], quantity: 2, parts: { DOOR: 2 } }] });
@@ -313,6 +406,52 @@ test('mobile Change operation restarts only the embedded scanner and preserves t
   assert.notEqual(ofType(child, 'ScanPad').key, previousKey); assert.match(text(child.render()), /2 physical parts/);
   assert.match(text(child.render()), /Delivery #7/); assert.equal(child.urls.length, 0); child.dispose();
 });
+test('embedded review protects an unsigned receipt while Continue and successful close release parent navigation', async () => {
+  for (const manual of [false, true]) {
+    const parent = scanHarness({ initialAction: 'RELEASE', initialCustomerDelivery: true, initialDelivery: run(), initialManualDelivery: manual });
+    const child = deliveryHarness({ props: { manual, onBusy: ofType(parent, 'CustomerDeliveryRunsClient').props.onBusy }, api: {
+      closeCustomerDeliveryRun: async () => run({ status: 'CLOSED', deliveryId: 21, delivery: receipt }),
+    } });
+    await child.settle();
+    assert.equal(button(parent, 'Back to scan options').props.disabled, false);
+    await click(child, 'Review and close delivery'); child.render();
+    assert.equal(button(parent, 'Back to scan options').props.disabled, true);
+    button(parent, 'Back to scan options').props.onClick(); assert.deepEqual(parent.urls, []);
+    const sign = () => {
+      for (const [id, value] of [['delivery-first-name', 'Synthetic'], ['delivery-last-name', 'Recipient']])
+        nodes(child.render(), node => node.props?.id === id)[0].props.onChange({ target: { value } });
+      ofType(child, 'SignaturePad').props.onChange([[{ x: .1, y: .1 }, { x: .2, y: .4 }, { x: .3, y: .2 }, { x: .4, y: .5 }, { x: .6, y: .2 }]]);
+      nodes(child.render(), node => node.type === 'input' && node.props.type === 'checkbox').forEach(node => node.props.onChange({ target: { checked: true } }));
+    };
+    sign(); child.render(); assert.equal(button(parent, 'Back to scan options').props.disabled, true);
+    assert.equal(button(child, 'Sign and close delivery').props.disabled, false, 'Parent protection must not block valid submission');
+    click(child, manual ? 'Back to delivery' : 'Continue scanning'); child.render();
+    assert.equal(ofType(child, 'SignaturePad'), undefined);
+    assert.equal(button(parent, 'Back to scan options').props.disabled, false);
+    await click(child, 'Review and close delivery'); assert.deepEqual(ofType(child, 'SignaturePad').props.value, []);
+    sign(); await click(child, 'Sign and close delivery'); child.render();
+    assert.match(text(child.render()), /Signed and delivered/); assert(ofType(child, 'CustomerDeliveryReceipt'));
+    assert.equal(button(parent, 'Back to scan options').props.disabled, false, 'A saved receipt remains navigable');
+    click(parent, 'Back to scan options'); assert.equal(parent.urls.at(-1), '/warehouse/scan'); child.dispose(); parent.dispose();
+  }
+});
+test('embedded selections and removal confirmation hold parent navigation until dismissed', async () => {
+  const allocation = { ...receipt.items[0], storeId: 1, storeName: 'Main' };
+  const h = deliveryHarness({ props: { initialRun: run({ multiStore: true, allocations: [allocation] }) } });
+  await h.settle(); assert.equal(h.busy.at(-1), false);
+  openPoPicker(h); h.render(); assert.equal(h.busy.at(-1), true);
+  dialogFor(h, 'Add POs').props.onOpenChange(false); h.render(); assert.equal(h.busy.at(-1), false);
+  dialogFor(h, 'Choose storage').props.onOpenChange(true); await h.settle(); assert.equal(h.busy.at(-1), true);
+  dialogFor(h, 'Choose storage').props.onOpenChange(false); h.render(); assert.equal(h.busy.at(-1), false);
+  ofType(h, 'DeliveryPoProgress').props.onRemovePart(run().items[0], allocation, 'DOOR'); h.render(); assert.equal(h.busy.at(-1), true);
+  click(h, 'Keep part'); h.render(); assert.equal(h.busy.at(-1), false); h.dispose();
+});
+test('standalone delivery review does not report an operation in progress solely for its form', async () => {
+  const h = deliveryHarness({ props: { embedded: false } }); await h.settle();
+  await click(h, 'Review and close delivery'); h.render();
+  assert(ofType(h, 'SignaturePad')); assert.equal(h.busy.at(-1), false); h.dispose();
+});
+
 test('uncertain signed close keeps embedded parent locked after remount', async () => {
   const api = { closeCustomerDeliveryRun: async () => { throw new Error('Lost response'); } };
   const h = deliveryHarness({ api }); await click(h, 'Review and close delivery');
@@ -332,6 +471,66 @@ test('embedded list creates without a storage choice and holds navigation during
   await click(h, 'Create delivery'); h.render(); assert.equal(writes.length, 1); assert.equal(Object.hasOwn(writes[0], 'storeId'), false);
   assert.equal(ofType(h, 'StoreSelect'), undefined); assert.equal(h.busy.at(-1), true); assert(button(h, 'Check created delivery')); h.dispose();
 });
+const emptyRun = (changes = {}) => run({ canDelete: true, items: [], allocations: [], totalPieces: 0, totalParts: 0,
+  orders: [], ...changes });
+
+test('correcting the last saved part exposes deletion without signing or closing the cleared delivery', async () => {
+  const removed = [], deleted = []; let closes = 0;
+  const allocation = { ...receipt.items[0], storeId: 1, storeName: 'Main' };
+  const saved = run({ canDelete: false, multiStore: true, allocations: [allocation] });
+  const h = deliveryHarness({ props: { initialRun: saved }, api: {
+    removeCustomerDeliveryPart: async (id, body) => { removed.push({ id, body }); return emptyRun(); },
+    deleteCustomerDeliveryRun: async id => { deleted.push(id); return { id, deleted: true }; },
+    customerDeliveryRuns: async () => page([]),
+    closeCustomerDeliveryRun: async () => { closes++; throw new Error('An empty delivery should not be signed or closed.'); },
+  } });
+  assert.equal(button(h, 'Delete delivery'), undefined);
+  ofType(h, 'DeliveryPoProgress').props.onRemovePart(saved.items[0], allocation, 'DOOR');
+  await click(h, 'Remove one part');
+  assert.equal(removed.length, 1); assert.equal(removed[0].id, 7);
+  assert(button(h, 'Delete delivery')); click(h, 'Delete delivery');
+  assert.match(text(h.render()), /This delivery has no saved parts/);
+  assert.doesNotMatch(text(h.render()), /This delivery has no recorded scans/);
+  assert.equal(deleted.length, 0); await click(h, 'Confirm deletion');
+  assert.deepEqual(deleted, [7]); assert.equal(closes, 0);
+  assert.match(text(h.render()), /Delivery #7 deleted/);
+  assert.match(text(h.render()), /No deliveries in progress/); h.dispose();
+});
+
+test('a cleared delivery with no POs can be deleted directly from the active list', async () => {
+  const deleted = [];
+  const h = deliveryHarness({ props: { initialRun: null, initialList: page([emptyRun()]) }, api: {
+    deleteCustomerDeliveryRun: async id => { deleted.push(id); return { id, deleted: true }; },
+    customerDeliveryRuns: async () => page([]),
+  } });
+  assert(button(h, 'Open delivery')); click(h, 'Delete delivery');
+  assert.equal(deleted.length, 0); await click(h, 'Confirm deletion');
+  assert.deepEqual(deleted, [7]); assert.equal(button(h, 'Open delivery'), undefined);
+  assert.match(text(h.render()), /No deliveries in progress/); h.dispose();
+});
+
+test('list and detail deletion honor server eligibility and remain hidden for closed deliveries', () => {
+  for (const ineligible of [emptyRun({ canDelete: false }), run({ canDelete: false }), emptyRun({ status: 'CLOSED', canDelete: true })]) {
+    const list = deliveryHarness({ props: { initialRun: null, initialList: page([ineligible]) } });
+    assert.equal(button(list, 'Delete delivery'), undefined); list.dispose();
+    const detail = deliveryHarness({ props: { initialRun: ineligible } });
+    assert.equal(button(detail, 'Delete delivery'), undefined); detail.dispose();
+  }
+});
+
+test('a scan arriving before deletion is rejected and refreshes the delivery with its saved parts intact', async () => {
+  const h = deliveryHarness({ props: { initialRun: emptyRun() }, api: {
+    deleteCustomerDeliveryRun: async () => { throw new ApiError('This delivery has saved parts.', 409, { code: 'DELIVERY_HAS_SCANS' }); },
+    customerDeliveryRun: async () => run({ canDelete: false }),
+  } });
+  click(h, 'Delete delivery'); await click(h, 'Confirm deletion');
+  assert.match(text(h.render()), /This delivery has saved parts/);
+  assert.equal(button(h, 'Delete delivery'), undefined);
+  assert.equal(ofType(h, 'DeliveryPoProgress').props.run.totalParts, 1);
+  assert.deepEqual(ofType(h, 'DeliveryPoProgress').props.run.items, receipt.items);
+  assert.equal(storage.has('customer-delivery-run:10:management'), false); h.dispose();
+});
+
 test('old warehouse delivery links redirect preserving delivery and store selection', async () => {
   const p = serverPage('app/warehouse/customer-deliveries/page.tsx');
   await assert.rejects(() => p.render({ runId: '7', storeId: 'unassigned' }), error => { assert(error instanceof Redirect); isCustomerUrl(error.url, { runId: '7', storeId: 'unassigned' }); return true; });

@@ -241,6 +241,10 @@ export function CustomerDeliveryRunsClient({
     scanning ||
     Boolean(pendingClose || pendingRemoval || pendingCreate || management) ||
     pendingScan;
+  const parentNavigationBusy = operationBusy || (embedded && actorRole === "admin" && (
+    review || signature.length > 0 || poPickerOpen || storagePickerOpen ||
+    Boolean(poPrompt || removePrompt)
+  ));
   const parentCallbacks = useRef({ onBusy, onScanModeChange });
   parentCallbacks.current = { onBusy, onScanModeChange };
   const { syncError, invalidateProgress } = useCustomerDeliveryProgressRefresh({
@@ -261,8 +265,8 @@ export function CustomerDeliveryRunsClient({
   }, [run?.id, ownerMatches, storageRequests]);
 
   useEffect(() => {
-    onBusy?.(operationBusy);
-  }, [onBusy, operationBusy]);
+    onBusy?.(parentNavigationBusy);
+  }, [onBusy, parentNavigationBusy]);
   useEffect(
     () => () => {
       parentCallbacks.current.onBusy?.(false);
@@ -1713,7 +1717,7 @@ export function CustomerDeliveryRunsClient({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {management?.action === "delete"
-                ? "This delivery has no recorded scans. It will be removed from the delivery list."
+                ? "This delivery has no saved parts. It will be removed from the delivery list."
                 : "This PO has no recorded parts in this delivery. You can add it again later."}
             </AlertDialogDescription>
           </AlertDialogHeader>

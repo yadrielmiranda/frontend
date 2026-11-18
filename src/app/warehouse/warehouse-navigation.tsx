@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Boxes, ScanBarcode, History, ClipboardCheck, PackageCheck, Warehouse } from "lucide-react";
 
 const links = [
@@ -13,8 +13,9 @@ const links = [
   { href: "/warehouse/history", label: "History", icon: History },
   { href: "/warehouse/counts", label: "Physical counts", icon: ClipboardCheck },
 ];
-export function WarehouseNavigation() {
+export function WarehouseNavigation({ isAdmin = false }: { isAdmin?: boolean }) {
   const path = usePathname();
+  const query = useSearchParams();
   const [scanFocus, setScanFocus] = useState(false);
 
   useEffect(() => {
@@ -23,6 +24,10 @@ export function WarehouseNavigation() {
     window.addEventListener("warehouse-scan-focus", handleScanFocus);
     return () => window.removeEventListener("warehouse-scan-focus", handleScanFocus);
   }, []);
+
+  const dedicatedScan = isAdmin && path === "/warehouse/scan" &&
+    ["COLLECT", "RECEIVE", "RELEASE"].includes(query.get("action") ?? "");
+  if (dedicatedScan) return null;
 
   return (
     <div className={`space-y-5 ${scanFocus ? "hidden sm:block" : ""}`}>

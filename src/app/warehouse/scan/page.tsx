@@ -10,8 +10,9 @@ export default async function ScanPage({ searchParams }: {
   const query = await searchParams;
   const initialRelease = query.action === "RELEASE" && query.destination === "installation";
   const initialCustomerDelivery = query.action === "RELEASE" && query.destination === "customer";
-  const initialAction = query.action === "COLLECT" || query.action === "RELEASE" ? query.action : "RECEIVE";
   const isAdmin = user.role?.name === "admin";
+  const initialAction = query.action === "COLLECT" || query.action === "RECEIVE" || query.action === "RELEASE"
+    ? query.action : isAdmin ? undefined : "RECEIVE";
   const runId = initialCustomerDelivery && /^[1-9]\d*$/.test(query.runId ?? "") && Number.isSafeInteger(Number(query.runId)) ? Number(query.runId) : null;
   const initialStoreId = query.storeId === "unassigned" || /^[1-9]\d*$/.test(query.storeId ?? "") ? query.storeId! : "";
   const [initial, stores, deliveries, delivery] = await Promise.all([
