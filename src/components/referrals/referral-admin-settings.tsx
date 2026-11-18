@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, Copy, Link2, RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getReferralRoleDefaults, getReferralUsers } from "@/app/api/referrals.api";
 import { referralRoleLabel, referralRuleLabel, type ReferralAdminRoleDefaults, type ReferralAdminUsers, type ReferralAdminUser, type ReferralRoleDefault } from "@/lib/referrals";
@@ -64,6 +66,7 @@ export function ReferralIndividualSettings() {
   const [search, setSearch] = useState("");
   const [request, setRequest] = useState({ q: "", page: 0 });
   const [user, setUser] = useState<ReferralAdminUser | null>(null);
+  const [referralLink, setReferralLink] = useState<{ user: ReferralAdminUser; url: string } | null>(null);
   const requestVersion = useRef(0);
   const reload = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -92,18 +95,55 @@ export function ReferralIndividualSettings() {
     setLoading(true);
     setRequest({ q, page: 0 });
   }
+  function viewLink(item: ReferralAdminUser) {
+    if (!item.profile?.code) return;
+    setReferralLink({ user: item, url: `${window.location.origin}/login/register?ref=${encodeURIComponent(item.profile.code)}` });
+  }
+  async function copyLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink.url);
+      toast.success("Referral link copied.");
+    } catch {
+      toast.error("Select and copy the link above.");
+    }
+  }
   const first = data && data.userCount > 0 ? data.page * data.limit + 1 : 0;
   const last = data ? Math.min(data.page * data.limit + data.users.length, data.userCount) : 0;
 
-  return <SettingsPage title="Individual settings" description="Users follow their role defaults unless you add a custom exception. Choose “Use role defaults” to remove an exception." loading={loading} error={error} onRefresh={() => void reload()}>
+  return <SettingsPage title="Individual settings" description="View users' referral links and manage their reward settings. Users follow their role defaults unless you add a custom exception." loading={loading} error={error} onRefresh={() => void reload()}>
     <section className={box} aria-busy={loading}>
       <form className="flex max-w-lg gap-2" onSubmit={submitSearch}><Input aria-label="Search referral users" placeholder="Name or username…" value={search} onChange={event => setSearch(event.target.value)} /><Button type="submit" variant="outline"><Search className="mr-2 h-4 w-4" />Search</Button></form>
       {loading && <p role="status" className="mt-4 text-sm text-muted-foreground">Loading users…</p>}
       {data && <>
-        <div className="mt-5 overflow-x-auto"><table className={`${table} min-w-[760px]`}><thead><tr><th>User</th><th>Settings</th><th>Effective reward</th><th>Link</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{data.users.map(item => <tr key={item.id}><td><p className="font-medium">{item.firstName} {item.lastName}</p><p className="text-xs text-muted-foreground">{item.username} · {referralRoleLabel[item.referralRole]}</p></td><td><span className={`rounded-full px-2 py-1 text-xs ${item.useRoleDefaults ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-blue-700"}`}>{item.useRoleDefaults ? "Uses role defaults" : "Custom settings"}</span></td><td>{referralRuleLabel(item.profile)}{item.configurationIssue === "MISSING_DEALER_PLAN" && <p className="mt-1 max-w-xs text-xs text-amber-700">No active earnings plan assigned. Assign a plan before referred orders are placed, or choose a percentage.</p>}</td><td><span className={`rounded-full px-2 py-1 text-xs ${item.profile?.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{item.profile?.enabled ? "Available" : "Disabled"}</span></td><td className="text-right"><Button variant="outline" size="sm" disabled={loading} onClick={() => setUser(item)}>Edit settings</Button></td></tr>)}</tbody></table>{!data.users.length && !loading && <p className="py-6 text-sm text-muted-foreground">No matching users.</p>}</div>
+        <div className="mt-5 overflow-x-auto"><table className={`${table} min-w-[760px]`}><thead><tr><th>User</th><th>Settings</th><th>Effective reward</th><th>Referral link</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{data.users.map(item => <tr key={item.id}><td><p className="font-medium">{item.firstName} {item.lastName}</p><p className="text-xs text-muted-foreground">{item.username} · {referralRoleLabel[item.referralRole]}</p></td><td><span className={`rounded-full px-2 py-1 text-xs ${item.useRoleDefaults ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-blue-700"}`}>{item.useRoleDefaults ? "Uses role defaults" : "Custom settings"}</span></td><td>{referralRuleLabel(item.profile)}{item.configurationIssue === "MISSING_DEALER_PLAN" && <p className="mt-1 max-w-xs text-xs text-amber-700">No active earnings plan assigned. Assign a plan before referred orders are placed, or choose a percentage.</p>}</td><td className="pr-3">
+          <div className="space-y-2">
+            {item.profile?.code ? <Button variant="outline" size="sm" disabled={loading} aria-label={`View referral link for ${item.username}`} onClick={() => viewLink(item)}><Link2 aria-hidden="true" className="mr-2 h-4 w-4" />View link</Button> : <p className="text-xs text-muted-foreground">Not created yet</p>}
+            {!item.profile?.enabled && <p className="text-xs text-muted-foreground">Disabled</p>}
+          </div>
+        </td><td className="text-right"><Button variant="outline" size="sm" disabled={loading} onClick={() => setUser(item)}>Edit settings</Button></td></tr>)}</tbody></table>{!data.users.length && !loading && <p className="py-6 text-sm text-muted-foreground">No matching users.</p>}</div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"><p>Showing {first}–{last} of {data.userCount} users · {data.limit} per page</p><nav aria-label="User pages" className="flex items-center gap-3"><Button variant="outline" size="sm" disabled={loading || data.page === 0} onClick={() => changePage(data.page - 1)}>Previous</Button><span>Page {data.page + 1} of {Math.max(1, data.pages)}</span><Button variant="outline" size="sm" disabled={loading || data.page + 1 >= data.pages} onClick={() => changePage(data.page + 1)}>Next</Button></nav></div>
       </>}
     </section>
     <Dialog open={Boolean(user)} onOpenChange={open => { if (!open) setUser(null); }}><DialogContent className="max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>Reward settings · {user?.firstName} {user?.lastName}</DialogTitle><DialogDescription>Use this user&apos;s role defaults or set an individual exception.</DialogDescription></DialogHeader>{user && <ReferralProfileEditor key={user.id} user={user} roleDefault={data?.roleDefaults.find(rule => rule.role === user.referralRole)} onCancel={() => setUser(null)} onDone={async () => { setUser(null); await reload(); }} />}</DialogContent></Dialog>
+    <Dialog open={Boolean(referralLink)} onOpenChange={open => { if (!open) setReferralLink(null); }}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Referral link</DialogTitle>
+          <DialogDescription>{referralLink?.user.firstName} {referralLink?.user.lastName} · {referralLink?.user.username}</DialogDescription>
+        </DialogHeader>
+        {referralLink && <>
+          {!referralLink.user.profile?.enabled && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">This referral link is currently disabled.</p>}
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="admin-referral-link">Referral link</Label>
+            <Input id="admin-referral-link" value={referralLink.url} readOnly onFocus={event => event.target.select()} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setReferralLink(null)}>Close</Button>
+            <Button onClick={() => void copyLink()}><Copy aria-hidden="true" className="mr-2 h-4 w-4" />Copy link</Button>
+          </div>
+        </>}
+      </DialogContent>
+    </Dialog>
   </SettingsPage>;
 }

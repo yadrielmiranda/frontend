@@ -11,6 +11,12 @@ const text = node => node == null ? '' : typeof node !== 'object' ? String(node)
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const same = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
 let hooks = [], cursor = 0, effects = [], requests = [], component, props = {};
+const copiedLinks = [], successMessages = [], errorMessages = [];
+let clipboardFailure = false;
+global.window = { location: { origin: 'https://referrals.example.test' } };
+Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: {
+  async writeText(value) { copiedLinks.push(value); if (clipboardFailure) throw new Error('Clipboard unavailable'); },
+} } });
 const react = {
   useState(initial) { const index = cursor++; if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial;
     return [hooks[index], value => { hooks[index] = typeof value === 'function' ? value(hooks[index]) : value; }]; },
@@ -24,7 +30,7 @@ const react = {
 function queue(type, ...args) { const pending = deferred(); requests.push({ type, args, ...pending }); return pending.promise; }
 const mocks = {
   react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/link': { default: 'Link' }, 'lucide-react': ui,
-  sonner: { toast: { success() {}, error() {} } },
+  sonner: { toast: { success(message) { successMessages.push(message); }, error(message) { errorMessages.push(message); } } },
   '@/app/api/referrals.api': {
     getReferralAdmin: (...args) => queue('overview', ...args),
     getReferralRoleDefaults: (...args) => queue('roles', ...args),
@@ -126,6 +132,57 @@ const search = async value => {
   await search('slow'); const lateError = requests.at(-1); await search('fast'); await finish(requests.at(-1), page(0, 1, 'Fast'));
   lateError.reject(new Error('Stale request failed')); await tick(); assert.doesNotMatch(text(render()), /Stale request failed/);
 
+  reset(ReferralIndividualSettings); render();
+  const linkUsers = [
+    { ...user(1), profile: { ...user(1).profile, code: 'created-code-11111111111111111111', linkCreatedAt: '2026-11-18T12:00:00.000Z' } },
+    { ...user(2), profile: { ...user(2).profile, code: 'code/with?reserved=characters&value=2', linkCreatedAt: '2026-11-18T12:00:00.000Z' } },
+    { ...user(3), profile: { ...user(3).profile, code: null, linkCreatedAt: null } },
+    { ...user(4), profile: { ...user(4).profile, enabled: false, code: 'disabled-code-4444444444444444444', linkCreatedAt: '2026-11-18T12:00:00.000Z' } },
+  ];
+  await finish(requests[0], { ...page(0, linkUsers.length), users: linkUsers });
+  output = render();
+  const viewLink = account => all(render(), node => node.type === 'Button' && node.props?.['aria-label'] === `View referral link for ${account}`)[0];
+  const openLinkDialog = () => all(render(), node => node.type === 'Dialog' && node.props.open)[0];
+  const linkInput = () => all(openLinkDialog(), node => node.type === 'Input' && node.props.id === 'admin-referral-link')[0];
+  const expectedLink = account => `${window.location.origin}/login/register?ref=${encodeURIComponent(account.profile.code)}`;
+  assert.equal(all(output, node => node.type === 'Button' && text(node) === 'View link').length, 3);
+  const uncreatedRow = all(output, node => node.type === 'tr' && text(node).includes('account3'))[0];
+  assert.match(text(uncreatedRow), /Not created yet/);
+  assert.equal(viewLink('account3'), undefined, 'An uncreated link has no view action');
+  const readRequestCount = requests.length;
+
+  viewLink('account1').props.onClick();
+  let dialog = openLinkDialog();
+  assert.ok(dialog, 'View link opens a dialog');
+  assert.equal(text(all(dialog, node => node.type === 'DialogTitle')[0]), 'Referral link');
+  assert.match(text(all(dialog, node => node.type === 'DialogDescription')[0]), /account1/);
+  assert.equal(linkInput().props.readOnly, true);
+  assert.equal(linkInput().props.value, expectedLink(linkUsers[0]));
+  await button('Copy link').props.onClick();
+  assert.equal(copiedLinks.at(-1), expectedLink(linkUsers[0]));
+  assert.equal(successMessages.at(-1), 'Referral link copied.');
+  dialog.props.onOpenChange(false);
+  assert.equal(openLinkDialog(), undefined, 'Closing the dialog clears the selection');
+
+  viewLink('account2').props.onClick();
+  assert.match(text(all(openLinkDialog(), node => node.type === 'DialogDescription')[0]), /account2/);
+  assert.equal(linkInput().props.value, expectedLink(linkUsers[1]), 'The selected user gets their own encoded referral URL');
+  await button('Copy link').props.onClick();
+  assert.equal(copiedLinks.at(-1), expectedLink(linkUsers[1]), 'Copy uses the newly selected user, not the previous dialog');
+  clipboardFailure = true;
+  const successCount = successMessages.length;
+  await button('Copy link').props.onClick();
+  assert.equal(successMessages.length, successCount, 'Clipboard errors do not report success');
+  assert.match(errorMessages.at(-1), /select.*copy/i, 'Clipboard failures explain how to copy manually');
+  clipboardFailure = false;
+  openLinkDialog().props.onOpenChange(false);
+
+  assert.equal(Boolean(viewLink('account4').props.disabled), false, 'A created disabled link remains viewable');
+  viewLink('account4').props.onClick();
+  assert.equal(linkInput().props.value, expectedLink(linkUsers[3]));
+  assert.match(text(openLinkDialog()), /This referral link is currently disabled\./);
+  assert.equal(requests.length, readRequestCount, 'Viewing and copying links do not create links or make extra API requests');
+
   // Both new routes reject unauthenticated/non-admin callers before rendering.
   for (const route of ['roles', 'users']) {
     let currentUser = null;
@@ -139,5 +196,5 @@ const search = async value => {
     }
     currentUser = { role: { name: 'admin' } }; assert.ok((await Page()).type);
   }
-  console.log('Referral admin page checks passed: navigation, isolated endpoints, admin access, existing editors, 25-row pagination, search, stale responses, and empty/clamped pages.');
+  console.log('Referral admin page checks passed: navigation, isolated endpoints, admin access, existing editors, pagination/search, stale responses, empty/clamped pages, and read-only referral link viewing/copying.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
