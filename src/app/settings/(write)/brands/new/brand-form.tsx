@@ -147,7 +147,7 @@ export function BrandForm({ brand }: { brand?: Brand }) {
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Leave empty when this brand does not have a High Bottom surcharge.
+              Leave blank or enter 0 for no High Bottom surcharge.
             </p>
           )}
         </div>

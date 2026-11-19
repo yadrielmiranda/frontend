@@ -44,8 +44,8 @@ export function getBrandColumns({
       cell: ({ row }) => {
         const value = row.original.highBottomPercent;
 
-        if (value == null || Number(value) <= 0) {
-          return <span className="text-muted-foreground">Not configured</span>;
+        if (value == null || Number(value) === 0) {
+          return <span className="text-muted-foreground">No surcharge</span>;
         }
 
         return <span>{Number(value).toFixed(2)}%</span>;
