@@ -64,6 +64,11 @@ export interface DataTableDateRangeValue {
   to?: string;
 }
 
+// Text filters with preset options keep typed searches distinct from preset values.
+export interface DataTableTextSearch {
+  text: string;
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -483,12 +488,21 @@ export function DataTable<TData, TValue>({
       );
     }
 
+    const currentValue = column.getFilterValue();
+    const selectedPreset = filter.options?.find((option) => option.value === currentValue);
+    const textValue = filter.options
+      ? (currentValue as DataTableTextSearch | undefined)?.text
+      : (currentValue as string | undefined);
+
     return (
       <Input
-        aria-label={filter.placeholder ?? "Filter"}
-        placeholder={filter.placeholder ?? "Filter..."}
-        value={(column.getFilterValue() as string) ?? ""}
-        onChange={(event) => column.setFilterValue(event.target.value)}
+        aria-label={selectedPreset?.label ?? filter.placeholder ?? "Filter"}
+        placeholder={selectedPreset?.label ?? filter.placeholder ?? "Filter..."}
+        value={textValue ?? ""}
+        onChange={(event) => {
+          const text = event.target.value;
+          column.setFilterValue(filter.options && text ? { text } : text);
+        }}
         className={
           compact
             ? "h-8 w-full min-w-[130px] font-normal normal-case"

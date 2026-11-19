@@ -87,7 +87,7 @@ export function OrdersClient({
     ];
     if (canViewFinancials) {
       result.push({
-        columnId: "poNumber", type: "select", allLabel: "All factory POs",
+        columnId: "poNumber", type: "text", placeholder: "Filter factory PO...",
         options: [
           { label: "Pending PO", value: "pending" },
           { label: "With PO", value: "assigned" },

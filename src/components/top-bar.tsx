@@ -66,7 +66,8 @@ function TopBar() {
   }, [pathname]);
 
   const Brand = () => (
-    <Link
+    // eslint-disable-next-line @next/next/no-html-link-for-pages -- Reload the entire dashboard on every logo click, including from home.
+    <a
       href="/"
       className="group flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-white/10"
     >
@@ -91,7 +92,7 @@ function TopBar() {
           Impact Windows Portal
         </p>
       </div>
-    </Link>
+    </a>
   );
 
   if (!mounted) {

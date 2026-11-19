@@ -1,6 +1,6 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import { filterFns, type ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { MoreHorizontal, Edit, CreditCard, FileJson } from "lucide-react";
 
@@ -23,7 +23,7 @@ import type { OrderWithRelations } from "@/lib/types";
 import { formatDateEn, formatMoney } from "@/lib/formatters";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { getEstimateCostColumns } from "@/components/estimates/estimate-cost-columns";
-import type { DataTableDateRangeValue } from "@/components/data-table";
+import type { DataTableDateRangeValue, DataTableTextSearch } from "@/components/data-table";
 import { hasFactoryPo, isPendingPoOrder } from "@/lib/order-po";
 
 export function getOrderColumns({
@@ -115,11 +115,11 @@ export function getOrderColumns({
       accessorKey: "poNumber",
       header: "Factory PO",
       cell: ({ row }) => row.original.poNumber?.trim() || "—",
-      filterFn: (row, _columnId, filter: string) => {
+      filterFn: (row, columnId, filter: string | DataTableTextSearch, addMeta) => {
         if (filter === "pending") return isPendingPoOrder(row.original);
         if (filter === "missing") return !hasFactoryPo(row.original);
         if (filter === "assigned") return hasFactoryPo(row.original);
-        return true;
+        return typeof filter === "object" && filterFns.includesString(row, columnId, filter.text, addMeta);
       },
     });
     columns.splice(-1, 0, {
