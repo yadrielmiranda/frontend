@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Building2, ChevronRight, ChevronsDownUp, ChevronsUpDown, ClipboardCheck, Network, Pencil, Power, PowerOff, Search, Store, X } from 'lucide-react';
-import type { NetworkMember } from '@/app/api/dealer-network.api';
+import type { NetworkMember, NetworkRegistrationRequest } from '@/app/api/dealer-network.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NetworkRegistrationReview } from './network-registration-review';
+import { MemberInvitationLink } from './member-invitation-link';
 
 type Branch = {
   member: NetworkMember;
@@ -67,23 +70,38 @@ function businessStatus(member: NetworkMember) {
   return { label: 'Active', color: 'bg-emerald-50 text-emerald-700 ring-emerald-200' };
 }
 
-export function DealerNetworkTree({ members, busy, onEdit, onBusiness, currentUserId, showMarkupSource = false }: {
+export function DealerNetworkTree({ members, registrationRequests, busy, onEdit, onBusiness, currentUserId, isAdmin, initialRegistrationRequest }: {
   members: NetworkMember[];
+  registrationRequests: NetworkRegistrationRequest[];
   busy: boolean;
   onEdit: (member: NetworkMember) => void;
   onBusiness: (member: NetworkMember) => void;
   currentUserId?: number;
-  showMarkupSource?: boolean;
+  isAdmin: boolean;
+  initialRegistrationRequest?: number;
 }) {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const [reviewId, setReviewId] = useState<number | null>(initialRegistrationRequest ?? null);
+  const reviewing = registrationRequests.find(request => request.id === reviewId);
   const [search, setSearch] = useState('');
-  const [pendingOnly, setPendingOnly] = useState(false);
+  const [pendingOnly, setPendingOnly] = useState(Boolean(initialRegistrationRequest));
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const [collapsedResults, setCollapsedResults] = useState<Set<number>>(() => new Set());
   const branches = useMemo(() => buildBranches(members), [members]);
   const query = search.trim().toLowerCase();
   const filtering = Boolean(query) || pendingOnly;
   const visible = useMemo(() => filterBranches(branches, query, pendingOnly), [branches, query, pendingOnly]);
-  const pendingCount = branches.reduce((sum, branch) => sum + branch.pending, 0);
+  const pendingCount = branches.reduce((sum, branch) => sum + branch.pending, registrationRequests.length);
+  const applications = pendingOnly ? registrationRequests.filter(request =>
+    [request.username, request.firstName, request.lastName, request.email, request.companyName, request.level]
+      .join(' ').toLowerCase().includes(query),
+  ) : [];
+  function refresh() { startRefresh(() => router.refresh()); }
+  function closeReview() {
+    setReviewId(null);
+    if (initialRegistrationRequest) router.replace('/dealers', { scroll: false });
+  }
   const branchIds: number[] = [];
   function collectBranches(branch: Branch) {
     if (branch.children.length) branchIds.push(branch.member.id);
@@ -115,19 +133,38 @@ export function DealerNetworkTree({ members, busy, onEdit, onBusiness, currentUs
     if (isExpanded(branch.member.id)) branch.children.forEach(child => collectRows(child, depth + 1));
   }
   visible.roots.forEach(branch => collectRows(branch, 0));
+  const columns = ['Account', 'Level', 'Email', 'Material markup', 'Sales tax', 'Status'];
+  if (isAdmin) columns.push('Invitation link');
+  columns.push('Actions');
 
   return <div className="space-y-4">
+    {initialRegistrationRequest && reviewId === initialRegistrationRequest && !reviewing && (
+      <p role="status" className="text-sm text-slate-600">This application is no longer pending or is unavailable to your account.</p>
+    )}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="relative w-full sm:max-w-sm">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input className="pl-9 pr-9" aria-label="Search dealer network" placeholder="Search accounts or email..." value={search} onChange={event => updateSearch(event.target.value)} />
         {search && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2" onClick={() => updateSearch('')}><X className="h-4 w-4" /></button>}
       </div>
-      <Button variant="outline" aria-pressed={pendingOnly} disabled={!pendingCount && !pendingOnly} className={pendingOnly ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 hover:text-amber-900' : pendingCount ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900' : ''} onClick={() => { setPendingOnly(value => !value); setCollapsedResults(new Set()); }}>
+      <Button variant="outline" aria-pressed={pendingOnly} className={pendingOnly ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 hover:text-amber-900' : pendingCount ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900' : ''} onClick={() => { if (!pendingOnly) refresh(); setPendingOnly(value => !value); setCollapsedResults(new Set()); }}>
         <ClipboardCheck className="h-4 w-4" />Pending requests<span className="rounded-full bg-white/80 px-2 py-0.5 text-xs tabular-nums">{pendingCount}</span>
       </Button>
     </div>
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    {applications.length > 0 && <section className="rounded-xl border border-slate-200 bg-white">
+      <h2 className="border-b px-4 py-3 font-semibold">Registration requests</h2>
+      <ul className="divide-y">
+        {applications.map(request => <li key={request.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold">{request.firstName} {request.lastName} <span className="font-normal text-muted-foreground">({request.username})</span></p>
+            <p className="break-words text-slate-600">{request.level} · {request.email}</p>
+          </div>
+          <Button variant="outline" size="sm" disabled={refreshing} aria-label={`Review application from ${request.username}`}
+            onClick={() => startRefresh(() => { setReviewId(request.id); router.refresh(); })}>Review</Button>
+        </li>)}
+      </ul>
+    </section>}
+    {(!applications.length || rows.length > 0) && <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2">
         <p aria-live="polite" className="text-sm text-slate-500">{filtering ? `${visible.matches} matching ${visible.matches === 1 ? 'account' : 'accounts'}` : `${members.length} ${members.length === 1 ? 'account' : 'accounts'}`}</p>
         <div className="flex items-center gap-1">
@@ -140,7 +177,7 @@ export function DealerNetworkTree({ members, busy, onEdit, onBusiness, currentUs
         <table className="w-full min-w-[1000px] text-sm">
           <caption className="sr-only">Dealer network grouped by dealer, subdealer and distributor</caption>
           <thead className="bg-slate-50 text-left text-slate-600"><tr>
-            {['Account', 'Level', 'Email', 'Material markup', 'Sales tax', 'Status', 'Actions'].map(label => <th key={label} scope="col" className={`whitespace-nowrap px-4 py-3 font-medium ${label === 'Actions' ? 'text-right' : ''}`}>{label}</th>)}
+            {columns.map(label => <th key={label} scope="col" className={`whitespace-nowrap px-4 py-3 font-medium ${label === 'Actions' ? 'text-right' : ''}`}>{label}</th>)}
           </tr></thead>
           <tbody>
             {rows.map(({ branch, depth }) => {
@@ -173,13 +210,18 @@ export function DealerNetworkTree({ members, busy, onEdit, onBusiness, currentUs
                 <td className="px-4 py-4 text-slate-600">{member.email ?? '—'}</td>
                 <td className="px-4 py-4 text-slate-700">{member.markupPercent != null ? <>
                   <span className="font-medium tabular-nums">{member.markupPercent}%</span>
-                  {showMarkupSource && <div className="mt-1 text-xs text-slate-500">From {member.parentDealerId == null ? 'Authentic' : member.parentName ?? 'parent account'}</div>}
+                  {isAdmin && <div className="mt-1 text-xs text-slate-500">From {member.parentDealerId == null ? 'Authentic' : member.parentName ?? 'parent account'}</div>}
                 </> : <span className="text-slate-400">—</span>}</td>
                 <td className="px-4 py-4 text-slate-700">{member.taxPercent != null ? <>
                   <span className="font-medium tabular-nums">{member.taxPercent}%</span>
-                  {showMarkupSource && <div className="mt-1 text-xs text-slate-500">From {member.parentDealerId == null ? 'Authentic' : member.parentName ?? 'parent account'}</div>}
+                  {isAdmin && <div className="mt-1 text-xs text-slate-500">From {member.parentDealerId == null ? 'Authentic' : member.parentName ?? 'parent account'}</div>}
                 </> : <span className="text-slate-400">—</span>}</td>
                 <td className="px-4 py-4"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${status.color}`}>{status.label}</span>{ownPending && <span className="mt-2 block whitespace-nowrap text-xs font-medium text-amber-700">{member.businessAction!.suspended ? 'Pause' : 'Resume'} requested</span>}</td>
+                {isAdmin && <td className="px-4 py-4">
+                  {member.level >= 3 ? <span className="text-slate-400">—</span> : member.hasInvitationLink
+                    ? <MemberInvitationLink member={member} />
+                    : <span className="whitespace-nowrap text-xs text-muted-foreground">Not created yet</span>}
+                </td>}
                 <td className="px-4 py-4">{member.canManage && <div className="flex justify-end gap-2">
                   {member.parentDealerId && <Button variant="outline" size="icon" className="h-8 w-8 text-slate-600" aria-label={`Edit terms for ${member.username}`} title="Edit terms" disabled={busy} onClick={() => onEdit(member)}><Pencil className="h-4 w-4" /></Button>}
                   <Button variant="outline" size="icon" className={`h-8 w-8 ${ownPending ? 'border-amber-200 bg-amber-50 text-amber-700' : member.networkSuspended ? 'text-emerald-600' : 'text-red-500'}`} disabled={busy || (!member.canSuspend && !member.canRequestSuspension && !member.canReviewSuspension && !member.canWithdrawRequest)} aria-label={`Manage new business for ${member.username}`} title={ownPending ? (member.canReviewSuspension ? 'Review request' : 'View request') : member.canSuspend ? (member.networkSuspended ? 'Resume new business' : 'Pause new business') : member.networkSuspended ? 'Request to resume new business' : 'Request to pause new business'} onClick={() => onBusiness(member)}>
@@ -188,10 +230,11 @@ export function DealerNetworkTree({ members, busy, onEdit, onBusiness, currentUs
                 </div>}</td>
               </tr>;
             })}
-            {!rows.length && <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">{pendingOnly ? 'No pending requests match your search.' : 'No accounts found.'}{filtering && <div className="mt-2"><Button variant="link" onClick={clearFilters}>Clear filters</Button></div>}</td></tr>}
+            {!rows.length && <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">{pendingOnly ? 'No pending requests match your search.' : 'No accounts found.'}{filtering && <div className="mt-2"><Button variant="link" onClick={clearFilters}>Clear filters</Button></div>}</td></tr>}
           </tbody>
         </table>
       </div>
-    </div>
+    </div>}
+    {reviewing && <NetworkRegistrationReview key={reviewing.id} request={reviewing} onClose={closeReview} onReviewed={() => { closeReview(); refresh(); }} />}
   </div>;
 }

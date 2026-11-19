@@ -8,6 +8,7 @@ import { GlobalLoginDialog } from "@/components/auth/global-login-dialog";
 import { LoginDialogBridge } from "@/components/auth/login-dialog-bridge";
 import { PortalInstallProvider } from "@/components/pwa/portal-install-provider";
 import { isCompanyPublicRoute } from "@/lib/company-public-routes";
+import { CompanyBrandingProvider } from "@/contexts/CompanyBrandingContext";
 
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -15,6 +16,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
   // Public company pages render their server content without session requests,
   // account redirects, portal navigation, or sign-in/terms overlays.
   if (isCompanyPublicRoute(pathname)) return children;
+  if (pathname.startsWith("/login/dealer-registration/")) {
+    return <CompanyBrandingProvider>{children}</CompanyBrandingProvider>;
+  }
 
   return (
     <Providers>

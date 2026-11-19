@@ -112,6 +112,7 @@ function fixture(kind, props, overrides = {}) {
     '@/contexts/CompanyBrandingContext': { useCompanyBranding: () => ({ refreshCompanyBranding: api('refreshBranding') }) },
     '@/app/api/dealer-network.api': { createNetworkAccount: api('createNetworkAccount'), updateNetworkMarkup: api('updateNetworkMarkup') },
     './network-business-dialog': { NetworkBusinessDialog: 'NetworkBusinessDialog' },
+    './network-invite-button': { NetworkInviteButton: 'NetworkInviteButton' },
     './dealer-network-tree': { DealerNetworkTree: 'DealerNetworkTree' },
   }, { FormData: class { constructor(data) { this.data = data; } get(key) { return this.data[key]; } } })[
     kind === 'user' ? 'UserForm' : kind === 'branding' ? 'BrandingForm' : 'DealerNetworkClient'];
@@ -261,7 +262,7 @@ test('branding selection validates service field lengths and disables autocomple
   assert.equal(f.autocomplete().props.disabled, false);
 });
 
-const networkProps = { currentUserId: 1, isAdmin: false, initialData: { level: 'Dealer', canCreate: true, defaultTaxPercent: 7,
+const networkProps = { currentUserId: 1, isAdmin: false, registrationRequests: [], initialData: { level: 'Dealer', canCreate: true, defaultTaxPercent: 7,
   members: [{ id: 1, username: 'parent', firstName: 'Parent', lastName: 'Dealer', isActive: true, level: 1, dealerMode: 'EXTERNAL' }] } };
 test('network account address selection and manual city correction reach the existing create payload', async () => {
   const f = fixture('network', networkProps); f.click('New subdealer');

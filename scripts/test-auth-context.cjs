@@ -341,6 +341,15 @@ test('sign-in after a verified identity still navigates instead of reusing the o
   assert.equal(result, null); assert.deepEqual(f.navigations, ['/']); assert.equal(f.value.user, null);
   assert.equal(f.value.isAuthenticated, false); assert.equal(f.notice(), null); assert.equal(f.hasChildren(), false);
 }));
+test('a registration reviewer keeps the requested application across the full sign-in navigation', using(async f => {
+  await f.mount();
+  f.window.location.pathname = '/login';
+  f.enqueue('/api/auth/login', response({ role: 'admin' }));
+  await f.value.signIn({ identifier: 'test', password: 'not-a-real-password' }, 42);
+  await flush();
+  assert.deepEqual(f.navigations, ['/dealers?registrationRequest=42']);
+  assert.equal(f.value.user, null);
+}));
 (async () => {
   let failed = 0;
   for (const { name, run } of tests) {

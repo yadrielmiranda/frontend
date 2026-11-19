@@ -16,6 +16,11 @@ export type SmsProgram = {
     promotionsDisclosure: string;
   };
   terms: SmsPolicySection[];
+  dealerRegistration: {
+    serviceConsentText: string;
+    promotionsConsentText: string;
+    version: string;
+  };
   privacy: SmsPolicySection[];
   version: string;
 };

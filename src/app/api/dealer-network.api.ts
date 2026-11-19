@@ -6,8 +6,15 @@ export type NetworkBusinessAction = {
   createdAt: string; reviewedAt: string | null; reviewNote: string | null;
 };
 
+export type NetworkBusinessDetails = {
+  companyName: string | null;
+  estimatedMonthlySales: string | null;
+  yearsOfExperience: number;
+  preferredLanguage: 'English' | 'Spanish';
+};
 export type NetworkMember = {
   id: number; username: string; firstName: string; lastName: string;
+  hasInvitationLink?: boolean;
   email: string | null; phone: string | null; isActive: boolean;
   networkSuspended: boolean; networkAccessBlocked: boolean; networkSalesBlocked: boolean; canSuspend: boolean;
   canRequestSuspension: boolean; canReviewSuspension: boolean; canWithdrawRequest: boolean;
@@ -31,3 +38,32 @@ export const setNetworkSuspension = (id: number, suspended: boolean, reason: str
 export const requestNetworkSuspension = (id: number, suspended: boolean, reason: string) => apiFetch(`/api/dealer-network/${id}/suspension-requests`, { method: 'POST', body: { suspended, reason } });
 export const reviewNetworkSuspension = (id: number, approve: boolean, reason?: string) => apiFetch(`/api/dealer-network/suspension-requests/${id}`, { method: 'PATCH', body: { approve, reason } });
 export const withdrawNetworkSuspension = (id: number) => apiFetch(`/api/dealer-network/suspension-requests/${id}`, { method: 'DELETE' });
+
+export type RegistrationLevel = 'Dealer' | 'Subdealer' | 'Distributor';
+export type NetworkInvitation = { token: string | null; markupPercent: string; level: RegistrationLevel };
+export type NetworkRegistrationRequest = NetworkBusinessDetails & {
+  id: number;
+  level: RegistrationLevel;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  street: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  markupPercent: string;
+  createdAt: string;
+};
+
+export const getNetworkInvitation = () => apiFetch<NetworkInvitation>('/api/dealer-network/invitation');
+export const getMemberInvitationLink = (memberId: number) =>
+  apiFetch<{ token: string }>(`/api/dealer-network/members/${memberId}/invitation`, { timeoutMs: 15000 });
+export const saveNetworkInvitation = (markupPercent: string) =>
+  apiFetch<NetworkInvitation>('/api/dealer-network/invitation', { method: 'PUT', body: { markupPercent } });
+export const getNetworkRegistrationRequests = () =>
+  apiFetch<NetworkRegistrationRequest[]>('/api/dealer-network/registration-requests');
+export const reviewNetworkRegistration = (id: number, approve: boolean) =>
+  apiFetch(`/api/dealer-network/registration-requests/${id}`, { method: 'PATCH', body: { approve } });

@@ -21,6 +21,7 @@ import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { SessionVerificationNotice } from "@/components/auth/session-verification-notice";
 import { isApiError } from "@/app/api/_base";
 import type { AuthUser } from "@/app/types/auth";
+import { registrationLoginDestination } from "@/lib/dealer-registration-request";
 import {
   navigateAfterSessionChange,
   notifySessionChange,
@@ -35,7 +36,7 @@ type AuthContextType = {
   error: string | null;
   setUser: (user: AuthUser | null) => void;
   revalidate: () => Promise<AuthUser | null>;
-  signIn: (credentials: LoginData) => Promise<AuthUser | null>;
+  signIn: (credentials: LoginData, registrationRequestId?: number) => Promise<AuthUser | null>;
   loginTerms: { userId: number; status: PlatformTermsStatus } | null;
 
   notifications: Notification[];
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signIn = useCallback(async (credentials: LoginData): Promise<AuthUser | null> => {
+  const signIn = useCallback(async (credentials: LoginData, registrationRequestId?: number): Promise<AuthUser | null> => {
     if (transitionRef.current || loginInFlightRef.current) return null;
     loginInFlightRef.current = true;
     const request = ++authRequestRef.current;
@@ -150,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cleanLoginPage = lastIdentityRef.current === null &&
         (window.location.pathname === "/" || window.location.pathname === "/login");
       if (!cleanLoginPage || result.role === "technician") {
-        navigateAfterSessionChange(result.role === "technician" ? "/technician" : "/");
+        navigateAfterSessionChange(registrationLoginDestination(result.role, registrationRequestId));
         return null;
       }
 

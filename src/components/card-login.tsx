@@ -24,6 +24,7 @@ import {
 import { loginUser } from "@/app/api/auth/me/auth.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { navigateAfterSessionChange } from "@/lib/auth-session";
+import { registrationLoginDestination } from "@/lib/dealer-registration-request";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, { message: "Username or email is required." }),
@@ -44,6 +45,7 @@ interface CardLoginProps {
   appearance?: CardLoginAppearance;
   lockIdentifier?: boolean;
   defaultIdentifier?: string;
+  registrationRequestId?: number;
 }
 
 export function CardLogin({
@@ -53,6 +55,7 @@ export function CardLogin({
   appearance = "light",
   lockIdentifier = false,
   defaultIdentifier,
+  registrationRequestId,
 }: CardLoginProps) {
   const router = useRouter();
   const { revalidate, signIn } = useAuth();
@@ -79,10 +82,10 @@ export function CardLogin({
   const handleLogin = async (data: LoginFormData) => {
     try {
       if (!isUnlock) {
-        const account = await signIn(data);
+        const account = await signIn(data, registrationRequestId);
         if (!account) return;
         onLoginSuccess?.();
-        router.replace("/");
+        router.replace(registrationLoginDestination(account.role?.name, registrationRequestId));
         router.refresh();
         return;
       }

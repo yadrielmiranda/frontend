@@ -10,13 +10,16 @@ import { Input } from '@/components/ui/input';
 import { InternationalPhoneInput } from '@/components/international-phone-input';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { createNetworkAccount, updateNetworkMarkup, type DealerNetwork, type NetworkMember } from '@/app/api/dealer-network.api';
+import { createNetworkAccount, updateNetworkMarkup, type DealerNetwork, type NetworkMember, type NetworkRegistrationRequest } from '@/app/api/dealer-network.api';
 import { NetworkBusinessDialog } from './network-business-dialog';
+import { NetworkInviteButton } from './network-invite-button';
 import { DealerNetworkTree } from './dealer-network-tree';
 import { normalizePhoneToE164 } from '@/lib/validators-phone';
 
-export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
+export function DealerNetworkClient({ initialData, currentUserId, isAdmin, registrationRequests, initialRegistrationRequest }: {
   initialData: DealerNetwork; currentUserId: number; isAdmin: boolean;
+  registrationRequests: NetworkRegistrationRequest[];
+  initialRegistrationRequest?: number;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -79,12 +82,15 @@ export function DealerNetworkClient({ initialData, currentUserId, isAdmin }: {
   return <div className="w-full px-4 py-6 md:px-8">
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <h1 className="text-4xl font-bold">{initialData.level === null ? 'Dealer network' : 'My dealers'}</h1>
-      {initialData.canCreate && <Button variant="green" onClick={() => {
+      {initialData.canCreate && <div className="flex flex-wrap gap-2">
+      <NetworkInviteButton level={isAdmin ? 'Dealer' : initialData.level === 'Subdealer' ? 'Distributor' : 'Subdealer'} />
+      <Button variant="green" onClick={() => {
         setParentId(String(isAdmin ? parents[0]?.id ?? '' : currentUserId)); setMode('EXTERNAL'); setEarningsMode('MARKUP'); setError('');
         setAddress({ street: '', addressLine2: '', city: '', state: '', postalCode: '' }); setPhone(''); setCreating(true);
-      }}><Plus className="mr-2 h-4 w-4" />{isAdmin ? 'New account' : `New ${initialData.level === 'Subdealer' ? 'distributor' : 'subdealer'}`}</Button>}
+      }}><Plus className="mr-2 h-4 w-4" />{isAdmin ? 'New account' : `New ${initialData.level === 'Subdealer' ? 'distributor' : 'subdealer'}`}</Button></div>}
     </div>
-    {isAdmin || initialData.level !== null ? <DealerNetworkTree members={initialData.members.filter(member => member.id !== currentUserId)} currentUserId={currentUserId} showMarkupSource={isAdmin} busy={busy} onEdit={editTerms} onBusiness={setSuspending} /> : <>
+    {isAdmin || initialData.level !== null ? <DealerNetworkTree key={initialRegistrationRequest ?? 'directory'} initialRegistrationRequest={initialRegistrationRequest}
+      members={initialData.members.filter(member => member.id !== currentUserId)} registrationRequests={registrationRequests} currentUserId={currentUserId} isAdmin={isAdmin} busy={busy} onEdit={editTerms} onBusiness={setSuspending} /> : <>
     <div className="mb-4 flex max-w-sm items-center gap-2"><Search className="h-4 w-4 text-muted-foreground" /><Input aria-label="Search dealers" placeholder="Search accounts..." value={search} onChange={event => setSearch(event.target.value)} /></div>
     <div className="overflow-x-auto rounded-xl border bg-white">
       <table className="w-full text-sm"><thead className="bg-slate-50 text-left"><tr>

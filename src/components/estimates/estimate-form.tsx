@@ -222,10 +222,7 @@ export function EstimateForm({
   const router = useRouter();
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
-  // En la red se muestra la tasa acordada, también después de un recálculo explícito.
-  const taxRate = estimate?.dealerNetwork
-    ? Number(promotionEstimate?.taxRate ?? estimate.taxRate)
-    : defaultTaxRate;
+  const taxRate = Number(promotionEstimate?.taxRate ?? estimate?.taxRate ?? defaultTaxRate);
   const { user } = useAuth();
   // El bloqueo temporal no cambia los campos ni las condiciones del borrador.
   // AuthContext descarta este editor si se autentica una identidad diferente.
@@ -244,7 +241,7 @@ export function EstimateForm({
     ? savedEstimate.dealerModeSnapshot ?? null
     : user?.dealerMode ?? null;
   const isTaxExempt = estimate?.dealerNetwork ? false : estimate
-    ? Boolean(estimate.user.isTaxExempt)
+    ? taxRate === 0 && Boolean(estimate.user.isTaxExempt)
     : Boolean(user?.isTaxExempt);
   const isEditMode = !!estimate;
   const [financialInstallation, setFinancialInstallation] = useState(
