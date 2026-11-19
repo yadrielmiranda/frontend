@@ -22,6 +22,7 @@ export interface PivotDoorDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  highBottom?: boolean;
   showDimensions?: boolean;
   className?: string;
   muntin?: ResolvedMuntin | null;
@@ -33,20 +34,20 @@ function frameColor(value?: string | null): string {
 }
 
 /** Fixed O and the approved outward-opening X, with a fixed transom or sidelite. */
-export function PivotDoorDiagram({ width, height, configuration = "X", doorHeight, doorWidth, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: PivotDoorDiagramProps) {
+export function PivotDoorDiagram({ width, height, configuration = "X", doorHeight, doorWidth, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: PivotDoorDiagramProps) {
   const reactId = useId();
   const [widthLanes, setWidthLanes] = useState(1);
   const [heightLanes, setHeightLanes] = useState(1);
   const id = `pivot-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (configuration === "O") return <PivotFixedDoorDiagram width={width} height={height} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
-  if (configuration === "OXO" || configuration === "O/O-O/X" || configuration === "O/X-O/O" || configuration === "O/O-O/X-O/O") return <PivotCompositeDoorDiagram configuration={configuration} width={width} height={height} doorWidth={doorWidth} doorHeight={doorHeight} activeOptionName={activeOptionName} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
+  if (configuration === "OXO" || configuration === "O/O-O/X" || configuration === "O/X-O/O" || configuration === "O/O-O/X-O/O") return <PivotCompositeDoorDiagram configuration={configuration} width={width} height={height} doorWidth={doorWidth} doorHeight={doorHeight} activeOptionName={activeOptionName} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} highBottom={highBottom} showDimensions={showDimensions} className={className} muntin={muntin} />;
   if (configuration !== "X" && configuration !== "O/X" && configuration !== "XO" && configuration !== "OX") return null;
   const isTransom = configuration === "O/X";
   const isSidelite = configuration === "XO" || configuration === "OX";
   if (isTransom && (!Number.isFinite(height) || !Number.isFinite(doorHeight) || !doorHeight || doorHeight <= 0 || doorHeight >= height)) return null;
-  const sidelite = isSidelite ? pivotSideliteLayout(width, height, doorWidth, configuration) : null;
+  const sidelite = isSidelite ? pivotSideliteLayout(width, height, doorWidth, configuration, highBottom) : null;
   if (isSidelite && !sidelite) return null;
-  const layout = sidelite?.door ?? pivotDoorLayout(width, isTransom ? doorHeight! : height);
+  const layout = sidelite?.door ?? pivotDoorLayout(width, isTransom ? doorHeight! : height, highBottom);
   if (!layout) return null;
   const { opening, leaf, glassBounds, profileScale: p, sx, sy } = layout;
   const transomHeight = isTransom ? height - doorHeight! : 0;

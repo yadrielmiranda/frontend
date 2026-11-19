@@ -1,9 +1,34 @@
 import type { SlidingGlassDoorRect } from "./sliding-glass-door-spec";
+import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
 
 type Rect = SlidingGlassDoorRect;
 type Interval = readonly [number, number];
 
 export type SlidingGlassDoorSlice = { source: Rect; target: Rect };
+
+/** Reuse the operable leaf's own glazing bead and aluminum face from the C139 artwork. */
+export function slidingHighBottomRail(glass: Rect, frame: Rect, mapRect: (rect: Rect) => Rect, unitsPerInch: number) {
+  const pane = mapRect(glass);
+  const sillY = glass.y + glass.height;
+  // On both C139 source profiles the leaf occupies roughly two thirds of the
+  // band below the glass. The remaining third is the track and stays fixed.
+  const standardRail = mapRect({ ...glass, y: sillY, height: (frame.y + frame.height - sillY) * 0.68 }).height;
+  const lift = Math.min(pane.height / 2, Math.max(0, HIGH_BOTTOM_RAIL_IN * unitsPerInch - standardRail));
+  if (lift === 0) return { pane, slices: [] };
+
+  // The first four source pixels carry the gasket, followed by the rail's plain face.
+  // Include the perimeter gasket at both ends so it stops where the new glass ends.
+  const strip = { x: glass.x - 4, width: glass.width + 8, y: sillY, height: 4 };
+  const gasket = mapRect(strip);
+  const face = mapRect({ ...strip, y: sillY + strip.height, height: 2 });
+  return {
+    pane: { ...pane, height: pane.height - lift },
+    slices: [
+      { source: gasket, target: { ...gasket, y: gasket.y - lift } },
+      { source: face, target: { ...face, y: face.y - lift, height: face.height + lift } },
+    ],
+  };
+}
 
 function median(values: number[]): number {
   const sorted = values.filter((value) => value > 0).sort((a, b) => a - b);

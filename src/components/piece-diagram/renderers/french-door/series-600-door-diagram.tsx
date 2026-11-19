@@ -80,6 +80,7 @@ export type PieceDiagramSeries600MixedPiece =
     });
 
 interface SharedMaterialProps {
+  highBottom?: boolean;
   frenchDoorDesignKey?: string | null;
   showHardware?: boolean;
   frameColorHex?: string | null;
@@ -245,6 +246,7 @@ function XStructure({
   height,
   hingeSide,
   joined,
+  highBottom,
   showHardware = true,
   frenchDoorDesignKey,
   frameColor,
@@ -257,7 +259,7 @@ function XStructure({
 }: StructureMaterialProps & {
   hingeSide: PieceDiagramExteriorHingeSide;
 }) {
-  const geometry = singleFrenchDoorGeometry(width, height, hingeSide, joined);
+  const geometry = singleFrenchDoorGeometry(width, height, hingeSide, joined, highBottom);
   const baseGlass = geometry.glass;
   const indicatorGlass =
     hingeSide === "left" ? mirroredRect(baseGlass, width) : baseGlass;
@@ -379,6 +381,7 @@ function XXStructure({
   height,
   structureId,
   joined,
+  highBottom,
   showHardware = true,
   frenchDoorDesignKey,
   frameColor,
@@ -392,7 +395,7 @@ function XXStructure({
   structureId: PieceDiagramSeries600XXStructureId;
 }) {
   const structure = XX_STRUCTURES[structureId];
-  const geometry = doubleFrenchDoorGeometry(width, height, structure.activeLeaf, joined);
+  const geometry = doubleFrenchDoorGeometry(width, height, structure.activeLeaf, joined, highBottom);
   const { leftGlass, rightGlass } = geometry;
 
   return (
@@ -674,7 +677,7 @@ export function FrenchDoorStructure({
     : <XXStructure {...props} structureId={resolveXXStructureId(undefined, activeLeaf, boreCount)} />;
 }
 
-function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel[] {
+function mixedMovementPanels(layout: ResolvedMixedLayout, highBottom?: boolean): Serie600MovementPanel[] {
   const panels: Serie600MovementPanel[] = [];
   for (const piece of layout.pieces) {
     if (piece.kind === "O") {
@@ -687,7 +690,7 @@ function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel
       continue;
     }
     if (piece.kind === "X") {
-      const baseGlass = singleFrenchDoorGeometry(piece.drawWidth, layout.height, piece.exteriorHingeSide, piece.joined).glass;
+      const baseGlass = singleFrenchDoorGeometry(piece.drawWidth, layout.height, piece.exteriorHingeSide, piece.joined, highBottom).glass;
       const glass =
         piece.exteriorHingeSide === "left"
           ? mirroredRect(baseGlass, piece.drawWidth)
@@ -702,7 +705,7 @@ function mixedMovementPanels(layout: ResolvedMixedLayout): Serie600MovementPanel
     }
 
     const structure = XX_STRUCTURES[piece.structureId!];
-    const { leftGlass, rightGlass } = doubleFrenchDoorGeometry(piece.drawWidth, layout.height, structure.activeLeaf, piece.joined);
+    const { leftGlass, rightGlass } = doubleFrenchDoorGeometry(piece.drawWidth, layout.height, structure.activeLeaf, piece.joined, highBottom);
     ([
       ["left", leftGlass],
       ["right", rightGlass],
@@ -809,6 +812,7 @@ function containerClass(variant: PieceDiagramVariant, className?: string) {
 }
 
 export function Series600MixedAssemblyDiagram({
+  highBottom,
   configuration,
   showHardware,
   pieces,
@@ -832,7 +836,7 @@ export function Series600MixedAssemblyDiagram({
   const frameColor = normalizeFrameColor(frameColorHex);
   const finish = doorFinish(frameColor);
   const movementColor = normalizeMovementIndicatorColor(movementIndicatorColor);
-  const movementPanels = mixedMovementPanels(layout);
+  const movementPanels = mixedMovementPanels(layout, highBottom);
   const leafCount = layout.pieces.some(piece => piece.kind === "XX") ? 2 : 1;
   // Keep the dimension lines in the viewBox; the fixed pixel padding below
   // reserves label space without shrinking the product a second time.
@@ -894,6 +898,7 @@ export function Series600MixedAssemblyDiagram({
             hasCoating,
             hasPrivacy,
             joined: piece.joined,
+            highBottom,
             showHardware,
             frenchDoorDesignKey,
             movementIndicatorId: pieceId,
@@ -952,6 +957,7 @@ export function Series600MixedAssemblyDiagram({
 }
 
 export function PieceDiagram({
+  highBottom,
   diagramFamily = "FRENCH_DOOR",
   showHardware,
   configuration,
@@ -984,6 +990,7 @@ export function PieceDiagram({
     }
     return (
       <Series600MixedAssemblyDiagram
+        highBottom={highBottom}
         configuration={configuration as PieceDiagramSeries600MixedConfiguration}
         pieces={series600MixedPieces}
         showHardware={showHardware}
@@ -1022,6 +1029,7 @@ export function PieceDiagram({
   const materialProps = {
     width,
     height,
+    highBottom,
     showHardware,
     frameColor,
     glassTintHex,

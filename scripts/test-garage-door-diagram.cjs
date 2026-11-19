@@ -62,6 +62,42 @@ test('GF has five glass sections, uses normal frame finish, and needs no catalog
   assert.equal((svg.match(/data-material="glass"/g) || []).length, 5);
   assert.doesNotMatch(svg, /data-material="slat"|data-slat-color=/);
 });
+test('High Bottom occupies only the lowest moving section in glazed, mixed and solid garage designs', () => {
+  const rect = tag => Object.fromEntries(['x', 'y', 'width', 'height'].map(key =>
+    [key, Number(tag.match(new RegExp('\\s' + key + '="([^"]+)"'))[1])]));
+  const rects = (svg, attribute) => [...svg.matchAll(/<rect\b[^>]*>/g)].map(match => match[0])
+    .filter(tag => tag.includes(attribute)).map(rect);
+  const near = (left, right) => assert.ok(Math.abs(left - right) < 1e-7, `${left} != ${right}`);
+  const solid = { version: 1, columns: [1], rows: [1], cells: [['slat']] };
+  for (const layout of [undefined, template, solid]) {
+    const options = { ...props, template: layout, maxSectionHeightIn: 24, glassTintHex: '#789ABC' };
+    const normal = render(options);
+    assert.equal(render({ ...options, highBottom: false }), normal);
+    const high = render({ ...options, highBottom: true });
+    const regularFaces = rects(normal, 'data-panel-face="true"');
+    const highFaces = rects(high, 'data-panel-face="true"');
+    const [rail] = rects(high, 'data-part="high-bottom-rail"');
+    assert.ok(rail);
+    const firstBottomCell = regularFaces.length - (layout?.columns.length ?? 1);
+    const lowerLeft = regularFaces[firstBottomCell], lowerRight = regularFaces.at(-1);
+    near(rail.x, lowerLeft.x);
+    near(rail.x + rail.width, lowerRight.x + lowerRight.width);
+    near(rail.y + rail.height, lowerLeft.y + lowerLeft.height);
+    near(rail.height, 7.5 * 1000 / Math.max(props.width, props.height));
+    assert.deepEqual(highFaces.slice(0, firstBottomCell), regularFaces.slice(0, firstBottomCell));
+    for (let i = firstBottomCell; i < regularFaces.length; i++) {
+      const before = regularFaces[i], after = highFaces[i];
+      near(after.x, before.x); near(after.y, before.y); near(after.width, before.width);
+      near(after.y + after.height, rail.y);
+    }
+    const regularGlass = rects(normal, 'data-glass-effect="TINT"'), highGlass = rects(high, 'data-glass-effect="TINT"');
+    assert.equal(highGlass.length, regularGlass.length);
+    highGlass.forEach((glass, i) => near(glass.y + glass.height,
+      Math.min(regularGlass[i].y + regularGlass[i].height, rail.y)));
+    assert.equal(high.match(/<path[^>]*data-layer="FRAME_FINISH"[^>]*>/)[0],
+      normal.match(/<path[^>]*data-layer="FRAME_FINISH"[^>]*>/)[0]);
+  }
+});
 test('System section height produces 90=4, 100=5, 120=5 and supports another configured maximum', () => {
   for (const [height, expected] of [[90, 4], [100, 5], [120, 5]]) {
     const svg = render({ width: 120, height, maxSectionHeightIn: 24 });

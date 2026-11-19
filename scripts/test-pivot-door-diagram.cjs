@@ -130,6 +130,35 @@ test('Pivot X renders in the editor and saved report with the actual dimensions'
   }
 });
 
+test('Pivot High Bottom raises the lower two glass corners while preserving hardware, sill and fixed panels', () => {
+  const item = compositeCases[3];
+  const draw = highBottom => render({ configuration: item.configuration,
+    piece: { width: item.width, height: item.height, doorWidth: item.doorWidth, doorHeight: item.doorHeight, highBottom },
+    muntin: compositeMuntin(item) });
+  const normal = draw(false), high = draw(true);
+  assert.equal(layer(high, 'PULL_HANDLE'), layer(normal, 'PULL_HANDLE'));
+  assert.equal(element(high, 'data-part', 'pivot-door-leaf'), element(normal, 'data-part', 'pivot-door-leaf'));
+  assert.equal(element(high, 'data-dimensions', 'VISIBLE'), element(normal, 'data-dimensions', 'VISIBLE'));
+  for (const slot of compositeSlots(item)) {
+    const before = compositePane(normal, slot.row, slot.column), after = compositePane(high, slot.row, slot.column);
+    if (slot.code === 'O') {
+      assert.equal(element(after, 'data-part', 'pivot-fixed-glass'), element(before, 'data-part', 'pivot-fixed-glass'));
+      continue;
+    }
+    const glassPath = pane => element(pane, 'data-part', 'pivot-glass').match(/\sd="([^"]+)"/)[1];
+    const corners = path => [...path.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map(match => [Number(match[1]), Number(match[2])]);
+    const original = corners(glassPath(before)), raised = corners(glassPath(after));
+    assert.equal(raised.length, 4);
+    assert.deepEqual(raised.slice(0, 2), original.slice(0, 2));
+    for (const i of [2, 3]) {
+      assert.equal(original[i][0], raised[i][0]);
+      assert.ok(raised[i][1] < original[i][1]);
+    }
+    const clipId = element(after, 'data-part', 'muntin-layer').match(/clip-path="url\(#([^)]*)\)"/)[1];
+    assert.equal(element(after, 'id', clipId).match(/\sd="([^"]+)"/)[1], glassPath(after));
+  }
+});
+
 test('Right Active mirrors the whole 45 by 108 artwork in editor and report while measurements stay readable', () => {
   for (const variant of ['editor', 'report']) {
     const piece = { width: 45, height: 108 };

@@ -1,11 +1,16 @@
 import React from "react";
 import { doorFinish } from "../door-finish";
+import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
 import { FrenchDoorFrameSurface } from "./french-door-finishes";
 import { joinedJambWidth, type JoinedJambs } from "./series-600-frame-joint";
 
 // Exterior, hinge-right reference. The 586 × 1466 frame crop has the proportions
 // of a 32 × 80 door. These are visual offsets in inches, not fabrication sizes.
-export function singleFrenchDoorGeometry(width: number, height: number, hingeSide: "left" | "right" = "right", joined?: JoinedJambs) {
+const SINGLE_SILL_IN = 0.92;
+
+export function singleFrenchDoorGeometry(
+  width: number, height: number, hingeSide: "left" | "right" = "right", joined?: JoinedJambs, highBottom = false,
+) {
   const profileScale = Math.min(1, width / 18, height / 44);
   // The artwork is hinge-right before its exterior handedness transform.
   const artworkJoins = joined && hingeSide === "left" ? { left: joined.right, right: joined.left } : joined;
@@ -14,7 +19,7 @@ export function singleFrenchDoorGeometry(width: number, height: number, hingeSid
   const glassLeft = jambLeft + 4.16 * profileScale;
   const glassRight = jambRight - 4.23 * profileScale;
   const top = 5.57 * profileScale;
-  const bottom = 5.4 * profileScale;
+  const bottom = (highBottom ? SINGLE_SILL_IN + HIGH_BOTTOM_RAIL_IN : 5.4) * profileScale;
   return {
     profileScale, jambLeft, jambRight, joined: artworkJoins,
     glass: { x: glassLeft, y: top, width: glassRight - glassLeft, height: height - top - bottom },
@@ -36,7 +41,7 @@ export function Series600SingleArtwork({ width, height, geometry, idNamespace, f
   const finishId = `${idNamespace}-single`;
   const paint = (part: string) => `url(#${finishId}-${part})`;
   const head = 1.04 * p;
-  const sill = height - 0.92 * p;
+  const sill = height - SINGLE_SILL_IN * p;
   const leaf = { x: jambLeft, y: head, width: jambRight - jambLeft, height: sill - head };
   const beadWidth = 0.73 * p;
   const beadLeft = glass.x - beadWidth;

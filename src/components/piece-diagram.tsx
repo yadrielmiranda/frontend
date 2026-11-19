@@ -295,6 +295,7 @@ export function PieceDiagram({
   className,
 }: PieceDiagramProps) {
   const normalizedPiece = normalizePieceDimensions(piece);
+  const highBottom = piece?.highBottom === true;
   const rendererClasses = "h-full w-full";
   const pivotWidth = positiveDimensionNumber(normalizedPiece?.width);
   const pivotHeight = positiveDimensionNumber(normalizedPiece?.height);
@@ -333,6 +334,7 @@ export function PieceDiagram({
         <PivotDoorDiagram
           width={pivotWidth}
           height={pivotHeight}
+          highBottom={highBottom}
           configuration={pivotConfiguration}
           doorHeight={pivotHasTransom ? pivotDoorHeight ?? undefined : undefined}
           doorWidth={pivotHasSidelite ? pivotDoorWidth ?? undefined : undefined}
@@ -373,6 +375,7 @@ export function PieceDiagram({
         <GarageDoorDiagram
           width={garageWidth}
           height={garageHeight}
+          highBottom={highBottom}
           template={garageTemplate}
           designName={selectedGarageDesign?.design?.name}
           designColorHex={selectedGarageDesign?.color?.hexCode}
@@ -434,6 +437,7 @@ export function PieceDiagram({
   if (resolvedSharedFrenchDoor) {
     const sharedDoorProps = {
       diagramFamily: "FRENCH_DOOR" as const,
+      highBottom,
       frenchDoorDesignKey: selectedFrenchArtwork,
       showHardware: !resolvedSharedFrenchDoor.hideHardware,
       showMovement: !resolvedSharedFrenchDoor.hideHardware,
@@ -583,6 +587,7 @@ export function PieceDiagram({
       >
         <SlidingGlassDoorDiagram
           spec={resolvedSlidingGlassDoor}
+          highBottom={highBottom}
           width={slidingWidth}
           height={slidingHeight}
           screenEnabled={Boolean(screenEnabled)}

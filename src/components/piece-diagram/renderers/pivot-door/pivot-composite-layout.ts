@@ -12,7 +12,7 @@ export type PivotCompositePane = {
   opening: { x: number; y: number; width: number; height: number };
 };
 
-export function pivotCompositeLayout(configuration: PivotCompositeConfiguration, width: number, height: number, doorWidth?: number, doorHeight?: number) {
+export function pivotCompositeLayout(configuration: PivotCompositeConfiguration, width: number, height: number, doorWidth?: number, doorHeight?: number, highBottom = false) {
   if (!["OXO", "O/O-O/X", "O/X-O/O", "O/O-O/X-O/O"].includes(configuration)) return null;
   const hasTransom = configuration !== "OXO";
   const codes: ("O" | "X")[] = configuration === "O/O-O/X" ? ["O", "X"]
@@ -20,7 +20,7 @@ export function pivotCompositeLayout(configuration: PivotCompositeConfiguration,
   if (![width, height, doorWidth].every(value => Number.isFinite(value) && Number(value) > 0)
     || doorWidth === undefined || doorWidth >= width
     || (hasTransom && (!Number.isFinite(doorHeight) || !doorHeight || doorHeight <= 0 || doorHeight >= height))) return null;
-  const door = pivotDoorLayout(doorWidth, hasTransom ? doorHeight! : height);
+  const door = pivotDoorLayout(doorWidth, hasTransom ? doorHeight! : height, highBottom);
   if (!door) return null;
   const units = door.unitsPerInch;
   const sideCount = codes.length - 1;

@@ -23,6 +23,7 @@ import { doubleFrenchDoorGeometry } from "./series-600-double-artwork";
 import { singleFrenchDoorGeometry } from "./series-600-single-artwork";
 
 export interface FrenchDoorTransomDiagramProps {
+  highBottom?: boolean;
   width: number;
   height: number;
   doorHeight: number;
@@ -81,6 +82,7 @@ function TransomDimensions({ width, height, doorHeight, transomHeight }: {
 
 /** French X/XX leaves below a full-width fixed light; all geometry is in inches. */
 export function FrenchDoorTransomDiagram({
+  highBottom,
   width,
   height,
   doorHeight,
@@ -119,14 +121,14 @@ export function FrenchDoorTransomDiagram({
     { panelIndex: 1, panelCode: "O", panelLabel: "Top", rect: transomGlass },
   ];
   if (leafConfiguration === "X") {
-    const glass = singleFrenchDoorGeometry(width, doorHeight, exteriorHingeSide).glass;
+    const glass = singleFrenchDoorGeometry(width, doorHeight, exteriorHingeSide, undefined, highBottom).glass;
     glassPanels.push({ panelIndex: 2, panelCode: "X", panelLabel: "Bottom", rect: {
       ...glass,
       x: exteriorHingeSide === "left" ? width - glass.x - glass.width : glass.x,
       y: transomHeight + glass.y,
     } });
   } else {
-    const { leftGlass, rightGlass } = doubleFrenchDoorGeometry(width, doorHeight, activeLeaf);
+    const { leftGlass, rightGlass } = doubleFrenchDoorGeometry(width, doorHeight, activeLeaf, undefined, highBottom);
     [leftGlass, rightGlass].forEach((glass, index) => glassPanels.push({
       panelIndex: index + 2, panelCode: "X", panelLabel: index === 0 ? "Left" : "Right",
       rect: { ...glass, y: transomHeight + glass.y },
@@ -164,6 +166,7 @@ export function FrenchDoorTransomDiagram({
     </g>
     <g data-part="french-door-leaves" transform={`translate(0 ${transomHeight})`}>
       <FrenchDoorStructure width={width} height={doorHeight} configuration={leafConfiguration}
+        highBottom={highBottom}
         exteriorHingeSide={exteriorHingeSide} activeLeaf={activeLeaf} boreCount={boreCount}
         showHardware={showHardware} showMovement={showMovement} frameColorHex={frameColor}
         glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy}

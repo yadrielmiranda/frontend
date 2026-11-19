@@ -8,12 +8,12 @@ import { matchPivotCompositeMuntin, pivotCompositeLayout, type PivotCompositeCon
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
 import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX, PivotSegmentLabels } from "./pivot-dimension-text";
 
-export function PivotCompositeDoorDiagram({ configuration, width, height, doorWidth, doorHeight, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: Omit<PivotDoorDiagramProps, "configuration"> & { configuration: PivotCompositeConfiguration }) {
+export function PivotCompositeDoorDiagram({ configuration, width, height, doorWidth, doorHeight, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: Omit<PivotDoorDiagramProps, "configuration"> & { configuration: PivotCompositeConfiguration }) {
   const reactId = useId();
   const [widthLanes, setWidthLanes] = useState(1);
   const [heightLanes, setHeightLanes] = useState(1);
   const id = `pivot-composite-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const layout = pivotCompositeLayout(configuration, width, height, doorWidth, doorHeight);
+  const layout = pivotCompositeLayout(configuration, width, height, doorWidth, doorHeight, highBottom);
   if (!layout) return null;
   const { frame, door, columns, panes, verticalDividers, horizontalDivider, hasTransom, transomHeight, transomUnits, sideliteWidth, sideCount, doorOffset } = layout;
   const { sx, sy, profileScale: p, unitsPerInch } = door;

@@ -2,8 +2,8 @@ import React from "react";
 import { frenchDoorArtwork } from "./french-door-design-artwork";
 import { PieceDiagram } from "./series-600-door-diagram";
 
-export function FrenchDoorDesignThumbnail({ artworkKey, frameColorHex, glassTintHex, className }: {
-  artworkKey: string; frameColorHex?: string | null; glassTintHex?: string | null; className?: string;
+export function FrenchDoorDesignThumbnail({ artworkKey, frameColorHex, glassTintHex, highBottom, className }: {
+  artworkKey: string; frameColorHex?: string | null; glassTintHex?: string | null; highBottom?: boolean; className?: string;
 }) {
   const design = frenchDoorArtwork(artworkKey);
   if (!design) return null;
@@ -13,6 +13,7 @@ export function FrenchDoorDesignThumbnail({ artworkKey, frameColorHex, glassTint
     visualTemplate={single ? "ECO_SERIES_600_X_EXTERIOR" : "ECO_SERIES_600_XX_EXTERIOR"}
     piece={{ width: single ? 36 : 72, height: 80 }}
     frenchDoorDesignKey={artworkKey}
+    highBottom={highBottom}
     frameColorHex={frameColorHex} glassTintHex={glassTintHex} showDimensions={false} showMovement={false}
     variant="report" className={className}
   />;

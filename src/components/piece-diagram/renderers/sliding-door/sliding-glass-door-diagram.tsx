@@ -30,6 +30,7 @@ import {
 } from "./sliding-glass-door-spec";
 import {
   resolveSlidingGlassDoorLayout,
+  slidingHighBottomRail,
   type SlidingGlassDoorSlice,
 } from "./sliding-glass-door-layout";
 
@@ -40,6 +41,7 @@ export interface SlidingGlassDoorDiagramProps {
   width: SlidingGlassDoorDimension;
   height: SlidingGlassDoorDimension;
   screenEnabled: boolean;
+  highBottom?: boolean;
   frameColorHex?: string | null;
   glassTintHex?: string | null;
   hasCoating?: boolean;
@@ -193,6 +195,7 @@ export function SlidingGlassDoorDiagram({
   width,
   height,
   screenEnabled,
+  highBottom = false,
   frameColorHex,
   glassTintHex,
   hasCoating = false,
@@ -253,8 +256,11 @@ export function SlidingGlassDoorDiagram({
   });
   const { mapRect, slices } = layout;
   const assetRect = mapRect(assetSource);
-  const glassRects = spec.glassDlos.map(mapRect);
-  const muntinGlassPanels: MuntinGlassPanel[] = spec.glassDlos.map((glass) => ({
+  const panes = spec.glassDlos.map(glass => highBottom && glass.kind === "X"
+    ? slidingHighBottomRail(glass, dimensionSource, mapRect, scale)
+    : { pane: mapRect(glass), slices: [] });
+  const glassRects = panes.map(({ pane }) => pane);
+  const muntinGlassPanels: MuntinGlassPanel[] = spec.glassDlos.map((glass, index) => ({
     // Catalog DLO indices are zero-based and already follow the exterior view.
     panelIndex: glass.panelIndex + 1,
     panelCode: glass.kind,
@@ -263,7 +269,7 @@ export function SlidingGlassDoorDiagram({
         : glass.panelIndex === spec.panelCount - 1 ? "Right"
           : spec.panelCount % 2 === 1 && glass.panelIndex === Math.floor(spec.panelCount / 2) ? "Center"
             : `Panel ${glass.panelIndex + 1}`,
-    rect: mapRect(glass),
+    rect: glassRects[index],
   }));
   const screenPanels: ProceduralScreenPanelGeometry[] = spec.screenPanels.map(
     (panel) => ({
@@ -394,9 +400,12 @@ export function SlidingGlassDoorDiagram({
         data-units-per-inch={scale}
         data-profile-layout={layout.adapted ? "MULTI_SLICE" : "SOURCE_PROPORTIONS"}
       >
-        <g data-layer="C139_SCREEN_OFF_STRUCTURE">
+        <g data-layer="C139_SCREEN_OFF_STRUCTURE" id={highBottom ? `${namespace}-structure` : undefined}>
           <SourceSlices slices={slices} sourceId={`${namespace}-source`} />
         </g>
+        {highBottom && <g data-layer="SLIDING_DOOR_HIGH_BOTTOM">
+          <SourceSlices slices={panes.flatMap(pane => pane.slices)} sourceId={`${namespace}-structure`} />
+        </g>}
         <g data-layer="SLIDING_DOOR_FINAL_GLASS" fill="none" pointerEvents="none">
           {glassRects.map((rect, index) => <rect
             key={index}

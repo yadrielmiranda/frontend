@@ -100,6 +100,29 @@ module.exports = function register(ctx) {
     });
   }
 
+  test('High Bottom on a sliding door uses its original artwork and shortens only the operable lights and their grids', () => {
+    const configuration = 'O-XX', brandName = 'ECO';
+    const spec = resolveSlidingGlassDoorSpec({ configuration, brandName });
+    const shared = { diagramFamily: 'SLIDING_DOOR', systemName: 'Serie 350', configuration, brandName,
+      showDimensions: true, muntin: resolved(slidePanels(spec)) };
+    const draw = highBottom => render(PieceDiagram, { ...shared, piece: { width: 120, height: 84, highBottom } });
+    const normal = draw(false), high = draw(true);
+    assert.deepEqual(tags(high, 'image').map(image => image.href), tags(normal, 'image').map(image => image.href));
+    assert.ok(tags(high, 'image').some(image => image.href.endsWith(spec.structuralAsset)));
+    assert.deepEqual(tags(high, 'line').filter(line => line['marker-start']), tags(normal, 'line').filter(line => line['marker-start']));
+    const glass = html => tags(html, 'rect').filter(item => item['data-panel-index']);
+    const earlier = glass(normal), raised = glass(high);
+    assert.deepEqual(raised.map(glass => glass['data-panel-code']), ['O', 'X', 'X']);
+    for (const [index, glass] of raised.entries()) {
+      const earlierGlass = rect(earlier[index]), current = rect(glass);
+      for (const field of ['x', 'y', 'width']) near(current[field], earlierGlass[field]);
+      if (glass['data-panel-code'] === 'X') assert.ok(current.height < earlierGlass.height);
+      else near(current.height, earlierGlass.height);
+      const grid = panels(high).find(group => group['data-panel-index'] === glass['data-panel-index']);
+      sameRect(clipFor(high, grid), current);
+    }
+  });
+
   test('Sliding narrow multi-panel doors retain visibly wider profiles without changing the opening size', () => {
     for (const brandName of ['ECO', 'NOVO']) {
       const spec = resolveSlidingGlassDoorSpec({ configuration: 'OXX-XXO', brandName });

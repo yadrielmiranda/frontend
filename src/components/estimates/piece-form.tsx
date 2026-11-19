@@ -1248,6 +1248,7 @@ export function PieceForm({
   const highBottomAllowed = isLinearMaterial
     ? false
     : selectedSystem?.allowHighBottom === true;
+  const showHighBottom = highBottomAllowed && pieceValues.highBottom === true;
   const requiresSashHeight = dimensionRequirements.requiresSashHeight === true;
 
   const requiresWindowHeight =
@@ -4002,7 +4003,8 @@ export function PieceForm({
 
                     <FrenchDoorDesignFields options={doorDesignOptions} selectedId={pieceValues.idDoorDesign}
                       selected={currentDoorDesign} locked={isLocked} frameColorHex={selectedFrameColorHex}
-                      glassTintHex={selectedTintHex} onChange={changeDoorDesign} />
+                      glassTintHex={selectedTintHex} highBottom={showHighBottom}
+                      onChange={changeDoorDesign} />
 
                     <GarageDesignFields index={index} allowed={garageDesignAllowed} enabled={designEnabled}
                       locked={isLocked} retained={retainedGarageDesign} idDesign={pieceValues.idDesign}
@@ -4532,7 +4534,7 @@ export function PieceForm({
                 configuration={selectedConfig?.conf}
                 diagramSpec={selectedConfig?.diagramSpec}
                 dimensionMode={dimensionMode}
-                piece={{ ...pieceValues, horizontalHeights: horizontalHeightsForPreview }}
+                piece={{ ...pieceValues, horizontalHeights: horizontalHeightsForPreview, highBottom: showHighBottom }}
                 garageDesign={designEnabled ? selectedGarageDesign : null}
                 frenchDoorDesignKey={currentDoorDesign?.artworkKey ?? null}
                 garageMaxSectionHeightIn={selectedSystem?.garageMaxSectionHeightIn == null ? undefined : Number(selectedSystem.garageMaxSectionHeightIn)}

@@ -1,13 +1,17 @@
 import React from "react";
 import { doorFinish } from "../door-finish";
+import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
 import type { GlassOverlayRect } from "../glass-appearance";
 import { FrenchDoorFrameSurface } from "./french-door-finishes";
 import { joinedJambWidth, type JoinedJambs } from "./series-600-frame-joint";
 
 type Side = "left" | "right";
+const DOUBLE_SILL_IN = 0.80;
 
 /** Visual offsets from the 944 × 1120 exterior reference, expressed in diagram inches. */
-export function doubleFrenchDoorGeometry(width: number, height: number, activeLeaf: Side, joined?: JoinedJambs) {
+export function doubleFrenchDoorGeometry(
+  width: number, height: number, activeLeaf: Side, joined?: JoinedJambs, highBottom = false,
+) {
   const profileScale = Math.min(1, width / 36, height / 44);
   const referenceJamb = 1.86;
   const leftJamb = joinedJambWidth(referenceJamb, joined?.left) * profileScale;
@@ -16,6 +20,7 @@ export function doubleFrenchDoorGeometry(width: number, height: number, activeLe
   const openingRight = width - rightJamb;
   const meetingX = width / 2 + (leftJamb - rightJamb) / 2;
   const leafWidth = meetingX - openingLeft;
+  const bottom = (highBottom ? DOUBLE_SILL_IN + HIGH_BOTTOM_RAIL_IN : 5.75) * profileScale;
   // The active leaf has a slightly narrower stile at the meeting edge in the reference.
   const glassFor = (side: Side): GlassOverlayRect => {
     const active = side === activeLeaf;
@@ -28,7 +33,7 @@ export function doubleFrenchDoorGeometry(width: number, height: number, activeLe
       x: side === "left" ? outsideInset : meetingX + centerInset,
       y,
       width: (side === "left" ? meetingX : width - meetingX) - outsideInset - centerInset,
-      height: height - y - 5.75 * profileScale,
+      height: height - y - bottom,
     };
   };
   return { profileScale, openingLeft, openingRight, meetingX, leafWidth, joined, leftGlass: glassFor("left"), rightGlass: glassFor("right") };
@@ -51,7 +56,7 @@ export function Series600DoubleArtwork({ width, height, geometry, idNamespace, f
   const paint = (surface: string) => `url(#${prefix}-${surface})`;
   const finish = doorFinish(frameColor);
   const head = 0.82 * p;
-  const sill = height - 0.80 * p;
+  const sill = height - DOUBLE_SILL_IN * p;
   const astragalWidth = 0.56 * p;
   const bead = 0.74 * p;
 

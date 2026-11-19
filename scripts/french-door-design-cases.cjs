@@ -12,8 +12,9 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
     for (const [configuration, key, count, piece] of [
       ['X', 'SD01', 1, single], ['OX', 'SD01', 1, { width: 70, doorWidth: 36, height: 80 }],
       ['XX', 'DD01', 2, { width: 72, height: 80 }], ['OXXO', 'DD01', 2, composite],
-    ]) for (const activeOptionName of ['Left Active', 'Right Active']) for (const frameColorHex of ['#FFFFFF', '#704A35']) {
-      const html = render(PieceDiagram, { ...props, configuration, activeOptionName, frameColorHex, piece, frenchDoorDesignKey: key, muntin });
+    ]) for (const activeOptionName of ['Left Active', 'Right Active']) for (const frameColorHex of ['#FFFFFF', '#704A35']) for (const highBottom of [false, true]) {
+      const html = render(PieceDiagram, { ...props, configuration, activeOptionName, frameColorHex,
+        piece: { ...piece, highBottom }, frenchDoorDesignKey: key, muntin });
       assert.equal((html.match(/data-layer="FRENCH_DOOR_DESIGN"/g) ?? []).length, 1);
       assert.match(html, new RegExp('data-artwork-key="' + key + '"'));
       const designClip = [...html.matchAll(/<clipPath id="[^"]*-design-lights">(.*?)<\/clipPath>/gs)][0];

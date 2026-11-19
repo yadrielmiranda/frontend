@@ -10,11 +10,12 @@ type Props = {
   selectedId?: number | null;
   frameColorHex?: string | null;
   glassTintHex?: string | null;
+  highBottom?: boolean;
   locked: boolean;
   onChange: (id: number | null) => void;
 };
 
-export function FrenchDoorDesignFields({ options, selected, selectedId, frameColorHex, glassTintHex, locked, onChange }: Props) {
+export function FrenchDoorDesignFields({ options, selected, selectedId, frameColorHex, glassTintHex, highBottom, locked, onChange }: Props) {
   const picker = useRef<HTMLDetailsElement>(null);
   const [expanded, setExpanded] = useState(false);
   if (!options.length && !selectedId) return null;
@@ -41,7 +42,7 @@ export function FrenchDoorDesignFields({ options, selected, selectedId, frameCol
         {options.map(design => <button type="button" key={design.id} aria-pressed={design.id === selectedId}
           onClick={() => choose(design.id)} className="rounded-md border bg-white p-2 text-center text-sm aria-pressed:border-blue-600 aria-pressed:ring-1 aria-pressed:ring-blue-600">
           <div className="h-20 w-full">
-            <FrenchDoorDesignThumbnail artworkKey={design.artworkKey} frameColorHex={frameColorHex} glassTintHex={glassTintHex} />
+            <FrenchDoorDesignThumbnail artworkKey={design.artworkKey} frameColorHex={frameColorHex} glassTintHex={glassTintHex} highBottom={highBottom} />
           </div>
           <span className="mt-1 block break-words">{selected?.id === design.id ? selected.code : design.code}</span>
         </button>)}

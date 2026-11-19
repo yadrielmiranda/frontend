@@ -10,6 +10,7 @@ type DiagramValue = string | number | null | undefined;
 export type PieceDiagramVariant = "editor" | "report";
 
 export interface PieceDiagramData {
+  highBottom?: boolean;
   width?: DiagramValue;
   height?: DiagramValue;
   heightLeft?: DiagramValue;

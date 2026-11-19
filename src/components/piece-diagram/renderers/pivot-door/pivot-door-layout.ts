@@ -1,3 +1,5 @@
+import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
+
 export type PivotPoint = Readonly<{ x: number; y: number }>;
 export type PivotQuad = Readonly<{ tl: PivotPoint; tr: PivotPoint; br: PivotPoint; bl: PivotPoint }>;
 
@@ -20,7 +22,7 @@ export function pivotQuadPath(quad: PivotQuad): string {
 }
 
 /** Approved 60 × 100 artwork, with fixed physical profiles and adjustable rails. */
-export function pivotDoorLayout(width: number, height: number) {
+export function pivotDoorLayout(width: number, height: number, highBottom = false) {
   if (![width, height].every(value => Number.isFinite(value) && value > 0)) return null;
   const w = width * UNITS_PER_INCH;
   const h = height * UNITS_PER_INCH;
@@ -42,19 +44,22 @@ export function pivotDoorLayout(width: number, height: number) {
   };
   const glassLeftU = 60 * sx / leafWidth;
   const glassRightU = 1 - 61 * sx / leafWidth;
-  const glassCorner = (u: number, top: boolean): PivotPoint => {
-    const edge = pivotQuadPoint(leaf, u, top ? 0 : 1);
-    const rail = (top ? 60.783 : 61.697) * sy * (1 + 82 * u / 942);
-    return { x: edge.x, y: edge.y + (top ? rail : -rail) };
+  const topRail = 60.783 * sy;
+  const standardBottomRail = 61.697 * sy;
+  const bottomRail = highBottom ? HIGH_BOTTOM_RAIL_IN * UNITS_PER_INCH * profileScale : standardBottomRail;
+  const glassCorner = (u: number, v: 0 | 1, verticalInset: number): PivotPoint => {
+    const edge = pivotQuadPoint(leaf, u, v);
+    return { x: edge.x, y: edge.y + verticalInset * (1 + 82 * u / 942) };
   };
   const glass: PivotQuad = {
-    tl: glassCorner(glassLeftU, true), tr: glassCorner(glassRightU, true),
-    br: glassCorner(glassRightU, false), bl: glassCorner(glassLeftU, false),
+    tl: glassCorner(glassLeftU, 0, topRail), tr: glassCorner(glassRightU, 0, topRail),
+    br: glassCorner(glassRightU, 1, -bottomRail), bl: glassCorner(glassLeftU, 1, -bottomRail),
   };
   const handleCenterX = leaf.tr.x - 73.8 * sx;
   const handleU = (handleCenterX - leafLeft) / leafWidth;
   const handleCenter = pivotQuadPoint(leaf, handleU, 0.5);
-  const handleHeight = Math.min(516.1 * sy, (glass.bl.y - glass.tl.y) * 0.8);
+  const standardGlassHeight = glassCorner(glassLeftU, 1, -standardBottomRail).y - glass.tl.y;
+  const handleHeight = Math.min(516.1 * sy, standardGlassHeight * 0.8);
   const handle = {
     x: handleCenterX - 6.2 * sx,
     y: handleCenter.y + 5.99 * sy - handleHeight / 2,
@@ -87,10 +92,10 @@ export function pivotFixedLayout(width: number, height: number) {
 }
 
 /** One shared jamb joins the approved door segment to its fixed sidelite. */
-export function pivotSideliteLayout(width: number, height: number, doorWidth: number | undefined, configuration: "XO" | "OX") {
+export function pivotSideliteLayout(width: number, height: number, doorWidth: number | undefined, configuration: "XO" | "OX", highBottom = false) {
   if (![width, height, doorWidth].every(value => Number.isFinite(value) && Number(value) > 0)
     || doorWidth === undefined || doorWidth >= width) return null;
-  const door = pivotDoorLayout(doorWidth, height);
+  const door = pivotDoorLayout(doorWidth, height, highBottom);
   if (!door) return null;
   const sideliteWidth = width - doorWidth;
   const sideliteUnits = sideliteWidth * door.unitsPerInch;

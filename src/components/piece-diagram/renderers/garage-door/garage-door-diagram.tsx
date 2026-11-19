@@ -8,6 +8,7 @@ import {
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
 import { DimensionText, VerticalDimensionText, VERTICAL_DIMENSION_RESERVE_PX } from "../dimension-text";
 import { GlassAppearanceLayer, type GlassOverlayRect } from "../glass-appearance";
+import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
 import { garageSectionLayout } from "./garage-door-layout";
 
 export interface GarageDoorDiagramProps {
@@ -21,6 +22,7 @@ export interface GarageDoorDiagramProps {
   glassTintHex?: string | null;
   hasCoating?: boolean;
   hasPrivacy?: boolean;
+  highBottom?: boolean;
   showDimensions?: boolean;
   className?: string;
 }
@@ -60,6 +62,7 @@ export function GarageDoorDiagram({
   glassTintHex,
   hasCoating = false,
   hasPrivacy = false,
+  highBottom = false,
   showDimensions = true,
   className,
 }: GarageDoorDiagramProps) {
@@ -83,6 +86,8 @@ export function GarageDoorDiagram({
   const frame = Math.min(1.2 * scale, Math.min(doorWidth, doorHeight) * 0.035);
   // The side jambs and header surround the door; there is no bottom frame rail.
   const body = { x: frame, y: frame, width: doorWidth - 2 * frame, height: doorHeight - frame };
+  const bottomSection = rows.length - 1;
+  const railHeight = highBottom ? Math.min(HIGH_BOTTOM_RAIL_IN * scale, rows[bottomSection] * body.height) : 0;
   const slatPitch = Math.max(5, Math.min(25, 1.65 * scale));
   const joint = Math.max(0.7, Math.min(2.2, scale * 0.16));
   const movementLength = Math.min(45, body.width * 0.12, body.height * 0.12);
@@ -92,16 +97,17 @@ export function GarageDoorDiagram({
   let y = body.y;
   rows.forEach((part, row) => {
     const cellHeight = part * body.height;
+    const faceHeight = row === bottomSection ? cellHeight - railHeight : cellHeight;
     let x = body.x;
     columns.forEach((columnPart, column) => {
       const cellWidth = columnPart * body.width;
-      cells.push({ x, y, width: cellWidth, height: cellHeight, row: row + 1, column: column + 1, material: layout.cells[row][column] });
+      cells.push({ x, y, width: cellWidth, height: faceHeight, row: row + 1, column: column + 1, material: layout.cells[row][column] });
       x += cellWidth;
     });
     y += cellHeight;
     if (row < rows.length - 1) seams.push(y);
   });
-  const glassRects = cells.filter(cell => cell.material === "glass").map(({ x, y, width: cellWidth, height: cellHeight }) => ({ x, y, width: cellWidth, height: cellHeight }));
+  const glassRects = cells.filter(cell => cell.material === "glass" && cell.height > 0).map(({ x, y, width: cellWidth, height: cellHeight }) => ({ x, y, width: cellWidth, height: cellHeight }));
   const label = design ? designName?.trim() || "Garage door design" : "GF — Garage door without design";
   const viewBox = expandedViewBox({ x: 0, y: 0, width: doorWidth, height: doorHeight }, showDimensions
     ? { top: 78, right: 115, bottom: 20, left: 20 }
@@ -167,6 +173,8 @@ export function GarageDoorDiagram({
         <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} fill={url(cell.material === "slat" ? "slats" : "glass")} data-panel-face="true" />
         <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} fill={url("section-shade")} />
       </g>)}
+      {railHeight > 0 && <rect x={body.x} y={doorHeight - railHeight} width={body.width} height={railHeight}
+        fill={url("frame")} data-part="high-bottom-rail" />}
     </g>
     <GlassAppearanceLayer rects={glassRects} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} />
     <g data-layer="GLASS_REFLECTIONS" pointerEvents="none">

@@ -111,8 +111,40 @@ module.exports = function register(ctx) {
     assert.equal(new Set(ids).size, ids.length, 'Clip and gradient IDs must be unique within the diagram');
   }
 
-  for (const hinge of ['left', 'right']) test(`French Door X ${hinge} hinge clips Colonial to its mirrored glass`, () => {
-    const html = render(FrenchDoor, standalone('X', { exteriorHingeSide: hinge, muntin: resolved(onePanel('X')) }));
+  test('French High Bottom raises only the bottom of the operable glass, including in mixed and transom assemblies', () => {
+    const props = { diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 600', activeOptionName: 'Left Active',
+      preparationOptionName: '2 Holes', showDimensions: true };
+    for (const [configuration, piece, leaves] of [
+      ['X', { width: 36, height: 80 }, 1], ['XX', { width: 72, height: 80 }, 2],
+      ['OXXO', { width: 108, height: 80, doorWidth: 72, leftSideliteWidth: 18, rightSideliteWidth: 18 }, 2],
+      ['XT', { width: 36, height: 100, doorHeight: 80 }, 1], ['XXT', { width: 72, height: 100, doorHeight: 80 }, 2],
+    ]) {
+      const draw = fields => render(PieceDiagram, { ...props, configuration, piece: { ...piece, ...fields } });
+      const normal = draw({});
+      assert.equal(draw({ highBottom: false }), normal, configuration);
+      const raised = draw({ highBottom: true, highBottomPercent: 0 });
+      const part = (html, name) => tags(html, 'rect').filter(rect => rect['data-part'] === name);
+      const prefix = leaves === 1 ? 'single' : 'double';
+      const frames = part(normal, prefix + '-leaf');
+      const oldGlass = part(normal, prefix + '-glass');
+      const newGlass = part(raised, prefix + '-glass');
+      assert.equal(newGlass.length, leaves, configuration);
+      assert.deepEqual(frames, part(raised, prefix + '-leaf'));
+      for (const [i, glass] of newGlass.entries()) {
+        for (const key of ['x', 'y', 'width']) assert.equal(glass[key], oldGlass[i][key], configuration);
+        assert.ok(Number(glass.height) < Number(oldGlass[i].height));
+        nearly(Number(frames[i].y) + Number(frames[i].height) - Number(glass.y) - Number(glass.height), 7.5);
+      }
+      for (const fixed of ['sidelite-glass', 'transom-glass']) assert.deepEqual(part(raised, fixed), part(normal, fixed));
+      assert.deepEqual(tags(raised, 'circle'), tags(normal, 'circle'));
+      assert.deepEqual(tags(raised, 'g').filter(g => g['data-part'] === 'barrel-hinge'),
+        tags(normal, 'g').filter(g => g['data-part'] === 'barrel-hinge'));
+      assert.deepEqual(tags(raised, 'text'), tags(normal, 'text'));
+    }
+  });
+
+  for (const hinge of ['left', 'right']) for (const highBottom of [false, true]) test(`French Door X ${hinge} hinge clips Colonial to its mirrored glass, High Bottom ${highBottom}`, () => {
+    const html = render(FrenchDoor, standalone('X', { highBottom, exteriorHingeSide: hinge, muntin: resolved(onePanel('X')) }));
     const groups = checkGrid(html, [[2, 3]]);
     checkActualGlassClips(html, groups);
     const glass = rectOf(tags(html, 'rect').find(rect => rect['data-part'] === 'single-glass'));
@@ -551,6 +583,13 @@ module.exports = function register(ctx) {
     const piece = doorReport(saved(mixedPanels(mixedCases[0]).reverse()));
     const before = JSON.stringify(piece);
     const html = render(PieceReportCard, { piece, displayMark: 'FD1', showPrices: false });
+    const high = render(PieceReportCard, { piece: { ...piece, highBottom: true, highBottomPercent: 0 },
+      displayMark: 'FD1', showPrices: false });
+    const glassHeights = source => tags(source, 'rect').filter(rect => rect['data-part'] === 'double-glass')
+      .map(rect => Number(rect.height));
+    const normalHeights = glassHeights(html), highHeights = glassHeights(high);
+    assert.equal(highHeights.length, 2);
+    highHeights.forEach((height, index) => assert.ok(height < normalHeights[index]));
     checkDoorJoints(html, [18.25, 89.75]);
     checkActualGlassClips(html, checkGrid(html, mixedCases[0].counts));
     assert.match(html, /data-diagram-renderer="SERIES_600_SHARED"/);

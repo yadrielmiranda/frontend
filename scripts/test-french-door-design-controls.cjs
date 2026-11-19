@@ -101,14 +101,16 @@ async function run() {
 
   const selections = [];
   const picker = { options:[single], selected:null, selectedId:null, locked:false, frameColorHex:"#4a3627",
-    glassTintHex:"#ccddee", onChange:id => selections.push(id) };
+    glassTintHex:"#ccddee", highBottom: false, onChange:id => selections.push(id) };
   const render = mount(FrenchDoorDesignFields, picker);
   assert.equal(nodes(render(), "FrenchDoorDesignThumbnail").length, 0);
   nodes(render(), "details")[0].props.onToggle({ currentTarget: { open: true } });
   const buttons = nodes(render(), "button");
   assert.equal(buttons[0].props["aria-pressed"], true);
   const thumb = nodes(buttons[1], "FrenchDoorDesignThumbnail")[0].props;
-  assert.deepEqual(thumb, { artworkKey:"SD01", frameColorHex:picker.frameColorHex, glassTintHex:picker.glassTintHex });
+  assert.deepEqual(thumb, { artworkKey:"SD01", frameColorHex:picker.frameColorHex, glassTintHex:picker.glassTintHex, highBottom:false });
+  picker.highBottom = true;
+  assert.equal(nodes(render(), "FrenchDoorDesignThumbnail")[0].props.highBottom, true);
   buttons[1].props.onClick(); buttons[0].props.onClick(); assert.deepEqual(selections, [10, null]);
   picker.options = []; assert.equal(render(), null);
   picker.selected = single; picker.selectedId = 10; picker.locked = true;
