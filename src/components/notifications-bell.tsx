@@ -36,7 +36,7 @@ export function NotificationBell() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
-    } catch (error) {
+    } catch {
       toast.error("Could not mark as read.");
     }
   };
@@ -59,7 +59,7 @@ export function NotificationBell() {
       await deleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       toast.success("Notification deleted.");
-    } catch (error) {
+    } catch {
       toast.error("Could not delete the notification.");
     }
   };
@@ -69,7 +69,7 @@ export function NotificationBell() {
       const result = await deleteAllNotifications();
       setNotifications([]);
       toast.success(`${result.count} notifications cleared.`);
-    } catch (error) {
+    } catch {
       toast.error("Could not clear notifications.");
     } finally {
       setShowConfirmDialog(false); // Cierra el diálogo sin importar el resultado
@@ -111,7 +111,7 @@ export function NotificationBell() {
                   onSelect={() => void handleNotificationSelect(notification)}
                 >
                   <div className="flex-grow">
-                    <p className="text-sm whitespace-normal">
+                    <p className="text-sm whitespace-pre-line">
                       {notification.message}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
