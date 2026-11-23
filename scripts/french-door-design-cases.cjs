@@ -61,8 +61,8 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
 
   test('The full catalog renders every single and double motif with the selected frame finish', () => {
     const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
-    assert.equal(Object.keys(catalog).length, 219);
-    for (const [prefix, count, leaves] of [['SD', 110, 1], ['DD', 109, 2]]) for (let number = 1; number <= count; number++) {
+    assert.equal(Object.keys(catalog).length, 364);
+    for (const [prefix, count, leaves] of [['SD', 193, 1], ['DD', 171, 2]]) for (let number = 1; number <= count; number++) {
       const key = prefix + String(number).padStart(2, '0');
       const artwork = catalog[key];
       assert.ok(artwork, `Missing ${key}`);
@@ -120,12 +120,12 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
     const original = Object.fromEntries(Object.entries(catalog).filter(([key]) => Number(key.slice(2)) <= 96));
     assert.equal(Object.keys(original).length, 192);
     assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'), manifest.originalCatalogSha256);
-    assert.deepEqual(Object.keys(catalog).filter(key => Number(key.slice(2)) > 96).sort(), expected.map(entry => entry.artworkKey).sort());
+    assert.deepEqual(Object.keys(catalog).filter(key => Number(key.slice(2)) >= 97 && Number(key.slice(2)) <= (key.startsWith('SD') ? 110 : 109)).sort(), expected.map(entry => entry.artworkKey).sort());
   });
 
   test('All 27 new motifs scale with the operable glass, keep exterior orientation and render from saved selections', () => {
     const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
-    const keys = Object.keys(catalog).filter(key => Number(key.slice(2)) > 96);
+    const keys = Object.keys(catalog).filter(key => Number(key.slice(2)) >= 97 && Number(key.slice(2)) <= (key.startsWith('SD') ? 110 : 109));
     assert.equal(keys.length, 27);
     for (const key of keys) {
       const singleLeaf = catalog[key].leafCount === 1;
@@ -178,7 +178,7 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
 
   test('New boundary designs and previous designs reach the saved report PDF capture in White and Bronze with Clear glass', () => {
     const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
-    for (const key of ['SD96', 'SD97', 'SD110', 'DD96', 'DD97', 'DD109']) for (const frameColorHex of ['#FFFFFF', '#704A35']) {
+    for (const key of ['SD96', 'SD97', 'SD110', 'SD111', 'SD151', 'SD152', 'SD193', 'DD96', 'DD97', 'DD109', 'DD110', 'DD134', 'DD135', 'DD171']) for (const frameColorHex of ['#FFFFFF', '#704A35']) {
       const singleLeaf = key.startsWith('SD');
       const code = 'AE-' + key.slice(0, 2) + '-' + key.slice(2);
       const piece = {
@@ -217,4 +217,7 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
     }
     for (const key of ['SD30', 'DD40']) assert.equal(catalog[key].details, undefined, 'Plain panels must stay plain');
   });
+
+  require('./french-door-eco-cases.cjs')({ test, load, render, tags, PieceDiagram });
+  require('./french-door-eco-variant-cases.cjs')({ test, load, render, tags, PieceDiagram });
 };

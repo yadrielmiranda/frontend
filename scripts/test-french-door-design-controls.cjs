@@ -161,7 +161,7 @@ async function run() {
   console.log('PASS all 27 new selections retain the approved display code, artwork key and selected record id');
 
 
-  for (const [index, artworkKey] of ['SD96', 'SD97', 'SD110', 'DD96', 'DD97', 'DD109'].entries()) {
+  for (const [index, artworkKey] of ['SD96', 'SD97', 'SD110', 'SD111', 'SD151', 'SD152', 'SD193', 'DD96', 'DD97', 'DD109', 'DD110', 'DD134', 'DD135', 'DD171'].entries()) {
     const snapshot = { id: 2000 + index, version: 1, systemId: 7, configId: 8, artworkKey,
       code: 'AE-' + artworkKey.slice(0, 2) + '-' + artworkKey.slice(2), kind: artworkKey.startsWith('SD') ? 'SINGLE' : 'DOUBLE' };
     const changedCatalog = [{ ...snapshot, code: 'Custom current ' + index }];
@@ -178,6 +178,45 @@ async function run() {
     assert.equal(selectedDoorDesign(snapshot.id, 7, 8, [], snapshot), snapshot, 'Withdrawn designs remain visible on saved pieces');
   }
   console.log('PASS previous and new boundary designs reopen with the saved code and artwork even after a catalog rename');
+
+
+  for (const batch of [
+    { file: './data/french-door-eco-additions-20261123.json', count: 66, firstId: 3000, ranges: [['SINGLE', 111, 151], ['DOUBLE', 110, 134]] },
+    { file: './data/french-door-eco-variants-20261123.json', count: 79, firstId: 4000, ranges: [['SINGLE', 152, 193], ['DOUBLE', 135, 171]] },
+  ]) {
+    const ecoManifest = require(batch.file);
+    assert.equal(ecoManifest.entries.length, batch.count);
+    for (const [kind, first, last] of batch.ranges) {
+    const options = ecoManifest.entries.filter(entry => entry.kind === kind).map((entry, index) => ({
+      id: batch.firstId + (kind === 'SINGLE' ? 0 : 100) + index, kind: entry.kind, artworkKey: entry.artworkKey, code: entry.code,
+    }));
+    assert.equal(options.length, last - first + 1);
+    const selections = [];
+    const props = { ...picker, options, selected: null, selectedId: null, locked: false,
+      frameColorHex: '#FFFFFF', glassTintHex: '#FFFFFF', highBottom: false, onChange: id => selections.push(id) };
+    const renderEcos = mount(FrenchDoorDesignFields, props);
+    for (const option of options) {
+      nodes(renderEcos(), 'details')[0].props.onToggle({ currentTarget: { open: true } });
+      const menu = renderEcos();
+      const choices = nodes(menu, 'button').slice(1);
+      assert.deepEqual(choices.map(visibleText), options.map(item => item.code));
+      const choice = choices.find(button => button.key === option.id);
+      assert.ok(choice, 'The estimate picker offers ' + option.code);
+      assert.deepEqual(nodes(choice, 'FrenchDoorDesignThumbnail')[0].props, {
+        artworkKey: option.artworkKey, frameColorHex: '#FFFFFF', glassTintHex: '#FFFFFF', highBottom: false,
+      });
+      choice.props.onClick();
+      assert.equal(selections.at(-1), option.id);
+      const selectedView = renderEcos({ ...props, selected: option, selectedId: option.id });
+      assert.equal(visibleText(nodes(selectedView, 'summary')[0]), option.code);
+      assert.equal(nodes(selectedView, 'FrenchDoorDesignThumbnail').length, 0, 'Choosing closes the thumbnail grid');
+    }
+    assert.deepEqual(selections, options.map(item => item.id));
+    const settings = mount(DoorDesignCatalog, { designs: options.map(option => ({ ...option, unitPrice: null })) });
+    assert.deepEqual(nodes(settings()).filter(node => node.props.initial?.artworkKey).map(node => node.props.initial.artworkKey), options.map(option => option.artworkKey));
+  }
+    console.log('PASS all ' + batch.count + ' ECO selections use the real estimate picker handlers, ordered codes, thumbnail keys and record IDs');
+  }
 
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
