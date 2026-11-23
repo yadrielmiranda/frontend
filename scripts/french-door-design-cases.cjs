@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 
-module.exports = function register({ test, load, render, tags, bars, panel, resolved, PieceDiagram }) {
+module.exports = function register({ test, load, render, tags, bars, panel, resolved, PieceDiagram, PieceReportCard, reportPiece }) {
   const { FrenchDoorDesignThumbnail } = load('components/piece-diagram/renderers/french-door/french-door-design-thumbnail.tsx');
   const props = { diagramFamily: 'FRENCH_DOOR', systemName: 'Serie 600', activeOptionName: 'Right Active',
     preparationOptionName: '2 Holes', showDimensions: false, hasCoating: true, glassTintHex: '#70A593' };
@@ -61,8 +61,8 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
 
   test('The full catalog renders every single and double motif with the selected frame finish', () => {
     const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
-    assert.equal(Object.keys(catalog).length, 192);
-    for (const [prefix, count, leaves] of [['SD', 96, 1], ['DD', 96, 2]]) for (let number = 1; number <= count; number++) {
+    assert.equal(Object.keys(catalog).length, 219);
+    for (const [prefix, count, leaves] of [['SD', 110, 1], ['DD', 109, 2]]) for (let number = 1; number <= count; number++) {
       const key = prefix + String(number).padStart(2, '0');
       const artwork = catalog[key];
       assert.ok(artwork, `Missing ${key}`);
@@ -96,7 +96,112 @@ module.exports = function register({ test, load, render, tags, bars, panel, reso
       const clip = html.match(/<clipPath id="[^"]*-design-lights">(.*?)<\/clipPath>/s)[1];
       assert.equal(tags(clip, 'rect').length, 1, 'Sidelites must not receive catalog artwork');
     }
-    for (const duplicate of ['SD97', 'SD98', 'SD99']) assert.equal(catalog[duplicate], undefined);
+  });
+
+
+  test('The November additions preserve all 192 original designs and the approved code-to-source mapping', () => {
+    const { createHash } = require('node:crypto');
+    const manifest = require('./data/french-door-additions-20261123.json');
+    const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
+    const expected = [
+      ['SD', [26, 30, 34, 61, 63, 66, 70, 72, 74, 75, 76, 77, 79, 80]],
+      ['DD', [17, 30, 32, 42, 65, 66, 67, 68, 69, 70, 71, 72, 76]],
+    ].flatMap(([prefix, sources]) => sources.map((source, index) => ({
+      artworkKey: prefix + (97 + index), code: 'AE-' + prefix + '-' + (97 + index),
+      kind: prefix === 'SD' ? 'SINGLE' : 'DOUBLE', sourceFile: prefix + '-W/TD-' + prefix + '-W' + source + '.png',
+    })));
+    assert.equal(manifest.entries.length, 27);
+    assert.equal(new Set(manifest.entries.map(entry => entry.artworkKey)).size, 27);
+    assert.deepEqual(manifest.entries.map(({ artworkKey, code, kind, sourceFile }) => ({ artworkKey, code, kind, sourceFile })), expected);
+    for (const entry of manifest.entries) {
+      assert.match(entry.sourceSha256, /^[a-f0-9]{64}$/);
+      assert.equal(catalog[entry.artworkKey]?.leafCount, entry.kind === 'SINGLE' ? 1 : 2);
+    }
+    const original = Object.fromEntries(Object.entries(catalog).filter(([key]) => Number(key.slice(2)) <= 96));
+    assert.equal(Object.keys(original).length, 192);
+    assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'), manifest.originalCatalogSha256);
+    assert.deepEqual(Object.keys(catalog).filter(key => Number(key.slice(2)) > 96).sort(), expected.map(entry => entry.artworkKey).sort());
+  });
+
+  test('All 27 new motifs scale with the operable glass, keep exterior orientation and render from saved selections', () => {
+    const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
+    const keys = Object.keys(catalog).filter(key => Number(key.slice(2)) > 96);
+    assert.equal(keys.length, 27);
+    for (const key of keys) {
+      const singleLeaf = catalog[key].leafCount === 1;
+      const configurations = singleLeaf
+        ? [['X', { width: 28, height: 96 }], ['OX', { width: 60, height: 72, doorWidth: 42 }]]
+        : [['XX', { width: 64, height: 96 }], ['OXXO', { width: 120, height: 72, doorWidth: 84, leftSideliteWidth: 18, rightSideliteWidth: 18 }]];
+      for (const [configuration, piece] of configurations) for (const activeOptionName of ['Left Active', 'Right Active'])
+        for (const [frameColorHex, highBottom] of [['#FFFFFF', false], ['#704A35', true]]) {
+          const html = render(PieceDiagram, { ...props, configuration, activeOptionName, frameColorHex, variant: 'report',
+            piece: { ...piece, highBottom, doorDesignSnapshot: { artworkKey: key } } });
+          assert.equal((html.match(/data-layer="FRENCH_DOOR_DESIGN"/g) ?? []).length, 1, key);
+          assert.match(html, new RegExp('data-artwork-key="' + key + '"'));
+          assert.equal(tags(html, 'image').length, 0, key + ' must stay vector at every size');
+          assert.doesNotMatch(html, /NaN|Infinity/);
+          const clip = html.match(/<clipPath id="[^"]*-design-lights">(.*?)<\/clipPath>/s)[1];
+          const openings = tags(clip, 'rect');
+          const glass = tags(html, 'rect').filter(item => item['data-part'] === (singleLeaf ? 'single-glass' : 'double-glass'));
+          assert.equal(openings.length, catalog[key].leafCount);
+          openings.forEach((opening, index) => {
+            for (const property of ['y', 'width', 'height']) assert.equal(opening[property], glass[index][property], key + ' ' + property);
+          });
+          const mask = html.match(/<mask\b[^>]*id="[^"]*-design-mask"[^>]*>(.*?)<\/mask>/s)[1];
+          assert.deepEqual(tags(mask, 'path').map(path => path.d), catalog[key].paths.map(path => path.d), key + ' keeps its source path order');
+          assert.equal(tags(mask, 'svg')[0].viewBox, catalog[key].viewBox);
+          assert.equal(tags(mask, 'svg')[0].preserveAspectRatio, 'none');
+          tags(mask, 'path').forEach((path, index) => {
+            const source = catalog[key].paths[index];
+            if (!source.centerOnLeaf) {
+              assert.equal(path.transform, undefined, key + ' preserves the exterior motif with hardware');
+              return;
+            }
+            assert.equal(key, 'DD107', 'Only the approved DD107 verticals opt into pane centering');
+            const match = /^translate\(([-\d.e+]+) 0\)$/.exec(path.transform);
+            assert.ok(match, 'Centering only translates horizontally; it never mirrors or scales');
+            const rectangle = /^M ([\d.]+),[\d.]+ H ([\d.]+)/.exec(path.d);
+            const sourceCenter = (Number(rectangle[1]) + Number(rectangle[2])) / 2;
+            const viewport = tags(mask, 'svg')[0];
+            const [sourceX, , sourceWidth] = catalog[key].viewBox.split(' ').map(Number);
+            const drawnCenter = Number(viewport.x) + (sourceCenter + Number(match[1]) - sourceX) * Number(viewport.width) / sourceWidth;
+            const pane = openings[source.clip];
+            assert.ok(Math.abs(drawnCenter - Number(pane.x) - Number(pane.width) / 2) < 1e-7, 'DD107 vertical stays midway between both glass edges');
+          });
+          const rects = tags(html, 'rect');
+          assert.equal(rects.find(item => item.mask?.includes('-design-mask')).fill,
+            rects.find(item => item['data-part'] === (singleLeaf ? 'single-leaf' : 'double-leaf')).fill);
+        }
+    }
+  });
+
+
+  test('New boundary designs and previous designs reach the saved report PDF capture in White and Bronze with Clear glass', () => {
+    const catalog = load('components/piece-diagram/renderers/french-door/french-door-designs.json');
+    for (const key of ['SD96', 'SD97', 'SD110', 'DD96', 'DD97', 'DD109']) for (const frameColorHex of ['#FFFFFF', '#704A35']) {
+      const singleLeaf = key.startsWith('SD');
+      const code = 'AE-' + key.slice(0, 2) + '-' + key.slice(2);
+      const piece = {
+        ...reportPiece(), width: singleLeaf ? '36' : '72', height: '80', pieceMuntin: null,
+        prod: { name: 'French Door', diagramFamily: 'FRENCH_DOOR' }, syst: { name: 'Serie 600' },
+        conf: { conf: singleLeaf ? 'X' : 'XX', diagramSpec: null },
+        fColor: { color: frameColorHex === '#FFFFFF' ? 'White' : 'Bronze', hexCode: frameColorHex },
+        tin: { name: 'Clear', hexCode: '#FFFFFF' },
+        activeOption: { name: 'Right Active' }, preparationOption: { name: '2 Holes' },
+        doorDesignSnapshot: { version: 1, id: 1000, systemId: 1, configId: 2, artworkKey: key, code, kind: singleLeaf ? 'SINGLE' : 'DOUBLE' },
+      };
+      const html = render(PieceReportCard, { piece, displayMark: 'FD-' + key, showPrices: false });
+      assert.match(html, /data-piece-diagram-id="123"/, 'PDF capture target remains available');
+      assert.match(html, new RegExp('data-artwork-key="' + key + '"'));
+      assert.ok(html.includes('Door Design: ' + code));
+      assert.doesNotMatch(html, /data-glass-effect=/, 'Clear glass adds no tint, coating or privacy effect');
+      assert.equal(tags(html, 'image').length, 0);
+      const mask = html.match(/<mask\b[^>]*id="[^"]*-design-mask"[^>]*>(.*?)<\/mask>/s)[1];
+      assert.deepEqual(tags(mask, 'path').map(path => path.d), catalog[key].paths.map(path => path.d));
+      const rects = tags(html, 'rect');
+      assert.equal(rects.find(item => item.mask?.includes('-design-mask')).fill,
+        rects.find(item => item['data-part'] === (singleLeaf ? 'single-leaf' : 'double-leaf')).fill);
+    }
   });
 
   test('Solid board designs preserve their visible joints without cutting holes into the panel', () => {

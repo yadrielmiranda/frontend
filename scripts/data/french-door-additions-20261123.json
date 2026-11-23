@@ -1,0 +1,195 @@
+{
+  "originalCatalogCount": 192,
+  "originalCatalogSha256": "e3a4ad367a0698c272386e047a416ae40bca069f25ba1a97ad8c7918094eef86",
+  "entries": [
+    {
+      "artworkKey": "SD97",
+      "code": "AE-SD-97",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W26.png",
+      "sourceSha256": "8fb07ed0579d225b35c39df0c8e7f553df370ce6ffb3a9c4faf8ef99e9ad8489"
+    },
+    {
+      "artworkKey": "SD98",
+      "code": "AE-SD-98",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W30.png",
+      "sourceSha256": "2656672c27c3a20e7a50085a0d0e5e2afbba315455048a358c78c30cf3e2a2e7"
+    },
+    {
+      "artworkKey": "SD99",
+      "code": "AE-SD-99",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W34.png",
+      "sourceSha256": "14b8a4cfda5a144281fc5820f9735088ca66a203aec44574b66faa85f4f23d35"
+    },
+    {
+      "artworkKey": "SD100",
+      "code": "AE-SD-100",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W61.png",
+      "sourceSha256": "193e8e6c626f04ae8aba921647394b32b7a6379ad95bc04b62183666cd8ffecb"
+    },
+    {
+      "artworkKey": "SD101",
+      "code": "AE-SD-101",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W63.png",
+      "sourceSha256": "c497640ce233969b7b734081dddb35c1856cb2e6d4cfe280b10be0c92011183b"
+    },
+    {
+      "artworkKey": "SD102",
+      "code": "AE-SD-102",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W66.png",
+      "sourceSha256": "88cc1df0d0508c18742cb66ebc6ff40384ba2e2c0e1c83ac865163800a930606"
+    },
+    {
+      "artworkKey": "SD103",
+      "code": "AE-SD-103",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W70.png",
+      "sourceSha256": "bb8aa3974eb0cd8b17dce9278d315c3383167ae6c7528b592d0073d853cbb6b7"
+    },
+    {
+      "artworkKey": "SD104",
+      "code": "AE-SD-104",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W72.png",
+      "sourceSha256": "c75f7bb2fe3478a9272095e0e13c13e3f2acbc3119ca8e7b0dbb7243a0544458"
+    },
+    {
+      "artworkKey": "SD105",
+      "code": "AE-SD-105",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W74.png",
+      "sourceSha256": "7eff18c1a12835f6fb113df8edd01dcfc63368d7c2e6cbde73a9716d2ef2380c"
+    },
+    {
+      "artworkKey": "SD106",
+      "code": "AE-SD-106",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W75.png",
+      "sourceSha256": "7f65ff4be34231ae3b96e49fbe86565042c15fab3f5721d558778b672519ca96"
+    },
+    {
+      "artworkKey": "SD107",
+      "code": "AE-SD-107",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W76.png",
+      "sourceSha256": "bc504bb76232e12f0ad4f36a95a721cda58e7e871ba66dd4b0d65e06189fc11d"
+    },
+    {
+      "artworkKey": "SD108",
+      "code": "AE-SD-108",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W77.png",
+      "sourceSha256": "49b2768c405f07eb7b51e2fe44cdd4ffdb422d00ee506eb8bfec1024e4d5eee3"
+    },
+    {
+      "artworkKey": "SD109",
+      "code": "AE-SD-109",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W79.png",
+      "sourceSha256": "95cfe37611324185e27ca6ea5f72eea51e2dc9b47f1ee194a2a97fb7abea7dad"
+    },
+    {
+      "artworkKey": "SD110",
+      "code": "AE-SD-110",
+      "kind": "SINGLE",
+      "sourceFile": "SD-W/TD-SD-W80.png",
+      "sourceSha256": "576e92a95385ea127bb4ac21967bc67040056ad599df098d40565b5b215e31b5"
+    },
+    {
+      "artworkKey": "DD97",
+      "code": "AE-DD-97",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W17.png",
+      "sourceSha256": "ab17239f629d9180e82db0d45ad2ea430d2430e43e883f3ff7ed281e1838503e"
+    },
+    {
+      "artworkKey": "DD98",
+      "code": "AE-DD-98",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W30.png",
+      "sourceSha256": "167bc4897f5dde222e76332dc9007111b9eb28aa67398f28ff7c4a88093fcc6c"
+    },
+    {
+      "artworkKey": "DD99",
+      "code": "AE-DD-99",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W32.png",
+      "sourceSha256": "313c3de349a95bfe17c756b446bf19ad63c66a0a0fa9481d72fba753ef31af31"
+    },
+    {
+      "artworkKey": "DD100",
+      "code": "AE-DD-100",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W42.png",
+      "sourceSha256": "bb14db79e1689650bc97a1715557995a29b930564edac48e58a99ce85a86897b"
+    },
+    {
+      "artworkKey": "DD101",
+      "code": "AE-DD-101",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W65.png",
+      "sourceSha256": "c28a34e13274ebdef31cb5fcfb64bc0c317e43325936487e2e2aacfc14ddde0f"
+    },
+    {
+      "artworkKey": "DD102",
+      "code": "AE-DD-102",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W66.png",
+      "sourceSha256": "284a7c371b601fe87df3bc87139f6e8aba561843d04bbb175a75ee50d7fb8b4b"
+    },
+    {
+      "artworkKey": "DD103",
+      "code": "AE-DD-103",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W67.png",
+      "sourceSha256": "97f6ea91e27acb3402c2581ffafd3015e4e0199acddf57ab03cbe7e556a071f0"
+    },
+    {
+      "artworkKey": "DD104",
+      "code": "AE-DD-104",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W68.png",
+      "sourceSha256": "b52d4ee5b1719b1bde5e39ded5e7a39cec61c5efc2b75ded76c5d01fb03432f8"
+    },
+    {
+      "artworkKey": "DD105",
+      "code": "AE-DD-105",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W69.png",
+      "sourceSha256": "1cc3657e9c2717b12ee42fc98ef72b81e4d86d50b087ffab3311a6f09dd920ff"
+    },
+    {
+      "artworkKey": "DD106",
+      "code": "AE-DD-106",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W70.png",
+      "sourceSha256": "84136ed663f7474683f15613a81f2d74e1336ed417ea3db3b07399ad5283d090"
+    },
+    {
+      "artworkKey": "DD107",
+      "code": "AE-DD-107",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W71.png",
+      "sourceSha256": "c0dcdcbb9e222fe7cf5f83cc074a91c68d25924f94b2c7ff1df609e58a25ebef"
+    },
+    {
+      "artworkKey": "DD108",
+      "code": "AE-DD-108",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W72.png",
+      "sourceSha256": "2e49b8348667f7d9dd5f67035c8f679d2af5e16d39fb18a6515821829efe4176"
+    },
+    {
+      "artworkKey": "DD109",
+      "code": "AE-DD-109",
+      "kind": "DOUBLE",
+      "sourceFile": "DD-W/TD-DD-W76.png",
+      "sourceSha256": "5f30235ad0ff9c1a1e29642d4274b6d6ed59a80e484fe7ca8229785444696449"
+    }
+  ]
+}

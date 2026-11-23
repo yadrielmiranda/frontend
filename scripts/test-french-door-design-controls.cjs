@@ -49,6 +49,7 @@ function visibleText(tree) {
 const catalogDir = "app/settings/(write)/french-door-designs";
 const { DoorDesignCatalog } = load(catalogDir + "/door-design-catalog.tsx");
 const { FrenchDoorDesignFields } = load("components/estimates/french-door-design-fields.tsx");
+const { selectedDoorDesign } = load("lib/door-designs.ts");
 
 async function run() {
   let single = { id: 10, kind: "SINGLE", code:"Single 01", artworkKey:"SD01", unitPrice:null };
@@ -118,5 +119,65 @@ async function run() {
   assert.ok(nodes(render(), "p").some(node => node.props.role === "status"));
   assert.equal(nodes(render(), "button").length, 0);
   console.log("PASS estimate picker uses current materials, allows removing a design and displays a withdrawn selection when reopening");
+
+  // The server supplies standard codes in numeric order and retains custom-code slots.
+  // Both consumers must preserve that ordering and the immutable artwork/id association.
+  const continuation = [
+    { id: 500, code: 'Custom first', artworkKey: 'SD01', kind: 'SINGLE' },
+    { id: 501, code: 'AE-SD-98', artworkKey: 'SD98', kind: 'SINGLE' },
+    { id: 502, code: 'AE-SD-99', artworkKey: 'SD99', kind: 'SINGLE' },
+    { id: 503, code: 'Custom middle', artworkKey: 'SD02', kind: 'SINGLE' },
+    { id: 504, code: 'AE-SD-100', artworkKey: 'SD100', kind: 'SINGLE' },
+    { id: 505, code: 'AE-SD-101', artworkKey: 'SD101', kind: 'SINGLE' },
+  ];
+  const continuedCatalog = mount(DoorDesignCatalog, { designs: continuation });
+  assert.deepEqual(nodes(continuedCatalog()).filter(node => node.props.initial?.artworkKey).map(node => node.props.initial.code), continuation.map(item => item.code));
+  const continuedPicker = mount(FrenchDoorDesignFields, { ...picker, options: continuation, selected: null, selectedId: null, locked: false });
+  nodes(continuedPicker(), 'details')[0].props.onToggle({ currentTarget: { open: true } });
+  assert.deepEqual(nodes(continuedPicker(), 'button').slice(1).map(visibleText), continuation.map(item => item.code));
+  assert.deepEqual(nodes(continuedPicker(), 'FrenchDoorDesignThumbnail').map(node => node.props.artworkKey), continuation.map(item => item.artworkKey));
+  console.log('PASS catalog and estimate picker preserve numeric 99-to-100 continuation and custom-code positions from the server');
+
+  for (const [prefix, count, kind] of [['SD', 14, 'SINGLE'], ['DD', 13, 'DOUBLE']]) {
+    const options = Array.from({ length: count }, (_, index) => ({
+      id: 1000 + (prefix === 'SD' ? 0 : 100) + index, kind,
+      artworkKey: prefix + (97 + index), code: 'AE-' + prefix + '-' + (97 + index),
+    }));
+    const selectedIds = [];
+    const newPickerProps = { ...picker, options, selected: null, selectedId: null, locked: false, onChange: id => selectedIds.push(id) };
+    const newPicker = mount(FrenchDoorDesignFields, newPickerProps);
+    for (let index = 0; index < options.length; index++) {
+      nodes(newPicker(), 'details')[0].props.onToggle({ currentTarget: { open: true } });
+      const button = nodes(newPicker(), 'button')[index + 1];
+      assert.equal(visibleText(button), options[index].code);
+      assert.equal(nodes(button, 'FrenchDoorDesignThumbnail')[0].props.artworkKey, options[index].artworkKey);
+      button.props.onClick();
+      assert.equal(selectedIds.at(-1), options[index].id);
+      const selectedView = newPicker({ ...newPickerProps, selected: options[index], selectedId: options[index].id });
+      assert.equal(visibleText(nodes(selectedView, 'summary')[0]), options[index].code);
+    }
+    assert.deepEqual(selectedIds, options.map(item => item.id));
+  }
+  console.log('PASS all 27 new selections retain the approved display code, artwork key and selected record id');
+
+
+  for (const [index, artworkKey] of ['SD96', 'SD97', 'SD110', 'DD96', 'DD97', 'DD109'].entries()) {
+    const snapshot = { id: 2000 + index, version: 1, systemId: 7, configId: 8, artworkKey,
+      code: 'AE-' + artworkKey.slice(0, 2) + '-' + artworkKey.slice(2), kind: artworkKey.startsWith('SD') ? 'SINGLE' : 'DOUBLE' };
+    const changedCatalog = [{ ...snapshot, code: 'Custom current ' + index }];
+    const reopened = selectedDoorDesign(snapshot.id, 7, 8, changedCatalog, snapshot);
+    assert.equal(reopened, snapshot, 'Reopening the same piece retains its quoted code and immutable drawing');
+    const reopenedPicker = mount(FrenchDoorDesignFields, { ...picker, options: changedCatalog, selected: reopened, selectedId: snapshot.id, locked: false });
+    assert.equal(visibleText(nodes(reopenedPicker(), 'summary')[0]), snapshot.code);
+    nodes(reopenedPicker(), 'details')[0].props.onToggle({ currentTarget: { open: true } });
+    const selectedButton = nodes(reopenedPicker(), 'button')[1];
+    assert.equal(visibleText(selectedButton), snapshot.code);
+    assert.equal(selectedButton.props['aria-pressed'], true);
+    assert.equal(nodes(selectedButton, 'FrenchDoorDesignThumbnail')[0].props.artworkKey, snapshot.artworkKey);
+    assert.equal(selectedDoorDesign(snapshot.id, 7, 9, changedCatalog, snapshot), changedCatalog[0], 'Changing configuration does not reuse a stale quote snapshot');
+    assert.equal(selectedDoorDesign(snapshot.id, 7, 8, [], snapshot), snapshot, 'Withdrawn designs remain visible on saved pieces');
+  }
+  console.log('PASS previous and new boundary designs reopen with the saved code and artwork even after a catalog rename');
+
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

@@ -12,6 +12,8 @@ type ArtworkPath = {
   lineJoin?: "miter" | "round" | "bevel";
   miterLimit?: number;
   clip?: number;
+  // Center this source path on its own glass pane, preserving its size.
+  centerOnLeaf?: boolean;
 };
 type Artwork = {
   leafCount: number;
@@ -48,9 +50,18 @@ export function FrenchDoorDesignArtwork({ artworkKey, panes, frameColor, finishI
   const edge = doorFinish(frameColor)("#97A2A1", -0.24);
   const viewport = { ...bounds, viewBox: design.viewBox, preserveAspectRatio: "none", overflow: "hidden" } as const;
   const drawPaths = (outline: boolean) => design.paths.map((path, i) => {
+    const pane = path.centerOnLeaf && path.clip !== undefined ? panes[path.clip] : undefined;
+    const sourceClip = path.centerOnLeaf && path.clip !== undefined ? design.clips?.[path.clip] : undefined;
+    let centerOffset: number | undefined;
+    if (pane && sourceClip) {
+      const [sourceX, , sourceWidth] = design.viewBox.split(" ").map(Number);
+      centerOffset = sourceX + (pane.x + pane.width / 2 - bounds.x) * sourceWidth / bounds.width
+        - (sourceClip.x + sourceClip.width / 2);
+    }
     const shape = <path d={path.d} fill={path.filled ? (outline ? edge : "white") : "none"}
       fillRule={path.fillRule} strokeWidth={outline ? path.width + 9 : path.width}
-      strokeLinecap={path.lineCap} strokeLinejoin={path.lineJoin} strokeMiterlimit={path.miterLimit} />;
+      strokeLinecap={path.lineCap} strokeLinejoin={path.lineJoin} strokeMiterlimit={path.miterLimit}
+      transform={centerOffset === undefined ? undefined : `translate(${centerOffset} 0)`} />;
     return <g key={i} clipPath={path.clip === undefined ? undefined : `url(#${idNamespace}-source-clip-${path.clip})`}>{shape}</g>;
   });
 

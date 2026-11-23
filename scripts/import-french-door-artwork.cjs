@@ -3,11 +3,11 @@
  * The manifest is an array of { key: 'SD02', source: 'SD-B/OLD-SD-B02.svg' }.
  * Optional panels selects door-only artwork from a source including a sidelite.
  * Optional panelJoints restores the solid board seams visible in the original PDF.
- * Existing approved 01 artwork is deliberately preserved byte for byte as data.
+ * Existing approved artwork is immutable; missing manifest entries are retained.
  * Bronze (B) is the canonical catalog numbering: white (W) sources renumber or
- * mirror some motifs. Color variants are not separate designs. SD97/98/99 are
- * excluded because their door-only artwork repeats SD55/54/40 after removing
- * the sidelites, which never receive decorative artwork in this application.
+ * mirror some motifs. Color variants are not separate designs. The old bronze
+ * SOURCE drawings numbered SD97/98/99 were excluded as sidelite duplicates;
+ * the new artwork keys SD97 onward belong to the approved November additions.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -117,7 +117,7 @@ function main() {
     assert.match(row.key, /^(SD|DD)\d{2,3}$/);
     assert.ok(!Object.hasOwn(result, row.key), `Duplicate artwork key ${row.key}`);
     const leafCount = row.key.startsWith('SD') ? 1 : 2;
-    result[row.key] = row.key === 'SD01' || row.key === 'DD01' ? approved[row.key] : importSvg(path.resolve(sourceDirectory, row.source), leafCount, row.panels);
+    result[row.key] = row.key === 'SD01' || row.key === 'DD01' ? JSON.parse(JSON.stringify(approved[row.key])) : importSvg(path.resolve(sourceDirectory, row.source), leafCount, row.panels);
     assert.ok(result[row.key]);
     if (row.panelJoints) {
       const design = result[row.key];
@@ -138,6 +138,12 @@ function main() {
     }
   }
   assert.ok(result.SD01 && result.DD01);
+  // A historical source manifest must never remove later additions or replace
+  // an immutable key with a different motif (including similarly named sources).
+  for (const [key, design] of Object.entries(approved)) {
+    if (Object.hasOwn(result, key)) assert.deepEqual(result[key], design, `Refusing to overwrite immutable artwork ${key}`);
+    else result[key] = design;
+  }
   fs.writeFileSync(target, JSON.stringify(result, null, 2) + '\n');
   console.log(`Imported ${Object.keys(result).length} designs (${fs.statSync(target).size} bytes).`);
 }
