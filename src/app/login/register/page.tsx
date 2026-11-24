@@ -9,6 +9,7 @@ export default async function Register({ searchParams }: { searchParams: Promise
       title="Client Access"
       description="Create your client account to access estimates and project details."
       contentMaxWidth="max-w-2xl"
+      fullPageNavigation
     >
       <CardRegister referralCode={referralCode} />
     </AuthPageShell>

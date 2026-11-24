@@ -12,6 +12,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const companyPath = pathname === "/company";
+  // Leave the registration document before rendering other routes.
+  const FooterLink = pathname === "/login/register" ? "a" : Link;
   const technicianPath = pathname === "/technician" || pathname.startsWith("/technician/");
   const technicianAccount = user?.role?.name === "technician";
   useEffect(() => {
@@ -46,9 +48,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       {!isPublicDocumentPage && (
         <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 py-5 text-center text-xs text-slate-500">
-          <Link href="/company" className="underline underline-offset-4">Company</Link>
-          <Link href="/materials" className="underline underline-offset-4">Materials</Link>
-          <Link href="/terms" className="underline underline-offset-4">Terms and Conditions</Link>
+          <FooterLink href="/company" className="underline underline-offset-4">Company</FooterLink>
+          <FooterLink href="/materials" className="underline underline-offset-4">Materials</FooterLink>
+          <FooterLink href="/terms" className="underline underline-offset-4">Terms and Conditions</FooterLink>
         </footer>
       )}
     </PlatformTermsGate>

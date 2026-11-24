@@ -33,7 +33,8 @@ import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
 import { useRegistrationMeasurement } from "@/lib/registration-measurement";
-import { sendCompletedRegistration } from "@/lib/registration-pixel";
+import { hasRegistrationPixel, sendCompletedRegistration, sendRegistrationPageView } from "@/lib/registration-pixel";
+import { useAuth } from "@/contexts/AuthContext";
 import { resolveReferral } from "@/app/api/referrals.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
 import { getCurrentPlatformTerms, platformTermsPageUrl, type PlatformTermsVersion } from '@/app/api/platform-terms.api';
@@ -130,7 +131,11 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   const measurement = useRegistrationMeasurement(registrationEnabled && !referralCode);
   const [showPassword, setShowPassword] = useState(false);
   const [deliveryUnavailable, setDeliveryUnavailable] = useState(false);
-  const [pixelStarted, setPixelStarted] = useState(false);
+  const { isAuthenticated, isLoading: sessionLoading } = useAuth();
+  const pixelEligible = registrationEnabled && !referralCode && !sessionLoading && !isAuthenticated;
+  useEffect(() => {
+    if (pixelEligible) sendRegistrationPageView();
+  }, [pixelEligible]);
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [consentReload, setConsentReload] = useState(0);
@@ -249,8 +254,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
       }, measurement.header());
 
       // Tracking must not affect whether the account is created or the existing pickup flow.
-      const pixelUsed = !referralCode && !referral && await sendCompletedRegistration().catch(() => false);
-      setPixelStarted(pixelUsed);
+      if (pixelEligible) await sendCompletedRegistration().catch(() => false);
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
@@ -261,7 +265,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
         return;
       }
 
-      if (pixelUsed) window.location.assign("/"); // Unload the public-only script before any private UI.
+      if (hasRegistrationPixel()) window.location.assign("/"); // Unload the public-only script before any private UI.
       else {
         router.push("/");
         router.refresh();
@@ -285,7 +289,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   };
 
   const handleBackToSignIn = () => {
-    if (pixelStarted) window.location.assign("/");
+    if (hasRegistrationPixel()) window.location.assign("/");
     else router.push("/");
   };
 

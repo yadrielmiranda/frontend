@@ -10,6 +10,7 @@ type AuthPageShellProps = {
   title: string;
   description: string;
   children: ReactNode;
+  fullPageNavigation?: boolean;
   contentMaxWidth?: "max-w-md" | "max-w-lg" | "max-w-2xl";
 };
 
@@ -17,9 +18,11 @@ export function AuthPageShell({
   title,
   description,
   children,
+  fullPageNavigation = false,
   contentMaxWidth = "max-w-md",
 }: AuthPageShellProps) {
   const { companyName } = useCompanyBranding();
+  const AboutLink = fullPageNavigation ? "a" : Link;
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[#050505] px-4 py-6 text-white">
@@ -30,13 +33,13 @@ export function AuthPageShell({
       </div>
 
       <nav aria-label="Company information" className="relative z-10 mx-auto flex w-full max-w-7xl justify-end px-4">
-        <Link
+        <AboutLink
           href="/company"
-          prefetch={false}
+          {...(!fullPageNavigation ? { prefetch: false } : {})}
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/25 bg-white/5 px-5 py-2 text-sm font-medium text-white/85 transition-colors hover:border-white/50 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
           About us <ArrowRight aria-hidden="true" className="h-4 w-4" />
-        </Link>
+        </AboutLink>
       </nav>
 
       <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 items-center justify-center px-4 py-8">
