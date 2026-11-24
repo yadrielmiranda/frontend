@@ -135,9 +135,10 @@ type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
 
 export type RegisterUserResponse = User & { deliveryAvailable: boolean };
 
-export function registerUser(userData: RegisterUserData) {
+export function registerUser(userData: RegisterUserData, attribution?: string) {
   return apiFetch<RegisterUserResponse>("/api/auth/register", {
     method: "POST",
+    ...(attribution ? { headers: { "x-registration-attribution": attribution } } : {}),
     body: userData,
   });
 }

@@ -51,7 +51,6 @@ export function SettingsMenuItems({
 
   return (
     <Fragment>
-      {isAdmin && <DropdownMenuItem asChild className={itemClass}><Link href="/settings/referrals"><BadgeDollarSign className={iconClass} />Referral Rewards</Link></DropdownMenuItem>}
       {/* Catalog */}
       <DropdownMenuLabel className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         Catalog
@@ -335,6 +334,16 @@ export function SettingsMenuItems({
       <DropdownMenuLabel className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         Administration
       </DropdownMenuLabel>
+
+      {isAdmin && <DropdownMenuItem asChild className={itemClass}><Link href="/settings/referrals"><BadgeDollarSign className={iconClass} />Referral Rewards</Link></DropdownMenuItem>}
+      {isAdmin && (
+        <DropdownMenuItem asChild className={itemClass}>
+          <Link href="/settings/registration-analytics">
+            <Users className={iconClass} />
+            Registration Analytics
+          </Link>
+        </DropdownMenuItem>
+      )}
 
       {isAdmin && (
         <DropdownMenuItem asChild className={itemClass}>

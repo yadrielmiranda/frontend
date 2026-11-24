@@ -32,6 +32,8 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import { registerUser } from "@/app/api/auth/me/auth.api";
+import { useRegistrationMeasurement } from "@/lib/registration-measurement";
+import { sendCompletedRegistration } from "@/lib/registration-pixel";
 import { resolveReferral } from "@/app/api/referrals.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
 import { getCurrentPlatformTerms, platformTermsPageUrl, type PlatformTermsVersion } from '@/app/api/platform-terms.api';
@@ -125,8 +127,10 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   const [referralError, setReferralError] = useState<string | null>(null);
   const [referralRetry, setReferralRetry] = useState(0);
   const registrationEnabled = REGISTRATION_ENABLED && (!referralCode || Boolean(referral && referral.code === referralCode));
+  const measurement = useRegistrationMeasurement(registrationEnabled && !referralCode);
   const [showPassword, setShowPassword] = useState(false);
   const [deliveryUnavailable, setDeliveryUnavailable] = useState(false);
+  const [pixelStarted, setPixelStarted] = useState(false);
   const [consentProgram, setConsentProgram] = useState<SmsProgram | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [consentReload, setConsentReload] = useState(0);
@@ -242,7 +246,11 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
       const result = await registerUser({ ...data, serviceConsent, promotionsConsent, ...(consentProgram ? { consentVersion: consentProgram.version } : {}),
         ...(referral ? { referralCode: referral.code } : {}),
         ...(platformTerms ? { platformTermsAccepted: true, platformTermsVersionId: platformTerms.id } : {}),
-      });
+      }, measurement.header());
+
+      // Tracking must not affect whether the account is created or the existing pickup flow.
+      const pixelUsed = !referralCode && !referral && await sendCompletedRegistration().catch(() => false);
+      setPixelStarted(pixelUsed);
 
       toast.success("Account created successfully.", {
         description: "You can now sign in with your new client account.",
@@ -253,8 +261,11 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      if (pixelUsed) window.location.assign("/"); // Unload the public-only script before any private UI.
+      else {
+        router.push("/");
+        router.refresh();
+      }
     } catch (err: any) {
       if (err?.data?.code === 'PLATFORM_TERMS_CHANGED' || err?.data?.code === 'PLATFORM_TERMS_REQUIRED') {
         setPlatformTermsAccepted(null);
@@ -274,7 +285,8 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
   };
 
   const handleBackToSignIn = () => {
-    router.push("/");
+    if (pixelStarted) window.location.assign("/");
+    else router.push("/");
   };
 
   const RequiredMark = () => <span className="ml-0.5 text-red-500">*</span>;
@@ -299,7 +311,10 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
         {referralError && <div role="alert" className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"><p>{referralError}</p><button type="button" className="underline" onClick={() => setReferralRetry(value => value + 1)}>Try again</button></div>}
       </CardHeader>
 
-      <form onSubmit={handleSubmit(handleRegister)}>
+      <form onChangeCapture={() => measurement.record("started")} onSubmit={(event) => {
+        measurement.record("submitted");
+        void handleSubmit(handleRegister, () => measurement.record("invalid"))(event);
+      }}>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="firstName" className={labelClass}>

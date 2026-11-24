@@ -291,6 +291,14 @@ export function SettingsHub({ isAdmin }: SettingsHubProps) {
 
   const administrationItems: SettingsItem[] = [
     {
+      title: "Registration Analytics",
+      description: "See campaign registrations and where visitors stop.",
+      href: "/settings/registration-analytics",
+      icon: Users,
+      color: "bg-blue-50 text-blue-600",
+      show: isAdmin,
+    },
+    {
       title: "Referral Rewards",
       description: "Manage referral earnings and manual ACH withdrawals.",
       href: "/settings/referrals",
