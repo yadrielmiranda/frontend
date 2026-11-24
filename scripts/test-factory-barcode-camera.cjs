@@ -324,7 +324,7 @@ function pasteBarcode(scene, code, x, y) {
   for (let row = 0; row < image.height; row++) scene.pixels.set(image.pixels.subarray(row * image.width, (row + 1) * image.width), (y + row) * scene.width + x);
   return { left: x, top: y, width: image.width, height: image.height };
 }
-for (const code of ['001029975-DOOR', '1029975-FRAME', '1029975-SIDELITE', 'I1029975']) {
+for (const code of ['001029975-DOOR', '1029975-FRAME', '1029975-SIDELITE', '1029975-PANEL', 'I1029975']) {
   test(`Actual factory decoder preserves CODE128 barcode ${code}`, async t => {
     canvasDocument(t);
     let video = rasterVideo(rasterBarcode('CODE128', code));

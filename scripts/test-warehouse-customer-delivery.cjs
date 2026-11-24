@@ -60,10 +60,13 @@ function group(units, overrides = {}) {
 }
 const parts = [unit('1126830'), unit('1126835', { poNumber: '292759', source: 'ORDER', orderNumber: 'SO-2' })];
 test('barcode parsing accepts both real formats and rejects hybrid and unknown suffixes', () => {
-  for (const code of ['I00123', '123', ' 123-DOOR ', '123-SIDELITE', '123-frame', '123-WINDOW'])
+  for (const code of ['I00123', '123', ' 123-DOOR ', '123-SIDELITE', '123-frame', '123-WINDOW', '123-PANEL'])
     assert.equal(factoryParts.factoryBarcode(code).lineNumber, '123');
-  for (const code of ['I123-DOOR', 'I123-SIDELITE', '123-PANEL', '0-FRAME', '0-SIDELITE', '123-DOOR-FRAME'])
+  for (const code of ['I123-DOOR', 'I123-SIDELITE', 'I123-PANEL', '123-PANELS', '0-FRAME', '0-SIDELITE', '0-PANEL', '123-DOOR-FRAME'])
     assert.equal(factoryParts.factoryBarcode(code), null);
+});
+test('panel labels normalize to the existing window part type', () => {
+  assert.deepEqual(factoryParts.factoryBarcode(' 00123-panel '), { lineNumber: '123', type: 'WINDOW' });
 });
 test('sidelite labels normalize to the existing door-panel type', () => {
   for (const code of ['123-SIDELITE', ' 00123-sidelite ', '123-SideLite'])
@@ -257,6 +260,27 @@ function typedDoor(overrides = {}) {
     ...overrides,
   });
 }
+test('selection sends the original PANEL label to the server and stages only a validated panel', async () => {
+  const panel = unit('1126830', {
+    product: 'Series 400 Window Wall', expectedParts: 2,
+    partTracking: { types: ['WINDOW'], expected: { WINDOW: 2 }, stores: [{ id: 1, parts: { WINDOW: 2 } }] },
+  });
+  const lookups = [];
+  const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', initial: { ...props().initial, items: [group([panel])], total: 1 } }), {
+    warehouseUnit: async barcode => {
+      lookups.push(barcode);
+      if (barcode !== '001126830-panel') throw new Error('Unsupported panel label');
+      return panel;
+    },
+  });
+  click(h, 'Select parts by scanning');
+  const scanner = byType(h, 'ScanPad');
+  await assert.rejects(() => scanner.props.onRead('1126835-PANEL'), /Unsupported panel label/);
+  scanner.props.onSaved(await scanner.props.onRead('001126830-panel'));
+  assert.deepEqual(lookups, ['1126835-PANEL', '001126830-panel']);
+  click(h, 'Review delivery');
+  assert.deepEqual(byType(h, 'CustomerDeliveryReceipt').props.delivery.items[0].parts, { WINDOW: 1 });
+});
 test('door scans retain the panel/frame breakdown and a third panel cannot complete the selection', async () => {
   const door = typedDoor();
   const h = harness(props({ initialSource: 'WAREHOUSE', initialStoreId: '1', initial: { ...props().initial, items: [group([door])], total: 1 } }), { warehouseUnit: async () => door });

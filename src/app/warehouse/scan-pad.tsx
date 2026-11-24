@@ -306,7 +306,7 @@ export function ScanPad<Result = ScanResult>({
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            placeholder={prominent ? "Scan or enter a barcode" : "Scan 1029975-DOOR, -SIDELITE, -FRAME, -WINDOW or I1029975"}
+            placeholder={prominent ? "Scan or enter a barcode" : "Scan 1029975-DOOR, -SIDELITE, -FRAME, -WINDOW, -PANEL or I1029975"}
             className={prominent ? "h-12 bg-white text-base focus-visible:border-orange-500 focus-visible:ring-orange-500/30" : undefined}
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
