@@ -14,7 +14,6 @@ function RegistrationBusinessDetails({ details }: { details: NetworkBusinessDeta
     <div><dt className="text-muted-foreground">Company name</dt><dd>{details.companyName || 'Not provided'}</dd></div>
     <div><dt className="text-muted-foreground">Estimated monthly sales</dt><dd>{details.estimatedMonthlySales == null ? 'Not provided' : usd.format(Number(details.estimatedMonthlySales))}</dd></div>
     <div><dt className="text-muted-foreground">Years of experience</dt><dd>{details.yearsOfExperience}</dd></div>
-    <div><dt className="text-muted-foreground">Preferred language</dt><dd>{details.preferredLanguage}</dd></div>
   </>;
 }
 

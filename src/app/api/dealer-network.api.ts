@@ -10,7 +10,6 @@ export type NetworkBusinessDetails = {
   companyName: string | null;
   estimatedMonthlySales: string | null;
   yearsOfExperience: number;
-  preferredLanguage: 'English' | 'Spanish';
 };
 export type NetworkMember = {
   id: number; username: string; firstName: string; lastName: string;
