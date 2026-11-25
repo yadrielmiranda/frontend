@@ -73,10 +73,10 @@ const handlerCode = compile([
   ...guardStatements.map(node => node.getText(source)),
   ...statements.filter(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
     && node.expression.expression.getText(source) === 'useLayoutEffect' && node.getText(source).includes('garageFrameSelection.idFrameColor')).map(node => node.getText(source)),
-  declaration("handleCalculate"), declaration("handleUnlock"),
+  declaration("validatePentagonLegHeight"), declaration("handleCalculate"), declaration("handleUnlock"),
   declaration("changeGarageDesign"), declaration("changeDoorDesign"),
   declaration("handleHorizontalHeightChange"), declaration("handleRemoveHorizontalHeight"),
-  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign, changeDoorDesign, doorDesignError, currentDoorDesign, doorDesignOptions, handleHorizontalHeightChange, handleRemoveHorizontalHeight };",
+  "return { calculate: handleCalculate, unlock: handleUnlock, changeDesign: changeGarageDesign, changeDoorDesign, doorDesignError, currentDoorDesign, doorDesignOptions, handleHorizontalHeightChange, handleRemoveHorizontalHeight, validatePentagonLegHeight };",
 ].join("\n"));
 const forbiddenNetwork = () => { throw new Error("Network access is forbidden in calculation tests"); };
 globalThis.fetch = forbiddenNetwork;
@@ -180,12 +180,13 @@ function fixture(options = {}) {
     selectedSystem: options.designSystem ?? { systemFrameColors: [{ idFrameColor: 5, isDefault: true }] },
     availableFrameColors: options.frameColors ?? [{ id: 5, color: "Original" }, { id: 37, color: "Walnut" }],
     selectedConfigUnavailable: false, selectedCrystalUnavailable: false,
-    selectedConfig: { id: 4 }, isLinearMaterial: Boolean(options.linear),
+    selectedConfig: { id: 4, conf: options.configuration }, isLinearMaterial: Boolean(options.linear),
     selectedProduct: { allowMuntin: options.allowMuntin, diagramFamily: options.diagramFamily },
     reinforcementRequired: false, dimensionRequirements: requirements,
     widthLabel: "Width", heightLabel: "Height", fixedPanelCount: undefined,
     requiresManualPanelCount: false, highBottomAllowed: true,
     getValues: form.getValues,
+    setError: form.setError,
     setValue(name, value, flags) { writes.push({ name, value: structuredClone(value), flags }); form.setValue(name, value, flags); },
     watch(callback) {
       subscriptions++;
@@ -276,7 +277,8 @@ function fixture(options = {}) {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
       const callback = evaluate(compile(declaration("withoutInactiveDimensions", source.statements) + `\nreturn (${submitCallback});`),
         { ...dimensions, handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
-          designSelectionError: state.designSelectionError, doorDesignError: handlers.doorDesignError, toast: scope.toast });
+          designSelectionError: state.designSelectionError, doorDesignError: handlers.doorDesignError, toast: scope.toast,
+          validatePentagonLegHeight: handlers.validatePentagonLegHeight });
       await callback();
     },
     unmount() {
@@ -891,6 +893,64 @@ test("hidden glass options are retained while the internal base crystal still ge
   evaluate(compile(glassDefaults.getText(source)), scope);
   evaluate(compile(crystalDefaults.getText(source)), scope);
   assert.deepEqual(values, { idTint: 81, idCoat: 82, idPrivacy: 83, idCryst: 6 });
+});
+
+for (const revision of [false, true]) {
+  for (const legHeight of ["60", "60 1/8", "72"]) {
+    test(`symmetric pentagon ${revision ? "revision" : "estimate"} rejects Leg Height ${legHeight} at Height 60 before any request`, async () => {
+      const f = fixture({ revision, configuration: "Pentagon (Symmetric)", requirements: { requiresLegHeight: true },
+        values: { width: "48", height: "60", legHeight } });
+      await f.calculate();
+      assert.equal(f.prechecks.length, 0);
+      assert.equal(f.requests.length, 0);
+      assert.equal(f.disabled(), true);
+      assert.equal(f.form.getFieldState("legHeight").error?.message, "Leg Height must be less than Height.");
+      assert.deepEqual(f.errors, ["Leg Height must be less than Height."]);
+      f.unmount();
+    });
+  }
+}
+
+test("symmetric pentagon accepts fractional legs below Height, revalidates lowered Height and recovers after correction", async () => {
+  const f = fixture({ configuration: "  PENTAGON (SYMMETRIC)  ", requirements: { requiresLegHeight: true },
+    values: { width: "48", height: "60", legHeight: "59 7/8" } });
+  const first = await f.start();
+  assert.equal(f.requests[0].dto.legHeight, "59.875");
+  await f.resolve(0); await first.done;
+  f.unlock();
+  await f.change("height", "59 7/8");
+  await f.calculate();
+  assert.equal(f.requests.length, 1, "Lowering total height to the leg blocks another request");
+  assert.equal(f.disabled(), true);
+  await f.change("legHeight", "59 3/4");
+  const corrected = await f.start();
+  assert.equal(f.requests[1].dto.legHeight, "59.75");
+  assert.equal(f.form.getFieldState("legHeight").error, undefined);
+  await f.resolve(1); await corrected.done; f.render();
+  assert.equal(f.disabled(), false);
+  await f.submit();
+  assert.equal(f.submissions.length, 1);
+  f.unmount();
+});
+
+test("an already calculated symmetric pentagon with invalid legs cannot bypass validation through Save", async () => {
+  const f = fixture({ locked: true, configuration: "Pentagon (Symmetric)", requirements: { requiresLegHeight: true },
+    values: { width: "48", height: "60", legHeight: "60", price: 684 } });
+  await f.submit();
+  assert.equal(f.submissions.length, 0);
+  assert.equal(f.disabled(), true);
+  assert.equal(f.form.getFieldState("legHeight").error?.message, "Leg Height must be less than Height.");
+  f.unmount();
+});
+
+test("other shapes retain their existing leg-height behavior", async () => {
+  const f = fixture({ configuration: "Eyebrow", requirements: { requiresLegHeight: true },
+    values: { width: "48", height: "12", legHeight: "36" } });
+  const calculation = await f.start();
+  assert.equal(f.requests.length, 1);
+  await f.resolve(0); await calculation.done;
+  assert.deepEqual(f.errors, []);
+  f.unmount();
 });
 
 (async () => {

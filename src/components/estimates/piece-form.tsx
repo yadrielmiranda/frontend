@@ -338,6 +338,7 @@ export function PieceForm({
     register,
     handleSubmit,
     setValue,
+    setError,
     getValues,
     trigger,
     watch,
@@ -1923,6 +1924,27 @@ export function PieceForm({
     );
   };
 
+  const validatePentagonLegHeight = (values: PieceFormInputValues) => {
+    if (
+      selectedConfig?.conf?.trim().toLowerCase() !== "pentagon (symmetric)" ||
+      !dimensionRequirements.requiresLegHeight
+    ) return true;
+
+    const height = normalizeInchesToEighthStep(values.height, "Height", 1);
+    const legHeight = normalizeInchesToEighthStep(values.legHeight, "Leg Height", 1);
+    if (legHeight < height) return true;
+
+    const message = "Leg Height must be less than Height.";
+    setError("legHeight", { type: "validate", message }, { shouldFocus: true });
+    setIsLocked(false);
+    setActiveAccordionItems((items) => [
+      ...items.filter((item) => item !== "item-results" && item !== "item-details-size"),
+      "item-details-size",
+    ]);
+    toast.error(message);
+    return false;
+  };
+
   const handleCalculate = async (scrollToResults = false) => {
     setResultsScrollRequest(0);
     const calculationId = ++latestCalculationRef.current;
@@ -2044,6 +2066,8 @@ export function PieceForm({
       const legHeightNorm = dimensionRequirements.requiresLegHeight
         ? normalizeInchesToEighthStep(currentValues.legHeight, "Leg Height", 1)
         : undefined;
+
+      if (!validatePentagonLegHeight(currentValues)) return;
 
       const sashHeightNorm = dimensionRequirements.requiresSashHeight
         ? normalizeInchesToEighthStep(
@@ -2623,6 +2647,7 @@ export function PieceForm({
         if (designSelectionError || doorDesignError) { toast.error(designSelectionError || doorDesignError); return; }
         const activeValues = withoutInactiveDimensions(values, dimensionRequirements);
         try {
+          if (!validatePentagonLegHeight(activeValues)) return;
           return onSubmit({
             ...activeValues,
             horizontalHeights: activeValues.horizontalHeights?.map((value, index) =>
