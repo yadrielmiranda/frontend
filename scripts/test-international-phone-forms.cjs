@@ -11,9 +11,8 @@ const all = (node, predicate) => !node || typeof node !== 'object' ? [] : Array.
   : [...(predicate(node) ? [node] : []), ...all(node.props?.children, predicate)];
 const text = node => Array.isArray(node) ? node.map(text).join('') : node && typeof node === 'object'
   ? text(node.props?.children) : node == null || typeof node === 'boolean' ? '' : String(node);
-const valid = { firstName: 'Sample', lastName: 'Customer', username: 'sample-client', email: 'sample@example.test',
-  phone: '+13055551234', password: 'Example-password-123', street: '100 Example Street', addressLine2: '', city: 'Miami',
-  state: 'FL', postalCode: '33138', serviceConsent: false, promotionsConsent: false };
+const valid = { firstName: 'Sample', lastName: 'Customer', email: 'sample@example.test',
+  phone: '+13055551234', password: 'Example-password-123', serviceConsent: false, promotionsConsent: false };
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
 
@@ -34,10 +33,11 @@ function load(relative, mocks) {
   return module.exports;
 }
 
-function fixture(kind = 'registration', { programFails = false } = {}) {
+function fixture(kind = 'registration', { programFails = false, rejectUsername = false, terms = null } = {}) {
   let form, defaults, index = 0, effects = [];
   const slots = [], requests = [], phoneRules = {};
   const hooks = {
+    useRef(initial) { const slot = index++; return slots[slot] ??= { current: initial }; },
     useState(initial) { const slot = index++; if (!(slot in slots)) slots[slot] = typeof initial === 'function' ? initial() : initial;
       return [slots[slot], next => { slots[slot] = typeof next === 'function' ? next(slots[slot]) : next; }]; },
     useEffect(work, deps) { const slot = index++, previous = slots[slot];
@@ -52,7 +52,7 @@ function fixture(kind = 'registration', { programFails = false } = {}) {
         form = createFormControl({ ...options, defaultValues: valid });
         form.subscribe({ formState: { values: true, errors: true }, callback() {} });
       }
-      return { ...form, formState: { errors: {}, isSubmitting: false } };
+      return { ...form, formState: { errors: form.control._formState.errors, isSubmitting: false } };
     },
     useWatch({ name }) { return Array.isArray(name) ? name.map(key => form.getValues(key)) : form.getValues(name); },
     Controller({ name, rules, render }) {
@@ -63,19 +63,31 @@ function fixture(kind = 'registration', { programFails = false } = {}) {
     },
   };
   const mocks = {
+    '@/contexts/AuthContext': { useAuth: () => ({ isAuthenticated: false, isLoading: false }) },
+    '@/app/api/_base': { isApiError: error => Boolean(error?.data?.code) },
+    '@/components/platform-terms/platform-terms-document': ui,
+    '@/lib/registration-pixel': { hasRegistrationPixel: () => false, sendRegistrationPageView() {}, sendCompletedRegistration: async () => false },
+    '@/lib/registration-measurement': { useRegistrationMeasurement: () => ({ record() {}, header() {} }) },
+    '@/lib/auth-session': { navigateAfterSessionChange() {} },
     react: hooks, 'react-hook-form': rhf, 'next/link': 'Link',
     'next/navigation': { useRouter: () => ({ push() {}, refresh() {} }) },
     sonner: { toast: { success() {}, error() {} } },
     '@/components/international-phone-input': { InternationalPhoneInput: 'InternationalPhoneInput' },
     '@/components/address-autocomplete': { AddressAutocomplete: 'AddressAutocomplete' },
     '@/components/StateCombobox': { StateCombobox: 'StateCombobox' },
-    '@/app/api/auth/me/auth.api': { registerUser: async data => { requests.push(data); return { deliveryAvailable: true }; } },
+    '@/app/api/auth/me/auth.api': { loginUser: async () => ({ role: 'client' }), registerUser: async data => {
+      requests.push(data);
+      if (rejectUsername && data.username) {
+        throw Object.assign(new Error('This username is already in use. Choose another username.'), { data: { code: 'USERNAME_TAKEN' } });
+      }
+      return { username: 'SampleCustomer' };
+    } },
     '@/app/api/referrals.api': { resolveReferral: async () => ({ valid: true }) },
     '@/app/api/sms.api': { getSmsProgram: async () => {
       if (programFails) throw new Error('Messaging terms unavailable');
       return { registration: {}, version: 'phone-test' };
     } },
-    '@/app/api/platform-terms.api': { getCurrentPlatformTerms: async () => null, platformTermsPageUrl: () => '/terms' },
+    '@/app/api/platform-terms.api': { getCurrentPlatformTerms: async () => terms },
   };
   const Component = kind === 'registration' ? load('components/card-register.tsx', mocks).CardRegister
     : load('components/estimates/customer-details-card.tsx', mocks).CustomerDetailsCard;
@@ -114,6 +126,40 @@ test('registration leaves both SMS choices unchecked after a supported number is
   assert.equal(f.requests.length, 1);
   assert.equal(f.requests[0].serviceConsent, false);
   assert.equal(f.requests[0].promotionsConsent, false);
+});
+
+test('a taken custom username stays editable; returning to automatic generation removes it from the request', async () => {
+  const f = fixture('registration', { rejectUsername: true });
+  let tree = await f.settle();
+  assert.match(text(tree), /SampleCustomer/);
+  const button = label => all(tree, node => node.type === 'button' && text(node) === label)[0];
+  button('Change').props.onClick();
+  tree = f.render();
+  assert.equal(f.values().username, 'SampleCustomer');
+  f.set('username', 'Other.Name');
+  await f.submit();
+  tree = f.render();
+  assert.match(text(all(tree, node => node.props.id === 'username-error')[0]), /already in use/);
+  assert.equal(f.values().username, 'Other.Name');
+  button('Use automatic username').props.onClick();
+  await f.submit();
+  assert.equal(f.requests.length, 2);
+  assert.equal(f.requests[0].username, 'Other.Name');
+  assert.equal(Object.hasOwn(f.requests[1], 'username'), false);
+  assert.equal(Object.hasOwn(f.requests[1], 'street'), false);
+});
+
+test('published terms require explicit acceptance of the displayed version', async () => {
+  const f = fixture('registration', { terms: { id: 8, consentText: 'I accept the published terms.' } });
+  let tree = await f.settle();
+  await f.submit();
+  assert.equal(f.requests.length, 0);
+  const label = all(tree, node => node.type === 'label' && text(node).includes('I accept the published terms.'))[0];
+  const checkbox = all(label, node => node.type === 'input')[0];
+  checkbox.props.onChange({ target: { checked: true } });
+  await f.submit();
+  assert.equal(f.requests[0].platformTermsAccepted, true);
+  assert.equal(f.requests[0].platformTermsVersionId, 8);
 });
 
 test('registration submits each SMS category independently', async () => {

@@ -46,6 +46,7 @@ interface CardLoginProps {
   lockIdentifier?: boolean;
   defaultIdentifier?: string;
   registrationRequestId?: number;
+  firstEstimate?: boolean;
 }
 
 export function CardLogin({
@@ -56,6 +57,7 @@ export function CardLogin({
   lockIdentifier = false,
   defaultIdentifier,
   registrationRequestId,
+  firstEstimate = false,
 }: CardLoginProps) {
   const router = useRouter();
   const { revalidate, signIn } = useAuth();
@@ -85,7 +87,9 @@ export function CardLogin({
         const account = await signIn(data, registrationRequestId);
         if (!account) return;
         onLoginSuccess?.();
-        router.replace(registrationLoginDestination(account.role?.name, registrationRequestId));
+        router.replace(firstEstimate && account.role?.name === "client"
+          ? "/estimates/new?welcome=1"
+          : registrationLoginDestination(account.role?.name, registrationRequestId));
         router.refresh();
         return;
       }
@@ -102,9 +106,9 @@ export function CardLogin({
       if (!account) return;
       toast.success("Session restored.");
       onLoginSuccess?.();
-    } catch (err: any) {
+    } catch (err) {
       toast.error("Sign in failed", {
-        description: err?.message || "Invalid credentials or server error.",
+        description: err instanceof Error && err.message ? err.message : "Invalid credentials or server error.",
       });
     }
   };

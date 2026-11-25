@@ -36,6 +36,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { roundMoney } from "@/lib/formatters";
 import { useAuth } from "@/contexts/AuthContext";
+import type { DeliveryProfileAddress } from "@/app/api/client-delivery.api";
 
 import type {
   EstimateFormProps,
@@ -221,6 +222,17 @@ export function EstimateForm({
   const [customerChargesBusy, setCustomerChargesBusy] = useState(false);
   const router = useRouter();
   const [promotionEstimate, setPromotionEstimate] = useState(estimate);
+  const owner = estimate?.user;
+  const profile = useMemo(() => ({
+    ownerId: owner?.id,
+    address: {
+      street: owner?.street ?? "", addressLine2: owner?.addressLine2 ?? null,
+      city: owner?.city ?? "", state: owner?.state ?? "", postalCode: owner?.postalCode ?? "",
+    },
+  }), [owner?.id, owner?.street, owner?.addressLine2, owner?.city, owner?.state, owner?.postalCode]);
+  // Keep a successful save through unrelated renders until the server profile changes.
+  const [profileUpdate, setProfileUpdate] = useState<{ initial: typeof profile; address: DeliveryProfileAddress } | null>(null);
+  const ownerAddress = profileUpdate?.initial === profile ? profileUpdate.address : profile.address;
   useEffect(() => setPromotionEstimate(estimate), [estimate]);
   const taxRate = Number(promotionEstimate?.taxRate ?? estimate?.taxRate ?? defaultTaxRate);
   const { user } = useAuth();
@@ -1759,10 +1771,7 @@ export function EstimateForm({
             suggestedAddress={isDealerRole(ownerRole) ? {
               street: getValues("customerStreet") ?? "", addressLine2: getValues("customerAddressLine2") ?? "", city: getValues("customerCity") ?? "",
               state: getValues("customerState") ?? "", postalCode: getValues("customerPostalCode") ?? "",
-            } : {
-              street: estimate.user?.street ?? "", addressLine2: estimate.user?.addressLine2 ?? "", city: estimate.user?.city ?? "",
-              state: estimate.user?.state ?? "", postalCode: estimate.user?.postalCode ?? "",
-            }}
+            } : ownerAddress}
             estimateStatus={needsRecalculation ? "Expired" : estimate.status?.name ?? ""}
 
             order={estimate.order ?? null}
@@ -1841,6 +1850,10 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <EstimatePaymentCard
+            onProfileAddressSaved={address => setProfileUpdate({ initial: profile, address })}
+            hasSavedProfileAddress={Boolean(profile.address.street.trim() && profile.address.city.trim()
+              && profile.address.state.trim() && profile.address.postalCode.trim())}
+            clientOwner={currentUserId === estimate.idUser ? role === "client" : estimate.user?.role?.name === "client"}
             customerChargesSummary={customerChargesSummary}
             networkPaymentBlocked={estimate.networkPaymentBlocked}
             paymentSchedule={discountData.paymentSchedule}

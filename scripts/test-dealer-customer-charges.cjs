@@ -139,6 +139,7 @@ const paymentMocks = {
   react: {}, 'next/navigation': {}, sonner: {}, '@/lib/payment-accounting': { hasRefundHistory: () => false },
   '@/components/payments/payment-history': {}, '@/components/payments/installment-selection': {},
   '@/components/payments/custom-payment-amount': {}, '@/app/api/payments.api': {},
+  '@/app/api/_base': {}, './client-delivery-review': {},
   '@/components/payments/manual-payment-dialog': {}, '@/components/estimates/estimate-payment-link-actions': {},
   '@/components/payments/card-fee-breakdown': {}, '@/lib/card-payment': {},
 };

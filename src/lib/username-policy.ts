@@ -10,3 +10,15 @@ export const USERNAME_VALIDATION_MESSAGE =
 export function isValidUsername(value: unknown): value is string {
   return typeof value === "string" && USERNAME_PATTERN.test(value.trim());
 }
+
+const combiningMarks = new RegExp("\\p{M}", "gu");
+
+// Preview only. The server assigns the final available username on creation.
+export function suggestedClientUsername(firstName: string, lastName: string): string {
+  const parts = [firstName, lastName].flatMap(name =>
+    name.normalize("NFKD").replace(combiningMarks, "").split(/[^A-Za-z0-9]+/).filter(Boolean),
+  );
+  const base = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("").replace(/^\d+/, "");
+  if (!base) return "Client";
+  return (base.length < USERNAME_MIN_LENGTH ? base + "User" : base).slice(0, USERNAME_MAX_LENGTH);
+}

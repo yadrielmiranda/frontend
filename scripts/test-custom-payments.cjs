@@ -15,7 +15,7 @@ const compile = (code, filename) => ts.transpileModule(code, { fileName: filenam
 } }).outputText;
 const money = value => `$${Number(value).toFixed(2)}`;
 const roundMoney = value => Math.round(Number(value) * 100) / 100;
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props, key) => ({ type, props, key });
 function load(relative, mocks = {}, cache = new Map()) {
   if (cache.has(relative)) return cache.get(relative);
   const filename = path.resolve(root, relative);
@@ -35,6 +35,7 @@ function load(relative, mocks = {}, cache = new Map()) {
   return exported;
 }
 const { previewCustomPayment } = load('lib/custom-payment.ts');
+const baseApi = load('app/api/_base.ts');
 const row = (sequence, milestone, balance, status = 'UPCOMING', extra = {}) => ({ sequence, milestone,
   title: `Payment ${sequence}`, description: '', amount: balance, paid: '0', credit: '0', balance, status, ...extra });
 function schedule(rows = [row(1, 'ORDER', '5320.64', 'DUE'), row(2, 'RELEASE', '5320.63')]) {
@@ -46,7 +47,7 @@ function schedule(rows = [row(1, 'ORDER', '5320.64', 'DUE'), row(2, 'RELEASE', '
 const tests = []; const test = (name, run) => tests.push({ name, run });
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
-function fixture(kind, overrides = {}) {
+function fixture(kind, overrides = {}, firstCheckoutError) {
   const state = [], refs = [], effects = [], requests = [], notices = [], routes = [];
   let index, refIndex, effectIndex, pending, dirty;
   const router = { refresh() {}, replace(route) { routes.push(route); }, push(route) { routes.push(route); } };
@@ -77,8 +78,14 @@ function fixture(kind, overrides = {}) {
     '@/components/payments/payment-schedule': { PaymentScheduleView: 'Schedule' },
     '@/components/payments/card-fee-breakdown': { CardFeeBreakdown: 'CardBreakdown' },
     '@/components/estimates/estimate-payment-link-actions': { EstimatePaymentLinkActions: 'PaymentLink' },
+    './client-delivery-review': { ClientDeliveryReview: 'DeliveryReview' },
+    '@/app/api/_base': baseApi,
     '@/app/api/payments.api': {
-      createCheckoutSession: async (...args) => { requests.push(args); return { url: '/test-checkout' }; },
+      createCheckoutSession: async (...args) => {
+        requests.push(args);
+        if (firstCheckoutError && requests.length === 1) throw firstCheckoutError;
+        return { url: '/test-checkout' };
+      },
       recordManualPayment: async body => { requests.push(body); return { id: 1, order: null }; },
     },
     '@/app/api/estimates.api': { getEstimate: async () => props.estimate },
@@ -208,6 +215,91 @@ test('authenticated advance payments remain available when nothing is currently 
 test('authenticated client still must accept material details for a partial first installment', () => {
   const f = fixture('authenticated', { ownerRole: 'client' }); f.button('Pay another amount').props.onClick(); f.input('Custom payment amount', '1');
   assert.equal(f.button('Accept terms to continue').props.disabled, true); f.close();
+});
+test('clients with no profile address can complete the address step without selecting a fulfillment method', () => {
+  const f = fixture('authenticated', { ownerRole: 'client', clientOwner: true });
+  const review = () => f.all(f.render(), node => node.type === 'DeliveryReview')[0];
+  const terms = f.all(f.render(), node => node.props?.id === 'material-acceptance')[0];
+  terms.props.onCheckedChange(true);
+  const reviewLink = f.all(f.render(), node => node.type === 'a' && node.props.href === '#delivery-review-17')[0];
+  assert.equal(reviewLink.props.children.trim(), 'Add your address or confirm you can pick up in Miami');
+  assert.equal(f.button('Pay next installment').props.disabled, true);
+  review().props.onAcknowledged();
+  assert.equal(f.button('Pay next installment').props.disabled, false);
+  f.update({ estimateId: 18 });
+  assert.equal(f.button('Pay next installment').props.disabled, true);
+  assert.equal(f.requests.length, 0);
+  f.close();
+});
+test('the same address option becomes required when a blank client estimate gains its first payable item', () => {
+  const f = fixture('authenticated', { ownerRole: 'client', clientOwner: true, materialAmount: 0, paymentSchedule: null });
+  const panel = () => {
+    const section = f.render().props.children[1];
+    assert.equal(section.type, 'section');
+    const slot = [section.props.children].flat().find(node => node?.key === 'profile-address');
+    assert.equal(slot.props.children.type, 'DeliveryReview');
+    assert.equal(f.all(f.render(), node => node.type === 'DeliveryReview').length, 1);
+    return slot.props.children;
+  };
+  const initial = panel();
+  assert.equal(initial.props.requiredForCheckout, false);
+  f.update({ materialAmount: 150 });
+  const payable = panel();
+  assert.equal(payable.key, initial.key);
+  assert.equal(payable.props.requiredForCheckout, true);
+  f.update({ estimateStatus: 'Expired' });
+  assert.equal(panel().props.requiredForCheckout, false);
+  f.update({ hasSavedProfileAddress: true });
+  assert.equal(f.all(f.render(), node => node.type === 'DeliveryReview').length, 0);
+  f.close();
+});
+test('adding an optional address never holds up an installation or subsequent material installment', async () => {
+  for (const previous of [
+    { installationJob: { status: 'MATERIAL_PAYMENT_PENDING', payments: [], quotes: [] } },
+    { materialPayments: [{ type: 'INSTALLMENT', status: 'PENDING', netPaidBaseAmount: '45' }] },
+    { materialPayments: [{ type: 'MATERIAL', status: 'REFUNDED' }] },
+  ]) {
+    const f = fixture('authenticated', { ownerRole: 'client', clientOwner: true, ...previous,
+      paymentSchedule: schedule([row(2, 'RELEASE', '100', 'DUE')]) });
+    const review = f.all(f.render(), node => node.type === 'DeliveryReview');
+    assert.equal(review.length, 1);
+    assert.equal(review[0].props.requiredForCheckout, false);
+    assert.equal(f.button('Pay next installment').props.disabled, false);
+    f.button('Pay next installment').props.onClick(); await flush();
+    assert.equal(f.requests.length, 1);
+    f.close();
+  }
+});
+test('a saved profile address skips the panel unless checkout reports that the address is now missing', async () => {
+  const missingAddress = new baseApi.ApiError('Address missing', 409, { code: 'CLIENT_DELIVERY_DECISION_REQUIRED' });
+  const f = fixture('authenticated', { ownerRole: 'client', clientOwner: true, hasSavedProfileAddress: true }, missingAddress);
+  const reviews = () => f.all(f.render(), node => node.type === 'DeliveryReview');
+  assert.equal(reviews().length, 0);
+  f.all(f.render(), node => node.props?.id === 'material-acceptance')[0].props.onCheckedChange(true);
+  assert.equal(f.button('Pay next installment').props.disabled, false);
+  f.button('Pay next installment').props.onClick(); await flush();
+  assert.equal(f.button('Pay next installment').props.disabled, true);
+  assert.equal(f.requests.length, 1);
+  f.update({ installationJob: { status: 'MATERIAL_PAYMENT_PENDING', payments: [], quotes: [] } });
+  assert.equal(reviews()[0].props.requiredForCheckout, false);
+  assert.equal(f.button('Pay next installment').props.disabled, false);
+  f.update({ installationJob: null });
+  reviews()[0].props.onAcknowledged();
+  assert.equal(f.button('Pay next installment').props.disabled, false);
+  f.button('Pay next installment').props.onClick(); await flush();
+  assert.equal(f.requests.length, 2);
+  f.close();
+});
+test('the staff address reminder appears only for a client owner missing a profile address', () => {
+  const f = fixture('authenticated', { currentUserId: 99, ownerRole: 'client', clientOwner: true });
+  const reminder = /ask them to add an address/;
+  assert.match(f.text(f.render()), reminder);
+  f.update({ hasSavedProfileAddress: true });
+  assert.doesNotMatch(f.text(f.render()), reminder);
+  f.update({ ownerRole: 'dealer', clientOwner: false, hasSavedProfileAddress: false });
+  assert.doesNotMatch(f.text(f.render()), reminder);
+  assert.equal(f.all(f.render(), node => node.type === 'DeliveryReview').length, 0);
+  f.close();
 });
 test('an initial zero balance covered by credit still preserves its confirmation and material acceptance', () => {
   const plan = schedule([row(1, 'ORDER', '0', 'DUE', { amount: '100', credit: '100' }), row(2, 'RELEASE', '100')]);

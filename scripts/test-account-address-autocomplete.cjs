@@ -72,13 +72,18 @@ function fixture(kind, props, overrides = {}) {
     useForm(options) {
       if (!form) {
         defaults = structuredClone(options.defaultValues); values = structuredClone(defaults);
-        form = { control: {}, formState: { errors, isDirty: false, isSubmitting: false },
+        form = { control: {}, formState: { errors, dirtyFields: {}, isDirty: false, isSubmitting: false },
+          setError(name, error) { errors[name] = error; },
           register(name, rule = {}) { rules[name] = rule; return field(name); },
           watch(name) { return values[name]; },
           setValue(name, value, options = {}) { values[name] = value;
-            if (options.shouldDirty) form.formState.isDirty = JSON.stringify(values) !== JSON.stringify(defaults);
+            if (options.shouldDirty) {
+              form.formState.dirtyFields[name] = !Object.is(value, defaults[name]);
+              form.formState.isDirty = JSON.stringify(values) !== JSON.stringify(defaults);
+            }
             if (options.shouldValidate) validate(name); },
           reset(next) { defaults = structuredClone(next); values = structuredClone(next); form.formState.isDirty = false;
+            form.formState.dirtyFields = {};
             Object.keys(errors).forEach(key => delete errors[key]); dirty = true; },
           handleSubmit(fn) { return async () => {
             Object.keys(rules).forEach(validate); if (Object.keys(errors).length) return;
@@ -106,6 +111,7 @@ function fixture(kind, props, overrides = {}) {
     '@/components/international-phone-input': { InternationalPhoneInput: 'InternationalPhoneInput' },
     '@/components/StateCombobox': { StateCombobox: 'StateCombobox' },
     '@/app/api/users.api': { createUser: api('createUser'), updateUser: api('updateUser') },
+    '@/app/api/_base': { isApiError: error => error instanceof Error && typeof error.status === 'number' },
     '@/app/api/auth/me/auth.api': { updateMyProfile: api('updateMyProfile') },
     '@/app/api/brandings.api': Object.fromEntries(['createDealerBranding', 'updateDealerBranding', 'createCompanyBranding',
       'updateCompanyBranding', 'uploadDealerLogo', 'uploadCompanyLogo'].map(name => [name, api(name)])),
@@ -296,6 +302,64 @@ test('network account rejects overlong apartment details without making a create
   await f.save({ phone: '(305) 555-1234' });
   assert.equal(f.requests.length, 0);
   assert.match(text(f.find(node => node.props.role === 'alert')), /Address details.*150/);
+});
+
+test('client can save a new username before adding a profile address', async () => {
+  const client = { ...user, street: null, addressLine2: null, city: null, state: null, postalCode: null };
+  const f = fixture('user', { user: client, roles });
+  f.type('username', 'NewClientName'); await f.save();
+  const patch = f.requests[0].args[0];
+  assert.equal(f.requests[0].name, 'updateMyProfile');
+  assert.equal(patch.username, 'NewClientName');
+  for (const field of ['street', 'addressLine2', 'city', 'state', 'postalCode']) assert.ok(!(field in patch));
+  assert.equal(f.autocomplete().props.value, '');
+  f.type('city', 'Miami'); await f.save();
+  assert.equal(f.requests.length, 1);
+  assert.match(f.errors.street.message, /required/);
+});
+
+test('client contact changes preserve verified ZIP+4 and an address edit retains all nine digits', async () => {
+  const client = { ...user, postalCode: '33138-0426' };
+  const f = fixture('user', { user: client, roles });
+  f.type('username', 'ChangedName');
+  f.type('phone', '+34 612 345 678');
+  await f.save();
+  const patch = f.requests[0].args[0];
+  assert.equal(patch.username, 'ChangedName');
+  assert.equal(patch.phone, '+34612345678');
+  for (const field of ['street', 'city', 'state', 'postalCode', 'addressLine2']) assert.ok(!(field in patch));
+  assert.equal(f.input('postalCode').props.value, '33138-0426');
+  f.type('addressLine2', 'Unit 2'); await f.save();
+  assert.equal(f.requests[1].args[0].postalCode, '33138-0426');
+  f.type('postalCode', '33138-042'); await f.save();
+  assert.equal(f.requests.length, 2);
+  assert.match(f.errors.postalCode.message, /ZIP\+4/);
+  f.type('postalCode', '33138-0427'); await f.save();
+  assert.equal(f.requests[2].args[0].postalCode, '33138-0427');
+});
+
+test('only a username conflict is reported inline on the profile username field', async () => {
+  for (const code of ['USERNAME_TAKEN', 'EMAIL_TAKEN']) {
+    const conflict = Object.assign(new Error('Already in use'), { status: 409, data: { code } });
+    const f = fixture('user', { user, roles }, { updateMyProfile: () => { throw conflict; } });
+    f.type('username', 'NewClientName'); await f.save();
+    if (code === 'USERNAME_TAKEN') {
+      assert.match(f.errors.username.message, /username is already in use/i);
+      assert.equal(f.input('username').props['aria-invalid'], true);
+    } else {
+      assert.equal(f.errors.username, undefined);
+      assert.ok(f.notices.includes(conflict.message));
+    }
+  }
+});
+
+test('admin commercial settings can be saved for a client who deferred their address', async () => {
+  const f = fixture('user', { user: { ...user, street: null, city: null, state: null, postalCode: null },
+    roles: [...roles, { id: 2, name: 'admin', markup: 0 }] });
+  assert.equal(f.autocomplete().props.disabled, true);
+  await f.save();
+  assert.equal(f.requests[0].name, 'updateUser');
+  assert.ok(!('street' in f.requests[0].args[1]));
 });
 
 test('profile saves and retains an international phone after the successful reset', async () => {

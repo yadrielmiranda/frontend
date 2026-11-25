@@ -17,6 +17,7 @@ import {
   InstallationPriceProfile,
 } from "@/lib/types";
 import { createUser, updateUser } from "@/app/api/users.api";
+import { isApiError } from "@/app/api/_base";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InternationalPhoneInput } from "@/components/international-phone-input";
@@ -35,6 +36,7 @@ import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { isValidEmail, normalizeEmail } from "@/lib/validators-email";
 import { isValidPhone, normalizePhoneToE164 } from "@/lib/validators-phone";
 import { StateCombobox } from "@/components/StateCombobox";
+import { userView } from "@/lib/user-view";
 import { updateMyProfile } from "@/app/api/auth/me/auth.api";
 import {
   isValidUsername,
@@ -56,6 +58,8 @@ type UserFormData = Omit<CreateUserDto, "password"> & {
   password?: string;
   markupOverride?: string;
 };
+
+const addressFields = ["street", "addressLine2", "city", "state", "postalCode"] as const;
 
 function storedMarkupToPercent(
   value: string | number | null | undefined,
@@ -103,6 +107,8 @@ export function UserForm({
   const isEditMode = !!user;
   const isProfilePage = isEditMode && roles.length === 1;
   const isAdminEditMode = isEditMode && !isProfilePage;
+  const editingClient = isEditMode && roles.find(role => role.id === user.idRole)?.name === "client";
+  const clientProfile = isProfilePage && editingClient;
   const showRequiredMark = !isAdminEditMode; // create + profile => true, admin edit => false
 
   const RequiredMark = () => <span className="text-red-500 ml-0.5">*</span>;
@@ -118,7 +124,8 @@ export function UserForm({
     control,
     watch,
     setValue,
-    formState: { errors, isDirty, isSubmitting },
+    setError,
+    formState: { dirtyFields, errors, isDirty, isSubmitting },
     reset,
   } = useForm<UserFormData>({
     defaultValues: {
@@ -145,6 +152,9 @@ export function UserForm({
   });
 
   const addressContext = useWatch({ control, name: ["city", "state", "postalCode"] });
+  const addressChanged = addressFields.some(field => dirtyFields[field]);
+  const requireAddress = !editingClient || (isProfilePage && addressChanged);
+  const showAddressRequired = showRequiredMark && requireAddress;
 
   const selectedRoleId = watch("idRole");
   const selectedRoleName = roles.find(
@@ -172,6 +182,10 @@ export function UserForm({
 
       if (isEditMode) {
         if (isProfilePage) {
+          if (editingClient && addressChanged && !data.state?.trim()) {
+            setError("state", { type: "required", message: "State is required" });
+            return;
+          }
           const updateData: Omit<
             UpdateUserDto,
             "password" | "idRole" | "markupOverride"
@@ -180,15 +194,17 @@ export function UserForm({
             lastName: data.lastName,
             email: data.email,
             phone: normalizedPhone, // ✅ aquí
-            street: data.street,
-            addressLine2: data.addressLine2?.trim() ?? "",
-            city: data.city,
-            state: data.state,
-            postalCode: data.postalCode,
+            ...(requireAddress && {
+              street: data.street,
+              addressLine2: data.addressLine2?.trim() ?? "",
+              city: data.city,
+              state: data.state,
+              postalCode: data.postalCode,
+            }),
             username: data.username,
           };
 
-          const updatedUser = await updateMyProfile(updateData);
+          const updatedUser = userView(await updateMyProfile(updateData));
           toast.success("Profile updated successfully!");
 
           const formValues: UserFormData = {
@@ -287,6 +303,12 @@ export function UserForm({
         router.push("/settings/users");
       }
     } catch (err: unknown) {
+      if (isProfilePage && editingClient && isApiError(err) && err.status === 409 &&
+        typeof err.data === "object" && err.data !== null && "code" in err.data &&
+        err.data.code === "USERNAME_TAKEN") {
+        setError("username", { type: "server", message: "This username is already in use. Choose another username." }, { shouldFocus: true });
+        return;
+      }
       toast.error(
         err instanceof Error ? err.message : "Failed to save changes.",
       );
@@ -340,8 +362,11 @@ export function UserForm({
         </div>
 
         <div>
-          <Label>Username{showRequiredMark && <RequiredMark />}</Label>
+          <Label htmlFor="user-username">Username{showRequiredMark && <RequiredMark />}</Label>
           <Input
+            id="user-username"
+            aria-invalid={Boolean(errors.username)}
+            aria-describedby={errors.username ? "user-username-error" : undefined}
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -356,7 +381,7 @@ export function UserForm({
             disabled={isAdminEditMode}
           />
           {errors.username && (
-            <p className="text-sm text-red-500 mt-1">
+            <p role="alert" id="user-username-error" className="text-sm text-red-500 mt-1">
               {errors.username.message}
             </p>
           )}
@@ -405,11 +430,11 @@ export function UserForm({
         </div>
 
         <div className="md:col-span-2">
-          <Label>Street{showRequiredMark && <RequiredMark />}</Label>
+          <Label>Street{showAddressRequired && <RequiredMark />}</Label>
           <Controller
             name="street"
             control={control}
-            rules={{ required: "Street is required", maxLength: { value: 150, message: "Street must be 150 characters or fewer." } }}
+            rules={{ required: requireAddress && "Street is required", maxLength: { value: 150, message: "Street must be 150 characters or fewer." } }}
             render={({ field }) => (
               <AddressAutocomplete
                 {...field}
@@ -447,10 +472,10 @@ export function UserForm({
         </div>
 
         <div>
-          <Label>City{showRequiredMark && <RequiredMark />}</Label>
+          <Label>City{showAddressRequired && <RequiredMark />}</Label>
           <Input
             maxLength={100}
-            {...register("city", { required: "City is required", maxLength: { value: 100, message: "City must be 100 characters or fewer." } })}
+            {...register("city", { required: requireAddress && "City is required", maxLength: { value: 100, message: "City must be 100 characters or fewer." } })}
             disabled={isAdminEditMode}
             autoComplete="address-level2"
           />
@@ -463,7 +488,7 @@ export function UserForm({
           <StateCombobox
             control={control}
             name="state"
-            label={showRequiredMark ? "State *" : "State"}
+            label={showAddressRequired ? "State *" : "State"}
             placeholder="Select state…"
             disabled={isAdminEditMode}
             error={errors?.state?.message as string | undefined}
@@ -471,13 +496,17 @@ export function UserForm({
         </div>
 
         <div>
-          <Label>ZIP Code{showRequiredMark && <RequiredMark />}</Label>
+          <Label>ZIP Code{showAddressRequired && <RequiredMark />}</Label>
           <Input
             autoComplete="postal-code"
             {...register("postalCode", {
-              required: "ZIP is required",
-              setValueAs: (v) => normalizeUSZip(v),
-              validate: (v) => isValidUSZip(v) || "Invalid ZIP (5 digits)",
+              required: requireAddress && "ZIP is required",
+              setValueAs: clientProfile ? (value) => String(value ?? "").trim() : normalizeUSZip,
+              validate: (value) => {
+                if (!requireAddress) return true;
+                if (clientProfile) return /^\d{5}(?:-\d{4})?$/.test(value) || "Enter a ZIP code or ZIP+4.";
+                return isValidUSZip(value) || "Invalid ZIP (5 digits)";
+              },
             })}
             disabled={isAdminEditMode}
           />

@@ -124,7 +124,8 @@ export function resetPassword(data: ResetPasswordData) {
 /**
  * Signup público (si lo usas)
  */
-type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
+type RegisterUserData = Pick<CreateUserDto, "firstName" | "lastName" | "email" | "phone" | "password"> & {
+  username?: string;
   referralCode?: string;
   platformTermsAccepted?: boolean;
   platformTermsVersionId?: number;
@@ -133,7 +134,7 @@ type RegisterUserData = Pick<CreateUserDto, ProfileFields | "password"> & {
   consentVersion?: string;
 };
 
-export type RegisterUserResponse = User & { deliveryAvailable: boolean };
+export type RegisterUserResponse = User & { deliveryAvailable: boolean | null };
 
 export function registerUser(userData: RegisterUserData, attribution?: string) {
   return apiFetch<RegisterUserResponse>("/api/auth/register", {

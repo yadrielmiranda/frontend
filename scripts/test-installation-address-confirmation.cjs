@@ -104,6 +104,20 @@ async function fixture({ initialJob = null, save, review, beforeRequest, ...extr
   };
 }
 
+test('a newly saved profile address fills the next request and preserves an open address edit', async () => {
+  const f = await fixture();
+  f.click('Use a different address');
+  f.input('installation-street', '700 Draft Street');
+  const updatedProfile = { ...suggested, street: '800 Profile Street', addressLine2: 'Apt 2' };
+  f.update({ suggestedAddress: updatedProfile });
+  assert.equal(f.control('installation-street').props.value, '700 Draft Street');
+  f.click('Cancel');
+  f.click('Request installation price');
+  f.click('Use this address');
+  await flush();
+  assert.deepEqual(f.reviews.at(-1).address, updatedProfile);
+});
+
 test('Google correction preserves optional unit details when changing the main address', async () => {
   const address = { ...entered, addressLine2: 'Apt 4B, Building C' };
   const f = await fixture({ suggestedAddress: address });

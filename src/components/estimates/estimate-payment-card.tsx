@@ -13,6 +13,9 @@ import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { createCheckoutSession } from "@/app/api/payments.api";
+import { isApiError } from "@/app/api/_base";
+import { ClientDeliveryReview } from "./client-delivery-review";
+import type { DeliveryProfileAddress } from "@/app/api/client-delivery.api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatMoney, roundMoney } from "@/lib/formatters";
@@ -186,6 +189,8 @@ function EstimatePaymentCardContent({
   estimateOwnerId,
   dealerNetwork,
   ownerRole,
+  clientOwner = false,
+  hasSavedProfileAddress = false,
   estimateStatus,
   order,
   materialPayments,
@@ -202,12 +207,15 @@ function EstimatePaymentCardContent({
   paymentBlockedReason,
   networkPaymentBlocked = false,
   beforePayment,
+  onProfileAddressSaved,
   className = "",
 }: {
   estimateId: number;
   estimateOwnerId: number;
   dealerNetwork?: import("@/lib/types").EstimateDealerNetwork | null;
   ownerRole: string;
+  clientOwner?: boolean;
+  hasSavedProfileAddress?: boolean;
   estimateStatus: string;
   order: Order | null;
   materialPayments: EstimatePayment[];
@@ -224,12 +232,15 @@ function EstimatePaymentCardContent({
   paymentBlockedReason?: string;
   networkPaymentBlocked?: boolean;
   beforePayment?: () => Promise<boolean>;
+  onProfileAddressSaved?: (address: DeliveryProfileAddress) => void;
   className?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
   const [materialAccepted, setMaterialAccepted] = useState(false);
+  const [deliveryReviewedEstimate, setDeliveryReviewedEstimate] = useState<number | null>(null);
+  const [deliveryRetry, setDeliveryRetry] = useState<{ estimateId: number; attempt: number } | null>(null);
   const [acceptedCityKey, setAcceptedCityKey] = useState("");
   const installments = useInstallmentSelection(paymentSchedule, installationJob?.status !== "DEPOSIT_PAYMENT_PENDING");
   const custom = useCustomPayment(paymentSchedule, installationJob?.status !== "DEPOSIT_PAYMENT_PENDING"
@@ -239,9 +250,6 @@ function EstimatePaymentCardContent({
   const isOwner = currentUserId === estimateOwnerId;
   const isInternalDealer = dealerNetwork ? dealerNetwork.payerType === "CUSTOMER" : dealerMode === "INTERNAL";
   const canPay = dealerNetwork ? dealerNetwork.canPay : isOwner && !isInternalDealer;
-
-  if (!canPay && !(isOwner && isInternalDealer) && !canRecordManualPayment) return <PaymentScheduleView schedule={paymentSchedule} />;
-
   const defaultAction = resolveEstimatePaymentAction({
     estimateStatus,
     order,
@@ -275,15 +283,32 @@ function EstimatePaymentCardContent({
   const cityKey = custom.active ? custom.preview.cityFeeKey : selectingInstallments ? installments.cityFeeKey : "";
   const cityFeeAccepted = Boolean(cityKey) && acceptedCityKey === cityKey;
   const hasSelection = custom.active ? custom.preview.valid : !selectingInstallments || installments.sequences.length > 0;
-
-  if (!action && installments.canPayFullBalance && paymentSchedule) {
-    return <div className="space-y-5"><PaymentScheduleView schedule={paymentSchedule} />
-      <FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)}
-        onCustomAmount={custom.available ? custom.enable : undefined} /></div>;
-  }
-
-  if (!action || !Number.isFinite(action.amount) || (!custom.active && action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
-    return <PaymentScheduleView schedule={paymentSchedule} />;
+  const materialPaidBefore = materialPayments.some(payment =>
+    (payment.type === "MATERIAL" || payment.type === "INSTALLMENT") && (payment.status === "PAID" || payment.status === "REFUNDED" ||
+      Boolean(payment.paidAt || payment.receipts?.length) || Number(payment.netPaidBaseAmount) > 0));
+  const firstMaterialOrder = clientOwner && !order && !materialPaidBefore &&
+    (!installationJob || installationJob.status === "CANCELED") && (materialAmount > 0 || allowNoCharge);
+  const reviewRetry = deliveryRetry?.estimateId === estimateId;
+  const showAddressOption = isOwner && clientOwner && !order && (!hasSavedProfileAddress || reviewRetry);
+  const requiresDeliveryReview = showAddressOption && firstMaterialOrder && canPay && estimateStatus === "Active" &&
+    !paymentBlockedReason && !networkPaymentBlocked && (action?.type === "MATERIAL" || action?.type === "INSTALLMENT");
+  const deliveryReview = showAddressOption && (
+    <div key="profile-address" className="not-first:mt-4 empty:hidden">
+      <ClientDeliveryReview key={`${estimateId}:${deliveryRetry?.attempt ?? 0}`} estimateId={estimateId}
+        requiredForCheckout={requiresDeliveryReview} onProfileAddressSaved={onProfileAddressSaved}
+        onAcknowledged={() => setDeliveryReviewedEstimate(estimateId)} />
+    </div>
+  );
+  const showPaymentOptions = canPay || (isOwner && isInternalDealer) || canRecordManualPayment;
+  if (!showPaymentOptions || !action || !Number.isFinite(action.amount) || (!custom.active && action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
+    // Keep the same keyed address panel mounted when an editable draft acquires its first payable item.
+    return <div className="space-y-5">
+      <PaymentScheduleView schedule={paymentSchedule} />
+      {deliveryReview && <section className="has-[>div:empty]:hidden print:hidden">{deliveryReview}</section>}
+      {showPaymentOptions && !action && installments.canPayFullBalance && paymentSchedule &&
+        <FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)}
+          onCustomAmount={custom.available ? custom.enable : undefined} />}
+    </div>;
   }
 
   const depositTermsPreviouslyAccepted = Boolean(
@@ -312,6 +337,7 @@ function EstimatePaymentCardContent({
 
   const handlePayment = async () => {
     if (busy || !hasSelection || networkPaymentBlocked) return;
+    if (requiresDeliveryReview && deliveryReviewedEstimate !== estimateId) return;
     if (paymentBlockedReason) {
       toast.error(paymentBlockedReason);
       return;
@@ -346,6 +372,11 @@ function EstimatePaymentCardContent({
       );
       window.location.href = url;
     } catch (error) {
+      if (isApiError(error) && typeof error.data === "object" && error.data !== null &&
+        "code" in error.data && error.data.code === "CLIENT_DELIVERY_DECISION_REQUIRED") {
+        setDeliveryReviewedEstimate(null);
+        setDeliveryRetry(previous => ({ estimateId, attempt: (previous?.attempt ?? 0) + 1 }));
+      }
       toast.error((error as Error).message);
       setBusy(false);
     }
@@ -356,7 +387,7 @@ function EstimatePaymentCardContent({
     <PaymentScheduleView schedule={paymentSchedule} />
     <section
       id="estimate-payment"
-      className={`scroll-mt-28 print:hidden rounded-xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm ${className}`}
+      className={`group/payment scroll-mt-28 print:hidden rounded-xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm ${className}`}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -445,6 +476,13 @@ function EstimatePaymentCardContent({
         </label>
       )}
 
+      {deliveryReview}
+      {firstMaterialOrder && !hasSavedProfileAddress && canRecordManualPayment && !isOwner && (
+        <p className="mt-4 text-sm text-slate-600">
+          If this client registered online, ask them to add an address or confirm they can pick up in Miami before paying.
+        </p>
+      )}
+
       {requiresMaterialAcceptance && (canPay || isOwner && isInternalDealer) && (
         <label
           htmlFor="material-acceptance"
@@ -504,7 +542,13 @@ function EstimatePaymentCardContent({
           disabled={busy} onChange={() => { custom.disable(); installments.setFullBalance(!installments.isFullBalance); setAcceptedCityKey(""); }} />}
         {canPay ? (
           <>
-            <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
+            {requiresDeliveryReview && (
+              <a href={`#delivery-review-${estimateId}`}
+                className="hidden min-h-11 items-center justify-center rounded-sm px-1 text-center text-sm font-semibold text-amber-900 underline underline-offset-4 hover:text-amber-950 focus-visible:outline-2 focus-visible:outline-offset-2 group-has-[[data-delivery-pending]]/payment:inline-flex">
+                Add your address or confirm you can pick up in Miami
+              </a>
+            )}
+            <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500 group-has-[[data-delivery-pending]]/payment:hidden">
               <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
             </span>
             <Button
@@ -512,6 +556,7 @@ function EstimatePaymentCardContent({
               className="w-full sm:w-auto"
               disabled={
                 busy || !hasSelection || networkPaymentBlocked ||
+                (requiresDeliveryReview && deliveryReviewedEstimate !== estimateId) ||
                 Boolean(paymentBlockedReason) ||
                 (requiresDepositTerms && !depositTermsSatisfied) ||
                 (requiresMaterialAcceptance && !materialAccepted) ||
@@ -585,7 +630,7 @@ function EstimatePaymentCardContent({
 }
 
 export function EstimatePaymentCard(props: Parameters<typeof EstimatePaymentCardContent>[0]) {
-  return <div className="space-y-5"><EstimatePaymentCardContent {...props} />
+  return <div className="space-y-5"><EstimatePaymentCardContent key={props.estimateId} {...props} />
     {(props.currentUserId === props.estimateOwnerId || props.canRecordManualPayment) &&
       <PaymentHistory estimateId={props.estimateId} reviewPending={[...props.materialPayments, ...(props.installationJob?.payments ?? [])].some(p => p.refundReviewPending)} />}
   </div>;

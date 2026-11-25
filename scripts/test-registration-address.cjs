@@ -1,14 +1,11 @@
-// Real registration schema, selection callback and RHF submission; no network or account creation.
+// Public client registration schema and username preview; no network or account creation.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
-const { createFormControl } = require('react-hook-form');
-const { zodResolver } = require('@hookform/resolvers/zod');
 const z = require('zod');
 const file = path.resolve(__dirname, '../src/components/card-register.tsx');
 const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const component = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'CardRegister');
 const compile = code => ts.transpileModule(code, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true,
 } }).outputText;
@@ -23,93 +20,32 @@ function loadLibrary(name) {
   new Function('require', 'exports', compile(content))(require, exports);
   return exports;
 }
-const dependencies = { z, ...loadLibrary('us-states'), ...loadLibrary('validators-zip'),
-  ...loadLibrary('validators-email'), ...loadLibrary('validators-phone'), ...loadLibrary('username-policy') };
+const dependencies = { z, ...loadLibrary('validators-email'), ...loadLibrary('validators-phone'), ...loadLibrary('username-policy') };
 const schema = new Function(...Object.keys(dependencies), compile(`${declaration('registerSchema', source.statements)}\nreturn registerSchema;`))(...Object.values(dependencies));
-const selection = compile(`${declaration('applyAddress', component.body.statements)}\nreturn applyAddress;`);
-const valid = { firstName: 'Sample', lastName: 'Customer', username: 'sample-client', email: 'sample@example.test',
-  phone: '+13055550111', password: 'Example-password-123', street: '100 Example Street', addressLine2: 'Apt 4B', city: 'Miami',
-  state: 'FL', postalCode: '33138', serviceConsent: false, promotionsConsent: false };
-const address = { street: '200 Example Avenue', city: 'Miami', state: 'FL', postalCode: '33138' };
-const tests = [];
-const test = (name, run) => tests.push({ name, run });
-function fixture(isSubmitting = false) {
-  const form = createFormControl({ defaultValues: valid, resolver: zodResolver(schema) });
-  const unsubscribe = form.subscribe({ formState: { values: true }, callback() {} });
-  const fields = Object.fromEntries(Object.keys(valid).map(name => [name, form.register(name)]));
-  const writes = [];
-  const applyAddress = new Function('setValue', 'isSubmitting', selection)((name, value, options) => {
-    writes.push({ name, value, options }); form.setValue(name, value, options);
-  }, isSubmitting);
-  return { form, writes, applyAddress, dispose: unsubscribe,
-    async change(name, value) { await fields[name].onChange({ target: { name, value }, type: 'change' }); },
-    async submit() { let payload; await form.handleSubmit(value => { payload = value; })(); return payload; },
-  };
-}
+const valid = {
+  firstName: 'José', lastName: 'Pérez', email: 'jose@example.test',
+  phone: '+13055550111', password: 'Example-password-123',
+  serviceConsent: false, promotionsConsent: false,
+};
+const test = require('node:test');
 
-test('selection populates all four fields and preserves registration data and consents', async () => {
-  const f = fixture(); f.applyAddress(address);
-  const payload = await f.submit();
-  assert.deepEqual(payload, { ...valid, ...address });
-  assert.equal(f.writes.length, 4);
-  assert.ok(f.writes.every(write => write.options.shouldDirty && write.options.shouldValidate));
-  f.dispose();
-});
-test('manual El Portal correction survives ZIP edits and the registration submission', async () => {
-  const f = fixture(); f.applyAddress(address);
-  await f.change('city', 'El Portal'); await f.change('postalCode', '33139');
-  assert.equal(f.form.getValues('city'), 'El Portal');
-  const payload = await f.submit();
-  assert.equal(payload.city, 'El Portal'); assert.equal(payload.postalCode, '33139');
-  assert.equal(payload.street, address.street); f.dispose();
-});
-test('optional apartment details stay separate through selection, manual changes and clearing', async () => {
-  const f = fixture(); f.applyAddress(address);
-  assert.equal((await f.submit()).addressLine2, 'Apt 4B');
-  assert.equal(f.writes.some(write => write.name === 'addressLine2'), false);
-  await f.change('addressLine2', '  Building C, rear entrance  ');
-  assert.equal((await f.submit()).addressLine2, 'Building C, rear entrance');
-  assert.equal((await f.submit()).street, address.street);
-  f.applyAddress({ ...address, addressLine2: 'Suite 12' });
-  assert.equal((await f.submit()).addressLine2, 'Suite 12');
-  await f.change('addressLine2', '');
-  assert.equal((await f.submit()).addressLine2, ''); f.dispose();
+test('the five public registration fields can create an account without an address or username', () => {
+  assert.deepEqual(schema.parse(valid), valid);
+  for (const field of ['firstName', 'lastName', 'email', 'phone', 'password']) {
+    assert.equal(schema.safeParse({ ...valid, [field]: '' }).success, false, field);
+  }
+  assert.equal(schema.safeParse({ ...valid, password: 'short' }).success, false);
+  assert.equal(schema.safeParse({ ...valid, firstName: ' ' }).success, false);
 });
 
-test('apartment details are optional and limited to 150 characters', () => {
-  const { addressLine2, ...withoutDetails } = valid;
-  assert.equal(schema.safeParse(withoutDetails).success, true);
-  assert.equal(schema.safeParse({ ...valid, addressLine2: '' }).success, true);
-  assert.equal(schema.safeParse({ ...valid, addressLine2: 'A'.repeat(150) }).success, true);
-  const result = schema.safeParse({ ...valid, addressLine2: 'A'.repeat(151) });
-  assert.equal(result.success, false);
-  assert.deepEqual(result.error.issues[0].path, ['addressLine2']);
-});
-test('registration allows manual entry without selecting a suggestion', async () => {
-  const f = fixture(); await f.change('street', '300 Example Road'); await f.change('city', 'El Portal');
-  const payload = await f.submit();
-  assert.equal(payload.street, '300 Example Road'); assert.equal(payload.city, 'El Portal');
-  assert.deepEqual(f.writes, []); f.dispose();
-});
-test('pending selection cannot change address while registration is submitting', async () => {
-  const f = fixture(true); f.applyAddress(address);
-  assert.deepEqual(f.form.getValues(), valid); assert.deepEqual(f.writes, []); f.dispose();
-});
-test('required address, state and ZIP validations still reject invalid data', async () => {
-  for (const changes of [{ street: '' }, { city: '' }, { state: 'ZZ' }, { postalCode: '123' }]) {
-    const result = schema.safeParse({ ...valid, ...changes });
-    assert.equal(result.success, false, JSON.stringify(changes));
+test('a manual username is validated and the automatic suggestion covers accented, short and long names', () => {
+  assert.equal(schema.parse({ ...valid, username: 'custom-user' }).username, 'custom-user');
+  assert.equal(schema.safeParse({ ...valid, username: 'J' }).success, false);
+  assert.equal(schema.safeParse({ ...valid, username: '' }).success, false);
+  const { suggestedClientUsername, isValidUsername } = dependencies;
+  assert.equal(suggestedClientUsername('José', 'Pérez'), 'JosePerez');
+  assert.equal(suggestedClientUsername('María José', "O'Connor"), 'MariaJoseOConnor');
+  for (const [first, last] of [['李', '伟'], ['X', 'Li'], ['123', '456'], ['A'.repeat(70), 'B'.repeat(90)]]) {
+    assert.ok(isValidUsername(suggestedClientUsername(first, last)));
   }
 });
-test('overlong selected addresses are reported instead of silently truncated or saved', async () => {
-  const f = fixture(); const long = { ...address, street: 'A'.repeat(151), city: 'B'.repeat(101) };
-  f.applyAddress(long); assert.equal(await f.submit(), undefined);
-  assert.equal(f.form.getValues('street'), long.street);
-  assert.ok(f.form.getFieldState('street').error);
-  assert.ok(f.form.getFieldState('city').error); f.dispose();
-});
-
-(async () => {
-  for (const { name, run } of tests) { await run(); console.log(`PASS ${name}`); }
-  console.log(`${tests.length} registration address tests passed.`);
-})().catch(error => { console.error(error); process.exitCode = 1; });
