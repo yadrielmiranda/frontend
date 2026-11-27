@@ -1,13 +1,7 @@
 import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 import { OrderReviewPanel } from "@/components/estimates/order-review-panel";
 import { notFound } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EstimateEditorShell } from "@/components/estimates/estimate-editor-shell";
 
 // API functions
 import { getEstimate } from "@/app/api/estimates.api";
@@ -25,7 +19,6 @@ import { getMuntinTypes } from "@/app/api/muntin-types.api";
 import { EstimateForm } from "@/components/estimates/estimate-form";
 import { isApiError } from "@/app/api/_base";
 import { getCurrentUser } from "@/lib/session";
-import { BackLink } from "@/components/navigation/back-link";
 import { getEstimateInstallation } from "@/app/api/installations.api";
 import { isAdminRole, isOperatorRole } from "@/lib/rbac";
 import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
@@ -110,51 +103,29 @@ export default async function EditEstimatePage({
   );
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-gray-50 py-4 md:px-4 md:py-6">
-      <div className="min-w-0 w-full">
-        <div className="mb-4 flex items-center justify-between">
-          <BackLink href="/estimates" label="Back to Estimates" />
-        </div>
-
-        <Card className="relative min-w-0 max-w-full shadow-lg">
-          <CardHeader className="min-w-0 px-4 sm:px-6 sm:pr-96">
-            <CardTitle className="break-words text-xl sm:text-2xl">
-              Estimate #{estimate.number}
-            </CardTitle>
-            <CardDescription>
-              {pendingOrderReview ? "Review the complete estimate before creating the order." : canEdit
-                ? "Update the details for this estimate."
-                : installation?.dealerMeasurementsAcceptedAt
-                  ? "Installation uses the current measurements and price."
-                : "Material details are locked. Use the appropriate material revision to add pieces or request changes."}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="min-w-0 px-4 sm:px-6">
-            {!pendingOrderReview && <MaterialRevisionAccess estimateId={estimateId} />}
-            {pendingOrderReview && <OrderReviewPanel estimateId={estimateId} isAdmin={isAdminRole(user.role.name)} blockedReason={estimate.paymentSchedule?.orderReviewBlockedReason} />}
-            <EstimateForm
-              estimate={estimate}
-              initialInstallation={installation}
-              currentUserId={user.id}
-              isPrivileged={isPrivileged}
-              readOnly={baseReadOnly}
-              taxRate={taxRate}
-              cardSurchargeFraction={cardSurchargeFraction}
-              productsWithBrands={productsWithBrands}
-              systemsWithConfigs={systemsWithConfigs}
-              frameColors={allFrameColors}
-              globalFrameColors={globalFrameColors}
-              crystals={crystals}
-              tints={tints}
-              coatings={coatings}
-              privacies={privacies}
-              muntinPatterns={muntinPatterns}
-              muntinTypes={muntinTypes}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <EstimateEditorShell number={estimate.number}
+      mode={pendingOrderReview ? "review" : canEdit ? "edit" : installation?.dealerMeasurementsAcceptedAt ? "measured" : "locked"}>
+      {!pendingOrderReview && <MaterialRevisionAccess estimateId={estimateId} />}
+      {pendingOrderReview && <OrderReviewPanel estimateId={estimateId} isAdmin={isAdminRole(user.role.name)} blockedReason={estimate.paymentSchedule?.orderReviewBlockedReason} />}
+      <EstimateForm
+        estimate={estimate}
+        initialInstallation={installation}
+        currentUserId={user.id}
+        isPrivileged={isPrivileged}
+        readOnly={baseReadOnly}
+        taxRate={taxRate}
+        cardSurchargeFraction={cardSurchargeFraction}
+        productsWithBrands={productsWithBrands}
+        systemsWithConfigs={systemsWithConfigs}
+        frameColors={allFrameColors}
+        globalFrameColors={globalFrameColors}
+        crystals={crystals}
+        tints={tints}
+        coatings={coatings}
+        privacies={privacies}
+        muntinPatterns={muntinPatterns}
+        muntinTypes={muntinTypes}
+      />
+    </EstimateEditorShell>
   );
 }

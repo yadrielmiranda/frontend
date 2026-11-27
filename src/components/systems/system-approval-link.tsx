@@ -11,6 +11,23 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 type ApprovalState = SystemInstallationApproval | { status: "loading" | "error" };
 type BoundApproval = { systemId: number; attempt: number; value: ApprovalState };
 
+const labels = {
+  en: {
+    unselected: "Select a system to view its installation approval",
+    loading: "Loading installation approval",
+    error: "Installation approval could not be loaded. Click to retry.",
+    ambiguous: "An exact installation approval is not available for this system",
+    not_found: "No installation approval is available for this system",
+  },
+  es: {
+    unselected: "Selecciona un sistema para ver su aprobación de instalación",
+    loading: "Cargando la aprobación de instalación",
+    error: "No se pudo cargar la aprobación de instalación. Pulsa para reintentar.",
+    ambiguous: "No hay una coincidencia exacta para la aprobación de instalación de este sistema",
+    not_found: "Este sistema no tiene una aprobación de instalación disponible",
+  },
+};
+
 function hasDocumentUrl(approval: SystemInstallationApproval): boolean {
   if (approval.status !== "available") return true;
   try {
@@ -21,7 +38,7 @@ function hasDocumentUrl(approval: SystemInstallationApproval): boolean {
   }
 }
 
-export function SystemApprovalLink({ systemId }: { systemId?: number | null }) {
+export function SystemApprovalLink({ systemId, locale = "en" }: { systemId?: number | null; locale?: "en" | "es" }) {
   const selectedId = typeof systemId === "number" && Number.isSafeInteger(systemId) && systemId > 0
     ? systemId : null;
   const [attempt, setAttempt] = useState(0);
@@ -50,13 +67,11 @@ export function SystemApprovalLink({ systemId }: { systemId?: number | null }) {
     : null;
   const available = state?.status === "available" ? state : null;
   const retry = state?.status === "error";
-  const label = available
-    ? `Open installation approval PDF (${available.variant}, ${available.approvalId}) in a new tab`
-    : !selectedId ? "Select a system to view its installation approval"
-    : state?.status === "loading" ? "Loading installation approval"
-    : retry ? "Installation approval could not be loaded. Click to retry."
-    : state?.status === "ambiguous" ? "An exact installation approval is not available for this system"
-    : "No installation approval is available for this system";
+  const label = state?.status === "available"
+    ? (locale === "es"
+      ? `Abrir el PDF de aprobación de instalación (${state.variant}, ${state.approvalId}) en una pestaña nueva`
+      : `Open installation approval PDF (${state.variant}, ${state.approvalId}) in a new tab`)
+    : labels[locale][state?.status ?? "unselected"];
   const iconClass = "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
   return (

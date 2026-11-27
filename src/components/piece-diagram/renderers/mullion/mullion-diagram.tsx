@@ -11,6 +11,7 @@ import { DimensionText } from "../dimension-text";
 import type { MullionDiagramSpec } from "./mullion-spec";
 
 export interface MullionDiagramProps {
+  locale?: "en" | "es";
   spec: MullionDiagramSpec;
   length: number;
   frameColorHex?: string | null;
@@ -44,6 +45,7 @@ const TUBE_TOP_BY_PROFILE: Record<MullionDiagramSpec["profile"], number> = {
 
 /** Vista ilustrativa con grosor ampliado para legibilidad; no es un plano a escala. */
 export function MullionDiagram({
+  locale = "en",
   spec,
   length,
   frameColorHex,
@@ -102,12 +104,12 @@ export function MullionDiagram({
       data-view="REFERENCE_ILLUSTRATION"
     >
       <title id={`${id}-title`}>
-        {`${spec.profile} Standard Mullion W/Clips, length ${label} inches`}
+        {locale === "es" ? `${spec.profile} Standard Mullion W/Clips, longitud de ${label} pulgadas` : `${spec.profile} Standard Mullion W/Clips, length ${label} inches`}
       </title>
       <desc>
-        Reference illustration of a rectangular tube and two clips. Tube thickness
-        is enlarged for visibility. The length label is the requested cut length;
-        the illustration is not to scale.
+        {locale === "es"
+          ? "Ilustración de un tubo rectangular y dos clips. El grosor del tubo se muestra ampliado. La medida indica la longitud de corte solicitada. El dibujo no está a escala."
+          : "Reference illustration of a rectangular tube and two clips. Tube thickness is enlarged for visibility. The length label is the requested cut length; the illustration is not to scale."}
       </desc>
       <defs>
         <clipPath id={`${id}-clips`}>

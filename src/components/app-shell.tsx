@@ -3,17 +3,19 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { isLocalizedPortalPage } from "@/lib/portal-language-routes";
 import TopBar from "@/components/top-bar";
-import Link from 'next/link';
+import { SiteFooter } from "@/components/site-footer";
 import { PlatformTermsGate } from '@/components/platform-terms/platform-terms-gate';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { locale } = usePortalLanguage();
   const router = useRouter();
   const companyPath = pathname === "/company";
-  // Leave the registration document before rendering other routes.
-  const FooterLink = pathname === "/login/register" ? "a" : Link;
+  const hasPublicAuthScreen = pathname === "/login/register" || pathname === "/login" || (pathname === "/" && !isAuthenticated);
   const technicianPath = pathname === "/technician" || pathname.startsWith("/technician/");
   const technicianAccount = user?.role?.name === "technician";
   useEffect(() => {
@@ -31,13 +33,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Los enlaces compartidos muestran el documento sin la navegación del portal.
   const isPublicDocumentPage = pathname.startsWith("/public/");
   const showTopBar =
-    !isPublicDocumentPage && (isLoading || isAuthenticated || !isPublicAuthPage);
+    !isPublicDocumentPage && ((!hasPublicAuthScreen && isLoading) || isAuthenticated || !isPublicAuthPage);
 
   return (
     <PlatformTermsGate>
       {showTopBar && <TopBar />}
 
       <main
+        lang={isLocalizedPortalPage(pathname) ? locale : "en"}
         className={
           showTopBar
             ? "w-full px-4 py-6 sm:px-6 lg:px-8"
@@ -46,12 +49,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      {!isPublicDocumentPage && (
-        <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 py-5 text-center text-xs text-slate-500">
-          <FooterLink href="/company" className="underline underline-offset-4">Company</FooterLink>
-          <FooterLink href="/materials" className="underline underline-offset-4">Materials</FooterLink>
-          <FooterLink href="/terms" className="underline underline-offset-4">Terms and Conditions</FooterLink>
-        </footer>
+      {!isPublicDocumentPage && !hasPublicAuthScreen && (
+        <SiteFooter locale={locale} />
       )}
     </PlatformTermsGate>
   );

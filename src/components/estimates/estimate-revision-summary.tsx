@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { CompanyLocale } from "@/components/company/company-content";
 import type {
   EstimateRevision,
   EstimateRevisionItem,
@@ -13,8 +14,28 @@ const money = (value: string | number | null | undefined) =>
     currency: "USD",
   }).format(Number(value ?? 0));
 
-const title = (value: string) =>
-  value
+type RevisionLabel = EstimateRevision["status"] | EstimateRevisionItem["action"] | EstimateRevisionItem["reason"];
+const spanishLabels: Record<RevisionLabel, string> = {
+  DRAFT: "Borrador",
+  PENDING_ADMIN_APPROVAL: "Pendiente de aprobación interna",
+  PENDING_CUSTOMER_APPROVAL: "Pendiente de aprobación del cliente",
+  APPROVED: "Aprobada",
+  REJECTED: "Rechazada",
+  SUPERSEDED: "Sustituida",
+  ADD: "Agregada",
+  UNCHANGED: "Sin cambios",
+  UPDATE: "Actualizada",
+  REPLACE: "Reemplazada",
+  REMOVE: "Eliminada",
+  REMEASUREMENT: "Nueva medición",
+  EGRESS: "Salida de emergencia",
+  DIMENSION_LIMITS: "Límites de dimensiones",
+  STRUCTURAL_CONDITION: "Condición estructural",
+  CUSTOMER_REQUEST: "Solicitud del cliente",
+  OTHER: "Otro",
+};
+export const estimateRevisionLabel = (value: RevisionLabel, locale: CompanyLocale) =>
+  locale === "es" ? spanishLabels[value] : value
     .toLowerCase()
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -22,56 +43,60 @@ const title = (value: string) =>
 
 function dimensions(
   snapshot: EstimateRevisionPieceSnapshot | null | undefined,
+  locale: CompanyLocale,
 ) {
+  const spanish = locale === "es";
+  const inch = spanish ? "pulg." : "in";
   const input = snapshot?.pieceInput;
   const width = input?.width ?? snapshot?.width;
   const height = input?.height ?? snapshot?.height;
   const parts: string[] = [];
   if (width && height)
-    parts.push(`${Number(width)} W × ${Number(height)} H in`);
-  else if (width) parts.push(`${Number(width)} in`);
+    parts.push(spanish ? `${Number(width)} de ancho × ${Number(height)} de alto (pulg.)` : `${Number(width)} W × ${Number(height)} H in`);
+  else if (width) parts.push(`${Number(width)} ${inch}`);
   if (input?.heightLeft || input?.heightRight) {
     parts.push(
-      `L/R ${Number(input.heightLeft ?? 0)} / ${Number(input.heightRight ?? 0)}`,
+      `${spanish ? "Izq./der." : "L/R"} ${Number(input.heightLeft ?? 0)} / ${Number(input.heightRight ?? 0)}`,
     );
   }
   if (input?.sashHeight || input?.windowHeight) {
     parts.push(
-      `Sash/window ${Number(input.sashHeight ?? 0)} / ${Number(input.windowHeight ?? 0)}`,
+      `${spanish ? "Hoja/ventana" : "Sash/window"} ${Number(input.sashHeight ?? 0)} / ${Number(input.windowHeight ?? 0)}`,
     );
   }
   if (input?.doorWidth || input?.doorHeight) {
     parts.push(
-      `Door ${Number(input.doorWidth ?? 0)} × ${Number(input.doorHeight ?? 0)}`,
+      `${spanish ? "Puerta" : "Door"} ${Number(input.doorWidth ?? 0)} × ${Number(input.doorHeight ?? 0)}`,
     );
   }
   if (input?.leftSideliteWidth || input?.rightSideliteWidth) {
     parts.push(
-      `Sidelites ${Number(input.leftSideliteWidth ?? 0)} / ${Number(input.rightSideliteWidth ?? 0)}`,
+      `${spanish ? "Paneles laterales" : "Sidelites"} ${Number(input.leftSideliteWidth ?? 0)} / ${Number(input.rightSideliteWidth ?? 0)}`,
     );
   }
-  if (input?.panelCount) parts.push(`${input.panelCount} panels`);
-  if (input?.legHeight) parts.push(`Leg height ${Number(input.legHeight)} in`);
+  if (input?.panelCount) parts.push(`${input.panelCount} ${spanish ? "paneles" : "panels"}`);
+  if (input?.legHeight) parts.push(`${spanish ? "Altura del tramo vertical" : "Leg height"} ${Number(input.legHeight)} ${inch}`);
   if (input?.leftPanels != null || input?.rightPanels != null) {
-    parts.push(`Panels L/R ${input.leftPanels ?? 0} / ${input.rightPanels ?? 0}`);
+    parts.push(`${spanish ? "Paneles izq./der." : "Panels L/R"} ${input.leftPanels ?? 0} / ${input.rightPanels ?? 0}`);
   }
   if (input?.horizontalHeights?.length) {
-    parts.push(`Horizontal heights ${input.horizontalHeights.map(Number).join(' / ')} in`);
+    parts.push(`${spanish ? "Alturas de los travesaños" : "Horizontal heights"} ${input.horizontalHeights.map(Number).join(' / ')} ${inch}`);
   }
   return parts.join(" · ") || "—";
 }
 
-function statusMessage(revision: EstimateRevision) {
+function statusMessage(revision: EstimateRevision, locale: CompanyLocale) {
+  const spanish = locale === "es";
   if (revision.status === "APPROVED") {
-    return "Approved changes are now applied to the Estimate.";
+    return spanish ? "Se aplicaron los cambios aprobados a la cotización." : "Approved changes are now applied to the Estimate.";
   }
   if (revision.status === "REJECTED") {
-    return "This revision was rejected and was not applied to the Estimate.";
+    return spanish ? "Se rechazó la revisión. La cotización conserva sus datos anteriores." : "This revision was rejected and was not applied to the Estimate.";
   }
   if (revision.status === "SUPERSEDED") {
-    return "This historical revision was replaced by a newer version.";
+    return spanish ? "Una versión más reciente sustituyó esta revisión." : "This historical revision was replaced by a newer version.";
   }
-  return "The current Estimate remains unchanged until customer approval.";
+  return spanish ? "Los cambios se aplicarán cuando el cliente los apruebe." : "The current Estimate remains unchanged until customer approval.";
 }
 
 function proposedName(item: EstimateRevisionItem) {
@@ -83,17 +108,20 @@ function proposedName(item: EstimateRevisionItem) {
 
 export function EstimateRevisionSummary({
   revision,
+  locale = "en",
   compact = false,
   showFinancials = true,
   comparison,
   action,
 }: {
   revision: EstimateRevision;
+  locale?: CompanyLocale;
   compact?: boolean;
   showFinancials?: boolean;
   comparison?: InstallationRevisionComparison | null;
   action?: ReactNode;
 }) {
+  const spanish = locale === "es";
   const changedItems = revision.items.filter(
     (item) => item.action !== "UNCHANGED",
   );
@@ -105,34 +133,34 @@ export function EstimateRevisionSummary({
   const rows = financialComparison
     ? [
         {
-          label: "Units",
+          label: spanish ? "Unidades" : "Units",
           original: financialComparison.original.units,
           revised: financialComparison.revised.units,
         },
         {
-          label: "Material subtotal",
+          label: spanish ? "Subtotal de materiales" : "Material subtotal",
           original: amount(financialComparison.original.materialSubtotal),
           revised: amount(financialComparison.revised.materialSubtotal),
         },
         {
-          label: "Tax",
+          label: spanish ? "Impuesto" : "Tax",
           original: amount(financialComparison.original.materialTax),
           revised: amount(financialComparison.revised.materialTax),
         },
         {
-          label: "Material + tax",
+          label: spanish ? "Materiales con impuesto" : "Material + tax",
           original: amount(financialComparison.original.materialTotal),
           revised: amount(financialComparison.revised.materialTotal),
           strong: true,
         },
         {
-          label: "Installation & services",
+          label: spanish ? "Instalación y servicios" : "Installation & services",
           original: amount(financialComparison.original.installationTotal),
           revised: amount(financialComparison.revised.installationTotal),
         },
         ...(Number(financialComparison.original.additionalCharges ?? 0) > 0 || Number(financialComparison.revised.additionalCharges ?? 0) > 0
           ? [{
-              label: "Additional charges",
+              label: spanish ? "Cargos adicionales" : "Additional charges",
               original: amount(financialComparison.original.additionalCharges ?? "0"),
               revised: amount(financialComparison.revised.additionalCharges ?? "0"),
             }]
@@ -140,44 +168,44 @@ export function EstimateRevisionSummary({
         ...(financialComparison.includesPermit
           ? [
               {
-                label: "Permit management",
+                label: spanish ? "Gestión del permiso" : "Permit management",
                 original: amount(financialComparison.original.permitFee),
                 revised: amount(financialComparison.revised.permitFee),
               },
               {
-                label: "City Fee",
+                label: spanish ? "Tasa municipal" : "City Fee",
                 original: financialComparison.cityFeePending
-                  ? "Pending"
+                  ? (spanish ? "Pendiente" : "Pending")
                   : amount(financialComparison.original.cityFee),
                 revised: financialComparison.cityFeePending
-                  ? "Pending"
+                  ? (spanish ? "Pendiente" : "Pending")
                   : amount(financialComparison.revised.cityFee),
               },
             ]
           : []),
         {
           label: financialComparison.cityFeePending
-            ? "Known project total"
-            : "Project total",
+            ? (spanish ? "Total conocido del proyecto" : "Known project total")
+            : (spanish ? "Total del proyecto" : "Project total"),
           original: amount(financialComparison.original.projectTotal),
           revised: amount(financialComparison.revised.projectTotal),
           strong: true,
         },
       ]
     : [
-        { label: "Units", original: original.units, revised: revised.units },
+        { label: spanish ? "Unidades" : "Units", original: original.units, revised: revised.units },
         {
           label: "Subtotal",
           original: money(original.priceT),
           revised: money(revised.priceT),
         },
         {
-          label: "Tax",
+          label: spanish ? "Impuesto" : "Tax",
           original: money(original.taxAmount),
           revised: money(revised.taxAmount),
         },
         {
-          label: "Material + tax",
+          label: spanish ? "Materiales con impuesto" : "Material + tax",
           original: money(original.totalPayable),
           revised: money(revised.totalPayable),
           strong: true,
@@ -194,15 +222,15 @@ export function EstimateRevisionSummary({
         <div>
           <strong className="text-sm">
             {revision.status === "DRAFT"
-              ? "Proposed estimate changes"
-              : `Estimate revision v${revision.version}`}
+              ? (spanish ? "Cambios propuestos a la cotización" : "Proposed estimate changes")
+              : (spanish ? `Revisión de la cotización v${revision.version}` : `Estimate revision v${revision.version}`)}
           </strong>
           <p className="text-xs text-muted-foreground">
-            {statusMessage(revision)}
+            {statusMessage(revision, locale)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{title(revision.status)}</Badge>
+          <Badge variant="outline">{estimateRevisionLabel(revision.status, locale)}</Badge>
           {action}
         </div>
       </div>
@@ -221,15 +249,15 @@ export function EstimateRevisionSummary({
                   <th scope="col" className="px-3 py-2 text-left">
                     {financialComparison
                       ? financialComparison.accountCost
-                        ? "Your cost"
-                        : "Project"
+                        ? (spanish ? "Tu costo" : "Your cost")
+                        : (spanish ? "Proyecto" : "Project")
                       : "Material"}
                   </th>
                   <th scope="col" className="px-3 py-2 text-right">
                     Original
                   </th>
                   <th scope="col" className="px-3 py-2 text-right">
-                    Revised
+                    {spanish ? "Revisado" : "Revised"}
                   </th>
                 </tr>
               </thead>
@@ -261,10 +289,10 @@ export function EstimateRevisionSummary({
               className={`text-right text-sm font-semibold ${difference > 0 ? "text-red-700" : difference < 0 ? "text-emerald-700" : "text-slate-700"}`}
             >
               {difference > 0
-                ? "Total increase"
+                ? (spanish ? "Aumento total" : "Total increase")
                 : difference < 0
-                  ? "Total decrease"
-                  : "Total unchanged"}
+                  ? (spanish ? "Reducción total" : "Total decrease")
+                  : (spanish ? "Total sin cambios" : "Total unchanged")}
               {" · "}
               {difference > 0 ? "+" : difference < 0 ? "−" : ""}
               {money(Math.abs(difference))}
@@ -273,19 +301,18 @@ export function EstimateRevisionSummary({
           {(financialComparison?.original.discountApplied ||
             financialComparison?.revised.discountApplied) && (
             <p className="text-xs text-muted-foreground">
-              Totals include applicable discounts.
+              {spanish ? "Los totales incluyen los descuentos aplicables." : "Totals include applicable discounts."}
             </p>
           )}
           {financialComparison?.cityFeePending && (
             <p className="text-xs text-muted-foreground">
-              The City Fee is pending and is not included in either total.
+              {spanish ? "La tasa municipal está pendiente y se sumará cuando se conozca el importe." : "The City Fee is pending and is not included in either total."}
             </p>
           )}
           {financialComparison &&
             financialComparison.originalQuoteId == null && (
               <p className="text-xs text-muted-foreground">
-                The original installation amount is unavailable; a total
-                difference cannot be calculated.
+                {spanish ? "Falta el importe original de instalación para calcular la diferencia entre los totales." : "The original installation amount is unavailable; a total difference cannot be calculated."}
               </p>
             )}
         </div>
@@ -294,11 +321,11 @@ export function EstimateRevisionSummary({
       {!compact && (
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Piece changes
+            {spanish ? "Cambios en las piezas" : "Piece changes"}
           </p>
           {changedItems.length === 0 ? (
             <p className="rounded-md border bg-white p-3 text-sm text-muted-foreground">
-              Measurements confirmed; no material Piece changed.
+              {spanish ? "Se confirmaron las medidas. Todas las piezas conservan sus especificaciones." : "Measurements confirmed; no material Piece changed."}
             </p>
           ) : (
             changedItems.map((item) => {
@@ -316,16 +343,16 @@ export function EstimateRevisionSummary({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <strong>
-                      {item.action === "ADD" ? item.proposedPieceInput?.mark || "New piece" : item.originalSnapshot.mark ||
-                        `Piece #${item.originalPieceId}`}{" "}
-                      · Unit {item.sourceUnitIndex}
+                      {item.action === "ADD" ? item.proposedPieceInput?.mark || (spanish ? "Pieza nueva" : "New piece") : item.originalSnapshot.mark ||
+                        `${spanish ? "Pieza" : "Piece"} #${item.originalPieceId}`}{" "}
+                      · {spanish ? "Unidad" : "Unit"} {item.sourceUnitIndex}
                     </strong>
                     <Badge
                       variant={
                         item.action === "REMOVE" ? "destructive" : "secondary"
                       }
                     >
-                      {title(item.action)}
+                      {estimateRevisionLabel(item.action, locale)}
                     </Badge>
                   </div>
                   <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
@@ -334,32 +361,32 @@ export function EstimateRevisionSummary({
                         Original
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {item.action === "ADD" ? "Not included in the original estimate" : originalName || "—"}
+                        {item.action === "ADD" ? (spanish ? "Pieza agregada después de la cotización original" : "Not included in the original estimate") : originalName || "-"}
                       </p>
                       <p className="mt-1 font-medium">
-                        {item.action === "ADD" ? "—" : dimensions(item.originalSnapshot)}
+                        {item.action === "ADD" ? "-" : dimensions(item.originalSnapshot, locale)}
                       </p>
                     </div>
                     <div className="min-w-0 rounded-md bg-blue-50 p-3">
                       <p className="mb-1 text-xs font-semibold text-blue-700">
-                        Revised
+                        {spanish ? "Revisado" : "Revised"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {item.action === "REMOVE"
-                          ? "Remove from Estimate"
-                          : proposedName(item) || "Configured Piece"}
+                          ? (spanish ? "Quitar de la cotización" : "Remove from Estimate")
+                          : proposedName(item) || (spanish ? "Pieza configurada" : "Configured Piece")}
                       </p>
                       {item.action !== "REMOVE" && (
                         <p className="mt-1 font-medium">
                           {dimensions({
                             pieceInput: item.proposedPieceInput ?? undefined,
-                          })}
+                          }, locale)}
                         </p>
                       )}
                     </div>
                   </div>
                   <p className="mt-2 text-xs">
-                    Reason: {title(item.reason)}
+                    {spanish ? "Motivo:" : "Reason:"} {estimateRevisionLabel(item.reason, locale)}
                     {item.reasonNote ? ` — ${item.reasonNote}` : ""}
                   </p>
                 </div>

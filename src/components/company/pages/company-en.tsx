@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function CompanyEnContent() {
@@ -21,9 +22,9 @@ export function CompanyEnContent() {
               {"We sell and install exterior impact-resistant windows and doors designed for South Florida’s hurricanes and severe weather. Create a free account to start your first estimate in Authentic’s professional quoting platform."}
             </p>
             <div className="actions">
-              <Link className="button" href="/login/register" data-cta="free-account" data-placement="hero">
+              <CompanyRegistrationLink className="button" data-cta="free-account" data-placement="hero">
                 {"Create Your Free Account"}
-              </Link>
+              </CompanyRegistrationLink>
               <a className="link" href="#products">
                 {"Explore products"}
               </a>
@@ -319,12 +320,12 @@ export function CompanyEnContent() {
               </div>
             </div>
             <div className="actions">
-              <Link className="link" data-route="registration" href="/login/register" aria-describedby="next-account">
+              <CompanyRegistrationLink className="link" data-route="registration" aria-describedby="next-account">
                 {"Create an account "}
                 <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                   <path d="M4 12L12 4m-6 0h6v6" />
                 </svg>
-              </Link>
+              </CompanyRegistrationLink>
             </div>
             <span className="sr" id="next-account">
               {"Opens the public client registration."}
@@ -362,9 +363,9 @@ export function CompanyEnContent() {
             </article>
           </div>
           <div className="actions">
-            <Link href="/login/register" className="button">
+            <CompanyRegistrationLink className="button">
               {"Create Your Free Account"}
-            </Link>
+            </CompanyRegistrationLink>
             <p className="fine">
               {"Opens the public client registration. Dealers can contact our team for professional access."}
             </p>
@@ -535,9 +536,9 @@ export function CompanyEnContent() {
               {"Create a free client account to get started. If you are a dealer or contractor seeking professional access, contact our team to set up the right account."}
             </p>
             <div className="actions">
-              <Link className="button" href="/login/register" data-cta="free-account" data-placement="closing">
+              <CompanyRegistrationLink className="button" data-cta="free-account" data-placement="closing">
                 {"Create Your Free Account"}
-              </Link>
+              </CompanyRegistrationLink>
             </div>
           </div>
           <div className="role-cards">

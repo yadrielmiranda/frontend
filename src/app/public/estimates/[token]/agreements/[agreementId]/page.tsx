@@ -38,10 +38,11 @@ export default async function AgreementSnapshotPage({
   }
   return (
     <main
+      lang="en"
       className="mx-auto max-w-6xl px-4 py-8"
       data-agreement-snapshot={agreementId}
     >
-      <EstimateReportShell estimate={estimate} showExternalDealerPresentation>
+      <EstimateReportShell estimate={estimate} locale="en" showExternalDealerPresentation>
         {status ? (
           <PublicAgreementPanel
             estimate={estimate}
@@ -52,6 +53,7 @@ export default async function AgreementSnapshotPage({
         ) : (
           <EstimateViewDealerPublic
             estimate={estimate}
+            locale="en"
             pricingMode={estimate.publicPricingMode ?? "detailed"}
           />
         )}

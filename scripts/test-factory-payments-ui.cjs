@@ -8,6 +8,9 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const sourceRoot = path.resolve(__dirname, '../src');
 let currentUser = null;
 let financialReads = 0;
+let locale = 'en';
+let renderedTable;
+const orderList = [{ number: 'ORD-1', poNumber: 'PO-12', status: { name: 'Pending' }, estimate: { name: 'Project East' }, user: { username: 'Pending' } }];
 const manufacturers = [{ id: 4, name: 'Example manufacturer', active: true, isDefault: true }];
 const baseOrder = {
   orderId: 1, orderNumber: 'ORD-1', orderDate: '2026-11-09T00:00:00.000Z', projectName: 'Sample project',
@@ -39,7 +42,9 @@ const mocks = {
   sonner: { toast: {} },
   '@/lib/session': { getCurrentUser: async () => currentUser },
   '@/app/api/factory-payments.api': api,
-  '@/app/api/orders.api': { getOrders: async () => [] },
+  '@/app/api/orders.api': { getOrders: async () => orderList },
+  '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale }) },
+  '@/components/data-table': { DataTable: props => { renderedTable = props; return null; } },
 };
 const cache = new Map();
 function load(relative) {
@@ -53,9 +58,8 @@ function load(relative) {
   cache.set(filename, exported);
   new Function('require', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
-    if (id === 'react' || id === 'react/jsx-runtime') return require(id);
+    if (id === 'react' || id === 'react/jsx-runtime' || id === '@tanstack/react-table') return require(id);
     if (id.startsWith('@/components/ui/')) return ui;
-    if (id === './orders-client') return { OrdersClient: () => null };
     const resolved = id.startsWith('@/') ? path.join(sourceRoot, id.slice(2)) : path.resolve(path.dirname(filename), id);
     for (const extension of ['.ts', '.tsx']) if (fs.existsSync(resolved + extension)) return load(path.relative(sourceRoot, resolved + extension));
     throw new Error(`Unexpected dependency: ${id}`);
@@ -77,6 +81,25 @@ async function main() {
   const html = renderToStaticMarkup(await page());
   assert.equal(financialReads, 2);
   assert.match(renderToStaticMarkup(await ordersPage({ searchParams: Promise.resolve({}) })), /href="\/orders\/factory-payments"/);
+  const englishColumns = renderedTable.columns.map(col => col.id ?? col.accessorKey);
+  locale = 'es';
+  const orderHtml = renderToStaticMarkup(await ordersPage({ searchParams: Promise.resolve({ po: 'pending' }) }));
+  assert.match(orderHtml, /Órdenes/);
+  assert.match(orderHtml, /Pagos a fábrica/);
+  assert.equal(renderedTable.locale, 'es');
+  assert.deepEqual(renderedTable.columns.map(col => col.id ?? col.accessorKey), englishColumns);
+  const getFilter = id => renderedTable.filters.find(filter => filter.columnId === id);
+  assert.deepEqual(getFilter('status_name').options, [{ label: 'Pendiente', value: 'Pending' }]);
+  assert.deepEqual(getFilter('user_username').options, [{ label: 'Pending', value: 'Pending' }]);
+  assert.deepEqual(renderedTable.initialColumnFilters, [{ id: 'poNumber', value: 'pending' }]);
+  assert.equal(renderedTable.data[0].estimate.name, 'Project East');
+  currentUser = { id: 4, role: { name: 'client' } };
+  const customerHtml = renderToStaticMarkup(await ordersPage({ searchParams: Promise.resolve({ po: 'pending' }) }));
+  assert.doesNotMatch(customerHtml, /factory-payments/);
+  assert.equal(getFilter('poNumber'), undefined);
+  assert.equal(getFilter('user_username'), undefined);
+  assert.deepEqual(renderedTable.initialColumnFilters, []);
+  locale = 'en';
   assert.match(html, /Credit balance/);
   assert.match(html, /-\$1,001\.27/, 'Credit must not be clamped to zero');
   assert.match(html, /Pending PO import/);

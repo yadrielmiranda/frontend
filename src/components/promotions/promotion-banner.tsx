@@ -14,10 +14,40 @@ import {
   type AvailablePromotion,
 } from "@/app/api/promotions.api";
 import type { Estimate } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
 import styles from "./promotion-banner.module.css";
 
-function formatDeadline(value: string) {
-  return new Date(value).toLocaleString(undefined, {
+const spanish = {
+  "Promotions": "Promociones",
+  "Promotion expired": "Promoción vencida",
+  "Promotion preserved": "Promoción conservada",
+  "Promotion applied": "Promoción aplicada",
+  "Use Recalculate at the top of this estimate before continuing to payment.":
+    "Selecciona Recalcular en la parte superior de esta cotización antes de continuar al pago.",
+  "The agreed promotion is preserved after payment.": "La promoción acordada se mantiene después del pago.",
+  "Estimate valid until": "Cotización válida hasta",
+  "Available material promotions": "Promociones disponibles para materiales",
+  "Brand": "Marca",
+  "Product": "Producto",
+  "System": "Sistema",
+  "Automatic dealer offer": "Oferta automática para distribuidores",
+  "off": "de descuento",
+  "dealer": "distribuidor",
+  "Material promotion": "Promoción de materiales",
+  "Your discount is calculated for each eligible piece.": "Tu descuento se calcula por cada unidad elegible.",
+  "All materials": "Todos los materiales",
+  "Excluded products": "Productos excluidos",
+  "Excluded systems": "Sistemas excluidos",
+  "Offer ends": "La oferta termina",
+  "Use": "Selecciona",
+  "Recalculate": "Recalcular",
+  "at the top of this estimate to apply eligible offers.":
+    "en la parte superior de esta cotización para aplicar las ofertas disponibles.",
+};
+
+function formatDeadline(value: string, locale?: CompanyLocale) {
+  const dateLocale = locale === "es" ? "es-US" : locale === "en" ? "en-US" : undefined;
+  return new Date(value).toLocaleString(dateLocale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -46,7 +76,8 @@ export function usePromotionExpired(
     ) <= now
   );
 }
-export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
+export function PromotionBanner({ estimate, locale }: { estimate?: Estimate; locale?: CompanyLocale }) {
+  const t = (label: keyof typeof spanish) => locale === "es" ? spanish[label] : label;
   const [offers, setOffers] = useState<AvailablePromotion[]>([]);
   const expired = usePromotionExpired(estimate);
   useEffect(() => {
@@ -78,7 +109,7 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
       : CircleCheck;
 
   return (
-    <aside className={styles.banner} aria-label="Promotions">
+    <aside lang={locale} className={styles.banner} aria-label={t("Promotions")}>
       {applied && (
         <div
           className={`${styles.status} ${expired ? styles.expired : preserved ? styles.preserved : styles.applied}`}
@@ -87,22 +118,22 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
           <StatusIcon className={styles.statusIcon} aria-hidden="true" />
           <div className={styles.statusContent}>
             <strong className={styles.statusTitle}>
-              {expired
+              {t(expired
                 ? "Promotion expired"
                 : preserved
                   ? "Promotion preserved"
-                  : "Promotion applied"}
+                  : "Promotion applied")}
             </strong>
             <p className={styles.statusDescription}>
               {expired ? (
-                "Use Recalculate at the top of this estimate before continuing to payment."
+                t("Use Recalculate at the top of this estimate before continuing to payment.")
               ) : preserved ? (
-                "The agreed promotion is preserved after payment."
+                t("The agreed promotion is preserved after payment.")
               ) : (
                 <>
-                  Estimate valid until{" "}
+                  {t("Estimate valid until")}{" "}
                   <time dateTime={deadline!} suppressHydrationWarning>
-                    {formatDeadline(deadline!)}
+                    {formatDeadline(deadline!, locale)}
                   </time>
                   .
                 </>
@@ -115,16 +146,16 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
       {offers.length > 0 && (
         <ul
           className={styles.offers}
-          aria-label="Available material promotions"
+          aria-label={t("Available material promotions")}
         >
           {offers.map((offer, index) => {
             const automatic = !!offer.automaticDealerAdjustment;
             const percent =
               offer.percent === null ? "" : String(Number(offer.percent));
             const scope = [
-              { label: "Brand", name: offer.brandName },
-              { label: "Product", name: offer.productName },
-              { label: "System", name: offer.systemName },
+              { label: t("Brand"), name: offer.brandName },
+              { label: t("Product"), name: offer.productName },
+              { label: t("System"), name: offer.systemName },
             ].filter((item) => item.name);
 
             return (
@@ -137,7 +168,7 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                   className={styles.discount}
                   role="img"
                   aria-label={
-                    automatic ? "Automatic dealer offer" : `${percent}% off`
+                    automatic ? t("Automatic dealer offer") : `${percent}% ${t("off")}`
                   }
                 >
                   {automatic ? (
@@ -152,21 +183,19 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                     </span>
                   )}
                   <span className={styles.discountLabel} aria-hidden="true">
-                    {automatic ? "dealer" : "off"}
+                    {t(automatic ? "dealer" : "off")}
                   </span>
                 </div>
 
                 <div className={styles.details}>
                   <p className={styles.eyebrow}>
                     <Tag aria-hidden="true" />
-                    {automatic
-                      ? "Automatic dealer offer"
-                      : "Material promotion"}
+                    {t(automatic ? "Automatic dealer offer" : "Material promotion")}
                   </p>
                   <p className={styles.offerTitle}>{offer.name}</p>
                   {automatic && (
                     <p className="mt-1 text-sm text-slate-600">
-                      Your discount is calculated for each eligible piece.
+                      {t("Your discount is calculated for each eligible piece.")}
                     </p>
                   )}
                   <div className={styles.scope}>
@@ -182,17 +211,17 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                         </span>
                       ))
                     ) : (
-                      <span className={styles.allMaterials}>All materials</span>
+                      <span className={styles.allMaterials}>{t("All materials")}</span>
                     )}
                   </div>
                   {!!offer.excludedProductNames?.length && (
                     <p className="mt-2 text-xs text-slate-600">
-                      Excluded products: {offer.excludedProductNames.join(", ")}
+                      {t("Excluded products")}: {offer.excludedProductNames.join(", ")}
                     </p>
                   )}
                   {!!offer.excludedSystemNames?.length && (
                     <p className="mt-1 text-xs text-slate-600">
-                      Excluded systems: {offer.excludedSystemNames.join(", ")}
+                      {t("Excluded systems")}: {offer.excludedSystemNames.join(", ")}
                     </p>
                   )}
                 </div>
@@ -200,9 +229,9 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
                 <div className={styles.expiry}>
                   <Clock3 aria-hidden="true" />
                   <div className={styles.expiryContent}>
-                    <span className={styles.expiryLabel}>Offer ends</span>
+                    <span className={styles.expiryLabel}>{t("Offer ends")}</span>
                     <time dateTime={offer.endsAt} suppressHydrationWarning>
-                      {formatDeadline(offer.endsAt)}
+                      {formatDeadline(offer.endsAt, locale)}
                     </time>
                   </div>
                 </div>
@@ -216,8 +245,8 @@ export function PromotionBanner({ estimate }: { estimate?: Estimate }) {
         <p className={styles.hint}>
           <Info aria-hidden="true" />
           <span>
-            Use <strong>Recalculate</strong> at the top of this estimate to
-            apply eligible offers.
+            {t("Use")} <strong>{t("Recalculate")}</strong>{" "}
+            {t("at the top of this estimate to apply eligible offers.")}
           </span>
         </p>
       )}

@@ -7,7 +7,7 @@ import type {
   InstallationListQuery,
   InstallationListScope,
 } from "@/lib/types";
-import { InstallationsTable } from "./installations-table";
+import { InstallationsHeader, InstallationsTable } from "./installations-table";
 
 type SearchValue = string | string[] | undefined;
 
@@ -77,14 +77,7 @@ export default async function InstallationsPage({
 
   return (
     <div className="w-full space-y-6 px-4 py-6 md:px-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Installations</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isAdmin
-            ? "Operational queue for remeasurement, approvals, permits, scheduling, and field work."
-            : "Track your installation requests, approvals, payments, and appointments."}
-        </p>
-      </div>
+      <InstallationsHeader isAdmin={isAdmin} />
 
       <InstallationsTable
         result={result}

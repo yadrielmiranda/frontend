@@ -80,6 +80,16 @@ test('changing or clearing a selected system immediately removes its old documen
   assert.deepEqual(f.requests.map(r => r.id), [1, 2]);
 });
 
+test('switching language keeps the selected approval document and its catalog identifiers', async () => {
+  const f = fixture(42);
+  f.requests[0].resolve(approval(42, 'LMI+SMI'));
+  await flush();
+  f.update({ locale: 'es', systemId: 42 });
+  assert.equal(icon(f).props['aria-label'], 'Abrir el PDF de aprobación de instalación (LMI+SMI, FL42) en una pestaña nueva');
+  assert.equal(icon(f).props.href, approval(42).url);
+  assert.equal(f.requests.length, 1);
+});
+
 test('out-of-order responses cannot replace the current system document', async () => {
   const f = fixture(1); f.update({ systemId: 2 });
   f.requests[1].resolve(approval(2)); await flush();
@@ -153,16 +163,16 @@ test('the actual System label passes its selection unchanged even when the piece
     ts.forEachChild(node, visit);
   }
   visit(parsed); assert.ok(labelContainer);
-  const output = ts.transpileModule(`export function render(systemId: number, isLocked: boolean) { return (${labelContainer.getText(parsed)}); }`, {
+  const output = ts.transpileModule(`export function render(systemId: number, isLocked: boolean, locale: string, t: (text: string) => string) { return (${labelContainer.getText(parsed)}); }`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const testModule = { exports: {} };
   new Function('require', 'module', 'exports', 'Label', 'SystemApprovalLink', output)(
     () => ({ jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }), testModule, testModule.exports, 'Label', 'SystemApprovalLink');
   for (const locked of [false, true]) {
-    const tree = testModule.exports.render(42, locked);
+    const tree = testModule.exports.render(42, locked, 'en', text => text);
     assert.equal(all(tree, node => node.type === 'Label')[0].props.children, 'System');
-    assert.deepEqual(all(tree, node => node.type === 'SystemApprovalLink')[0].props, { systemId: 42 });
+    assert.deepEqual(all(tree, node => node.type === 'SystemApprovalLink')[0].props, { systemId: 42, locale: 'en' });
   }
 });
 

@@ -12,6 +12,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { estimateActionError } from "@/lib/estimate-action-language";
 import type {
   EstimatePayment,
   InstallationJob,
@@ -84,6 +86,7 @@ function additionalServiceDraftFromLine(
 }
 
 export function InstallationEstimatePanel({
+  locale = "en",
   estimateId,
   estimateOwnerId,
   suggestedAddress,
@@ -105,6 +108,7 @@ export function InstallationEstimatePanel({
   onQuoteApproved,
   onRequestEditingChange,
 }: {
+  locale?: CompanyLocale;
   estimateId: number;
   estimateOwnerId: number;
   suggestedAddress: InstallationAddress;
@@ -126,6 +130,9 @@ export function InstallationEstimatePanel({
   onQuoteApproved?: () => Promise<void>;
   onRequestEditingChange?: (isEditing: boolean) => void;
 }) {
+  const spanish = locale === "es";
+  const activeLocale = useRef(locale);
+  activeLocale.current = locale;
   const [address, setAddress] = useState<InstallationAddress>(suggestedAddress);
   const [addressChoice, setAddressChoice] = useState<"suggested" | "different" | null>(null);
   const addressRevision = useRef(0);
@@ -245,7 +252,8 @@ export function InstallationEstimatePanel({
         setServices(catalog.filter((service) => service.availableForRequest));
       })
       .catch((error) => {
-        if (active) toast.error((error as Error).message);
+        if (active) toast.error(estimateActionError(activeLocale.current, error, activeLocale.current === "es"
+          ? "No se pudieron cargar las opciones de instalación." : "Could not load installation options."));
       })
       .finally(() => active && setLoading(false));
     return () => {
@@ -309,27 +317,27 @@ export function InstallationEstimatePanel({
     const requestAddress = address;
     const requestAddressConfirmed = confirmation.isConfirmed;
     if (!requestAddressConfirmed || !completeAddress(requestAddress)) {
-      toast.error("Confirm a complete installation address.");
+      toast.error(spanish ? "Confirma la dirección completa de instalación." : "Confirm a complete installation address.");
       return;
     }
     if (requestAddress.state !== "FL") {
-      toast.error("Installation is available only in Florida.");
+      toast.error(spanish ? "La instalación solo está disponible en Florida." : "Installation is available only in Florida.");
       return;
     }
     if (requestAddress.street.trim().length > 150 || requestAddress.city.trim().length > 100) {
-      toast.error("Use no more than 150 characters for the street and 100 for the city.");
+      toast.error(spanish ? "Escribe un máximo de 150 caracteres para la calle y 100 para la ciudad." : "Use no more than 150 characters for the street and 100 for the city.");
       return;
     }
     if ((requestAddress.addressLine2 ?? "").trim().length > 150) {
-      toast.error("Address details must be 150 characters or fewer.");
+      toast.error(spanish ? "Los detalles de la dirección admiten hasta 150 caracteres." : "Address details must be 150 characters or fewer.");
       return;
     }
     if (!/^\d{5}(?:-\d{4})?$/.test(requestAddress.postalCode.trim())) {
-      toast.error("Enter a valid 5-digit ZIP code or ZIP+4.");
+      toast.error(spanish ? "Escribe un código postal válido de 5 dígitos o en formato ZIP+4." : "Enter a valid 5-digit ZIP code or ZIP+4.");
       return;
     }
     if (permitRequested === null) {
-      toast.error("Select a permit management option.");
+      toast.error(spanish ? "Elige quién se encargará de tramitar el permiso." : "Select a permit management option.");
       return;
     }
 
@@ -337,7 +345,7 @@ export function InstallationEstimatePanel({
       const service =
         services.find((candidate) => candidate.id === Number(row.serviceId)) ??
         null;
-      const error = additionalServiceValidationError(service, row.draft);
+      const error = additionalServiceValidationError(service, row.draft, locale);
       if (error) {
         toast.error(error);
         return;
@@ -377,12 +385,14 @@ export function InstallationEstimatePanel({
       setRequestEditing(false);
       toast.success(
         job
-          ? "Installation updated and recalculated."
-          : "Preliminary installation price calculated.",
+          ? (spanish ? "Se actualizó la instalación y se recalculó su precio." : "Installation updated and recalculated.")
+          : (spanish ? "Se calculó el precio preliminar de la instalación." : "Preliminary installation price calculated."),
       );
     } catch (error) {
       if (!isCurrent()) return;
-      if (!confirmation.handleFinalError(error)) toast.error((error as Error).message);
+      if (!confirmation.handleFinalError(error)) {
+        toast.error(estimateActionError(locale, error, spanish ? "No se pudo calcular el precio de instalación." : "Could not calculate the installation price."));
+      }
     } finally {
       requestInFlight.current = false;
       if (mounted.current) setBusy(false);
@@ -396,10 +406,10 @@ export function InstallationEstimatePanel({
       const result = await cancelInstallation(job.id);
       commitJob(result);
       toast.success(
-        "Installation removed. The estimate remains material only.",
+        spanish ? "Se quitó la instalación. La cotización incluye solo materiales." : "Installation removed. The estimate remains material only.",
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(estimateActionError(locale, error, spanish ? "No se pudo quitar la instalación." : "Could not remove the installation."));
     } finally {
       setBusy(false);
     }
@@ -409,7 +419,7 @@ export function InstallationEstimatePanel({
     return (
       <Card className="border-red-200">
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Loading installation options…
+          {spanish ? "Cargando las opciones de instalación…" : "Loading installation options…"}
         </CardContent>
       </Card>
     );
@@ -422,49 +432,56 @@ export function InstallationEstimatePanel({
       <Card className="border-red-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Hammer className="h-5 w-5" /> Installation
+            <Hammer className="h-5 w-5" /> {spanish ? "Instalación" : "Installation"}
           </CardTitle>
           <CardDescription>
             {job
-              ? "Update the installation details and recalculate the preliminary price."
-              : "Calculate the installation price before deciding whether to add it to this estimate."}
+              ? (spanish ? "Actualiza los datos de instalación y vuelve a calcular el precio preliminar." : "Update the installation details and recalculate the preliminary price.")
+              : (spanish ? "Calcula el precio de la instalación antes de decidir si la agregas a esta cotización." : "Calculate the installation price before deciding whether to add it to this estimate.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!showRequest ? (
             <Button type="button" onClick={beginNewRequest} disabled={networkPaymentBlocked}>
-              Request installation price
+              {spanish ? "Solicitar precio de instalación" : "Request installation price"}
             </Button>
           ) : (
             <>
               <fieldset disabled={busy} className="space-y-3 rounded-xl border border-red-200 p-4">
-                <legend className="px-1 font-semibold">Installation address</legend>
-                <AddressConfirmationPanel confirmation={confirmation} address={address} purpose="installation"
+                <legend className="px-1 font-semibold">{spanish ? "Dirección de instalación" : "Installation address"}</legend>
+                <AddressConfirmationPanel confirmation={confirmation} address={address} purpose="installation" locale={locale}
                   disabled={busy || networkPaymentBlocked || confirmation.checking} onEdit={editingAddress} />
                 {addressChoice !== "different" ? (
                   <>
                     <p className="text-sm">{addressText(address)}</p>
-                    <p className="text-sm font-medium">Is this the installation address?</p>
+                    <p className="text-sm font-medium">{spanish ? "¿Es esta la dirección de instalación?" : "Is this the installation address?"}</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL" || confirmation.checking || networkPaymentBlocked} onClick={() => { setAddressChoice("suggested"); void confirmation.review(); }}>Use this address</Button>
-                      <Button type="button" variant="outline" onClick={() => { clearAddressSuggestion(); setAddress({ street: "", city: "", state: "FL", postalCode: "" }); setAddressChoice("different");  }}>Use a different address</Button>
+                      <Button type="button" variant={addressChoice === "suggested" ? "default" : "outline"} disabled={address.state !== "FL" || confirmation.checking || networkPaymentBlocked} onClick={() => { setAddressChoice("suggested"); void confirmation.review(); }}>{spanish ? "Usar esta dirección" : "Use this address"}</Button>
+                      <Button type="button" variant="outline" onClick={() => { clearAddressSuggestion(); setAddress({ street: "", city: "", state: "FL", postalCode: "" }); setAddressChoice("different");  }}>{spanish ? "Usar otra dirección" : "Use a different address"}</Button>
                     </div>
-                    {address.state !== "FL" && <p className="text-sm text-amber-800">Installation is available only in Florida. Enter a Florida installation address.</p>}
+                    {address.state !== "FL" && <p className="text-sm text-amber-800">{spanish ? "Solo ofrecemos instalación en Florida. Escribe una dirección de instalación en Florida." : "Installation is available only in Florida. Enter a Florida installation address."}</p>}
                   </>
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {([['street', 'Street address'], ['addressLine2', 'Apartment, suite, unit, etc. (optional)'], ['city', 'City'], ['state', 'State'], ['postalCode', 'ZIP code']] as const).map(([key, label]) => (
+                      {([
+                        ["street", spanish ? "Calle y número" : "Street address"],
+                        ["addressLine2", spanish ? "Apartamento, suite o unidad (opcional)" : "Apartment, suite, unit, etc. (optional)"],
+                        ["city", spanish ? "Ciudad" : "City"],
+                        ["state", spanish ? "Estado" : "State"],
+                        ["postalCode", spanish ? "Código postal" : "ZIP code"],
+                      ] as const).map(([key, label]) => (
                         <div key={key} className={key === "street" || key === "addressLine2" ? "sm:col-span-2" : ""}>
                           <Label htmlFor={`installation-${key}`}>{label}</Label>
                           {key === "state" ? (
                             <Select value={address.state} disabled={busy} onValueChange={state => { clearAddressSuggestion(); setAddress(current => ({ ...withoutLocation(current), state }));  }}>
-                              <SelectTrigger id="installation-state" className="w-full"><SelectValue placeholder="Select state" /></SelectTrigger>
+                              <SelectTrigger id="installation-state" className="w-full"><SelectValue placeholder={spanish ? "Selecciona el estado" : "Select state"} /></SelectTrigger>
                               <SelectContent><SelectItem value="FL">Florida (FL)</SelectItem></SelectContent>
                             </Select>
                           ) : key === "street" ? (
                             <AddressAutocomplete
                               id="installation-street"
+                              locale={locale}
                               value={address.street}
                               maxLength={150}
                               disabled={busy}
@@ -476,28 +493,29 @@ export function InstallationEstimatePanel({
                               onAddressSelect={selected => {
                                 clearAddressSuggestion();
                                 if (selected.state !== "FL") {
-                                  toast.error("Installation is available only in Florida. Choose a Florida address.");
+                                  toast.error(spanish ? "Solo ofrecemos instalación en Florida. Selecciona una dirección en Florida." : "Installation is available only in Florida. Choose a Florida address.");
                                   return;
                                 }
                                 setAddress(current => ({ ...withoutLocation(current), ...selected }));
                               }}
                             />
                           ) : (
-                            <Input id={`installation-${key}`} value={address[key] ?? ""} disabled={busy} autoComplete={key === "addressLine2" ? "address-line2" : undefined} placeholder={key === "addressLine2" ? "e.g. Apt 4B, Suite 200, Building C" : undefined} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...withoutLocation(current), [key]: event.target.value }));  }} />
+                            <Input id={`installation-${key}`} value={address[key] ?? ""} disabled={busy} autoComplete={key === "addressLine2" ? "address-line2" : undefined} placeholder={key === "addressLine2" ? (spanish ? "Ej. Apto. 4B, suite 200, edificio C" : "e.g. Apt 4B, Suite 200, Building C") : undefined} maxLength={key === "postalCode" ? 10 : key === "city" ? 100 : 150} onChange={event => { clearAddressSuggestion(); setAddress(current => ({ ...withoutLocation(current), [key]: event.target.value }));  }} />
                           )}
                         </div>
                       ))}
                     </div>
-                    <Button type="button" disabled={busy || networkPaymentBlocked || confirmation.checking} onClick={() => void confirmation.review()}>Use this address</Button>
+                    <Button type="button" disabled={busy || networkPaymentBlocked || confirmation.checking} onClick={() => void confirmation.review()}>{spanish ? "Usar esta dirección" : "Use this address"}</Button>
                   </>
                 )}
-                <p className="text-xs text-muted-foreground">Availability and pricing will be verified for this address.</p>
+                <p className="text-xs text-muted-foreground">{spanish ? "Verificaremos la disponibilidad y el precio de la instalación para esta dirección." : "Availability and pricing will be verified for this address."}</p>
               </fieldset>
               <fieldset disabled={busy} className="space-y-3">
-                <legend className="font-semibold">Permit coordination</legend>
+                <legend className="font-semibold">{spanish ? "Gestión del permiso" : "Permit coordination"}</legend>
                 <p className="text-sm text-muted-foreground">
-                  Select the permit management option for this installation. One
-                  option is required.
+                  {spanish
+                    ? "Elige quién gestionará el permiso de instalación. Debes seleccionar una opción."
+                    : "Select the permit management option for this installation. One option is required."}
                 </p>
 
                 <RadioGroup
@@ -511,7 +529,7 @@ export function InstallationEstimatePanel({
                   onValueChange={(value) =>
                     setPermitRequested(value === "COMPANY")
                   }
-                  aria-label="Permit coordination responsibility"
+                  aria-label={spanish ? "Responsable de gestionar el permiso" : "Permit coordination responsibility"}
                   className="gap-3"
                 >
                   <label
@@ -533,12 +551,12 @@ export function InstallationEstimatePanel({
                       </span>
                       <span>
                         <strong className="block text-base text-slate-950">
-                          Use my own permit management service
+                          {spanish ? "Usar mi propio gestor de permisos" : "Use my own permit management service"}
                         </strong>
                         <span className="mt-1 block leading-6 text-muted-foreground">
-                          I will use an independent coordinator to manage the
-                          permit application, plan-review responses, required
-                          approvals, fees, and inspection scheduling.
+                          {spanish
+                            ? "Mi gestor independiente se encargará de solicitar el permiso, responder a los comentarios de la revisión de planos, tramitar las aprobaciones, gestionar las tasas y programar las inspecciones."
+                            : "I will use an independent coordinator to manage the permit application, plan-review responses, required approvals, fees, and inspection scheduling."}
                         </span>
                       </span>
                     </span>
@@ -564,23 +582,22 @@ export function InstallationEstimatePanel({
                         </span>
                         <span>
                           <strong className="block text-base text-slate-950">
-                            Use the permit management service provided by{" "}
-                            {companyName}
+                            {spanish ? `Usar el servicio de gestión de permisos de ${companyName}` : `Use the permit management service provided by ${companyName}`}
                           </strong>
                           <span className="mt-1 block leading-6 text-muted-foreground">
-                            The {companyName} team will manage the permit
-                            application, plan-review responses, required
-                            approvals, and inspection scheduling.
+                            {spanish
+                              ? `El equipo de ${companyName} se encargará de solicitar el permiso, responder a los comentarios de la revisión de planos, tramitar las aprobaciones y programar las inspecciones.`
+                              : `The ${companyName} team will manage the permit application, plan-review responses, required approvals, and inspection scheduling.`}
                           </span>
                         </span>
                       </span>
 
                       <span className="grid gap-2 text-xs font-medium text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
                         {[
-                          "Permit application",
-                          "Plan-review coordination",
-                          "Agency submissions",
-                          "Inspection scheduling",
+                          spanish ? "Solicitud del permiso" : "Permit application",
+                          spanish ? "Coordinación de la revisión de planos" : "Plan-review coordination",
+                          spanish ? "Presentación de documentos ante los organismos correspondientes" : "Agency submissions",
+                          spanish ? "Programación de inspecciones" : "Inspection scheduling",
                         ].map((item) => (
                           <span
                             key={item}
@@ -593,8 +610,9 @@ export function InstallationEstimatePanel({
                       </span>
 
                       <span className="rounded-lg bg-white/80 px-3 py-2 leading-5 text-slate-600">
-                        Permit Fee is paid after remeasurement approval. City
-                        Fee is added later by company staff.
+                        {spanish
+                          ? "La tarifa del permiso se paga después de aprobar las medidas verificadas. El personal de la empresa agregará la tarifa municipal más adelante."
+                          : "Permit Fee is paid after remeasurement approval. City Fee is added later by company staff."}
                       </span>
                     </span>
                   </label>
@@ -602,17 +620,17 @@ export function InstallationEstimatePanel({
               </fieldset>
 
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-muted-foreground">
-                Installation for estimate pieces is calculated automatically.
-                Select any additional work needed outside this estimate; its
-                pricing inputs are entered manually.
+                {spanish
+                  ? "El precio de instalación de las piezas de esta cotización se calcula automáticamente. Si necesitas trabajos adicionales, selecciónalos e ingresa los datos para calcular su precio."
+                  : "Installation for estimate pieces is calculated automatically. Select any additional work needed outside this estimate; its pricing inputs are entered manually."}
               </p>
 
               <fieldset disabled={busy} className="space-y-3">
                 <legend className="font-semibold">
-                  Additional services (optional)
+                  {spanish ? "Servicios adicionales (opcionales)" : "Additional services (optional)"}
                 </legend>
                 <p className="text-sm text-muted-foreground">
-                  Select all additional services needed for this installation.
+                  {spanish ? "Selecciona los servicios adicionales que necesites para esta instalación." : "Select all additional services needed for this installation."}
                 </p>
 
                 {services.length > 0 ? (
@@ -673,6 +691,7 @@ export function InstallationEstimatePanel({
                                       </span>
                                     )}
                                     <AdditionalServiceFields
+                                      locale={locale}
                                       service={service}
                                       value={row.draft}
                                       compact
@@ -692,7 +711,7 @@ export function InstallationEstimatePanel({
                                           htmlFor={`additional-service-note-${row.id}`}
                                           className="text-xs"
                                         >
-                                          Note (optional)
+                                          {spanish ? "Nota (opcional)" : "Note (optional)"}
                                         </Label>
                                         <Input
                                           id={`additional-service-note-${row.id}`}
@@ -715,7 +734,7 @@ export function InstallationEstimatePanel({
                                               ),
                                             )
                                           }
-                                          placeholder="Add a note"
+                                          placeholder={spanish ? "Agrega una nota" : "Add a note"}
                                         />
                                       </div>
                                     )}
@@ -730,7 +749,7 @@ export function InstallationEstimatePanel({
                   </div>
                 ) : (
                   <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-muted-foreground">
-                    No additional services are currently available.
+                    {spanish ? "Por el momento no hay servicios adicionales disponibles." : "No additional services are currently available."}
                   </p>
                 )}
               </fieldset>
@@ -742,16 +761,16 @@ export function InstallationEstimatePanel({
                   disabled={busy}
                   onClick={() => setRequestEditing(false)}
                 >
-                  Cancel
+                  {spanish ? "Cancelar" : "Cancel"}
                 </Button>
                 <Button type="button" disabled={busy || networkPaymentBlocked || !confirmation.isConfirmed || confirmation.checking} onClick={() => void submitRequest()}>
                   {busy
                     ? job
-                      ? "Saving…"
-                      : "Calculating…"
+                      ? (spanish ? "Guardando…" : "Saving…")
+                      : (spanish ? "Calculando…" : "Calculating…")
                     : job
-                      ? "Save installation changes"
-                      : "Calculate installation"}
+                      ? (spanish ? "Guardar cambios de instalación" : "Save installation changes")
+                      : (spanish ? "Calcular instalación" : "Calculate installation")}
                 </Button>
               </div>
             </>
@@ -762,6 +781,7 @@ export function InstallationEstimatePanel({
   }
 
   const latest = job.quotes[0];
+  const stageLabel = installationStageLabel(job, locale);
   const latestRevision = latest
     ? job.revisions?.find((revision) => revision.quoteId === latest.id)
     : job.revisions?.[0];
@@ -790,14 +810,14 @@ export function InstallationEstimatePanel({
       if (decision === "APPROVED") await onQuoteApproved?.();
       toast.success(
         decision === "APPROVED"
-          ? "Estimate revision and installation quote approved."
-          : "Estimate revision and installation quote rejected.",
+          ? (spanish ? "Se aprobaron la revisión de la cotización y el precio de instalación." : "Estimate revision and installation quote approved.")
+          : (spanish ? "Se rechazaron la revisión de la cotización y el precio de instalación." : "Estimate revision and installation quote rejected."),
       );
     } catch (error) {
       toast.error(
         decisionSaved
-          ? "The changes were approved, but the estimate could not be refreshed. Reload this page."
-          : (error as Error).message,
+          ? (spanish ? "Se aprobaron los cambios. Recarga esta página para ver la cotización actualizada." : "The changes were approved, but the estimate could not be refreshed. Reload this page.")
+          : estimateActionError(locale, error, spanish ? "No se pudo guardar tu decisión sobre la cotización." : "Could not save your quote decision."),
       );
     } finally {
       setBusy(false);
@@ -820,11 +840,11 @@ export function InstallationEstimatePanel({
       setAppointmentResponseNote("");
       toast.success(
         response === "ACCEPT"
-          ? "Remeasurement date accepted."
-          : "Remeasurement reschedule requested.",
+          ? (spanish ? "Se aceptó la fecha de la nueva medición." : "Remeasurement date accepted.")
+          : (spanish ? "Se solicitó otra fecha para la nueva medición." : "Remeasurement reschedule requested."),
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(estimateActionError(locale, error, spanish ? "No se pudo guardar tu respuesta a la cita." : "Could not save your appointment response."));
     } finally {
       setBusy(false);
     }
@@ -836,11 +856,11 @@ export function InstallationEstimatePanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Hammer className="h-5 w-5" /> Installation
+              <Hammer className="h-5 w-5" /> {spanish ? "Instalación" : "Installation"}
             </CardTitle>
-            <CardDescription>{installationStageLabel(job)}</CardDescription>
+            <CardDescription>{stageLabel}</CardDescription>
           </div>
-          <Badge>{installationStageLabel(job)}</Badge>
+          <Badge>{stageLabel}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -848,8 +868,9 @@ export function InstallationEstimatePanel({
           job.estimate.user.dealerMode === "INTERNAL" && !job.dealerMeasurementsAcceptedAt && (
           <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm text-blue-900">
-              If the current measurements are final, continue without a deposit,
-              remeasurement visit or quote approvals. The full installation amount remains due.
+              {spanish
+                ? "Si las medidas actuales son definitivas, puedes continuar sin depósito, sin otra visita de medición y sin aprobaciones adicionales de la cotización. El importe total de la instalación sigue pendiente de pago."
+                : "If the current measurements are final, continue without a deposit, remeasurement visit or quote approvals. The full installation amount remains due."}
             </p>
             <Button type="button" disabled={busy} className="h-auto whitespace-normal"
               onClick={async () => {
@@ -857,27 +878,28 @@ export function InstallationEstimatePanel({
                 try {
                   if (beforeRequest && !(await beforeRequest())) return;
                   commitJob(await acceptDealerMeasurements(job.id));
-                  toast.success("Deposit waived. Current measurements and price retained.");
+                  toast.success(spanish ? "Se eximió el depósito y se conservaron las medidas y el precio actuales." : "Deposit waived. Current measurements and price retained.");
                 } catch (error) {
-                  toast.error((error as Error).message);
+                  toast.error(estimateActionError(locale, error, spanish ? "No se pudieron aceptar las medidas." : "Could not accept the measurements."));
                 } finally {
                   setBusy(false);
                 }
               }}>
-              Accept measurements and waive deposit
+              {spanish ? "Aceptar las medidas y eximir el depósito" : "Accept measurements and waive deposit"}
             </Button>
           </div>
         )}
         {job.dealerMeasurementsAcceptedAt && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            <strong className="block">Dealer measurements accepted</strong>
-            No installation deposit or remeasurement visit is required.
+            <strong className="block">{spanish ? "Medidas del distribuidor aceptadas" : "Dealer measurements accepted"}</strong>
+            {spanish ? "Ya no se requiere un depósito de instalación ni otra visita de medición." : "No installation deposit or remeasurement visit is required."}
           </div>
         )}
         {latestRevision &&
           latestRevision.status !== "DRAFT" &&
           latestRevision.status !== "SUPERSEDED" && (
             <EstimateRevisionDialog
+              locale={locale}
               revision={latestRevision}
               job={job}
             />
@@ -885,22 +907,25 @@ export function InstallationEstimatePanel({
 
         {job.status === "CANCELED" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <strong className="block">Installation canceled</strong>
+            <strong className="block">{spanish ? "Instalación cancelada" : "Installation canceled"}</strong>
             {depositPaid > 0
-              ? "The paid deposit remains non-refundable. This estimate can continue with material only."
-              : "This estimate can continue with material only."}
+              ? (spanish ? "El depósito pagado no es reembolsable. Puedes continuar la cotización solo con materiales." : "The paid deposit remains non-refundable. This estimate can continue with material only.")
+              : (spanish ? "Puedes continuar la cotización solo con materiales." : "This estimate can continue with material only.")}
             {job.cancellationReason && (
-              <p className="mt-2">Reason: {job.cancellationReason}</p>
+              <p className="mt-2">{spanish ? "Motivo:" : "Reason:"} {job.cancellationReason}</p>
             )}
           </div>
         )}
 
-        {canEditBeforePayment && job.status === "DEPOSIT_PAYMENT_PENDING" && !job.installationAddressConfirmedAt && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Edit the installation request and confirm its address before continuing.</p>}
+        {canEditBeforePayment && job.status === "DEPOSIT_PAYMENT_PENDING" && !job.installationAddressConfirmedAt && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {spanish ? "Edita la solicitud de instalación y confirma la dirección para continuar." : "Edit the installation request and confirm its address before continuing."}
+          </p>
+        )}
         {canEditBeforePayment && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm text-slate-600">
-              Before starting payment, you can edit the installation request
-              or remove it and continue with material only.
+              {spanish ? "Antes de pagar, puedes editar la solicitud de instalación o quitarla y continuar solo con materiales." : "Before starting payment, you can edit the installation request or remove it and continue with material only."}
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button
@@ -911,7 +936,7 @@ export function InstallationEstimatePanel({
                 onClick={beginEditRequest}
               >
                 <Pencil className="h-4 w-4" />
-                Edit installation
+                {spanish ? "Editar instalación" : "Edit installation"}
               </Button>
               <Button
                 type="button"
@@ -921,7 +946,7 @@ export function InstallationEstimatePanel({
                 onClick={() => setRemoveDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
-                Remove installation and continue with material only
+                {spanish ? "Quitar la instalación y continuar solo con materiales" : "Remove installation and continue with material only"}
               </Button>
             </div>
           </div>
@@ -930,12 +955,12 @@ export function InstallationEstimatePanel({
         {isOwner && proposedRemeasurement && (
           <div className="space-y-3 rounded-lg border border-blue-200 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <CalendarDays className="h-4 w-4" /> Proposed remeasurement date
+              <CalendarDays className="h-4 w-4" /> {spanish ? "Fecha propuesta para la nueva medición" : "Proposed remeasurement date"}
             </div>
             <p className="text-sm">
-              {new Date(proposedRemeasurement.startsAt).toLocaleString()}
+              {new Date(proposedRemeasurement.startsAt).toLocaleString(locale)}
               {proposedRemeasurement.endsAt
-                ? ` – ${new Date(proposedRemeasurement.endsAt).toLocaleString()}`
+                ? ` - ${new Date(proposedRemeasurement.endsAt).toLocaleString(locale)}`
                 : ""}
             </p>
             {proposedRemeasurement.note && (
@@ -948,7 +973,7 @@ export function InstallationEstimatePanel({
               onChange={(event) =>
                 setAppointmentResponseNote(event.target.value)
               }
-              placeholder="Optional response"
+              placeholder={spanish ? "Respuesta opcional" : "Optional response"}
             />
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -958,7 +983,7 @@ export function InstallationEstimatePanel({
                 disabled={busy}
                 onClick={() => respondToRemeasurement("REQUEST_RESCHEDULE")}
               >
-                Request reschedule
+                {spanish ? "Solicitar otra fecha" : "Request reschedule"}
               </Button>
               <Button
                 type="button"
@@ -967,17 +992,17 @@ export function InstallationEstimatePanel({
                 disabled={busy}
                 onClick={() => respondToRemeasurement("ACCEPT")}
               >
-                Accept schedule
+                {spanish ? "Aceptar fecha y hora" : "Accept schedule"}
               </Button>
             </div>
           </div>
         )}
 
-        {job.installationAddress && <div className="rounded-lg border p-3 text-sm"><strong>Installation address</strong><p>{addressText(job.installationAddress)}</p></div>}
+        {job.installationAddress && <div className="rounded-lg border p-3 text-sm"><strong>{spanish ? "Dirección de instalación" : "Installation address"}</strong><p>{addressText(job.installationAddress)}</p></div>}
         {acceptedRemeasurement && !proposedRemeasurement && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            <strong className="block">Remeasurement date accepted</strong>
-            {new Date(acceptedRemeasurement.startsAt).toLocaleString()}
+            <strong className="block">{spanish ? "Fecha de la nueva medición aceptada" : "Remeasurement date accepted"}</strong>
+            {new Date(acceptedRemeasurement.startsAt).toLocaleString(locale)}
           </div>
         )}
 
@@ -988,19 +1013,19 @@ export function InstallationEstimatePanel({
               <div>
                 <strong className="text-sm">
                   {latest.approvalReason === "PERMIT_REVISION"
-                    ? "Approve permit-required changes"
-                    : "Approve remeasurement and installation"}
+                    ? (spanish ? "Aprobar los cambios requeridos por el permiso" : "Approve permit-required changes")
+                    : (spanish ? "Aprobar las nuevas medidas y la instalación" : "Approve remeasurement and installation")}
                 </strong>
                 <p className="text-xs text-muted-foreground">
                   {latestRevision
-                    ? "Use View changes above to compare the original and revised measurements and prices before approving."
-                    : "Review the updated material and installation amounts in the Estimate Summary below."}
+                    ? (spanish ? "Antes de aprobar, selecciona «Ver cambios» para comparar las medidas y los precios originales con los revisados." : "Use View changes above to compare the original and revised measurements and prices before approving.")
+                    : (spanish ? "Revisa los importes actualizados de materiales e instalación en el resumen de la cotización que aparece más abajo." : "Review the updated material and installation amounts in the Estimate Summary below.")}
                 </p>
               </div>
               <Textarea
                 value={decisionComment}
                 onChange={(event) => setDecisionComment(event.target.value)}
-                placeholder="Optional comment"
+                placeholder={spanish ? "Comentario opcional" : "Optional comment"}
               />
               <div className="flex justify-end gap-2">
                 <Button
@@ -1009,14 +1034,14 @@ export function InstallationEstimatePanel({
                   disabled={busy}
                   onClick={() => decide("REJECTED")}
                 >
-                  Reject
+                  {spanish ? "Rechazar" : "Reject"}
                 </Button>
                 <Button
                   type="button"
                   disabled={busy}
                   onClick={() => decide("APPROVED")}
                 >
-                  Approve
+                  {spanish ? "Aprobar" : "Approve"}
                 </Button>
               </div>
             </div>
@@ -1025,7 +1050,7 @@ export function InstallationEstimatePanel({
         <div className="flex justify-end">
           {isPrivileged && (
             <Button asChild variant="outline">
-              <Link href={`/installations/${job.id}`}>Open operations</Link>
+              <Link href={`/installations/${job.id}`}>{spanish ? "Abrir operaciones" : "Open operations"}</Link>
             </Button>
           )}
         </div>
@@ -1033,9 +1058,13 @@ export function InstallationEstimatePanel({
           isOpen={removeDialogOpen}
           onClose={() => setRemoveDialogOpen(false)}
           onConfirm={removeRequest}
-          title="Remove installation?"
-          description="The installation request will be removed from this estimate. You can continue with material only and no deposit will be charged."
-          confirmText="Remove installation"
+          lang={locale}
+          title={spanish ? "¿Quitar la instalación?" : "Remove installation?"}
+          description={spanish
+            ? "Se quitará la solicitud de instalación de esta cotización. Podrás continuar solo con materiales y no se cobrará el depósito."
+            : "The installation request will be removed from this estimate. You can continue with material only and no deposit will be charged."}
+          cancelText={spanish ? "Cancelar" : "Cancel"}
+          confirmText={spanish ? "Quitar instalación" : "Remove installation"}
         />
       </CardContent>
     </Card>

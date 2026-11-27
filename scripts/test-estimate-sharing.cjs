@@ -69,7 +69,7 @@ const ui = {
   "@/components/ui/input": { Input: "Input" },
   "@/components/ui/dialog": Object.fromEntries(["Dialog", "DialogContent", "DialogHeader", "DialogTitle", "DialogDescription", "DialogFooter"].map(name => [name, name])),
 };
-function fixture(overrides = {}) {
+function fixture(overrides = {}, locale = "en") {
   const react = hooks(), calls = [], successes = [], errors = [], copied = [], shared = [];
   let failure = null, release, hold = false, result = { sent: true };
   const props = {
@@ -79,6 +79,8 @@ function fixture(overrides = {}) {
   };
   const { EstimateDetails } = load("components/estimates/estimate-details/estimate-details.tsx", {
     ...ui, react: react.react,
+    "@/contexts/PortalLanguageContext": { usePortalLanguage: () => ({ locale }) },
+    "./report-action-text": load("components/estimates/estimate-details/report-action-text.ts", {}),
     "lucide-react": Object.fromEntries(["Printer", "Copy", "Share2", "Mail", "Send", "MessageSquare"].map(name => [name, name])),
     "@/components/estimates/material-revisions/material-revision-access": { MaterialRevisionAccess: "MaterialRevisionAccess" },
     "../agreements/dealer-agreement-panel": { DealerAgreementPanel: "DealerAgreementPanel" },
@@ -137,6 +139,27 @@ function fixture(overrides = {}) {
 }
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
+test("Spanish payment controls share the English public payment message and the original URL", async () => {
+  const react = hooks();
+  let shared;
+  global.window = { location: { origin: "https://app.example.com" } };
+  Object.defineProperty(global, "navigator", { configurable: true, value: { share: async data => { shared = data; } } });
+  const { EstimatePaymentLinkActions } = load("components/estimates/estimate-payment-link-actions.tsx", {
+    ...ui, react: react.react, "lucide-react": { Copy: "Copy", Loader2: "Loader2", Share2: "Share2" },
+    sonner: { toast: { error: assert.fail } },
+    "@/lib/estimate-action-language": load("lib/estimate-action-language.ts", {}),
+    "@/app/api/estimates.api": { getOrCreateEstimatePublicToken: async (id, pricingMode) => {
+      assert.equal(id, 6); assert.equal(pricingMode, "detailed"); return { token: "original-token" };
+    } },
+  });
+  const tree = react.render(() => EstimatePaymentLinkActions({ locale: "es", estimateId: 6, estimateNumber: "2035", showShare: true }));
+  const button = nodes(tree).find(n => n.type === "Button" && text(n) === "Compartir enlace de pago");
+  assert.ok(button);
+  button.props.onClick();
+  await flush();
+  assert.deepEqual(shared, { title: "Project payment #2035", text: "Use this secure link to pay project charge #2035.",
+    url: "https://app.example.com/public/payments/original-token" });
+});
 test("owner, ancestor dealers and administrators can share; unrelated dealers and operators cannot", () => {
   for (const [role, id, assist, expected] of [
     ["dealer", 7, false, true], ["dealer", 8, true, true], ["admin", 99, false, true],
@@ -156,6 +179,20 @@ test("owner, ancestor dealers and administrators can share; unrelated dealers an
   assert.equal(Boolean(dealerView.button("Share")), false);
   dealerView.button("Customer Detailed Prices").props.onClick();
   assert.ok(dealerView.button("Share"));
+});
+test("Spanish portal exports its PDF in Spanish and shares the same English link and agreement", async () => {
+  const f = fixture({}, "es");
+  f.browser();
+  assert.ok(f.button("Cliente · Total del proyecto"));
+  assert.equal(f.render().find(n => n.type === "a" && text(n).includes("Imprimir")).props.href, "/api/estimates/1/pdf?view=dealer_public&lang=es");
+  f.includeContract(true);
+  await f.button("Copiar enlace").props.onClick();
+  assert.deepEqual(f.calls.at(-1).args, [1, "detailed", true]);
+  assert.equal(f.copied.at(-1), "https://app.example.com/public/estimates/owner-token/agreements/owner-agreement");
+  f.button("Enviar").props.onClick();
+  await f.submit();
+  assert.equal(Object.hasOwn(f.calls.at(-1).data, "locale"), false);
+  assert.deepEqual(f.successes, ["Enlace del cliente copiado.", "Cotización enviada por correo."]);
 });
 test("direct Send follows the actual actor's mode, including internal ancestors and admins", () => {
   for (const [role, id, mode, ownerMode, expected] of [
@@ -536,6 +573,7 @@ test("agreement panel gives sharing instructions only to authorized actors", asy
   for (const canShare of [true, false]) {
     const h = hooks(), observed = [];
     const { DealerAgreementPanel } = load("components/estimates/agreements/dealer-agreement-panel.tsx", {
+      "./agreement-language": load("components/estimates/agreements/agreement-language.ts", {}),
       ...ui, react: h.react,
       "@/app/api/contracts.api": {
         getEstimateAgreement: async () => ({ pendingMaterialRevisionId: 3, history: [], current: { state: "REQUIRES_NEW_SIGNATURE", invalidatedAt: "today", kind: "AGREEMENT" } }),
@@ -667,6 +705,42 @@ test("report and pricing toggles preserve the explicit return to the estimate ed
   }
   const listView = fixture({ returnToEdit: false });
   assert.equal(listView.render().find(node => node.type === "BackLink").props.href, "/estimates");
+});
+
+test("PDF download carries the report view and language through authentication refresh", async () => {
+  const { NextRequest, NextResponse } = require("next/server");
+  const stored = new Map([["refresh_token", "test-refresh"], ["company_language", "en"]]);
+  const { GET } = load("app/api/estimates/[id]/pdf/route.ts", {
+    "next/server": { NextResponse },
+    "next/headers": { cookies: async () => ({
+      get: name => stored.has(name) ? { value: stored.get(name) } : undefined,
+      getAll: () => Array.from(stored, ([name, value]) => ({ name, value })),
+    }) },
+    "@/lib/company-public-routes": load("lib/company-public-routes.ts", {}),
+  });
+  const previousFetch = global.fetch;
+  try {
+    for (const [query, expected] of [["&lang=es", "es"], ["", "en"], ["", "es"]]) {
+      const urls = [];
+      global.fetch = async url => {
+        urls.push(new URL(url));
+        if (urls.length === 1) return new Response(null, { status: 401 });
+        if (urls.length === 2) return new Response(null, { headers: { "Set-Cookie": "access_token=test-access; Path=/" } });
+        return new Response("test PDF", { headers: { "Content-Type": "application/pdf" } });
+      };
+      if (!query && expected === "es") stored.delete("company_language");
+      const response = await GET(new NextRequest("http://localhost/api/estimates/1/pdf?view=dealer_public_total" + query,
+        { headers: { "Accept-Language": "es-US,en;q=0.8" } }), { params: Promise.resolve({ id: "1" }) });
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "test PDF");
+      assert.equal(urls.length, 3);
+      assert.equal(urls[1].pathname, "/api/auth/refresh");
+      for (const url of [urls[0], urls[2]]) {
+        assert.equal(url.searchParams.get("view"), "dealer_public_total");
+        assert.equal(url.searchParams.get("lang"), expected);
+      }
+    }
+  } finally { global.fetch = previousFetch; }
 });
 
 (async () => {

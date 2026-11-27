@@ -1,5 +1,7 @@
 "use client";
 
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { reportActionText } from "./report-action-text";
 import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 
 import { prepareEstimateAgreement, type AgreementStatus } from '@/app/api/contracts.api';
@@ -26,7 +28,7 @@ import { toast } from "sonner";
 import { sendEstimateShare, getOrCreateEstimatePublicToken, type EstimateSendChannel, type EstimateSendResult } from "@/app/api/estimates.api";
 import { MAX_ESTIMATE_EMAIL_INPUT_LENGTH, MAX_ESTIMATE_EMAIL_RECIPIENTS, parseEstimateEmailRecipients } from "./estimate-email-recipients";
 import { normalizePhoneToE164, isSmsPhoneSupported } from "@/lib/validators-phone";
-import { estimateSendFeedback } from "./estimate-send-result";
+import { estimateSendFeedback, reportSendError } from "./estimate-send-result";
 import { isApiError } from "@/app/api/_base";
 
 // =============================
@@ -49,11 +51,11 @@ type PdfView =
   | "dealer_public_total"
   | "admin";
 
-const REPORT_LABELS: Record<ReportMode, string> = {
+const REPORT_LABELS = {
   admin: "Admin Report",
   dealer: "Dealer Report",
   customer: "Customer Report",
-};
+} as const;
 
 export function EstimateDetails({
   estimate,
@@ -72,6 +74,8 @@ export function EstimateDetails({
   initialCustomerPricingMode?: CustomerPricingMode;
   returnToEdit?: boolean;
 }) {
+  const { locale } = usePortalLanguage();
+  const t = reportActionText[locale];
   const [readyShare, setReadyShare] = useState<ShareData | null>(null);
   const [readyCopy, setReadyCopy] = useState<string | null>(null);
   const [manualCopy, setManualCopy] = useState(false);
@@ -155,13 +159,13 @@ export function EstimateDetails({
         options.push(
           {
             key: "customer-detailed",
-            label: "Customer Detailed Prices",
+            label: t("Customer Detailed Prices"),
             reportMode: "customer",
             customerPricingMode: "detailed",
           },
           {
             key: "customer-total",
-            label: "Customer Project Total",
+            label: t("Customer Project Total"),
             reportMode: "customer",
             customerPricingMode: "total",
           },
@@ -171,13 +175,13 @@ export function EstimateDetails({
 
       options.push({
         key: mode,
-        label: REPORT_LABELS[mode],
+        label: t(REPORT_LABELS[mode]),
         reportMode: mode,
       });
     }
 
     return options;
-  }, [allowedReportModes, ownerIsDealer]);
+  }, [allowedReportModes, ownerIsDealer, t]);
 
   const activeReportOptionKey =
     reportMode === "customer" && ownerIsDealer
@@ -205,13 +209,13 @@ export function EstimateDetails({
   const sendChannel = sendOpen ? sendDraft.channel : "email";
   const sendEmail = sendChannel !== "sms";
   const sendSms = sendChannel !== "email";
-  const emailRecipients = parseEstimateEmailRecipients(emailRecipient, emailCc);
+  const emailRecipients = parseEstimateEmailRecipients(emailRecipient, emailCc, locale);
   const validEmailRecipient = !emailRecipients.error;
   const emailValidationError = emailRecipient || emailCc ? emailRecipients.error : null;
   const normalizedSmsPhone = normalizePhoneToE164(smsPhone);
   const validSmsPhone = isSmsPhoneSupported(smsPhone);
   const validRecipients = (!sendEmail || validEmailRecipient) && (!sendSms || validSmsPhone);
-  const feedback = sendOutcome ? estimateSendFeedback(sendOutcome) : null;
+  const feedback = sendOutcome ? estimateSendFeedback(sendOutcome, locale) : null;
   const blockedEmail = !!sendOutcome?.email && !feedback?.retryEmail;
   const blockedSms = !!sendOutcome?.sms && !feedback?.retrySms;
   const canRetrySelection = !(sendEmail && blockedEmail) && !(sendSms && blockedSms);
@@ -229,8 +233,8 @@ export function EstimateDetails({
     event.preventDefault();
     if (sharingBusy.current || !sendOpen || activeShareContext.current !== shareContext || !canRetrySelection) return;
     if (!validRecipients) {
-      setSendError(sendEmail && !validEmailRecipient ? emailRecipients.error ?? "Enter valid recipient email addresses."
-        : "Enter a valid SMS phone number with country code +1.");
+      setSendError(sendEmail && !validEmailRecipient ? emailRecipients.error ?? t("Enter valid recipient email addresses.")
+        : t("Enter a valid SMS phone number with country code +1."));
       return;
     }
     sharingBusy.current = true;
@@ -250,7 +254,7 @@ export function EstimateDetails({
       if (!result.sent) {
         const combined = { ...sendOutcome, ...result };
         setSendOutcome(combined);
-        const next = estimateSendFeedback(combined);
+        const next = estimateSendFeedback(combined, locale);
         setSendDraft(previous => {
           if (!previous) return previous;
           const rejected = result.email?.status === "partial" && !result.email.unconfirmed?.length ? result.email.rejected : undefined;
@@ -259,7 +263,7 @@ export function EstimateDetails({
         });
         return;
       }
-      toast.success(sendChannel === "both" ? "Estimate sent by email and SMS." : sendChannel === "sms" ? "Estimate SMS sent." : "Estimate email sent.");
+      toast.success(sendChannel === "both" ? t("Estimate sent by email and SMS.") : sendChannel === "sms" ? t("Estimate SMS sent.") : t("Estimate email sent."));
       setSendDraft(null);
       setSendOutcome(null);
     } catch (error) {
@@ -276,8 +280,8 @@ export function EstimateDetails({
         });
       }
       setSendError(deliveryUnconfirmed
-        ? `${(error as Error).name === "AbortError" ? "Sending timed out." : "Sending was not confirmed."} Check whether the selected messages arrived before trying again.`
-        : (error as Error).message || "Could not send the estimate. Please try again.");
+        ? locale === "es" ? "No pudimos confirmar el envío. Comprueba si llegaron los mensajes antes de volver a intentarlo." : `${(error as Error).name === "AbortError" ? "Sending timed out." : "Sending was not confirmed."} Check whether the selected messages arrived before trying again.`
+        : reportSendError((error as Error).message, locale) || t("Could not send the estimate. Please try again."));
     } finally {
       sharingBusy.current = false;
       setSharing(false);
@@ -323,14 +327,14 @@ export function EstimateDetails({
 
   const createCustomerLink = async () => {
     const response = await getOrCreateEstimatePublicToken(estimate.id, customerPricingMode);
-    if (!response.token) throw new Error("Could not generate customer link.");
+    if (!response.token) throw new Error(t("Could not generate customer link."));
     const url = `${window.location.origin}/public/estimates/${response.token}`;
     // El enlace sin contrato conserva la cotización habitual y no modifica ninguna aceptación.
     if (!includeContract) return url;
     const prepared = await prepareEstimateAgreement(estimate.id, customerPricingMode, true);
     if (!prepared.current) throw new Error(currentUserIsOwner
-      ? "Upload a contract in My Branding before including it."
-      : "The estimate owner has no contract available. Ask them to upload one in My Branding.");
+      ? t("Upload a contract in My Branding before including it.")
+      : t("The estimate owner has no contract available. Ask them to upload one in My Branding."));
     if (activeShareContext.current === shareContext) setAgreementRefresh((value) => value + 1);
     return `${url}/agreements/${prepared.current.id}`;
   };
@@ -344,7 +348,7 @@ export function EstimateDetails({
       if (activeShareContext.current !== shareContext) return;
 
       if (await copyTextToClipboard(url)) {
-        toast.success("Customer link copied.");
+        toast.success(t("Customer link copied."));
       } else {
         // La generación del PDF puede consumir la activación del primer clic.
         // Conservamos el resultado; el siguiente clic solo copia, sin generar otro acuerdo.
@@ -352,7 +356,7 @@ export function EstimateDetails({
         setReadyCopy(url);
       }
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(reportSendError((error as Error).message, locale));
     } finally { sharingBusy.current = false; setSharing(false); }
   };
 
@@ -363,7 +367,7 @@ export function EstimateDetails({
     try {
       if (await copyTextToClipboard(readyCopy, copyField.current)) {
         setReadyCopy(null);
-        toast.success("Customer link copied.");
+        toast.success(t("Customer link copied."));
       } else {
         setManualCopy(true);
       }
@@ -414,7 +418,7 @@ export function EstimateDetails({
       // comentario en español: si el usuario cancela el share nativo, no mostramos error.
       if ((error as Error).name === "AbortError") return;
 
-      toast.error((error as Error).message);
+      toast.error(reportSendError((error as Error).message, locale));
     } finally { sharingBusy.current = false; setSharing(false); }
   };
 
@@ -426,19 +430,20 @@ export function EstimateDetails({
       return ownerIsDealer ? (
         <EstimateViewDealerPublic
           estimate={estimate}
+          locale={locale}
           pricingMode={customerPricingMode}
         />
       ) : (
-        <EstimateViewClient estimate={estimate} />
+        <EstimateViewClient estimate={estimate} locale={locale} />
       );
     }
 
     if (reportMode === "dealer") {
-      return <EstimateViewDealerInternal estimate={estimate} />;
+      return <EstimateViewDealerInternal estimate={estimate} locale={locale} />;
     }
 
-    return <EstimateViewAdmin estimate={estimate} isAdmin={isAdminRole(userRole)} />;
-  }, [customerPricingMode, estimate, ownerIsDealer, reportMode, userRole]);
+    return <EstimateViewAdmin locale={locale} estimate={estimate} isAdmin={isAdminRole(userRole)} />;
+  }, [customerPricingMode, estimate, ownerIsDealer, reportMode, userRole, locale]);
 
   const pdfView = useMemo<PdfView>(() => {
     if (reportMode === "admin") return "admin";
@@ -449,23 +454,25 @@ export function EstimateDetails({
       : "dealer_public";
   }, [customerPricingMode, ownerIsDealer, reportMode]);
 
-  const pdfHref = `/api/estimates/${estimate.id}/pdf?view=${pdfView}`;
+  const pdfHref = `/api/estimates/${estimate.id}/pdf?view=${pdfView}&lang=${locale}`;
 
   return (
-    <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
+    <div lang={locale} className="bg-gray-50 min-h-screen p-4 sm:p-8">
       <Dialog open={sendOpen} onOpenChange={(open) => { if (!open && !sharingBusy.current) setSendDraft(null); }}>
         <DialogContent showCloseButton={!sending}>
           <DialogHeader>
-            <DialogTitle>Send estimate</DialogTitle>
+            <DialogTitle>{t("Send estimate")}</DialogTitle>
             <DialogDescription>
-              Send estimate #{estimate.number} with {customerPricingMode === "total" ? "the project total" : "detailed prices"}{includeContract ? " and the owner's contract" : " without a contract"}.
+              {locale === "es"
+                ? `Envía la cotización #${estimate.number} con ${customerPricingMode === "total" ? "el total del proyecto" : "los precios detallados"}${includeContract ? " y el contrato del propietario" : ", sin contrato"}.`
+                : `Send estimate #${estimate.number} with ${customerPricingMode === "total" ? "the project total" : "detailed prices"}${includeContract ? " and the owner's contract" : " without a contract"}.`}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSendEstimate} className="space-y-4">
             <fieldset disabled={sending} className="space-y-2">
-              <legend className="mb-2 text-sm font-medium">Send by</legend>
+              <legend className="mb-2 text-sm font-medium">{t("Send by")}</legend>
               <div className="grid grid-cols-3 gap-2">
-                {([['email', 'Email', Mail], ['sms', 'SMS', MessageSquare], ['both', 'Both', Send]] as const).map(([channel, label, Icon]) => (
+                {([['email', t("Email"), Mail], ['sms', 'SMS', MessageSquare], ['both', t("Both"), Send]] as const).map(([channel, label, Icon]) => (
                   <label key={channel} className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 ${sendChannel === channel ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200'} ${((channel !== 'sms' && blockedEmail) || (channel !== 'email' && blockedSms)) ? 'cursor-not-allowed opacity-50' : ''}`}>
                     <input type="radio" name="estimate-send-channel" value={channel} checked={sendChannel === channel}
                       disabled={(channel !== 'sms' && blockedEmail) || (channel !== 'email' && blockedSms)}
@@ -478,7 +485,7 @@ export function EstimateDetails({
             </fieldset>
             {sendEmail && <>
               <div className="space-y-2">
-                <label htmlFor="estimate-email-recipient" className="text-sm font-medium">To</label>
+                <label htmlFor="estimate-email-recipient" className="text-sm font-medium">{t("To")}</label>
                 <Input id="estimate-email-recipient" type="email" required maxLength={254} autoComplete="email"
                   aria-describedby="estimate-email-recipient-help"
                   value={emailRecipient} disabled={sending || blockedEmail}
@@ -486,10 +493,10 @@ export function EstimateDetails({
                     setSendDraft(previous => previous && { ...previous, recipient: event.target.value });
                     setSendError("");
                   }} />
-                <p id="estimate-email-recipient-help" className="text-sm text-muted-foreground">Main email recipient.</p>
+                <p id="estimate-email-recipient-help" className="text-sm text-muted-foreground">{t("Main email recipient.")}</p>
               </div>
               <div className="space-y-2">
-                <label htmlFor="estimate-email-cc" className="text-sm font-medium">CC <span className="font-normal text-muted-foreground">(optional)</span></label>
+                <label htmlFor="estimate-email-cc" className="text-sm font-medium">CC <span className="font-normal text-muted-foreground">{t("(optional)")}</span></label>
                 <Input id="estimate-email-cc" type="email" multiple maxLength={MAX_ESTIMATE_EMAIL_INPUT_LENGTH} autoComplete="off"
                   placeholder="email@example.com, another@example.com" aria-describedby="estimate-email-cc-help"
                   value={emailCc} disabled={sending || blockedEmail}
@@ -497,26 +504,26 @@ export function EstimateDetails({
                     setSendDraft(previous => previous && { ...previous, cc: event.target.value });
                     setSendError("");
                   }} />
-                <p id="estimate-email-cc-help" className="text-sm text-muted-foreground">Separate multiple email addresses with commas. Up to {MAX_ESTIMATE_EMAIL_RECIPIENTS} recipients total.</p>
+                <p id="estimate-email-cc-help" className="text-sm text-muted-foreground">{locale === "es" ? `Separa las direcciones con comas. Máximo ${MAX_ESTIMATE_EMAIL_RECIPIENTS} destinatarios en total.` : `Separate multiple email addresses with commas. Up to ${MAX_ESTIMATE_EMAIL_RECIPIENTS} recipients total.`}</p>
               </div>
             </>}
             {sendSms && <div className="space-y-2">
-              <label htmlFor="estimate-sms-phone" className="text-sm font-medium">Mobile number</label>
+              <label htmlFor="estimate-sms-phone" className="text-sm font-medium">{t("Mobile number")}</label>
               <Input id="estimate-sms-phone" type="tel" required maxLength={80} autoComplete="tel"
                 placeholder="+1 (786) 555-0123" aria-describedby="estimate-sms-phone-help"
                 value={smsPhone} disabled={sending || blockedSms}
                 onChange={(event) => { setSendDraft(previous => previous && { ...previous, phone: event.target.value }); setSendError(''); }} />
-              <p id="estimate-sms-phone-help" className="text-sm text-muted-foreground">Send the customer link to this number. SMS supports numbers with country code +1.</p>
+              <p id="estimate-sms-phone-help" className="text-sm text-muted-foreground">{t("Send the customer link to this number. SMS supports numbers with country code +1.")}</p>
             </div>}
             {feedback && <div role="status" className="space-y-1 rounded-md border bg-slate-50 p-3 text-sm">
               {feedback.messages.map((message, index) => <p key={index}>{message}</p>)}
             </div>}
             {(sendError || (sendEmail && emailValidationError) || (sendSms && smsPhone && !validSmsPhone)) && <p role="alert" className="text-sm text-destructive">
-              {sendError || (sendEmail && emailValidationError) || "Enter a valid SMS phone number with country code +1."}
+              {sendError || (sendEmail && emailValidationError) || t("Enter a valid SMS phone number with country code +1.")}
             </p>}
             <DialogFooter>
-              <Button type="button" variant="outline" disabled={sending} onClick={() => { if (!sharingBusy.current) setSendDraft(null); }}>{sendOutcome ? "Close" : "Cancel"}</Button>
-              <Button type="submit" disabled={sharing || !validRecipients || !canRetrySelection}>{sending ? "Sending…" : "Send"}</Button>
+              <Button type="button" variant="outline" disabled={sending} onClick={() => { if (!sharingBusy.current) setSendDraft(null); }}>{sendOutcome ? t("Close") : t("Cancel")}</Button>
+              <Button type="submit" disabled={sharing || !validRecipients || !canRetrySelection}>{sending ? t("Sending…") : t("Send")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -528,10 +535,10 @@ export function EstimateDetails({
           copyField.current?.select();
         }}>
           <DialogHeader>
-            <DialogTitle>Customer link ready</DialogTitle>
-            <DialogDescription>Your link is ready. Copy it below to share the estimate.</DialogDescription>
+            <DialogTitle>{t("Customer link ready")}</DialogTitle>
+            <DialogDescription>{t("Your link is ready. Copy it below to share the estimate.")}</DialogDescription>
           </DialogHeader>
-          <label htmlFor="ready-customer-link" className="text-sm font-medium">Customer link</label>
+          <label htmlFor="ready-customer-link" className="text-sm font-medium">{t("Customer link")}</label>
           <textarea
             ref={copyField}
             id="ready-customer-link"
@@ -541,19 +548,19 @@ export function EstimateDetails({
             onFocus={(event) => event.currentTarget.select()}
             className="w-full resize-none rounded-md border bg-slate-50 p-3 text-sm break-all"
           />
-          {manualCopy && <p role="status" className="text-sm text-muted-foreground">Select the link above and copy it manually.</p>}
+          {manualCopy && <p role="status" className="text-sm text-muted-foreground">{t("Select the link above and copy it manually.")}</p>}
           <Button type="button" disabled={sharing} onClick={handleCopyReadyLink}>
-            <Copy className="mr-2 h-4 w-4" />{sharing ? "Copying…" : "Copy link"}
+            <Copy className="mr-2 h-4 w-4" />{sharing ? t("Copying…") : t("Copy link")}
           </Button>
         </DialogContent>
       </Dialog>
       <Dialog open={canShareCustomerReport && Boolean(readyShare)} onOpenChange={(open) => { if (!open) setReadyShare(null); }}>
-        <DialogContent><DialogHeader><DialogTitle>Estimate ready to share</DialogTitle><DialogDescription>Your customer link is ready.</DialogDescription></DialogHeader>
-          <Button onClick={() => { if (readyShare && navigator.share) void navigator.share(readyShare).then(() => setReadyShare(null)).catch((error: Error) => { if (error.name !== "AbortError") toast.error(error.message); }); }}><Share2 className="mr-2 h-4 w-4" />Share estimate</Button>
+        <DialogContent><DialogHeader><DialogTitle>{t("Estimate ready to share")}</DialogTitle><DialogDescription>{t("Your customer link is ready.")}</DialogDescription></DialogHeader>
+          <Button onClick={() => { if (readyShare && navigator.share) void navigator.share(readyShare).then(() => setReadyShare(null)).catch((error: Error) => { if (error.name !== "AbortError") toast.error(error.message); }); }}><Share2 className="mr-2 h-4 w-4" />{t("Share estimate")}</Button>
         </DialogContent>
       </Dialog>
       <div className="mx-auto max-w-6xl">
-        {!isCanceled && (!ownerIsDealer || reportMode !== "customer") && <MaterialRevisionAccess estimateId={estimate.id} />}
+        {!isCanceled && (!ownerIsDealer || reportMode !== "customer") && <MaterialRevisionAccess estimateId={estimate.id} locale={locale} />}
         <div className="mb-6 space-y-4 print:hidden">
           <div className="flex items-center justify-between gap-4">
             <BackLink
@@ -561,15 +568,15 @@ export function EstimateDetails({
                 returnToEdit && !isCanceled ? `/estimates/${estimate.id}/edit` : "/estimates"
               }
               label={
-                returnToEdit && !isCanceled ? "Back to Edit Estimate" : "Back to Estimates"
+                returnToEdit && !isCanceled ? t("Back to Edit Estimate") : t("Back to Estimates")
               }
             />
 
             <div className="flex flex-wrap justify-end gap-2">
-            <EstimateLifecycleButton estimate={estimate} actor={{ id: currentUserId, role: { name: userRole } }} />
+            <EstimateLifecycleButton locale={locale} estimate={estimate} actor={{ id: currentUserId, role: { name: userRole } }} />
             <Button asChild>
               <a href={pdfHref} target="_blank" rel="noopener noreferrer">
-                <Printer className="mr-2 h-4 w-4" /> Print / PDF
+                <Printer className="mr-2 h-4 w-4" /> {t("Print / PDF")}
               </a>
             </Button>
             </div>
@@ -580,7 +587,7 @@ export function EstimateDetails({
               <div
                 className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
                 role="group"
-                aria-label="Select report"
+                aria-label={t("Select report")}
               >
                 {reportOptions.map((option) => (
                   <Button
@@ -607,14 +614,14 @@ export function EstimateDetails({
               {canShareCustomerReport && (
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <label className="mr-1 flex items-center gap-2 text-sm">
-                    <input type="checkbox" aria-label="Include contract" checked={includeContract}
+                    <input type="checkbox" aria-label={t("Include contract")} checked={includeContract}
                       onChange={(event) => setIncludeContract(event.target.checked)}
                       disabled={isCanceled || sharing || !agreementStatus?.defaultContract} className="h-4 w-4" />
-                    Include contract
+                    {t("Include contract")}
                   </label>
                   {agreementStatus && !agreementStatus.defaultContract && (currentUserIsOwner
-                    ? <a href="/profile/branding" className="mr-2 text-xs underline">Upload contract</a>
-                    : <span className="mr-2 text-xs text-muted-foreground">The estimate owner has no contract uploaded.</span>)}
+                    ? <a href="/profile/branding" className="mr-2 text-xs underline">{t("Upload contract")}</a>
+                    : <span className="mr-2 text-xs text-muted-foreground">{t("The estimate owner has no contract uploaded.")}</span>)}
                   <Button
                     type="button"
                     variant="outline"
@@ -623,7 +630,7 @@ export function EstimateDetails({
                     onClick={handleCopyPublicLink}
                   >
                     <Copy className="mr-2 h-4 w-4" />
-                    {sharing ? "Preparing…" : "Copy link"}
+                    {sharing ? t("Preparing…") : t("Copy link")}
                   </Button>
 
                   <Button
@@ -634,7 +641,7 @@ export function EstimateDetails({
                     onClick={handleSharePublicLink}
                   >
                     <Share2 className="mr-2 h-4 w-4" />
-                    Share
+                    {t("Share")}
                   </Button>
                   {canSendCustomerReport && (
                     <Button type="button" variant="default" size="sm" disabled={sharing}
@@ -644,7 +651,7 @@ export function EstimateDetails({
                         setSendOutcome(null);
                         setSendDraft({ context: shareContext, recipient: estimate.customerEmail ?? "", cc: "", phone: estimate.customerPhone ?? "", channel: "email" });
                       }}>
-                      <Send className="mr-2 h-4 w-4" />Send
+                      <Send className="mr-2 h-4 w-4" />{t("Send")}
                     </Button>
                   )}
                 </div>
@@ -654,23 +661,24 @@ export function EstimateDetails({
         </div>
 
         <div className="mb-6 print:hidden">
-          <EstimateProductApprovals pieces={estimate.pieces} />
+          <EstimateProductApprovals pieces={estimate.pieces} locale={locale} />
         </div>
 
         {reportMode !== "customer" && (
           <div className="mb-6 print:hidden">
-            <EstimateInternalNote estimateId={estimate.id} userRole={userRole} />
+            <EstimateInternalNote locale={locale} estimateId={estimate.id} userRole={userRole} />
           </div>
         )}
 
         <EstimateReportShell
           estimate={estimate}
+          locale={locale}
           showExternalDealerPresentation
-          reportLabel={REPORT_LABELS[reportMode]}
+          reportLabel={t(REPORT_LABELS[reportMode])}
           internal={reportMode !== "customer"}
         >
           {viewContent}
-          {ownerIsDealer && reportMode === "customer" && <DealerAgreementPanel estimateId={estimate.id} pricingMode={customerPricingMode} refreshKey={agreementRefresh} onStatusChange={setAgreementStatus} canShare={canShareCustomerReport} />}
+          {ownerIsDealer && reportMode === "customer" && <DealerAgreementPanel locale={locale} estimateId={estimate.id} pricingMode={customerPricingMode} refreshKey={agreementRefresh} onStatusChange={setAgreementStatus} canShare={canShareCustomerReport} />}
         </EstimateReportShell>
       </div>
     </div>

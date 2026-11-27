@@ -25,6 +25,7 @@ export type WindowWallDimension = number | string;
 export type WindowWallAttachment = "NONE" | "LEFT" | "RIGHT";
 
 export interface WindowWallDiagramProps {
+  locale?: "en" | "es";
   width: WindowWallDimension;
   height: WindowWallDimension;
   panelCount: number;
@@ -367,6 +368,7 @@ function Dimensions({
 }
 
 export function WindowWallDiagram({
+  locale = "en",
   width,
   height,
   panelCount,
@@ -533,7 +535,7 @@ export function WindowWallDiagram({
       preserveAspectRatio="xMidYMid meet"
       shapeRendering="geometricPrecision"
       role="img"
-      aria-label={`Window Wall, ${resolvedPanelCount} equal panels, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches`}
+      aria-label={locale === "es" ? `Window Wall, ${resolvedPanelCount} paneles iguales, ${formatDimension(resolvedWidth)} por ${formatDimension(resolvedHeight)} pulgadas` : `Window Wall, ${resolvedPanelCount} equal panels, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches`}
       className={className}
       style={{
         boxSizing: "border-box",
@@ -556,7 +558,7 @@ export function WindowWallDiagram({
       data-width={resolvedWidth}
       data-height={resolvedHeight}
     >
-      <title>{`Window Wall ${resolvedPanelCount} equal panels`}</title>
+      <title>{locale === "es" ? `Window Wall, ${resolvedPanelCount} paneles iguales` : `Window Wall ${resolvedPanelCount} equal panels`}</title>
       <defs>
         <DoorFrameGradient id={`${namespace}-jamb`} finish={finish} />
         <DoorLeafGradient id={`${namespace}-finish`} finish={finish} />

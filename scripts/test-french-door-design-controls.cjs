@@ -107,6 +107,9 @@ async function run() {
   assert.equal(nodes(render(), "FrenchDoorDesignThumbnail").length, 0);
   nodes(render(), "details")[0].props.onToggle({ currentTarget: { open: true } });
   const buttons = nodes(render(), "button");
+  const spanishPicker = render({ ...picker, locale: "es" });
+  assert.equal(visibleText(nodes(spanishPicker, "button")[0]), "Sin diseño");
+  assert.equal(visibleText(nodes(spanishPicker, "button")[1]), picker.options[0].code);
   assert.equal(buttons[0].props["aria-pressed"], true);
   const thumb = nodes(buttons[1], "FrenchDoorDesignThumbnail")[0].props;
   assert.deepEqual(thumb, { artworkKey:"SD01", frameColorHex:picker.frameColorHex, glassTintHex:picker.glassTintHex, highBottom:false });

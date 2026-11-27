@@ -52,7 +52,7 @@ function fixture(legacy = false) {
     '@/components/ui/input': { Input: 'Input' },
     '@/lib/formatters': { formatMoney: value => `$${Number(value).toFixed(2)}` },
   };
-  for (const relative of ['lib/custom-payment.ts', 'components/payments/custom-payment-amount.tsx']) {
+  for (const relative of ['lib/custom-payment.ts', 'lib/payment-plan-language.ts', 'components/payments/custom-payment-amount.tsx']) {
     const filename = path.resolve(__dirname, '../src', relative);
     const exported = {};
     const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { fileName: filename, compilerOptions: {

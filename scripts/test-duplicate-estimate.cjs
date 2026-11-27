@@ -4,6 +4,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const assert = require("node:assert/strict");
+const language = {};
+const languageCode = ts.transpileModule(fs.readFileSync(path.resolve(__dirname,
+  "../src/lib/estimate-action-language.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+new Function("exports", languageCode)(language);
 const code = ts.transpileModule(fs.readFileSync(path.resolve(__dirname,
   "../src/components/estimates/duplicate-estimate-dialog.tsx"), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
@@ -14,9 +18,9 @@ const nodes = value => Array.isArray(value) ? value.flatMap(nodes)
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const actor = (id = 7, name = "dealer") => ({ id, role: { name } });
 
-function fixture(installation = null) {
+function fixture(installation = null, initialLocale = "en") {
   const state = [], calls = [], navigation = [], successes = [];
-  let cursor = 0, closed = 0, failure = null, release = null, hold = false;
+  let cursor = 0, closed = 0, failure = null, release = null, hold = false, locale = initialLocale;
   class ApiError extends Error { constructor(message, data) { super(message); this.data = data; } }
   const mocks = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
@@ -28,6 +32,7 @@ function fixture(installation = null) {
     "lucide-react": { Copy: "Copy", Loader2: "Loader2" },
     sonner: { toast: { success: value => successes.push(value) } },
     "@/app/api/_base": { isApiError: error => error instanceof ApiError },
+    "@/lib/estimate-action-language": language,
     "@/app/api/estimates.api": { duplicateEstimate: async (id, data) => {
       calls.push({ id, data });
       if (hold) await new Promise(resolve => { release = resolve; });
@@ -41,11 +46,12 @@ function fixture(installation = null) {
   const exports = {};
   new Function("require", "exports", code)(name => { assert.ok(name in mocks, name); return mocks[name]; }, exports);
   const estimate = { id: 1, number: "190001", name: "Customer project", idUser: 7, user: { role: { name: "dealer" } }, installationJob: installation };
-  const render = () => { cursor = 0; return nodes(exports.DuplicateEstimateDialog({ estimate, onClose: () => closed++ })); };
+  const render = () => { cursor = 0; return nodes(exports.DuplicateEstimateDialog({ estimate, locale, onClose: () => closed++ })); };
   const radio = () => render().filter(n => n.type === "input" && n.props.type === "radio");
   const submitButton = () => render().find(n => n.type === "Button" && n.props.type === "submit");
   const submit = () => render().find(n => n.type === "form").props.onSubmit({ preventDefault() {} });
   return { ...exports, estimate, calls, navigation, successes, render, radio, submitButton, submit,
+    setLocale: value => { locale = value; },
     choose: include => { radio()[include ? 1 : 0].props.onChange(); },
     closed: () => closed, setFailure: (message, data) => { failure = message ? new ApiError(message, data) : null; },
     hold: () => { hold = true; }, release: () => release(),
@@ -71,6 +77,26 @@ function fixture(installation = null) {
     f.choose(include); f.submit(); await flush();
     assert.equal(f.calls[0].data.includeInstallation, include);
     assert.deepEqual(f.navigation, ["/estimates/900/edit", "refresh"]);
+  }
+  {
+    const f = fixture({ status: "APPROVED" }, "es");
+    f.estimate.name = "A".repeat(255);
+    const input = () => f.render().find(n => n.type === "Input");
+    assert.equal(input().props.value.length, 255);
+    assert.ok(input().props.value.endsWith(" (copia)"));
+    assert.equal(f.render().find(n => n.type === "DialogContent").props.closeLabel, "Cerrar");
+    input().props.onChange({ target: { value: "Eco Windows / Single Hung" } });
+    f.choose(true);
+    f.setLocale("en");
+    assert.equal(input().props.value, "Eco Windows / Single Hung");
+    assert.equal(f.radio()[1].props.checked, true);
+    f.setLocale("es");
+    f.setFailure("Unavailable", { code: "INSTALLATION_OUTSIDE_COVERAGE" });
+    f.submit(); await flush();
+    assert.match(f.render().find(n => n.props?.role === "alert").props.children, /Solo materiales/);
+    f.setFailure(null); f.choose(false); f.submit(); await flush();
+    assert.match(f.successes[0], /cotización #191000/);
+    assert.deepEqual(f.calls[1].data, { name: "Eco Windows / Single Hung", includeInstallation: false });
   }
   {
     const f = fixture(); f.hold();

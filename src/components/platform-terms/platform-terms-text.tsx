@@ -9,9 +9,9 @@ function inline(text: string) {
       ? <strong key={index} className="font-semibold">{part.slice(2, -2)}</strong> : part);
 }
 
-export function PlatformTermsText({ content }: { content: string }) {
+export function PlatformTermsText({ content, label = 'Terms and Conditions text' }: { content: string; label?: string }) {
   const rich = readRichTerms(content);
-  if (rich) return <PlatformTermsRichText document={rich} />;
+  if (rich) return <PlatformTermsRichText document={rich} label={label} />;
   const lines = content.replace(/\r\n?/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   const heading = (line: string) => line.match(/^(#{1,3})\s+(.+)$/);
@@ -46,5 +46,5 @@ export function PlatformTermsText({ content }: { content: string }) {
     }
     blocks.push(<p key={key} className="whitespace-pre-line">{inline(paragraph.join('\n'))}</p>);
   }
-  return <article aria-label="Terms and Conditions text" className="space-y-5 break-words leading-relaxed text-slate-700 [overflow-wrap:anywhere]">{blocks}</article>;
+  return <article aria-label={label} className="space-y-5 break-words leading-relaxed text-slate-700 [overflow-wrap:anywhere]">{blocks}</article>;
 }

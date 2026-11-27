@@ -30,6 +30,7 @@ export interface PieceDiagramData {
 }
 
 interface PieceDiagramProps {
+  locale?: "en" | "es";
   diagramFamily?: DiagramFamily;
   configuration?: string;
   dimensionMode?: DimensionMode;
@@ -1043,10 +1044,11 @@ function CircularShapeDiagram({
 }
 
 export function PieceDiagramPlaceholder({
+  locale = "en",
   className,
   diagramFamily,
   dimensionMode,
-}: Pick<PieceDiagramProps, "className" | "diagramFamily" | "dimensionMode">) {
+}: Pick<PieceDiagramProps, "className" | "diagramFamily" | "dimensionMode" | "locale">) {
   return (
     <div
       className={[
@@ -1058,13 +1060,14 @@ export function PieceDiagramPlaceholder({
       data-dimension-mode={dimensionMode}
     >
       <p className="max-w-xs text-sm text-slate-500">
-        Complete the piece details to see the preview.
+        {locale === "es" ? "Completa los datos de la pieza para ver la vista previa." : "Complete the piece details to see the preview."}
       </p>
     </div>
   );
 }
 
 export function PieceDiagram({
+  locale = "en",
   diagramFamily,
   configuration,
   dimensionMode = "STANDARD",
@@ -1151,6 +1154,7 @@ export function PieceDiagram({
   if (!hasValidDimensions || !hasLegacyRenderer) {
     return (
       <PieceDiagramPlaceholder
+        locale={locale}
         className={className}
         diagramFamily={resolvedDiagramFamily}
         dimensionMode={dimensionMode}
@@ -1203,7 +1207,7 @@ export function PieceDiagram({
         }
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`${resolvedDiagramFamily} piece diagram, exterior view`}
+        aria-label={locale === "es" ? `Diagrama de ${resolvedDiagramFamily}, vista exterior` : `${resolvedDiagramFamily} piece diagram, exterior view`}
         style={
           {
             "--frame-fill": frameFill,

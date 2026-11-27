@@ -1,16 +1,32 @@
 "use client";
 
 import { Download } from "lucide-react";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { usePortalInstall } from "@/components/pwa/portal-install-provider";
 
-export function PortalInstallButton({ appearance = "light" }: {
+const installCopy = {
+  en: {
+    install: "Install app",
+    installing: "Installing…",
+    shortcut: "Quick access from your home screen or desktop.",
+  },
+  es: {
+    install: "Instalar aplicación",
+    installing: "Instalando…",
+    shortcut: "Acceso rápido desde tu pantalla de inicio o escritorio.",
+  },
+};
+
+export function PortalInstallButton({ appearance = "light", locale = "en" }: {
   appearance?: "dark" | "light";
+  locale?: CompanyLocale;
 }) {
   const { visible, installing, requestInstall } = usePortalInstall();
   if (!visible) return null;
   const dark = appearance === "dark";
+  const copy = installCopy[locale];
 
   return (
     <div className={`mt-5 border-t pt-4 text-center ${dark ? "border-white/10" : "border-slate-200"}`}>
@@ -25,18 +41,22 @@ export function PortalInstallButton({ appearance = "light" }: {
         onClick={() => { if (!installing) void requestInstall(); }}
       >
         <Download className="h-4 w-4" aria-hidden="true" />
-        {installing ? "Installing…" : "Install app"}
+        {installing ? copy.installing : copy.install}
       </Button>
       <p className={`mt-2 text-xs ${dark ? "text-white/50" : "text-slate-500"}`}>
-        Quick access from your home screen or desktop.
+        {copy.shortcut}
       </p>
     </div>
   );
 }
 
-export function PortalInstallMenuItem({ onSelected }: { onSelected?: () => void }) {
+export function PortalInstallMenuItem({ onSelected, locale = "en" }: {
+  onSelected?: () => void;
+  locale?: CompanyLocale;
+}) {
   const { visible, installing, requestInstall } = usePortalInstall();
   if (!visible) return null;
+  const copy = installCopy[locale];
 
   return (
     <DropdownMenuItem
@@ -51,7 +71,7 @@ export function PortalInstallMenuItem({ onSelected }: { onSelected?: () => void 
     >
       <button type="button" disabled={installing} aria-busy={installing} className="w-full text-left">
         <Download className="h-4 w-4 text-slate-500" aria-hidden="true" />
-        {installing ? "Installing…" : "Install app"}
+        {installing ? copy.installing : copy.install}
       </button>
     </DropdownMenuItem>
   );

@@ -22,6 +22,7 @@ const base = { estimateId: 215, estimateNumber: '191124', orderId: null, install
 const catalogs = { productsWithBrands: [], systemsWithConfigs: [], frameColors: [], crystals: [], tints: [], coatings: [], privacies: [], muntinPatterns: [], muntinTypes: [] };
 function client(patch = {}, api = {}, extraProps = {}) {
   let data = structuredClone({ ...base, ...patch });
+  let locale = 'en';
   const calls = [];
   const methods = {
     saveMaterialRevisionCustomer: async (id, rev, value) => { calls.push({ method: 'customer', id, rev, value });
@@ -39,6 +40,7 @@ function client(patch = {}, api = {}, extraProps = {}) {
   const h = harness('components/estimates/material-revisions/material-revision-client.tsx', 'MaterialRevisionClient', {
     initialData: data, ...catalogs, ...extraProps,
   }, { '@/app/api/material-revisions.api': methods,
+    '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale }) },
     '../piece-modal': { PieceModal: 'PieceModal' },
     './piece-values': load('components/estimates/material-revisions/piece-values.ts'),
     './revision-customer-details': { ...customerModule, RevisionCustomerDetails: 'RevisionCustomerDetails', RevisionCustomerComparison: 'RevisionCustomerComparison' },
@@ -46,6 +48,7 @@ function client(patch = {}, api = {}, extraProps = {}) {
   });
   h.render();
   return { ...h, calls, customerEditor: () => h.find(node => node.type === 'RevisionCustomerDetails'),
+    changePortalLanguage(value) { locale = value; h.render(); },
     async settle() { await flush(); h.render(); },
     choosePiece() { h.find(node => node.type === 'select' && node.props['aria-label'] === 'Piece to revise').props.onChange({ target: { value: '10' } }); h.render(); },
   };
@@ -179,6 +182,19 @@ test('existing quantities unlock only with server capability; dealer markup stay
     const modal = f.find(node => node.type === 'PieceModal');
     assert.equal(modal.props.lockQuantity, !canChangeQuantity); assert.equal(modal.props.lockDealerMarkup, true);
   }
+});
+test('a material revision piece follows the portal language and keeps the same editor and source data', () => {
+  const f = client(); f.choosePiece(); f.click('Modify Piece');
+  const modal = () => f.find(node => node.type === 'PieceModal').props;
+  const english = modal();
+  assert.equal(english.locale, 'en');
+  f.changePortalLanguage('es');
+  const spanish = modal();
+  assert.equal(spanish.locale, 'es');
+  assert.notEqual(spanish.title, english.title);
+  assert.equal(spanish.pieceKey, english.pieceKey);
+  assert.deepEqual(spanish.initialData, english.initialData);
+  assert.equal(spanish.onCalculate, english.onCalculate, 'changing language must not invalidate the pending piece calculation');
 });
 test('changed quantity is sent through the revision endpoint without changing original piece data', async () => {
   const f = client(); f.choosePiece(); f.click('Modify Piece');

@@ -10,9 +10,14 @@ const compile = source => ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
 } }).outputText;
 const evaluate = (code, scope = {}) => new Function(...Object.keys(scope), compile(code))(...Object.values(scope));
+const templates = {};
+evaluate(fs.readFileSync(path.join(root, 'lib/garage-design-templates.ts'), 'utf8'), { exports: templates });
+const language = {};
+evaluate(fs.readFileSync(path.join(root, 'lib/piece-form-language.ts'), 'utf8'), { exports: language });
 const selection = { exports: {} };
 evaluate(fs.readFileSync(path.join(root, 'components/estimates/piece-garage-design.ts'), 'utf8'), {
   exports: selection.exports,
+  require(id) { assert.equal(id, '@/lib/garage-design-templates'); return templates; },
 });
 const { pieceFrameColor, pieceGarageDesign, garageDesignFrameSelection } = selection.exports;
 const ordinary = { id: 9, color: 'Bronze', hexCode: '#62524A' };
@@ -53,8 +58,9 @@ function elements(node) {
   if (!React.isValidElement(node)) return [];
   return [node, ...elements(node.props.children)];
 }
-function field(enabled, currentPiece = piece, catalog = system, frames = [ordinary, linked]) {
+function field(enabled, currentPiece = piece, catalog = system, frames = [ordinary, linked], locale = 'en') {
   const scope = { require, exports: {}, designEnabled: enabled, selectedGarageDesign: pieceGarageDesign(currentPiece, catalog),
+    locale, t: text => language.pieceFormText(locale, text), pieceFormMessage: language.pieceFormMessage,
     garageFrameSelection: garageDesignFrameSelection({ enabled, piece: currentPiece, system: catalog, frameColors: frames }),
     pieceValues: currentPiece, availableFrameColors: frames, props: { frameColors: [ordinary] },
     control: {}, errors: {}, isLocked: false, selectedSystem: catalog, fieldLabelClass: '', selectTriggerClass: '',
@@ -73,6 +79,11 @@ let summary = elements(result.tree).find(item => item.props['data-frame-color-so
 let html = renderToStaticMarkup(summary);
 assert.match(html, /Custom finish/); assert.match(html, /background-color:#6A5522/); assert.match(html, /Matches Design Color/);
 assert.doesNotMatch(html, /base frame color below/);
+const spanishSummary = elements(field(true, piece, system, [ordinary, linked], 'es').tree)
+  .find(item => item.props['data-frame-color-source'] === 'DESIGN');
+const spanishHtml = renderToStaticMarkup(spanishSummary);
+assert.match(spanishHtml, /Coincide con el color del diseño/);
+assert.match(spanishHtml, /Custom finish/);
 
 result = field(false);
 assert.equal(result.hex, '#62524A');

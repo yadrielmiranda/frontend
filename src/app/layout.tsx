@@ -5,6 +5,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 // @ts-ignore: CSS import without type declarations
 import "./globals.css";
 import { SiteShell } from "@/components/site-shell";
+import { SiteDocument } from "@/components/site-document";
+import { headers } from "next/headers";
+import { requestPortalLanguage } from "@/lib/public-language-server";
+import { PORTAL_LANGUAGE_HINT_HEADER } from "@/lib/portal-language-routes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,21 +37,23 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#0f172a" };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const hint = (await headers()).get(PORTAL_LANGUAGE_HINT_HEADER);
+  const initialLocale = await requestPortalLanguage(hint ?? undefined);
   return (
-    <html lang="en">
+    <SiteDocument initialLocale={initialLocale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SiteShell>{children}</SiteShell>
+        <SiteShell initialLocale={initialLocale}>{children}</SiteShell>
 
         {/* Toaster abajo para que no tape dropdowns */}
         <Toaster richColors position="bottom-left" />
       </body>
-    </html>
+    </SiteDocument>
   );
 }

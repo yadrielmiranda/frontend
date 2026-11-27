@@ -8,26 +8,42 @@ import {
   type EstimateInternalNoteResponse,
 } from "@/app/api/estimates.api";
 import { Button } from "@/components/ui/button";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { Textarea } from "@/components/ui/textarea";
 import { isAdminRole, isDealerRole, isOperatorRole } from "@/lib/rbac";
 import { NoteAttachmentList, NoteAttachmentPicker, useEstimateNoteAttachments } from "./estimate-note-attachments";
 
 const MAX_NOTE_LENGTH = 2000;
+const spanishNoteMessages = new Map([
+  ["Could not load the internal note.", "No se pudo cargar la nota interna."],
+  ["Could not save the internal note.", "No se pudo guardar la nota interna."],
+  ["Someone updated this note. Your draft is unchanged. Review the latest saved note before saving again.", "Otra persona actualizó la nota. Tu borrador sigue disponible. Revisa la última versión guardada antes de guardar tus cambios."],
+  ["You cannot edit internal estimate notes.", "No tienes permiso para editar las notas internas de la cotización."],
+  ["You cannot view internal estimate notes.", "No tienes permiso para ver las notas internas de la cotización."],
+  ["Estimate not found.", "No se encontró la cotización."],
+  ["Failed to fetch", "No se pudo conectar con el servidor."],
+]);
 
 export function EstimateInternalNote({
   estimateId,
   userRole,
+  locale = "en",
 }: {
   estimateId: number;
   userRole?: string | null;
+  locale?: CompanyLocale;
 }) {
   if (!isAdminRole(userRole) && !isDealerRole(userRole) && !isOperatorRole(userRole)) return null;
 
-  return <InternalNoteEditor key={`${estimateId}:${userRole}`} estimateId={estimateId}
+  return <InternalNoteEditor locale={locale} key={`${estimateId}:${userRole}`} estimateId={estimateId}
     allowEditing={isAdminRole(userRole) || isDealerRole(userRole)} isAdmin={isAdminRole(userRole)} />;
 }
 
-function InternalNoteEditor({ estimateId, allowEditing, isAdmin }: { estimateId: number; allowEditing: boolean; isAdmin: boolean }) {
+function InternalNoteEditor({ estimateId, allowEditing, isAdmin, locale }: { estimateId: number; allowEditing: boolean; isAdmin: boolean; locale: CompanyLocale }) {
+  const es = locale === "es";
+  const title = es ? "Nota interna" : "Internal note";
+  const empty = es ? "Todavía no hay una nota." : "No note added.";
+  const errorText = (message: string) => es ? spanishNoteMessages.get(message) ?? message : message;
   const [data, setData] = useState<EstimateInternalNoteResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -72,7 +88,7 @@ function InternalNoteEditor({ estimateId, allowEditing, isAdmin }: { estimateId:
   }, [load]);
 
   const canEdit = allowEditing && data?.canEdit === true;
-  const attachments = useEstimateNoteAttachments(estimateId, Boolean(data) && !loadError, canEdit);
+  const attachments = useEstimateNoteAttachments(estimateId, Boolean(data) && !loadError, canEdit, locale);
   const note = data?.internalNote;
   const hasNote = Boolean(note?.text);
   const dirty = draft !== (note?.text ?? "");
@@ -114,38 +130,38 @@ function InternalNoteEditor({ estimateId, allowEditing, isAdmin }: { estimateId:
   }
 
   return (
-    <section className="min-w-0 rounded-lg border border-slate-300 bg-amber-50 p-4 shadow-sm sm:p-6 print:hidden"
+    <section lang={locale} className="min-w-0 rounded-lg border border-slate-300 bg-amber-50 p-4 shadow-sm sm:p-6 print:hidden"
       aria-labelledby={`internal-note-heading-${estimateId}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id={`internal-note-heading-${estimateId}`} className="border-l-4 border-red-600 pl-3 text-xl font-semibold text-[#5C4033]">Internal note</h3>
+        <h3 id={`internal-note-heading-${estimateId}`} className="border-l-4 border-red-600 pl-3 text-xl font-semibold text-[#5C4033]">{title}</h3>
         {canEdit && !loading && !loadError && <div className="flex flex-wrap gap-2">
           {!editing && <Button type="button" variant="outline" size="sm" onClick={() => {
               setDraft(note?.text ?? "");
               setSaveError("");
               setConflict(false);
               setEditing(true);
-            }}>{hasNote ? "Edit" : "Add note"}</Button>}
+            }}>{hasNote ? (es ? "Editar" : "Edit") : (es ? "Agregar nota" : "Add note")}</Button>}
           <NoteAttachmentPicker files={attachments} />
         </div>}
       </div>
 
-      {loading && <p role="status" className="mt-4 text-sm text-slate-500">Loading note…</p>}
+      {loading && <p role="status" className="mt-4 text-sm text-slate-500">{es ? "Cargando nota…" : "Loading note…"}</p>}
       {loadError && <div className="mt-4 flex flex-wrap items-center gap-3">
-        <p role="alert" className="text-sm text-destructive">{loadError}</p>
+        <p role="alert" className="text-sm text-destructive">{errorText(loadError)}</p>
         <Button type="button" variant="outline" size="sm" disabled={loading || saving}
-          onClick={() => void load(editing)}>Retry</Button>
+          onClick={() => void load(editing)}>{es ? "Reintentar" : "Retry"}</Button>
       </div>}
 
       {editing && canEdit ? (
         <div className="mt-4 space-y-3">
-          <Textarea aria-label="Internal note" rows={4} maxLength={MAX_NOTE_LENGTH} value={draft}
+          <Textarea aria-label={title} rows={4} maxLength={MAX_NOTE_LENGTH} value={draft}
             disabled={saving} onChange={event => setDraft(event.target.value)}
             className="border-slate-400 text-base font-medium leading-relaxed text-[#5C4033] shadow-none md:text-base" />
           <div className="text-right text-xs text-slate-500">{draft.length} / {MAX_NOTE_LENGTH}</div>
-          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+          {saveError && <p role="alert" className="text-sm text-destructive">{errorText(saveError)}</p>}
           {conflict && !loading && !loadError && <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="mb-2 text-sm font-medium">Latest saved note</p>
-            <p className="whitespace-pre-wrap break-words text-base font-medium leading-relaxed text-[#5C4033]">{note?.text || "No note added."}</p>
+            <p className="mb-2 text-sm font-medium">{es ? "Última nota guardada" : "Latest saved note"}</p>
+            <p className="whitespace-pre-wrap break-words text-base font-medium leading-relaxed text-[#5C4033]">{note?.text || empty}</p>
           </div>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={saving} onClick={() => {
@@ -153,19 +169,19 @@ function InternalNoteEditor({ estimateId, allowEditing, isAdmin }: { estimateId:
               setEditing(false);
               setConflict(false);
               setSaveError("");
-            }}>Cancel</Button>
+            }}>{es ? "Cancelar" : "Cancel"}</Button>
             <Button type="button" disabled={saving || loading || Boolean(loadError) || !dirty || draft.length > MAX_NOTE_LENGTH}
-              onClick={() => void save()}>{saving ? "Saving…" : "Save"}</Button>
+              onClick={() => void save()}>{saving ? (es ? "Guardando…" : "Saving…") : (es ? "Guardar" : "Save")}</Button>
           </div>
         </div>
       ) : data && !loading && !loadError ? (
         <p className={`mt-4 whitespace-pre-wrap break-words ${hasNote ? "text-base font-medium leading-relaxed text-[#5C4033]" : "text-sm text-slate-500"}`}>
-          {note?.text || "No note added."}
+          {note?.text || empty}
         </p>
       ) : null}
 
       {note && !loading && !loadError && <p className="mt-3 text-xs text-slate-500">
-        Last edited by {note.updatedBy.name} · {new Date(note.updatedAt).toLocaleString()}
+        {es ? "Última edición de" : "Last edited by"} {note.updatedBy.name} · {new Date(note.updatedAt).toLocaleString(es ? "es-US" : "en-US")}
       </p>}
       {data && !loadError && <NoteAttachmentList files={attachments} isAdmin={isAdmin} />}
     </section>

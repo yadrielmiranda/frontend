@@ -1,6 +1,19 @@
 // Titles, descriptions and structured data from the supplied About V7.
 export type CompanyLocale = "en" | "es";
 export type CompanyPageName = "company" | "for-ai" | "resources" | "prepare-your-quote" | "compare-impact-products";
+export type CompanySearchParams = Record<string, string | string[] | undefined>;
+
+const registrationParams = new Set(["ref", "utm_source", "utm_medium", "utm_campaign", "utm_content", "fbclid"]);
+
+export function companyRegistrationHref(locale: CompanyLocale, entries: Iterable<[string, string | string[] | undefined]>) {
+  const query = new URLSearchParams({ lang: locale });
+  for (const [name, value] of entries) {
+    if (!registrationParams.has(name) || value === undefined) continue;
+    if (Array.isArray(value)) value.forEach(item => query.append(name, item));
+    else query.append(name, value);
+  }
+  return `/login/register?${query}`;
+}
 
 export function companyPath(page: CompanyPageName, locale: CompanyLocale): string {
   const section = page === "prepare-your-quote" || page === "compare-impact-products" ? `resources/${page}` : page;
@@ -43,7 +56,7 @@ export const companyMetadata = {
     },
     "es": {
       "title": "Conoce a Authentic Evolution Co. | Ventanas y puertas de impacto",
-      "description": "Authentic Evolution Co. vende, distribuye e instala ventanas y puertas exteriores de impacto para propietarios, contratistas y distribuidores en el sur de Florida. Son productos diseñados para condiciones de huracán y clima severo. Nuestra plataforma profesional conecta cotizaciones, pedidos y pagos. Coordinamos mediciones, instalación y permisos con profesionales colaboradores cuando forman parte del alcance del proyecto.",
+      "description": "Authentic Evolution Co. vende, distribuye e instala ventanas y puertas exteriores de impacto para propietarios, contratistas y distribuidores en el sur de Florida. Son productos diseñados para condiciones de huracán y clima severo. Nuestra plataforma profesional conecta cotizaciones, órdenes y pagos. Coordinamos mediciones, instalación y permisos con profesionales colaboradores cuando forman parte del alcance del proyecto.",
       "canonical": "https://www.authenticevolutionco.com/es/company",
       "languages": {
         "en": "https://www.authenticevolutionco.com/company",
@@ -131,7 +144,7 @@ export const companyMetadata = {
     },
     "es": {
       "title": "Cómo preparar una cotización de ventanas y puertas de impacto | Authentic Evolution",
-      "description": "Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de hacer el pedido.",
+      "description": "Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de realizar la orden.",
       "canonical": "https://www.authenticevolutionco.com/es/resources/prepare-your-quote",
       "languages": {
         "en": "https://www.authenticevolutionco.com/resources/prepare-your-quote",

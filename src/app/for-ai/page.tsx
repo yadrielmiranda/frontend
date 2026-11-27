@@ -1,6 +1,7 @@
 import { CompanyPage } from "@/components/company/company-page";
 import { companyPageMetadata } from "@/lib/company-page-metadata";
 
+export const dynamic = "force-static";
 export const metadata = companyPageMetadata("for-ai", "en");
 
 export default function Page() {

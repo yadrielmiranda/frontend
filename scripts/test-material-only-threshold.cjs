@@ -25,6 +25,7 @@ function load(relative) {
   const exports = {};
   new Function('require', 'exports', code)(id => {
     if (id === '@/lib/formatters') return load('lib/formatters.ts');
+    if (id === '@/lib/payment-plan-language') return load('lib/payment-plan-language.ts');
     if (id.startsWith('@/components/ui/')) return ui;
     assert.ok(id in mocks, `Unexpected dependency: ${id}`);
     return mocks[id];
@@ -91,6 +92,37 @@ async function test(name, run) { await run(); checks++; console.log(`PASS ${name
     const rendered = PaymentScheduleView({ schedule });
     assert.match(text(rendered), /\$400\.00/);
     assert.doesNotMatch(text(rendered), /threshold|limit saved|at or below|material-only/);
+  });
+  await test('the same $931.05 material schedule shows its stage, status and unchanged dollar amounts in English and Spanish', () => {
+    const schedule = { provisional: false, total: '931.05', paid: '0', balance: '931.05', rows: [{
+      sequence: 1, milestone: 'ORDER', title: 'Place order · 100% material', description: 'Required to place the order with the manufacturer.',
+      amount: '931.05', paid: '0', credit: '0', balance: '931.05', status: 'DUE',
+    }] };
+    const en = text(PaymentScheduleView({ schedule, locale: 'en' }));
+    const es = text(PaymentScheduleView({ schedule, locale: 'es' }));
+    for (const label of ['Payment Status', 'Place order · 100% material', schedule.rows[0].description, 'Due']) assert.ok(en.includes(label), label);
+    for (const label of ['Estado de los pagos', 'Realizar la orden · 100% de los materiales', 'Se requiere este pago para realizar la orden con el fabricante.', 'Por pagar']) {
+      assert.ok(es.includes(label), label);
+    }
+    assert.deepEqual(es.match(/\$[\d,.]+/g), en.match(/\$[\d,.]+/g));
+    assert.equal(en.split('$931.05').length - 1, 4);
+  });
+  await test('generated milestone and amendment labels translate while custom row text stays exactly as saved', () => {
+    const labels = [
+      ['Place order · 12.5% material + permit / City Fee + 25% installation', 'Realizar la orden · 12.5% de los materiales + permiso / tasa municipal + 25% de la instalación'],
+      ['Material change #17 · Release materials · 50% material', 'Cambio de materiales #17 · Liberar los materiales · 50% de los materiales'],
+      ['Change order adjustment #23 · No additional payment', 'Ajuste por cambio de orden #23 · Sin pago adicional'],
+      ['City Fee adjustment', 'Ajuste de la tasa municipal'],
+      ['Place order · Bespoke name by office', 'Place order · Bespoke name by office'],
+    ];
+    const description = 'Custom project description / según conversación';
+    const rows = labels.map(([title], index) => ({ sequence: index + 1, title, description, amount: '1', paid: '0', credit: '0', balance: '1', status: 'UPCOMING' }));
+    const schedule = { rows, total: '5', paid: '0', balance: '5' };
+    for (const [locale, index] of [['en', 0], ['es', 1]]) {
+      const rendered = text(PaymentScheduleView({ schedule, locale }));
+      for (const pair of labels) assert.ok(rendered.includes(pair[index]), pair[index]);
+      assert.equal(rendered.split(description).length - 1, labels.length);
+    }
   });
   console.log(`${checks} material-only threshold UI checks passed.`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

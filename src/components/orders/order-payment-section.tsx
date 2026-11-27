@@ -3,15 +3,19 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { formatMoney } from "@/lib/formatters";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { paymentText } from "@/lib/estimate-payment-language";
 
 /** Mantiene el estado de cada cobro en su panel y lo muestra al final de la orden. */
 export function OrderPaymentSection({
+  locale = "en",
   target,
   title,
   description,
   amount,
   children,
 }: {
+  locale?: CompanyLocale;
   target: HTMLDivElement | null;
   title: string;
   description?: string;
@@ -28,7 +32,7 @@ export function OrderPaymentSection({
           {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
         </div>
         <div className="text-right">
-          <p className="text-xs text-muted-foreground">Payment amount</p>
+          <p className="text-xs text-muted-foreground">{paymentText(locale, "Payment amount")}</p>
           <p className="text-lg font-semibold">{formatMoney(amount)}</p>
         </div>
       </div>

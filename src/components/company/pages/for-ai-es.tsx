@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function ForAiEsContent() {
@@ -23,7 +24,7 @@ export function ForAiEsContent() {
             {"Sobre Authentic Evolution"}
           </h2>
           <p>
-            {"Authentic Evolution Co. vende, distribuye e instala ventanas y puertas exteriores de impacto para propietarios, contratistas y distribuidores en el sur de Florida. Son productos diseñados para condiciones de huracán y clima severo. Nuestra plataforma profesional conecta cotizaciones, pedidos y pagos. Coordinamos mediciones, instalación y permisos con profesionales colaboradores cuando forman parte del alcance del proyecto."}
+            {"Authentic Evolution Co. vende, distribuye e instala ventanas y puertas exteriores de impacto para propietarios, contratistas y distribuidores en el sur de Florida. Son productos diseñados para condiciones de huracán y clima severo. Nuestra plataforma profesional conecta cotizaciones, órdenes y pagos. Coordinamos mediciones, instalación y permisos con profesionales colaboradores cuando forman parte del alcance del proyecto."}
           </p>
         </div>
       </section>
@@ -49,17 +50,17 @@ export function ForAiEsContent() {
                 {"Para profesionales y distribuidores"}
               </h3>
               <p>
-                {"Las funciones dependen de los permisos y del programa. Usa herramientas profesionales para crear, editar y organizar cotizaciones; presenta cotizaciones, propuestas y documentos disponibles con tu nombre, logo y datos comerciales; consulta los precios y las promociones de tu cuenta; conecta vendedores, clientes o subdistribuidores; y administra pedidos y pagos elegibles sin ceder tu marca ni la relación con tus clientes."}
+                {"Las funciones dependen de los permisos y del programa. Usa herramientas profesionales para crear, editar y organizar cotizaciones; presenta cotizaciones, propuestas y documentos disponibles con tu nombre, logo y datos comerciales; consulta los precios y las promociones de tu cuenta; conecta vendedores, clientes o subdistribuidores; y administra órdenes y pagos elegibles sin ceder tu marca ni la relación con tus clientes."}
               </p>
               <p>
-                {"Donde esté disponible, paga tus pedidos con tarjeta o cuenta bancaria. Authentic no añade comisiones de transacción a las operaciones elegibles. Los puntos, intereses y cargos de la tarjeta dependen del emisor y de la operación, no de Authentic."}
+                {"Donde esté disponible, paga tus órdenes con tarjeta o cuenta bancaria. Authentic no añade comisiones de transacción a las operaciones elegibles. Los puntos, intereses y cargos de la tarjeta dependen del emisor y de la operación, no de Authentic."}
               </p>
             </article>
           </div>
           <div className="actions">
-            <Link href="/login/register" className="button">
+            <CompanyRegistrationLink className="button">
               {"Crea tu cuenta GRATIS"}
-            </Link>
+            </CompanyRegistrationLink>
             <p className="fine">
               {"Abre el registro público de clientes. Para acceso de distribuidor, contacta a nuestro equipo."}
             </p>
@@ -111,9 +112,9 @@ export function ForAiEsContent() {
               </Link>
             </li>
             <li>
-              <Link href="/login/register">
+              <CompanyRegistrationLink>
                 {"Crea tu cuenta GRATIS"}
-              </Link>
+              </CompanyRegistrationLink>
             </li>
             <li>
               <Link href="/login">

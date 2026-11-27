@@ -30,6 +30,7 @@ function load(relative, mocks = {}) {
   new Function('require', 'module', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
     if (id === '@/lib/use-address-confirmation') return load('lib/use-address-confirmation.ts', mocks);
+    if (id === '@/lib/estimate-action-language') return load('lib/estimate-action-language.ts');
     if (id === '@/components/address-confirmation-panel') return load('components/address-confirmation-panel.tsx', mocks);
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === 'lucide-react' || id.startsWith('@/components/') || id.startsWith('./')) return ui;
@@ -42,7 +43,7 @@ function load(relative, mocks = {}) {
   return module.exports;
 }
 
-async function fixture({ initialJob = null, save, review, beforeRequest, ...extraProps } = {}) {
+async function fixture({ initialJob = null, save, review, beforeRequest, startCollapsed = false, ...extraProps } = {}) {
   const states = [], refs = [], memos = [], effects = [], errors = [], successes = [], calls = [], commits = [], reviews = [];
   let si = 0, ri = 0, mi = 0, ei = 0, pending = [], dirty = false;
   const props = { estimateId: 103, estimateOwnerId: 20, currentUserId: 20, suggestedAddress: entered,
@@ -92,8 +93,10 @@ async function fixture({ initialJob = null, save, review, beforeRequest, ...extr
   const click = label => button(label).props.onClick();
   const control = id => find(node => node.props?.id === id);
   render(); await flush(); render();
-  click(initialJob ? 'Edit installation' : 'Request installation price'); click('Use this address'); await flush(); render();
-  find(node => node.type === 'RadioGroup').props.onValueChange('COMPANY'); render();
+  if (!startCollapsed) {
+    click(initialJob ? 'Edit installation' : 'Request installation price'); click('Use this address'); await flush(); render();
+    find(node => node.type === 'RadioGroup').props.onValueChange('COMPANY'); render();
+  }
   const calculate = async () => { click(initialJob ? 'Save installation changes' : 'Calculate installation'); await flush(); render(); };
   return { render, find, button, click, control, calculate, errors, successes, calls, commits, reviews,
     input(id, value) { control(id).props.onChange({ target: { value } }); render(); },
@@ -103,6 +106,41 @@ async function fixture({ initialJob = null, save, review, beforeRequest, ...extr
     async accept() { click('Use suggested address'); await flush(); render(); await calculate(); },
   };
 }
+
+test('the installation request follows the estimate language and preserves entered data across a switch', async () => {
+  const f = await fixture({ locale: 'en', startCollapsed: true, save: async payload => resultJob(payload.installationAddress) });
+  assert.equal(text(f.find(node => node.type === 'CardTitle')).trim(), 'Installation');
+  assert.ok(f.button('Request installation price'));
+  f.update({ locale: 'es' });
+  assert.equal(text(f.find(node => node.type === 'CardTitle')).trim(), 'Instalación');
+  assert.ok(text(f.find(node => node.type === 'CardDescription')).includes('precio de la instalación'));
+  f.click('Solicitar precio de instalación');
+  assert.ok(text(f.render()).includes('Dirección de instalación'));
+  f.click('Usar otra dirección');
+  const address = { street: '100 East Main Street', city: 'El Portal', state: 'FL', postalCode: '33138' };
+  for (const key of ['street', 'city', 'postalCode']) f.input('installation-' + key, address[key]);
+  assert.equal(f.control('installation-street').props.locale, 'es');
+  f.click('Usar esta dirección'); await flush();
+  assert.ok(text(f.render()).includes('Dirección verificada.'));
+  assert.equal(f.find(node => node.type === 'RadioGroup').props['aria-label'], 'Responsable de gestionar el permiso');
+  f.find(node => node.type === 'RadioGroup').props.onValueChange('INDEPENDENT');
+  assert.ok(text(f.render()).includes('Remove bars'));
+  f.control('additional-service-7').props.onCheckedChange(true);
+  const note = 'Conservar el marco White / East side';
+  f.input('additional-service-note-1', note);
+  f.update({ locale: 'en' });
+  assert.ok(text(f.render()).includes('Address verified.'));
+  assert.equal(f.control('installation-city').props.value, address.city);
+  assert.equal(f.control('additional-service-note-1').props.value, note);
+  assert.equal(f.find(node => node.type === 'RadioGroup').props.value, 'INDEPENDENT');
+  assert.equal(f.button('Calculate installation').props.disabled, false);
+  f.update({ locale: 'es' });
+  f.click('Calcular instalación'); await flush();
+  assert.deepEqual(f.calls, [{ kind: 'create', id: 103, payload: {
+    installationAddress: address, installationAddressConfirmed: true, permitRequested: false,
+    selectedServices: [{ serviceId: 7, occurrences: 1, description: note }],
+  } }]);
+});
 
 test('a newly saved profile address fills the next request and preserves an open address edit', async () => {
   const f = await fixture();

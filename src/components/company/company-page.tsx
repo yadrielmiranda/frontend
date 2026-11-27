@@ -1,6 +1,7 @@
 import "./company.css";
-import type { CompanyLocale, CompanyPageName } from "./company-content";
+import { companyRegistrationHref, type CompanyLocale, type CompanyPageName, type CompanySearchParams } from "./company-content";
 import { CompanyShell } from "./company-shell";
+import { CompanyRegistrationLinks } from "./company-registration-link";
 import { CompanyEnContent } from "./pages/company-en";
 import { ForAiEnContent } from "./pages/for-ai-en";
 import { ResourcesEnContent } from "./pages/resources-en";
@@ -20,7 +21,14 @@ const content = {
   "compare-impact-products": { en: CompareImpactProductsEnContent, es: CompareImpactProductsEsContent },
 };
 
-export function CompanyPage({ page, locale = "en" }: { page: CompanyPageName; locale?: CompanyLocale }) {
+export function CompanyPage({ page, locale = "en", searchParams }: {
+  page: CompanyPageName; locale?: CompanyLocale; searchParams?: CompanySearchParams;
+}) {
   const Content = content[page][locale];
-  return <CompanyShell page={page} locale={locale}><Content /></CompanyShell>;
+  const initialHref = searchParams && companyRegistrationHref(locale, Object.entries(searchParams));
+  return (
+    <CompanyRegistrationLinks locale={locale} initialHref={initialHref}>
+      <CompanyShell page={page} locale={locale}><Content /></CompanyShell>
+    </CompanyRegistrationLinks>
+  );
 }

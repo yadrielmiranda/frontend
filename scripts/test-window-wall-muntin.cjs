@@ -66,7 +66,7 @@ const gridCode = compile(`return (${gridExpression});`);
 function renderFormGrid(f) {
   const values = f.values();
   const scope = { exports: {}, require(id) { assert.equal(id, 'react/jsx-runtime'); return require(id); },
-    patternRequiresLites: values.patternRequiresLites, hasAmbiguousWindowWallMuntin: values.ambiguous,
+    t: text => text, patternRequiresLites: values.patternRequiresLites, hasAmbiguousWindowWallMuntin: values.ambiguous,
     hasMuntinLayout: values.hasMuntinLayout, currentMuntinPanels: values.panels,
     isWindowWall: values.isWindowWall, isLocked: f.state.isLocked, inputClass: '',
     handleMuntinPanelChange: values.panel, Input: props => React.createElement('input', props) };

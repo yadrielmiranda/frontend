@@ -5,6 +5,8 @@ import { resolveMuntinForDiagram } from "@/components/piece-diagram/muntin-data"
 import { PromotionPrice } from "@/components/promotions/promotion-price";
 import type { ReactNode } from "react";
 import type { EstimateWithRelations } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceListText } from "../../piece-list-language";
 
 import { buildPieceReportDetails } from "./piece-decription";
 import { pieceHasSolidGarageDesign } from "../../piece-garage-design";
@@ -14,6 +16,7 @@ type PieceWithRelations = EstimateWithRelations["pieces"][number];
 type PieceReportCardProps = {
   piece: PieceWithRelations;
   displayMark: string;
+  locale?: CompanyLocale;
   showDealerMarkup?: boolean;
 } & (
   | {
@@ -33,9 +36,11 @@ type PieceReportCardProps = {
 function PieceReportDiagram({
   piece,
   displayMark,
+  locale,
 }: {
   piece: PieceWithRelations;
   displayMark: string;
+  locale: CompanyLocale;
 }) {
   const diagramMetadata = piece.diagramMetadata;
   const hasSolidDesign = pieceHasSolidGarageDesign(piece, piece.syst);
@@ -43,11 +48,12 @@ function PieceReportDiagram({
   return (
     <div
       className="flex h-[205px] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 p-2 lg:h-[195px]"
-      aria-label={`Diagram for ${displayMark}`}
+      aria-label={locale === "es" ? `Diagrama de ${displayMark}` : `Diagram for ${displayMark}`}
     >
       <div className="h-full w-full" data-piece-diagram-id={piece.id}>
         <PieceDiagram
           variant="report"
+          locale={locale}
           diagramFamily={piece.prod?.diagramFamily}
           systemName={piece.syst?.name}
           brandName={piece.bran?.name}
@@ -107,8 +113,9 @@ function PriceRow({
 }
 
 export function PieceReportCard(props: PieceReportCardProps) {
-  const { piece, displayMark } = props;
-  const details = buildPieceReportDetails(piece);
+  const { piece, displayMark, locale = "en" } = props;
+  const t = pieceListText(locale);
+  const details = buildPieceReportDetails(piece, locale);
   const showPrices = props.showPrices !== false;
   const dealerMarkup = piece.dealerMarkup == null ? null : Number(piece.dealerMarkup);
 
@@ -125,7 +132,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
           >
             {displayMark}
           </span>
-          <PieceReportDiagram piece={piece} displayMark={displayMark} />
+          <PieceReportDiagram piece={piece} displayMark={displayMark} locale={locale} />
         </div>
 
         <div className="min-w-0 px-4 pb-4 pt-1 lg:py-4">
@@ -151,13 +158,14 @@ export function PieceReportCard(props: PieceReportCardProps) {
         </div>
 
         <div className="flex flex-col gap-5 border-t border-slate-200 bg-white px-4 py-4 lg:justify-between lg:gap-0 lg:border-l lg:border-t-0">
-          <PriceRow label="Qty" value={piece.qty} />
+          <PriceRow label={t("Qty")} value={piece.qty} />
           {showPrices ? (
             <>
               <PriceRow
-                label="Unit Price"
+                label={locale === "es" ? t("Unit price") : "Unit Price"}
                 value={
                   <PromotionPrice
+                    locale={locale}
                     amount={props.unitPrice}
                     originalAmount={props.originalUnitPrice}
                   />
@@ -165,7 +173,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
               />
               {props.showDealerMarkup ? (
                 <PriceRow
-                  label="Markup"
+                  label={t("Markup")}
                   value={
                     dealerMarkup !== null && Number.isFinite(dealerMarkup)
                       ? `${(dealerMarkup * 100).toFixed(2)}%`
@@ -177,6 +185,7 @@ export function PieceReportCard(props: PieceReportCardProps) {
                 label="Subtotal"
                 value={
                   <PromotionPrice
+                    locale={locale}
                     amount={props.subtotal}
                     originalAmount={
                       props.originalUnitPrice == null

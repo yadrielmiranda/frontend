@@ -4,10 +4,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 import { CardLogin } from "@/components/card-login";
 import { useLoginDialog } from "@/contexts/LoginDialogContext";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { registrationText } from "@/lib/registration-language";
 import { usePathname } from "next/navigation";
 
 export function GlobalLoginDialog() {
   const pathname = usePathname();
+  const { locale } = usePortalLanguage();
 
   const { isLoginDialogOpen, setIsLoginDialogOpen, closeLoginDialog, reason } =
     useLoginDialog();
@@ -42,6 +45,8 @@ export function GlobalLoginDialog() {
       modal
     >
       <DialogContent
+        lang={locale}
+        closeLabel={registrationText(locale, "Close")}
         className="border-red-600/70 bg-black/80 p-0 text-white shadow-[0_0_60px_rgba(220,38,38,0.22)] backdrop-blur-xl sm:max-w-[460px]"
         onEscapeKeyDown={(e) => {
           if (isExpired) e.preventDefault();
@@ -52,10 +57,11 @@ export function GlobalLoginDialog() {
         showCloseButton={!isExpired}
       >
         <DialogTitle className="sr-only">
-          {isExpired ? "Session expired" : "Sign in"}
+          {registrationText(locale, isExpired ? "Session expired" : "Sign In")}
         </DialogTitle>
 
         <CardLogin
+          locale={locale}
           onLoginSuccess={handleLoginSuccess}
           onClose={handleClose}
           mode={isExpired ? "unlock" : "full"}

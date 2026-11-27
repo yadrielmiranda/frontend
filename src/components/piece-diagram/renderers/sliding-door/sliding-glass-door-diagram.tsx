@@ -37,6 +37,7 @@ import {
 export type SlidingGlassDoorDimension = number | string;
 
 export interface SlidingGlassDoorDiagramProps {
+  locale?: "en" | "es";
   spec: SlidingGlassDoorCatalogEntry;
   width: SlidingGlassDoorDimension;
   height: SlidingGlassDoorDimension;
@@ -191,6 +192,7 @@ function SourceSlices({
 }
 
 export function SlidingGlassDoorDiagram({
+  locale = "en",
   spec,
   width,
   height,
@@ -307,7 +309,9 @@ export function SlidingGlassDoorDiagram({
           left: viewportPadding,
         },
   );
-  const title = `Sliding Glass Door ${spec.configuration}, ${spec.manufacturer}, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches, screen ${screenVisible ? "on" : "off"}`;
+  const title = locale === "es"
+    ? `Sliding Glass Door ${spec.configuration}, ${spec.manufacturer}, ${formatDimension(resolvedWidth)} por ${formatDimension(resolvedHeight)} pulgadas, ${screenVisible ? "con" : "sin"} mosquitero`
+    : `Sliding Glass Door ${spec.configuration}, ${spec.manufacturer}, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches, screen ${screenVisible ? "on" : "off"}`;
 
   return (
     <svg

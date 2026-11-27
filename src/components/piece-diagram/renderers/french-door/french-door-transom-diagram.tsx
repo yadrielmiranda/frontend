@@ -23,6 +23,7 @@ import { doubleFrenchDoorGeometry } from "./series-600-double-artwork";
 import { singleFrenchDoorGeometry } from "./series-600-single-artwork";
 
 export interface FrenchDoorTransomDiagramProps {
+  locale?: "en" | "es";
   highBottom?: boolean;
   width: number;
   height: number;
@@ -82,6 +83,7 @@ function TransomDimensions({ width, height, doorHeight, transomHeight }: {
 
 /** French X/XX leaves below a full-width fixed light; all geometry is in inches. */
 export function FrenchDoorTransomDiagram({
+  locale = "en",
   highBottom,
   width,
   height,
@@ -141,7 +143,9 @@ export function FrenchDoorTransomDiagram({
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"
     className={className} viewBox={`${-margin} ${-topMargin} ${width + 2 * margin} ${height + topMargin + margin}`}
     preserveAspectRatio="xMidYMid meet" overflow="visible" role="img"
-    aria-label={`French Door ${configuration}, ${formatDimension(width)} by ${formatDimension(height)} inches, door ${formatDimension(doorHeight)} inches, transom ${formatDimension(transomHeight)} inches`}
+    aria-label={locale === "es"
+      ? `French Door ${configuration}, ${formatDimension(width)} por ${formatDimension(height)} pulgadas, puerta de ${formatDimension(doorHeight)} pulgadas y panel superior de ${formatDimension(transomHeight)} pulgadas`
+      : `French Door ${configuration}, ${formatDimension(width)} by ${formatDimension(height)} inches, door ${formatDimension(doorHeight)} inches, transom ${formatDimension(transomHeight)} inches`}
     data-diagram-family="FRENCH_DOOR" data-configuration={configuration}
     data-door-height={doorHeight} data-transom-height={transomHeight} data-frame-color={frameColor}
     data-material-pipeline="STRUCTURE__DATABASE_GLASS__DATABASE_FRAME"

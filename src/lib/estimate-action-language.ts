@@ -1,0 +1,117 @@
+import type { CompanyLocale } from "@/components/company/company-content";
+
+const spanish = {
+  "Close": "Cerrar",
+  "Cancel": "Cancelar",
+  "Go back": "Volver",
+  "Duplicate estimate": "Duplicar cotización",
+  "Duplicating…": "Duplicando…",
+  "New estimate name": "Nombre de la nueva cotización",
+  "What would you like to duplicate?": "¿Qué quieres duplicar?",
+  "Materials only": "Solo materiales",
+  "Copy the pieces without installation, installation services or permits.": "Copia únicamente las unidades, sin instalación, servicios de instalación ni permisos.",
+  "Materials with installation": "Materiales con instalación",
+  "Copy the address, services and permit request. Coverage and installation prices will be checked again.": "Copia la dirección, los servicios y la solicitud de permiso. Se volverán a verificar la cobertura y los precios de instalación.",
+  "Additional discounts must be applied separately to the new estimate.": "Los descuentos adicionales se aplican por separado a la nueva cotización.",
+  "Cancel estimate": "Cancelar cotización",
+  "Reactivate estimate": "Reactivar cotización",
+  "Reactivate and recalculate": "Reactivar y recalcular",
+  "Recalculating…": "Recalculando…",
+  "Canceling…": "Cancelando…",
+  "The estimate will be recalculated with current prices and a new expiration date. Review it and share an updated agreement for a new signature before payment. Previous signed documents will be preserved.": "La cotización se recalculará con los precios actuales y una nueva fecha de vencimiento. Revísala y comparte el acuerdo actualizado para que se firme de nuevo antes del pago. Se conservarán los documentos firmados anteriormente.",
+  "Payments and signing will stop, and open payment links will be closed. The estimate and its signed documents will be preserved. You can reactivate and recalculate it later.": "Se suspenderán los pagos y las firmas, y se cerrarán los enlaces de pago abiertos. Se conservarán la cotización y sus documentos firmados. Podrás reactivarla y recalcularla más adelante.",
+  "Estimate reactivated and recalculated. Review the updated estimate before sharing it again.": "Se reactivó y recalculó la cotización. Revisa la versión actualizada antes de volver a compartirla.",
+  "Estimate canceled.": "Se canceló la cotización.",
+  "Copy payment link": "Copiar enlace de pago",
+  "Copying...": "Copiando…",
+  "Payment link copied.": "Se copió el enlace de pago.",
+  "Share payment link": "Compartir enlace de pago",
+  "Installation is no longer available at this address under the current coverage rules. Choose materials only to continue, or cancel.": "La instalación ya no está disponible en esta dirección. Elige «Solo materiales» para continuar o cancela.",
+  "The estimate could not be duplicated. Please try again.": "No se pudo duplicar la cotización. Vuelve a intentarlo.",
+  "Could not prepare the estimate. Please try again.": "No se pudo preparar la cotización. Vuelve a intentarlo.",
+  "Could not cancel the estimate.": "No se pudo cancelar la cotización.",
+  "Could not reactivate the estimate.": "No se pudo reactivar la cotización.",
+  "Could not generate the payment link.": "No se pudo generar el enlace de pago.",
+  "Could not copy the payment link.": "No se pudo copiar el enlace de pago.",
+  "Could not share the payment link.": "No se pudo compartir el enlace de pago.",
+};
+
+export function estimateActionText(locale: CompanyLocale, message: keyof typeof spanish) {
+  return locale === "es" ? spanish[message] : message;
+}
+
+const spanishErrors = new Map<string, string>([
+  ...Object.entries(spanish),
+  ["Installation job not found.", "No se encontró la solicitud de instalación."],
+  ["Confirm the installation address.", "Confirma la dirección de instalación."],
+  ["Confirm a complete installation address before calculating the price.", "Confirma la dirección completa de instalación antes de calcular el precio."],
+  ["Installation is available only in Florida.", "La instalación solo está disponible en Florida."],
+  ["Installation is not available at this address.", "No ofrecemos instalación en esta dirección."],
+  ["The selected property location could not be verified.", "No se pudo verificar la ubicación seleccionada."],
+  ["Google suggests a corrected installation address. Confirm it to continue.", "Confirma la dirección de instalación sugerida para continuar."],
+  ["Installation address verification is temporarily unavailable. Please try again.", "La verificación de la dirección de instalación no está disponible en este momento. Vuelve a intentarlo."],
+  ["Installation pricing is temporarily unavailable. Please try again or contact support.", "El precio de instalación no está disponible en este momento. Vuelve a intentarlo o comunícate con soporte."],
+  ["Installation pricing changed. Please calculate the installation again.", "El precio de instalación cambió. Vuelve a calcularlo."],
+  ["This promotion has expired. Recalculate your estimate to continue.", "La promoción venció. Vuelve a calcular la cotización para continuar."],
+  ["The selected installation service is unavailable.", "El servicio de instalación seleccionado no está disponible."],
+  ["The selected service is not available for initial requests.", "El servicio seleccionado no está disponible para la solicitud inicial."],
+  ["Installation has already been requested for this estimate.", "Ya se solicitó la instalación para esta cotización."],
+  ["Installation can only be requested for an active unpaid estimate.", "Solo puedes solicitar instalación para una cotización activa que aún no tenga pagos."],
+  ["Installation cannot be requested after checkout has started.", "Solo puedes solicitar la instalación antes de iniciar el pago."],
+  ["Add at least one piece before requesting installation.", "Agrega al menos una pieza antes de solicitar la instalación."],
+  ["Configure a positive Installation Deposit before accepting installation requests.", "Para aceptar solicitudes de instalación, configura un depósito de instalación mayor que cero."],
+  ["Configure a positive Installation Permit Fee before requesting a permit.", "Para solicitar un permiso, es necesario configurar una tarifa de gestión mayor que cero."],
+  ["No installation price could be calculated for this estimate. Review the installation-service mappings.", "No se pudo calcular el precio. Revisa los servicios de instalación asignados a las configuraciones de esta cotización."],
+  ["The Installation Deposit cannot exceed the preliminary installation total.", "El depósito de instalación supera el total preliminar. Revisa el importe del depósito."],
+  ["Edit the installation request and confirm its address before continuing.", "Edita la solicitud de instalación y confirma la dirección antes de continuar."],
+  ["A current installation calculation is required before waiving the deposit.", "Actualiza el cálculo de la instalación antes de eximir el depósito."],
+  ["The estimate changed. Refresh its installation calculation before waiving the deposit.", "La cotización cambió. Actualiza el cálculo de instalación antes de eximir el depósito."],
+  ["Dealer measurements must be accepted before any project payment is made.", "Las medidas del distribuidor deben aceptarse antes del primer pago del proyecto."],
+  ["A checkout was opened while accepting the measurements. Try again after closing it.", "Se inició un pago mientras se aceptaban las medidas. Cierra el pago y vuelve a intentarlo."],
+  ["Installation details can only be changed before payment starts.", "Solo puedes cambiar la instalación antes de iniciar el pago."],
+  ["Installation details cannot be changed after the estimate is ordered or closed.", "La instalación ya no se puede editar porque la cotización se cerró o ya tiene una orden."],
+  ["Installation details changed. Reload the estimate before trying again.", "La instalación cambió. Vuelve a cargar la cotización antes de intentarlo de nuevo."],
+  ["Only the preliminary installation quote can be changed.", "Solo se puede modificar la cotización preliminar de instalación."],
+  ["Installation can only be removed before payment starts and before later revisions.", "Solo puedes quitar la instalación antes de iniciar los pagos o las revisiones."],
+  ["Installation can only be removed before payment starts.", "Solo puedes quitar la instalación antes de iniciar el pago."],
+  ["Installation or its payments changed. Reload the estimate before canceling installation.", "La instalación o sus pagos cambiaron. Vuelve a cargar la cotización antes de quitar la instalación."],
+  ["Only the estimate owner can approve this quote.", "Solo el titular de la cotización puede aprobarla."],
+  ["This quote is not pending customer approval.", "Esta cotización ya no está pendiente de aprobación del cliente."],
+  ["The material revision is not awaiting customer approval.", "La revisión de materiales ya no está pendiente de aprobación del cliente."],
+  ["Installation appointment not found.", "No se encontró la cita de instalación."],
+  ["This appointment proposal is no longer awaiting a response.", "Esta propuesta de cita ya no está pendiente de respuesta."],
+  ["Estimate not found.", "No se encontró la cotización."],
+  ["Estimate #{number} not found.", "No se encontró la cotización #{number}."],
+  ["Paid additional discount terms cannot be recalculated.", "No se pueden recalcular las condiciones de un descuento adicional ya pagado."],
+  ["Paid promotion terms cannot be recalculated.", "No se pueden recalcular las condiciones de una promoción ya pagada."],
+  ["Estimate #{number} already has an order and cannot be deleted.", "La cotización #{number} ya tiene una orden y no se puede eliminar."],
+  ["Estimate #{number} already has an order and cannot be recalculated.", "La cotización #{number} ya tiene una orden y no se puede recalcular."],
+  ["Estimate #{number} cannot be deleted while its installation workflow is active.", "No puedes eliminar la cotización #{number} mientras la instalación esté en curso."],
+  ["Estimate #{number} cannot be deleted because its payment process has already started.", "No puedes eliminar la cotización #{number} porque el proceso de pago ya comenzó."],
+  ["Estimate #{number} cannot be recalculated because its payment process has already started.", "No puedes recalcular la cotización #{number} porque el proceso de pago ya comenzó."],
+  ["Finish or cancel the pending material revision before continuing.", "Completa o cancela la revisión de materiales pendiente antes de continuar."],
+  ["You cannot duplicate this estimate.", "No tienes permiso para duplicar esta cotización."],
+  ["The estimate owner must be an active dealer or client.", "El titular de la cotización debe ser un distribuidor o cliente activo."],
+  ["This estimate does not include installation. Duplicate materials only.", "Esta cotización no incluye instalación. Duplica solo los materiales."],
+  ["The installation changed while preparing the copy. Please try again.", "La instalación cambió mientras se preparaba la copia. Vuelve a intentarlo."],
+  ["Address verification is temporarily unavailable.", "La verificación de la dirección no está disponible por el momento."],
+  ["Only active or expired estimates without payments can be canceled.", "Solo puedes cancelar cotizaciones activas o vencidas que aún no tengan pagos."],
+  ["Only canceled estimates can be reactivated.", "Solo puedes reactivar cotizaciones canceladas."],
+  ["An estimate with an order cannot be canceled here.", "No puedes cancelar aquí una cotización que ya tiene una orden."],
+  ["An estimate with an order cannot be reactivated.", "No puedes reactivar una cotización que ya tiene una orden."],
+  ["Reconcile the pending payment before reactivating this estimate.", "Concilia el pago pendiente antes de reactivar esta cotización."],
+  ["This estimate has payment or refund history and cannot be canceled or reactivated here.", "Esta cotización tiene pagos o reembolsos registrados y no se puede cancelar ni reactivar aquí."],
+  ["A payment has completed or is processing. Reconcile it before canceling this estimate.", "Hay un pago completado o en proceso. Concílialo antes de cancelar esta cotización."],
+  ["The payment status could not be confirmed. Try again before canceling this estimate.", "No se pudo confirmar el estado del pago. Vuelve a intentarlo antes de cancelar esta cotización."],
+]);
+
+export function estimateActionError(locale: CompanyLocale, error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (locale === "en") return message || fallback;
+  const number = message.match(/^Estimate #(\d+) /)?.[1];
+  if (number) {
+    const key = message.replace(`#${number}`, "#{number}");
+    return spanishErrors.get(key)?.replace("{number}", number) ?? fallback;
+  }
+  return spanishErrors.get(message) ?? fallback;
+}

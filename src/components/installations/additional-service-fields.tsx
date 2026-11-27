@@ -1,5 +1,6 @@
 "use client";
 
+import type { CompanyLocale } from "@/components/company/company-content";
 import type { InstallationService } from "@/lib/types";
 import {
   additionalServiceFieldMeta,
@@ -14,11 +15,13 @@ export function AdditionalServiceFields({
   value,
   onChange,
   compact = false,
+  locale = "en",
 }: {
   service: InstallationService | null;
   value: AdditionalServiceDraft;
   onChange: (value: AdditionalServiceDraft) => void;
   compact?: boolean;
+  locale?: CompanyLocale;
 }) {
   const fields = service ? additionalServiceFields(service) : [];
 
@@ -35,7 +38,7 @@ export function AdditionalServiceFields({
         return (
           <div key={field} className={compact ? "w-28 space-y-1" : "space-y-1"}>
             <Label className={compact ? "text-xs" : undefined}>
-              {meta.label}
+              {locale === "es" ? meta.labelEs : meta.label}
             </Label>
             <Input
               type="number"
@@ -51,7 +54,9 @@ export function AdditionalServiceFields({
         );
       })}
       <div className={compact ? "w-24 space-y-1" : "space-y-1"}>
-        <Label className={compact ? "text-xs" : undefined}>Quantity</Label>
+        <Label className={compact ? "text-xs" : undefined}>
+          {locale === "es" ? "Cantidad" : "Quantity"}
+        </Label>
         <Input
           type="number"
           min="1"

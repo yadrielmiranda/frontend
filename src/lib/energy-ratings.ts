@@ -71,29 +71,14 @@ export function formatEnergyValue(value: unknown): string {
 export function buildEnergyDescription(
   snapshot: EnergySnapshot | null | undefined,
   productKind?: string | null,
+  locale: "en" | "es" = "en",
 ): string | null {
   if (productKind === "LINEAR_MATERIAL" || snapshot?.status === "NOT_APPLICABLE") {
     return null;
   }
   const values = [snapshot?.uFactor, snapshot?.shgc, snapshot?.vlt].map(formatEnergyValue);
   if (snapshot?.status !== "AVAILABLE" || values.includes("—")) {
-    return "Energy performance: Data unavailable";
+    return locale === "es" ? "Rendimiento energético: datos no disponibles" : "Energy performance: Data unavailable";
   }
-  return `NFRC: U-factor: ${values[0]} | SHGC: ${values[1]} | VLT: ${values[2]}`;
-}
-
-/** Updates frozen energy values only; unsaved selections and pricing remain local. */
-export function mergePieceEnergySnapshots<T extends Partial<EnergySelection> & { id?: number }>(
-  current: T[],
-  refreshed: Array<{ id: number; energyRatingId?: number | null; energySnapshot?: EnergySnapshot | null }>,
-): Array<T & { energyRatingId?: number | null; energySnapshot?: EnergySnapshot | null }> {
-  const byId = new Map(refreshed.map((piece) => [piece.id, piece]));
-  return current.map((piece) => {
-    const update = piece.id == null ? undefined : byId.get(Number(piece.id));
-    if (!update) return piece;
-    const selection = update.energySnapshot?.selection;
-    if (selection && (Object.keys(selection) as Array<keyof EnergySelection>).some((key) =>
-      (piece[key] == null ? null : Number(piece[key])) !== selection[key])) return piece;
-    return { ...piece, energyRatingId: update.energyRatingId ?? null, energySnapshot: update.energySnapshot ?? null };
-  });
+  return `NFRC: ${locale === "es" ? "Factor U" : "U-factor"}: ${values[0]} | SHGC: ${values[1]} | VLT: ${values[2]}`;
 }

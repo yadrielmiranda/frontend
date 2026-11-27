@@ -37,6 +37,7 @@ import type { ResolvedMuntin } from "./piece-diagram/muntin-data";
 export type { PieceDiagramData, PieceDiagramVariant };
 
 export interface PieceDiagramProps {
+  locale?: "en" | "es";
   frenchDoorDesignKey?: string | null;
   diagramFamily?: DiagramFamily;
   systemName?: string | null;
@@ -272,6 +273,7 @@ function DiagramShell({
 }
 
 export function PieceDiagram({
+  locale = "en",
   diagramFamily,
   systemName,
   brandName,
@@ -332,6 +334,7 @@ export function PieceDiagram({
         }}
       >
         <PivotDoorDiagram
+          locale={locale}
           width={pivotWidth}
           height={pivotHeight}
           highBottom={highBottom}
@@ -373,6 +376,7 @@ export function PieceDiagram({
         }}
       >
         <GarageDoorDiagram
+          locale={locale}
           width={garageWidth}
           height={garageHeight}
           highBottom={highBottom}
@@ -410,6 +414,7 @@ export function PieceDiagram({
         data-preview-scale="REFERENCE_FIT"
       >
         <MullionDiagram
+          locale={locale}
           spec={mullionSpec}
           length={mullionLength}
           frameColorHex={safeFrameColor(frameColorHex)}
@@ -436,6 +441,7 @@ export function PieceDiagram({
 
   if (resolvedSharedFrenchDoor) {
     const sharedDoorProps = {
+      locale,
       diagramFamily: "FRENCH_DOOR" as const,
       highBottom,
       frenchDoorDesignKey: selectedFrenchArtwork,
@@ -539,6 +545,7 @@ export function PieceDiagram({
         }}
       >
         <WindowWallDiagram
+          locale={locale}
           width={windowWallWidth}
           height={windowWallHeight}
           panelCount={windowWallPanelCount}
@@ -586,6 +593,7 @@ export function PieceDiagram({
         }}
       >
         <SlidingGlassDoorDiagram
+          locale={locale}
           spec={resolvedSlidingGlassDoor}
           highBottom={highBottom}
           width={slidingWidth}
@@ -625,6 +633,7 @@ export function PieceDiagram({
   ) {
     const legacyDiagram = (
       <LegacyPieceDiagram
+        locale={locale}
         diagramFamily={diagramFamily}
         configuration={configuration}
         dimensionMode={dimensionMode}
@@ -662,6 +671,7 @@ export function PieceDiagram({
 
   const frameColor = safeFrameColor(frameColorHex);
   const sharedProps = {
+    locale,
     width,
     height,
     screenEnabled: Boolean(screenEnabled),
@@ -679,6 +689,7 @@ export function PieceDiagram({
   if (resolvedSpec.renderer === "FIXED_WINDOW_SHAPE") {
     const dimensions = fixedDimensions!;
     const commonFixedProps = {
+      locale,
       width: dimensions.width,
       height: dimensions.height,
       panelCount: resolvedSpec.shape === "PICTURE_WINDOW" && dimensionMode === "WINDOW_WALL"
@@ -757,6 +768,7 @@ export function PieceDiagram({
   ) {
     renderedDiagram = (
       <CasementFixedWindowDiagram
+        locale={locale}
         configuration="O"
         width={width}
         height={height}

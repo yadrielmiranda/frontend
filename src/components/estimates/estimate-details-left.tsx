@@ -15,8 +15,11 @@ import {
 import type { FrameColor, Tint, Coating } from "@/lib/types";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { cn } from "@/lib/utils";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceFormText } from "@/lib/piece-form-language";
 
 interface EstimateDetailsLeftProps {
+  locale?: CompanyLocale;
   isEditMode: boolean;
   estimateNumber?: string;
 
@@ -51,6 +54,7 @@ const estimateFieldClassName =
 const estimateLabelClassName = "mb-1.5 block";
 
 export function EstimateDetailsLeft({
+  locale = "en",
   isEditMode,
   estimateNumber,
   canUseCustomerPricing,
@@ -75,14 +79,17 @@ export function EstimateDetailsLeft({
   onCustomerTaxBlur,
 }: EstimateDetailsLeftProps) {
   const generalMarkupChangedRef = useRef(false);
+  const spanish = locale === "es";
+  const noDefault = spanish ? "Sin predeterminar" : "No default";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {isEditMode && estimateNumber && (
           <div className="w-full sm:w-40">
-            <Label className={estimateLabelClassName}>Number</Label>
+            <Label className={estimateLabelClassName} htmlFor="estimateNumber">{spanish ? "Número" : "Number"}</Label>
             <Input
+              id="estimateNumber"
               value={estimateNumber}
               readOnly
               className={cn(
@@ -95,7 +102,7 @@ export function EstimateDetailsLeft({
 
         <div className="w-full sm:w-80">
           <Label className={estimateLabelClassName} htmlFor="name">
-            Estimate Name
+            {spanish ? "Nombre de la cotización" : "Estimate Name"}
           </Label>
           <Input
             id="name"
@@ -106,7 +113,7 @@ export function EstimateDetailsLeft({
             {...nameRegister}
           />
           {nameError && (
-            <p className="text-red-500 text-xs mt-1">{nameError}</p>
+            <p className="text-red-500 text-xs mt-1">{spanish && nameError === "The name is required" ? "Escribe un nombre para la cotización." : nameError}</p>
           )}
         </div>
       </div>
@@ -124,29 +131,30 @@ export function EstimateDetailsLeft({
             isEditMode && estimateNumber && "sm:w-[31rem]",
           )}
         >
-          <Label className="mb-2 block">Piece Defaults</Label>
+          <Label className="mb-2 block">{spanish ? "Valores predeterminados de las piezas" : "Piece Defaults"}</Label>
 
           <div className="grid grid-cols-1 gap-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3 shadow-sm sm:grid-cols-3">
             {/* Frame Color */}
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 transition hover:bg-slate-100">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Frame Color
+              <div id="piece-default-frame-color" className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                {spanish ? "Color del marco" : "Frame Color"}
               </div>
               <Select
                 onValueChange={(value) => onDefaultColorChange(value)}
                 value={String(defaultFrameColorId || "0")}
               >
                 <SelectTrigger
+                  aria-labelledby="piece-default-frame-color"
                   className={cn(
                     "h-9 w-full px-2",
                     defaultFrameColorId ? "text-slate-900" : "text-slate-400",
                   )}
                 >
-                  <SelectValue placeholder="No default" />
+                  <SelectValue placeholder={noDefault} />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="0">No default</SelectItem>
+                  <SelectItem value="0">{noDefault}</SelectItem>
                   {frameColors.map((fc) => (
                     <SelectItem key={fc.id} value={String(fc.id)}>
                       {fc.color}
@@ -158,8 +166,8 @@ export function EstimateDetailsLeft({
 
             {/* Tint */}
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 transition hover:bg-slate-100">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Tint
+              <div id="piece-default-tint" className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                {pieceFormText(locale, "Glass Color")}
               </div>
 
               <Select
@@ -171,12 +179,13 @@ export function EstimateDetailsLeft({
                     "h-9 w-full px-2",
                     defaultTintId ? "text-slate-900" : "text-slate-400",
                   )}
+                  aria-labelledby="piece-default-tint"
                 >
-                  <SelectValue placeholder="No default" />
+                  <SelectValue placeholder={noDefault} />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="0">No default</SelectItem>
+                  <SelectItem value="0">{noDefault}</SelectItem>
                   {tints.map((t) => (
                     <SelectItem key={t.id} value={String(t.id)}>
                       {t.color}
@@ -188,8 +197,8 @@ export function EstimateDetailsLeft({
 
             {/* Coating */}
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 transition hover:bg-slate-100">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Coating
+              <div id="piece-default-coating" className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                {spanish ? "Recubrimiento" : "Coating"}
               </div>
 
               <Select
@@ -201,12 +210,13 @@ export function EstimateDetailsLeft({
                     "h-9 w-full px-2",
                     defaultCoatingId ? "text-slate-900" : "text-slate-400",
                   )}
+                  aria-labelledby="piece-default-coating"
                 >
-                  <SelectValue placeholder="No default" />
+                  <SelectValue placeholder={noDefault} />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="0">No default</SelectItem>
+                  <SelectItem value="0">{noDefault}</SelectItem>
                   {coatings.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.name}
@@ -218,15 +228,16 @@ export function EstimateDetailsLeft({
           </div>
 
           <p className="mt-2 text-xs text-muted-foreground">
-            Optional defaults. Apply them to new pieces or update all existing
-            ones.
+            {spanish
+              ? "Puedes aplicar estos valores a las piezas nuevas o actualizar también las que ya agregaste."
+              : "Optional defaults. Apply them to new pieces or update all existing ones."}
           </p>
         </div>
 
         {canUseCustomerPricing && (
           <div className="min-w-0">
             <Label className="mb-2 block" htmlFor="generalDealerMarkup">
-              General Dealer Markup (%)
+              {spanish ? "Recargo general del distribuidor (%)" : "General Dealer Markup (%)"}
             </Label>
             <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 shadow-sm">
               <Input
@@ -249,8 +260,9 @@ export function EstimateDetailsLeft({
                 }}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Applied automatically to existing pieces when you leave the
-                field and used as the default for new pieces.
+                {spanish
+                  ? "Al salir del campo, este porcentaje se aplica a las piezas existentes y queda como valor predeterminado para las nuevas."
+                  : "Applied automatically to existing pieces when you leave the field and used as the default for new pieces."}
               </p>
             </div>
           </div>
@@ -259,7 +271,7 @@ export function EstimateDetailsLeft({
         {canUseCustomerPricing && (
           <div className="min-w-0">
             <Label className="mb-2 block" htmlFor="customerTaxRate">
-              Customer Sales Tax (%)
+              {spanish ? "Impuesto sobre las ventas al cliente (%)" : "Customer Sales Tax (%)"}
             </Label>
             <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 shadow-sm">
               <Input
@@ -272,8 +284,9 @@ export function EstimateDetailsLeft({
                 onBlur={(e) => onCustomerTaxBlur(e.target.value)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                This percentage is applied immediately to the dealer totals. Set
-                0 if you don&apos;t want to charge tax to your customer.
+                {spanish
+                  ? "Este porcentaje se aplica de inmediato a los totales del distribuidor. Escribe 0 si no vas a cobrarle impuesto a tu cliente."
+                  : "This percentage is applied immediately to the dealer totals. Set 0 if you don't want to charge tax to your customer."}
               </p>
             </div>
           </div>

@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,8 +27,12 @@ import {
 } from "@/components/ui/table";
 import {
   INSTALLATION_JOB_STATUSES,
+  installationAppointmentStatusLabel,
+  installationAppointmentTypeLabel,
   installationStageLabelFromStatus,
 } from "@/lib/installation-flow";
+import { estimateStatusLabel } from "@/lib/estimate-status";
+import { formatMoney } from "@/lib/formatters";
 import type {
   InstallationJobStatus,
   InstallationJobsPage,
@@ -35,25 +40,30 @@ import type {
   InstallationListScope,
 } from "@/lib/types";
 
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-const dateTime = new Intl.DateTimeFormat("en-US", {
+const dateOptions: Intl.DateTimeFormatOptions = {
   month: "short",
   day: "numeric",
   year: "numeric",
   hour: "numeric",
   minute: "2-digit",
-});
+};
 
-const scopes: Array<{ value: InstallationListScope; label: string }> = [
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "canceled", label: "Canceled" },
-  { value: "all", label: "All" },
+const dates = {
+  en: new Intl.DateTimeFormat("en-US", dateOptions),
+  es: new Intl.DateTimeFormat("es-US", dateOptions),
+};
+
+const scopes: { value: InstallationListScope; en: string; es: string }[] = [
+  { value: "active", en: "Active", es: "Activas" },
+  { value: "completed", en: "Completed", es: "Completadas" },
+  { value: "canceled", en: "Canceled", es: "Canceladas" },
+  { value: "all", en: "All", es: "Todas" },
 ];
+
+const rolesEs = new Map([
+  ["admin", "Administrador"], ["operator", "Operador"], ["client", "Cliente"],
+  ["dealer", "Distribuidor"], ["technician", "Técnico"],
+]);
 
 function listHref(query: InstallationListQuery): string {
   const params = new URLSearchParams();
@@ -108,6 +118,9 @@ export function InstallationsTable({
   query: InstallationListQuery;
   isAdmin: boolean;
 }) {
+  const { locale } = usePortalLanguage();
+  const spanish = locale === "es";
+  const dateTime = dates[locale];
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(query.search ?? "");
@@ -157,7 +170,7 @@ export function InstallationsTable({
                 })
               }
             >
-              {scope.label}
+              {scope[locale]}
             </Button>
           ))}
         </div>
@@ -170,12 +183,13 @@ export function InstallationsTable({
                 value={search}
                 maxLength={100}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search Order, Estimate, or customer..."
+                aria-label={spanish ? "Buscar por orden, cotización o cliente" : "Search by Order, Estimate, or customer"}
+                placeholder={spanish ? "Buscar por orden, cotización o cliente..." : "Search Order, Estimate, or customer..."}
                 className="pl-9"
               />
             </div>
             <Button type="submit" disabled={isPending}>
-              Search
+              {spanish ? "Buscar" : "Search"}
             </Button>
           </form>
 
@@ -204,14 +218,14 @@ export function InstallationsTable({
                 });
               }}
             >
-              <SelectTrigger className="w-[240px]">
-                <SelectValue placeholder="All stages" />
+              <SelectTrigger className="w-[240px]" aria-label={spanish ? "Filtrar por etapa" : "Filter by stage"}>
+                <SelectValue placeholder={spanish ? "Todas las etapas" : "All stages"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All stages</SelectItem>
+                <SelectItem value="ALL">{spanish ? "Todas las etapas" : "All stages"}</SelectItem>
                 {INSTALLATION_JOB_STATUSES.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {installationStageLabelFromStatus(status)}
+                    {installationStageLabelFromStatus(status, undefined, locale)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -228,13 +242,13 @@ export function InstallationsTable({
                 })
               }
             >
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[130px]" aria-label={spanish ? "Filas por página" : "Rows per page"}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="25">25 rows</SelectItem>
-                <SelectItem value="50">50 rows</SelectItem>
-                <SelectItem value="100">100 rows</SelectItem>
+                {[25, 50, 100].map(size => (
+                  <SelectItem key={size} value={String(size)}>{size} {spanish ? "filas" : "rows"}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -248,7 +262,7 @@ export function InstallationsTable({
                   navigate({ page: 1, pageSize: 25, scope: "active" });
                 }}
               >
-                <X className="mr-2 h-4 w-4" /> Reset
+                <X className="mr-2 h-4 w-4" /> {spanish ? "Restablecer" : "Reset"}
               </Button>
             )}
           </div>
@@ -258,14 +272,14 @@ export function InstallationsTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Reference</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Next appointment</TableHead>
-                <TableHead className="text-center">Units</TableHead>
-                <TableHead>Latest quote</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead>{spanish ? "Referencia" : "Reference"}</TableHead>
+                <TableHead>{spanish ? "Cliente" : "Customer"}</TableHead>
+                <TableHead>{spanish ? "Etapa" : "Stage"}</TableHead>
+                <TableHead>{spanish ? "Próxima cita" : "Next appointment"}</TableHead>
+                <TableHead className="text-center">{spanish ? "Unidades" : "Units"}</TableHead>
+                <TableHead>{spanish ? "Última cotización" : "Latest quote"}</TableHead>
+                <TableHead>{spanish ? "Última actualización" : "Updated"}</TableHead>
+                <TableHead className="text-right">{spanish ? "Acción" : "Action"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,8 +290,8 @@ export function InstallationsTable({
                     className="h-32 text-center text-muted-foreground"
                   >
                     {hasFilters
-                      ? "No installations match these filters."
-                      : "No active installations yet."}
+                      ? (spanish ? "Ninguna instalación coincide con estos filtros." : "No installations match these filters.")
+                      : (spanish ? "Aún no hay instalaciones activas." : "No active installations yet.")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -290,22 +304,23 @@ export function InstallationsTable({
                     ]
                       .filter(Boolean)
                       .join(" ") || "—";
-                  const stage = job.estimate.status?.name === "Canceled" ? "Estimate canceled" : job.status !== "CANCELED" && job.estimate.status?.name === "Pending order review" ? "Pending order review" : installationStageLabelFromStatus(
-                    job.status,
-                    job.latestQuote?.approvalReason,
-                  );
+                  const stage = job.estimate.status?.name === "Canceled"
+                    ? estimateStatusLabel("Estimate canceled", locale)
+                    : job.status !== "CANCELED" && job.estimate.status?.name === "Pending order review"
+                      ? estimateStatusLabel("Pending order review", locale)
+                      : installationStageLabelFromStatus(job.status, job.latestQuote?.approvalReason, locale);
 
                   return (
                     <TableRow key={job.id}>
                       <TableCell>
                         <div className="font-medium">
                           {job.estimate.order
-                            ? `Order #${job.estimate.order.number}`
-                            : `Estimate #${job.estimate.number}`}
+                            ? `${spanish ? "Orden" : "Order"} #${job.estimate.order.number}`
+                            : `${spanish ? "Cotización" : "Estimate"} #${job.estimate.number}`}
                         </div>
                         {job.estimate.order && (
                           <div className="text-xs text-muted-foreground">
-                            Estimate #{job.estimate.number}
+                            {spanish ? "Cotización" : "Estimate"} #{job.estimate.number}
                           </div>
                         )}
                       </TableCell>
@@ -313,7 +328,7 @@ export function InstallationsTable({
                         <div className="font-medium">{customerName}</div>
                         {isAdmin && (
                           <div className="text-xs text-muted-foreground">
-                            Account: {owner.username} · {owner.role.name}
+                            {spanish ? "Cuenta" : "Account"}: {owner.username} · {spanish ? rolesEs.get(owner.role.name) ?? owner.role.name : owner.role.name}
                           </div>
                         )}
                       </TableCell>
@@ -331,14 +346,8 @@ export function InstallationsTable({
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {job.nextAppointment.type === "REMEASUREMENT"
-                                ? "Remeasurement"
-                                : "Installation"}
-                              {` · ${
-                                job.nextAppointment.status === "ACCEPTED"
-                                  ? "Accepted"
-                                  : "Proposed"
-                              }`}
+                              {installationAppointmentTypeLabel(job.nextAppointment.type, locale)}
+                              {" · "}{installationAppointmentStatusLabel(job.nextAppointment.status, locale)}
                             </div>
                           </>
                         ) : (
@@ -352,10 +361,10 @@ export function InstallationsTable({
                         {job.latestQuote ? (
                           <>
                             <div className="font-medium">
-                              {money.format(Number(job.latestQuote.total))}
+                              {formatMoney(job.latestQuote.total)}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Version {job.latestQuote.version}
+                              {spanish ? "Versión" : "Version"} {job.latestQuote.version}
                             </div>
                           </>
                         ) : (
@@ -371,7 +380,7 @@ export function InstallationsTable({
                               query: { returnTo: currentHref },
                             }}
                           >
-                            Open
+                            {spanish ? "Abrir" : "Open"}
                           </Link>
                         </Button>
                       </TableCell>
@@ -385,7 +394,7 @@ export function InstallationsTable({
 
         <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-muted-foreground">
-            Showing {firstItem}–{lastItem} of {result.total}
+            {spanish ? "Mostrando" : "Showing"} {firstItem}-{lastItem} {spanish ? "de" : "of"} {result.total}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -395,10 +404,10 @@ export function InstallationsTable({
               disabled={isPending || result.page <= 1}
               onClick={() => navigate({ ...query, page: result.page - 1 })}
             >
-              <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+              <ChevronLeft className="mr-1 h-4 w-4" /> {spanish ? "Anterior" : "Previous"}
             </Button>
             <span className="min-w-24 text-center">
-              Page {result.page} of {result.totalPages}
+              {spanish ? "Página" : "Page"} {result.page} {spanish ? "de" : "of"} {result.totalPages}
             </span>
             <Button
               type="button"
@@ -407,11 +416,27 @@ export function InstallationsTable({
               disabled={isPending || result.page >= result.totalPages}
               onClick={() => navigate({ ...query, page: result.page + 1 })}
             >
-              Next <ChevronRight className="ml-1 h-4 w-4" />
+              {spanish ? "Siguiente" : "Next"} <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+export function InstallationsHeader({ isAdmin }: { isAdmin: boolean }) {
+  const { locale } = usePortalLanguage();
+  const spanish = locale === "es";
+  const description = isAdmin
+    ? (spanish ? "Gestiona las nuevas mediciones, aprobaciones, permisos, citas y trabajos en obra."
+      : "Operational queue for remeasurement, approvals, permits, scheduling, and field work.")
+    : (spanish ? "Consulta tus solicitudes de instalación, aprobaciones, pagos y citas."
+      : "Track your installation requests, approvals, payments, and appointments.");
+  return (
+    <div>
+      <h1 className="text-3xl font-bold tracking-tight">{spanish ? "Instalaciones" : "Installations"}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    </div>
   );
 }

@@ -257,7 +257,7 @@ async function test(name, run) { await run(); checks++; console.log(`PASS ${name
     const form = fs.readFileSync(path.join(root, 'components/estimates/estimate-form.tsx'), 'utf8');
     const details = fs.readFileSync(path.join(root, 'components/estimates/estimate-details/estimate-details.tsx'), 'utf8');
     const formNote = form.indexOf('<EstimateInternalNote');
-    assert.ok(formNote > form.indexOf('<EstimateDetailsLeft') && formNote < form.indexOf('>Pieces</h3>'));
+    assert.ok(formNote > form.indexOf('<EstimateDetailsLeft') && formNote < form.indexOf('onClick={handleAddNewPiece}'));
     assert.match(form.slice(formNote, formNote + 110), /userRole=\{role\}/);
     assert.match(details, /reportMode !== "customer" && \([\s\S]*?<EstimateInternalNote/);
     assert.ok(details.indexOf('<EstimateInternalNote') < details.indexOf('<EstimateReportShell'));

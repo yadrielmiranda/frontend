@@ -46,8 +46,8 @@ export function PivotFixedPane({ rect, id, color, profileScale, unitsPerInch, pa
   </g>;
 }
 
-export function PivotFixedDoorDiagram({ width, height, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: FixedAppearanceProps & {
-  width: number; height: number; showDimensions?: boolean; className?: string;
+export function PivotFixedDoorDiagram({ locale = "en", width, height, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, showDimensions = true, className, muntin }: FixedAppearanceProps & {
+  width: number; height: number; showDimensions?: boolean; className?: string; locale?: "en" | "es";
 }) {
   const reactId = useId();
   const id = `pivot-fixed-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -69,8 +69,8 @@ export function PivotFixedDoorDiagram({ width, height, frameColorHex, glassTintH
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby={`${id}-title ${id}-description`} className={className}
     style={{ boxSizing: "border-box", paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration="O" data-view="EXTERIOR" data-width={width} data-height={height} data-frame-color={color} data-units-per-inch={unitsPerInch}>
-    <title id={`${id}-title`}>Pivot Door — Fixed Configuration O</title>
-    <desc id={`${id}-description`}>{`Exterior view of a fixed ${format(width)} × ${format(height)} glass panel. Dimensions describe the whole frame.`}</desc>
+    <title id={`${id}-title`}>{locale === "es" ? "Pivot Door — Configuración fija O" : "Pivot Door — Fixed Configuration O"}</title>
+    <desc id={`${id}-description`}>{locale === "es" ? `Vista exterior de un panel de vidrio fijo de ${format(width)} × ${format(height)}. Las medidas corresponden al marco completo.` : `Exterior view of a fixed ${format(width)} × ${format(height)} glass panel. Dimensions describe the whole frame.`}</desc>
     <defs><linearGradient id={`${id}-frame-finish`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={finish("#F5F7F6", 0.16)} /><stop offset="0.46" stopColor={finish("#EEF1EF", 0)} /><stop offset="1" stopColor={finish("#E0E5E3", -0.16)} /></linearGradient></defs>
     <g data-part="pivot-fixed-artwork">
       <g data-layer="FRAME" data-material="frame">

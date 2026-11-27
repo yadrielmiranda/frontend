@@ -2,9 +2,12 @@
 
 import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { installationActionError } from "@/lib/installation-action-language";
+import { pieceFormText } from "@/lib/piece-form-language";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -80,11 +83,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
-import { installationStageLabel } from "@/lib/installation-flow";
-import { paidBaseFor } from "@/lib/installation-flow";
+import {
+  installationAppointmentStatusLabel,
+  installationAppointmentTypeLabel,
+  installationPermitStatusLabel,
+  installationQuoteStatusLabel,
+  installationStageLabel,
+  paidBaseFor,
+} from "@/lib/installation-flow";
 import { PieceModal } from "@/components/estimates/piece-modal";
+import type { PieceFormProps } from "@/components/estimates/piece-form";
 import type { PieceFormValues } from "@/components/estimates/types";
-import { EstimateRevisionSummary } from "@/components/estimates/estimate-revision-summary";
+import { EstimateRevisionSummary, estimateRevisionLabel } from "@/components/estimates/estimate-revision-summary";
 import { revisionPieceForm, revisionPieceInput } from "@/components/estimates/material-revisions/piece-values";
 import { InstallationQuoteTable } from "@/components/installations/installation-quote-table";
 import { InstallationFinancialSummary } from "@/components/installations/installation-financial-summary";
@@ -94,13 +104,6 @@ import {
   additionalServiceValues,
   emptyAdditionalServiceDraft,
 } from "@/lib/installation-additional-service";
-
-const title = (value: string) =>
-  value
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 
 const ACTIVE_APPOINTMENT_STATUSES: InstallationAppointmentStatus[] = [
   "PROPOSED",
@@ -133,12 +136,13 @@ const numeric = (value: string | number | null | undefined) =>
 const CHANGE_REASONS: Array<{
   value: Exclude<EstimateRevisionChangeReason, "REMEASUREMENT">;
   label: string;
+  labelEs: string;
 }> = [
-  { value: "EGRESS", label: "Does not meet egress requirements" },
-  { value: "DIMENSION_LIMITS", label: "Does not meet dimension limits" },
-  { value: "STRUCTURAL_CONDITION", label: "Structural condition" },
-  { value: "CUSTOMER_REQUEST", label: "Customer request" },
-  { value: "OTHER", label: "Other" },
+  { value: "EGRESS", label: "Does not meet egress requirements", labelEs: "Incumple los requisitos de salida de emergencia" },
+  { value: "DIMENSION_LIMITS", label: "Does not meet dimension limits", labelEs: "Medidas fuera de los límites permitidos" },
+  { value: "STRUCTURAL_CONDITION", label: "Structural condition", labelEs: "Condición estructural" },
+  { value: "CUSTOMER_REQUEST", label: "Customer request", labelEs: "Solicitud del cliente" },
+  { value: "OTHER", label: "Other", labelEs: "Otro" },
 ];
 
 function pieceToForm(piece: PieceWithRelations): PieceFormValues {
@@ -442,6 +446,8 @@ function MeasurementEditor({
   ) => Promise<void>;
   busy: boolean;
 }) {
+  const { locale } = usePortalLanguage();
+  const t = (english: string, spanish: string) => locale === "es" ? spanish : english;
   const [draft, setDraft] = useState(() => {
     const value = measurementDraft(measurement, defaultLabel);
     const sourceMark = piece.mark.trim();
@@ -477,82 +483,82 @@ function MeasurementEditor({
     {
       key: "heightIn",
       label: requirements.requiresWindowHeight
-        ? "Open height"
+        ? "Open Height"
         : requirements.requiresDoorHeight
-          ? "Opening height"
+          ? "Opening Height"
           : "Height",
       step: "0.001",
       show: requirements.requiresHeight,
     },
     {
       key: "heightLeftIn",
-      label: "Height left",
+      label: "Height Left",
       step: "0.001",
       show: requirements.requiresHeightLeft,
     },
     {
       key: "heightRightIn",
-      label: "Height right",
+      label: "Height Right",
       step: "0.001",
       show: requirements.requiresHeightRight,
     },
     {
       key: "legHeightIn",
-      label: "Leg height",
+      label: "Leg Height",
       step: "0.001",
       show: requirements.requiresLegHeight,
     },
     {
       key: "sashHeightIn",
-      label: "Sash height",
+      label: "Sash Height",
       step: "0.001",
       show: requirements.requiresSashHeight,
     },
     {
       key: "windowHeightIn",
-      label: "Window height",
+      label: "Window Height",
       step: "0.001",
       show: requirements.requiresWindowHeight,
     },
     {
       key: "doorWidthIn",
-      label: "Door width",
+      label: "Door Width",
       step: "0.001",
       show: requirements.requiresDoorWidth,
     },
     {
       key: "doorHeightIn",
-      label: "Door height",
+      label: "Door Height",
       step: "0.001",
       show: requirements.requiresDoorHeight,
     },
     {
       key: "leftSideliteWidthIn",
-      label: "Left sidelite width",
+      label: "Left Sidelite Width",
       step: "0.001",
       show: requirements.requiresLeftSideliteWidth,
     },
     {
       key: "rightSideliteWidthIn",
-      label: "Right sidelite width",
+      label: "Right Sidelite Width",
       step: "0.001",
       show: requirements.requiresRightSideliteWidth,
     },
     {
       key: "leftPanels",
-      label: "Left panels",
+      label: "Left Panels",
       step: "1",
       show: requirements.requiresLeftPanels,
     },
     {
       key: "rightPanels",
-      label: "Right panels",
+      label: "Right Panels",
       step: "1",
       show: requirements.requiresRightPanels,
     },
     {
       key: "panelCount",
-      label: "Panel count",
+      label: "Panel Count",
       step: "1",
       show: requirements.requiresPanelCount,
     },
@@ -581,8 +587,7 @@ function MeasurementEditor({
                 {piece.conf.conf}
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Unit {measurement.unitIndex} of {piece.qty} · Original{" "}
-                {originalSize}
+                {t(`Unit ${measurement.unitIndex} of ${piece.qty}`, `Unidad ${measurement.unitIndex} de ${piece.qty}`)} · Original {originalSize}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -592,7 +597,7 @@ function MeasurementEditor({
                     revisionItem.action === "REMOVE" ? "destructive" : "outline"
                   }
                 >
-                  {title(revisionItem.action)}
+                  {estimateRevisionLabel(revisionItem.action, locale)}
                 </Badge>
               )}
               <Badge
@@ -600,14 +605,14 @@ function MeasurementEditor({
                   measurement.status === "COMPLETED" ? "default" : "secondary"
                 }
               >
-                {title(measurement.status)}
+                {measurement.status === "COMPLETED" ? t("Completed", "Completada") : t("Pending", "Pendiente")}
               </Badge>
             </div>
           </div>
         </summary>
         <div className="space-y-4 border-t p-4">
           <div className="space-y-2">
-            <Label>Label (optional)</Label>
+            <Label>{t("Label (optional)", "Etiqueta (opcional)")}</Label>
             <Input
               placeholder={defaultLabel}
               value={draft.label}
@@ -621,7 +626,7 @@ function MeasurementEditor({
               .filter((field) => field.show)
               .map((field) => (
                 <div key={field.key} className="space-y-1">
-                  <Label className="text-xs">{field.label}</Label>
+                  <Label className="text-xs">{field.key === "lengthIn" ? t("Length", "Longitud") : pieceFormText(locale, field.label)}</Label>
                   <Input
                     type="number"
                     min="0"
@@ -640,7 +645,7 @@ function MeasurementEditor({
           {requirements.requiresHorizontalHeights && (
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
-                <Label>Horizontal heights</Label>
+                <Label>{pieceFormText(locale, "Horizontal Heights")}</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -652,7 +657,7 @@ function MeasurementEditor({
                     }))
                   }
                 >
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Add height
+                  <Plus className="mr-1 h-3.5 w-3.5" /> {t("Add height", "Agregar altura")}
                 </Button>
               </div>
               {draft.horizontalHeights.map((height, index) => (
@@ -677,6 +682,7 @@ function MeasurementEditor({
                   <Button
                     type="button"
                     size="icon"
+                    aria-label={t(`Remove height ${index + 1}`, `Quitar altura ${index + 1}`)}
                     variant="ghost"
                     onClick={() =>
                       setDraft((value) => ({
@@ -694,7 +700,7 @@ function MeasurementEditor({
             </div>
           )}
           <div className="space-y-1">
-            <Label>Notes</Label>
+            <Label>{t("Notes", "Notas")}</Label>
             <Textarea
               value={draft.notes}
               onChange={(event) =>
@@ -704,7 +710,7 @@ function MeasurementEditor({
           </div>
           {revisionItem?.action === "REPLACE" && (
             <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
-              Replacement proposed:{" "}
+              {t("Replacement proposed:", "Reemplazo propuesto:")}{" "}
               {revisionItem.calculatedSnapshot?.display?.productName} ·{" "}
               {revisionItem.calculatedSnapshot?.display?.systemName} ·{" "}
               {revisionItem.calculatedSnapshot?.display?.configName}
@@ -712,8 +718,7 @@ function MeasurementEditor({
           )}
           {revisionItem?.action === "REMOVE" && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-              This unit is proposed for removal from the Estimate. Nothing
-              changes until customer approval.
+              {t("This unit is proposed for removal from the Estimate. Nothing changes until customer approval.", "Se propuso quitar esta unidad de la cotización. El cambio se aplicará cuando el cliente lo apruebe.")}
             </div>
           )}
           <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50/50 p-3 md:grid-cols-[240px_1fr]">
@@ -729,12 +734,12 @@ function MeasurementEditor({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Reason for replacement/removal" />
+                <SelectValue placeholder={t("Reason for replacement/removal", "Motivo del reemplazo o la eliminación")} />
               </SelectTrigger>
               <SelectContent>
                 {CHANGE_REASONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label, option.labelEs)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -742,7 +747,7 @@ function MeasurementEditor({
             <Input
               value={reasonNote}
               onChange={(event) => setReasonNote(event.target.value)}
-              placeholder="Reason details (required for Other)"
+              placeholder={t("Reason details (required for Other)", "Detalles del motivo (obligatorios si eliges «Otro»)")}
             />
           </div>
           <div className="flex flex-wrap justify-end gap-2">
@@ -753,22 +758,22 @@ function MeasurementEditor({
               }
               disabled={busy || !reason}
             >
-              <Replace className="mr-2 h-4 w-4" /> Replace Piece
+              <Replace className="mr-2 h-4 w-4" /> {t("Replace Piece", "Reemplazar pieza")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => setRemoveDialogOpen(true)}
               disabled={busy || !reason}
             >
-              <XCircle className="mr-2 h-4 w-4" /> Unable to install
+              <XCircle className="mr-2 h-4 w-4" /> {t("Unable to install", "Imposible instalar")}
             </Button>
             <Button
               onClick={() => onSave(draft)}
               disabled={busy}
             >
               {measurement.status === "COMPLETED"
-                ? "Update measured Piece"
-                : "Confirm as measured"}
+                ? t("Update measured Piece", "Actualizar pieza medida")
+                : t("Confirm as measured", "Confirmar medidas")}
             </Button>
           </div>
         </div>
@@ -780,9 +785,14 @@ function MeasurementEditor({
           if (!reason) return;
           return onRemove(reason, reasonNote.trim() || undefined);
         }}
-        title="Mark this unit as unable to install?"
-        description={`This will propose removing ${piece.mark} · Unit ${measurement.unitIndex} from the Estimate. Nothing changes until the customer approves the revision.`}
-        confirmText="Propose removal"
+        title={t("Mark this unit as unable to install?", "¿Marcar esta unidad como imposible de instalar?")}
+        description={t(
+          `This will propose removing ${piece.mark} · Unit ${measurement.unitIndex} from the Estimate. Nothing changes until the customer approves the revision.`,
+          `Se propondrá quitar ${piece.mark} · Unidad ${measurement.unitIndex} de la cotización. El cambio se aplicará cuando el cliente apruebe la revisión.`,
+        )}
+        confirmText={t("Propose removal", "Proponer eliminación")}
+        cancelText={t("Cancel", "Cancelar")}
+        lang={locale}
       />
     </>
   );
@@ -820,6 +830,8 @@ export function InstallationDetailClient({
   muntinTypes: MuntinType[];
 }) {
   const router = useRouter();
+  const { locale } = usePortalLanguage();
+  const t = (english: string, spanish: string) => locale === "es" ? spanish : english;
   const [job, setJob] = useState(initialJob);
   // Incorpora los datos del servidor al refrescar la ruta sin desmontar la vista.
   useEffect(() => {
@@ -875,6 +887,19 @@ export function InstallationDetailClient({
   const admin = !estimateCanceled && userRole === "admin";
   const owner = !estimateCanceled && job.estimate.idUser === userId;
   const latest = job.quotes[0];
+  const addedMeasurementId = addedPieceEditor?.measurementId;
+  const quoteId = latest?.id;
+  const calculateAddedPiece = useCallback<NonNullable<PieceFormProps["onCalculate"]>>(
+    piece => calculateInstallationAddedPiece(job.id, {
+      measurementId: addedMeasurementId, quoteId, piece: revisionPieceInput(piece, productsWithBrands),
+    }),
+    [job.id, addedMeasurementId, quoteId, productsWithBrands],
+  );
+  const replacementMeasurementId = replacement?.measurement.id;
+  const calculateReplacement = useMemo<PieceFormProps["onCalculate"]>(() => {
+    if (replacementMeasurementId == null) return undefined;
+    return piece => calculateInstallationMeasurementPiece(job.id, replacementMeasurementId, piece);
+  }, [job.id, replacementMeasurementId]);
   const pendingMeasurements = job.measurements.filter((measurement) => measurement.status === "PENDING");
   const quoteHistory = job.quotes.filter((quote) => quote.status !== "DRAFT");
   const latestRevision = latest
@@ -1015,7 +1040,7 @@ export function InstallationDetailClient({
       setJob(result);
       toast.success(typeof success === "function" ? success(result) : success);
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(installationActionError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -1040,11 +1065,11 @@ export function InstallationDetailClient({
       });
       toast.success(
         response === "ACCEPT"
-          ? "Appointment accepted."
-          : "Reschedule requested.",
+          ? t("Appointment accepted.", "Cita aceptada.")
+          : t("Reschedule requested.", "Se solicitó un cambio de fecha."),
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(installationActionError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -1055,6 +1080,7 @@ export function InstallationDetailClient({
     const error = additionalServiceValidationError(
       selectedService,
       serviceDraft,
+      locale,
     );
     if (error) {
       toast.error(error);
@@ -1070,7 +1096,7 @@ export function InstallationDetailClient({
       setServiceId("");
       setServiceDraft(emptyAdditionalServiceDraft());
       return result;
-    }, "Additional service added.");
+    }, t("Additional service added.", "Servicio adicional agregado."));
   };
 
   const cancelPaidInstallation = async () => {
@@ -1086,10 +1112,10 @@ export function InstallationDetailClient({
         router.replace(`/estimates/${job.estimateId}/edit`);
       }
       toast.success(
-        "Installation canceled. The deposit remains non-refundable.",
+        t("Installation canceled. The deposit remains non-refundable.", "Instalación cancelada. El depósito no es reembolsable."),
       );
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(installationActionError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -1099,17 +1125,17 @@ export function InstallationDetailClient({
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <BackLink href={returnHref} label="Back to Installations" />
+          <BackLink href={returnHref} label={t("Back to Installations", "Volver a instalaciones")} />
           <h1 className="mt-3 text-3xl font-bold tracking-tight">
-            Installation · Estimate #{job.estimate.number}
+            {t("Installation · Estimate #", "Instalación · Cotización n.º ")}{job.estimate.number}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {job.estimate.customerFirstName} {job.estimate.customerLastName} ·
-            Requested {new Date(job.requestedAt).toLocaleDateString()}
+            {job.estimate.customerFirstName} {job.estimate.customerLastName} ·{" "}
+            {t("Requested", "Fecha de solicitud")} {new Date(job.requestedAt).toLocaleDateString(locale === "es" ? "es-US" : "en-US")}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="text-sm">{installationStageLabel(job)}</Badge>
+          <Badge className="text-sm">{installationStageLabel(job, locale)}</Badge>
           <Button variant="outline" asChild>
             <Link
               href={
@@ -1118,15 +1144,15 @@ export function InstallationDetailClient({
                   : `/estimates/${job.estimateId}${estimateCanceled ? "" : "/edit"}`
               }
             >
-              {job.estimate.order ? "Open order" : "Open estimate"}
+              {job.estimate.order ? t("Open order", "Abrir orden") : t("Open estimate", "Abrir cotización")}
             </Link>
           </Button>
         </div>
       </div>
 
-      {estimateCanceled && <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm">This estimate is canceled. Reactivate it from the estimate to resume this project.</p>}
-      {!estimateCanceled && <MaterialRevisionAccess estimateId={job.estimateId} context="installation" />}
-      {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>Installation address</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.addressLine2, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].filter(Boolean).join(", ")}</p></div>}
+      {estimateCanceled && <p role="status" className="rounded-lg border bg-slate-50 p-4 text-sm">{t("This estimate is canceled. Reactivate it from the estimate to resume this project.", "Esta cotización está cancelada. Reactívala desde la cotización para continuar con el proyecto.")}</p>}
+      {!estimateCanceled && <MaterialRevisionAccess estimateId={job.estimateId} context="installation" locale={locale} />}
+      {job.installationAddress && <div className="rounded-lg border bg-white p-4 text-sm"><strong>{t("Installation address", "Dirección de instalación")}</strong><p className="mt-1">{[job.installationAddress.street, job.installationAddress.addressLine2, job.installationAddress.city, job.installationAddress.state, job.installationAddress.postalCode].filter(Boolean).join(", ")}</p></div>}
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           {(admin || (owner && userRole === "dealer" && job.estimate.user.dealerMode === "INTERNAL")) &&
@@ -1136,12 +1162,9 @@ export function InstallationDetailClient({
             depositPaid === 0 && (
               <Card className="border-blue-200">
                 <CardHeader>
-                  <CardTitle>Accept dealer measurements</CardTitle>
+                  <CardTitle>{t("Accept dealer measurements", "Aceptar las medidas del distribuidor")}</CardTitle>
                   <CardDescription>
-                    Use the current estimate measurements without a company
-                    remeasurement visit or an installation deposit. The full
-                    installation balance remains due. Continue with the current
-                    price without submitting the quote or requesting approvals.
+                    {t("Use the current estimate measurements without a company remeasurement visit or an installation deposit. The full installation balance remains due. Continue with the current price without submitting the quote or requesting approvals.", "Usa las medidas actuales de la cotización y omite la visita de verificación y el depósito de instalación. El saldo completo de la instalación queda pendiente. Se mantiene el precio actual y puedes continuar sin enviar la cotización ni solicitar aprobaciones.")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-end">
@@ -1150,10 +1173,10 @@ export function InstallationDetailClient({
                     disabled={busy}
                     onClick={() => run(
                       () => acceptDealerMeasurements(job.id),
-                      "Dealer measurements accepted. Deposit and remeasurement waived.",
+                      t("Dealer measurements accepted. Deposit and remeasurement waived.", "Se aceptaron las medidas del distribuidor. Se omitieron el depósito y la visita de verificación."),
                     )}
                   >
-                    Accept measurements and waive deposit
+                    {t("Accept measurements and waive deposit", "Aceptar las medidas y omitir el depósito")}
                   </Button>
                 </CardContent>
               </Card>
@@ -1161,17 +1184,17 @@ export function InstallationDetailClient({
 
           {job.dealerMeasurementsAcceptedAt && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-              <strong className="block">Dealer measurements accepted</strong>
-              <p>No installation deposit or remeasurement visit is required.</p>
+              <strong className="block">{t("Dealer measurements accepted", "Medidas del distribuidor aceptadas")}</strong>
+              <p>{t("No installation deposit or remeasurement visit is required.", "Se omiten el depósito de instalación y la visita de verificación de medidas.")}</p>
               {admin && job.dealerMeasurementsAcceptedById && (
                 <p className="mt-1 text-xs">
-                  Authorized by {job.dealerMeasurementsAcceptedBy?.firstName}{" "}
+                  {t("Authorized by", "Autorizado por")} {job.dealerMeasurementsAcceptedBy?.firstName}{" "}
                   {job.dealerMeasurementsAcceptedBy?.lastName} ·{" "}
-                  {new Date(job.dealerMeasurementsAcceptedAt).toLocaleString()}
+                  {new Date(job.dealerMeasurementsAcceptedAt).toLocaleString(locale === "es" ? "es-US" : "en-US")}
                 </p>
               )}
               {admin && !job.dealerMeasurementsAcceptedById && (
-                <p className="mt-1 text-xs">Applied from the dealer&apos;s No installation deposit setting.</p>
+                <p className="mt-1 text-xs">{t("Applied from the dealer's No installation deposit setting.", "Se aplicó la opción «Sin depósito de instalación» del distribuidor.")}</p>
               )}
             </div>
           )}
@@ -1180,12 +1203,10 @@ export function InstallationDetailClient({
             <Card className="border-amber-200 bg-amber-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" /> Remeasurement is not
-                  ready
+                  <AlertTriangle className="h-5 w-5" /> {t("Remeasurement is not ready", "Verificación de medidas pendiente")}
                 </CardTitle>
                 <CardDescription>
-                  Record measurements only after the deposit is paid and the
-                  customer accepts the remeasurement date.
+                  {t("Record measurements only after the deposit is paid and the customer accepts the remeasurement date.", "Registra las medidas después de que se pague el depósito y el cliente acepte la fecha de la visita.")}
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -1195,22 +1216,19 @@ export function InstallationDetailClient({
             <Card id="material-revision">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <CardTitle>{job.dealerMeasurementsAcceptedAt ? "Accepted measurements" : "Field Measurements"}</CardTitle>
+                  <CardTitle>{job.dealerMeasurementsAcceptedAt ? t("Accepted measurements", "Medidas aceptadas") : t("Field Measurements", "Medidas en obra")}</CardTitle>
                   {canEditRemeasurementRevision && <Button disabled={busy} onClick={() =>
                     setAddedPieceEditor({ key: `new-${Date.now()}` })}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Piece
+                    <Plus className="mr-2 h-4 w-4" /> {t("Add Piece", "Agregar pieza")}
                   </Button>}
                 </div>
                 <CardDescription>
-                  Each physical unit is identified from its Estimate Piece. Only
-                  the dimensions required by that System configuration are
-                  shown. Added pieces and measurement changes stay in this same revision;
-                  submit the quote once all units have been confirmed.
+                  {t("Each physical unit is identified from its Estimate Piece. Only the dimensions required by that System configuration are shown. Added pieces and measurement changes stay in this same revision; submit the quote once all units have been confirmed.", "Cada unidad se identifica por su pieza en la cotización. Aquí aparecen las medidas que requiere la configuración de ese sistema. Las piezas nuevas y los cambios de medidas se incluyen en esta revisión. Envía la cotización cuando hayas confirmado todas las unidades.")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {combinedRevisionSubmitted && <p className="text-sm text-muted-foreground">
-                  This revision is awaiting approval. Return it for changes before editing its material or measurements.
+                  {t("This revision is awaiting approval. Return it for changes before editing its material or measurements.", "Esta revisión está pendiente de aprobación. Devuélvela para hacer cambios antes de editar los materiales o las medidas.")}
                 </p>}
                 {job.measurements
                   .filter((measurement) => !measurement.isManual)
@@ -1224,37 +1242,37 @@ export function InstallationDetailClient({
                       const input = addition?.proposedPieceInput;
                       if (addition?.action !== "ADD" || !input) return null;
                       const display = addition.calculatedSnapshot?.display;
-                      const dimensions = [
-                        ["Width", input.width], ["Height", input.height], ["Left height", input.heightLeft],
-                        ["Right height", input.heightRight], ["Leg height", input.legHeight],
-                        ["Sash height", input.sashHeight], ["Window height", input.windowHeight],
-                        ["Door width", input.doorWidth], ["Door height", input.doorHeight],
-                        ["Left sidelite", input.leftSideliteWidth], ["Right sidelite", input.rightSideliteWidth],
-                      ].filter(([, value]) => value != null && value !== "");
+                      const dimensions = ([
+                        ["Width", input.width], ["Height", input.height], ["Height Left", input.heightLeft],
+                        ["Height Right", input.heightRight], ["Leg Height", input.legHeight],
+                        ["Sash Height", input.sashHeight], ["Window Height", input.windowHeight],
+                        ["Door Width", input.doorWidth], ["Door Height", input.doorHeight],
+                        ["Left Sidelite Width", input.leftSideliteWidth], ["Right Sidelite Width", input.rightSideliteWidth],
+                      ] as const).filter(([, value]) => value != null && value !== "");
                       return <div key={`${measurement.id}-${measurement.updatedAt}`} className="space-y-3 rounded-lg border p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h3 className="font-semibold">{input.mark || "New piece"} · Unit {addition.sourceUnitIndex}</h3>
-                          <div className="flex gap-2"><Badge variant="outline">Added piece</Badge><Badge variant="outline">{title(measurement.status)}</Badge></div>
+                          <h3 className="font-semibold">{input.mark || t("New piece", "Nueva pieza")} · {t("Unit", "Unidad")} {addition.sourceUnitIndex}</h3>
+                          <div className="flex gap-2"><Badge variant="outline">{t("Added piece", "Pieza agregada")}</Badge><Badge variant="outline">{measurement.status === "COMPLETED" ? t("Completed", "Completada") : t("Pending", "Pendiente")}</Badge></div>
                         </div>
                         <p className="text-sm">{[display?.productName, display?.systemName, display?.configName].filter(Boolean).join(" · ")}</p>
-                        <p className="text-sm">{dimensions.map(([name, value]) => `${name}: ${Number(value)} in`).join(" · ")}</p>
-                        {input.horizontalHeights?.length ? <p className="text-sm">Horizontal heights: {input.horizontalHeights.join(" / ")} in</p> : null}
-                        {input.panelCount != null && <p className="text-sm">Panels: {input.panelCount}</p>}
-                        <p className="text-xs text-muted-foreground">Pending material addition. It is not part of the original estimate until approval. Use Edit Piece to review all specifications.</p>
+                        <p className="text-sm">{dimensions.map(([name, value]) => `${pieceFormText(locale, name)}: ${Number(value)} ${t("in", "pulg.")}`).join(" · ")}</p>
+                        {input.horizontalHeights?.length ? <p className="text-sm">{pieceFormText(locale, "Horizontal Heights")}: {input.horizontalHeights.join(" / ")} {t("in", "pulg.")}</p> : null}
+                        {input.panelCount != null && <p className="text-sm">{t("Panels", "Paneles")}: {input.panelCount}</p>}
+                        <p className="text-xs text-muted-foreground">{t("Pending material addition. It is not part of the original estimate until approval. Use Edit Piece to review all specifications.", "Esta pieza se incorporará a la cotización original cuando se apruebe la revisión. Selecciona «Editar pieza» para ver sus especificaciones.")}</p>
                         {canEditRemeasurementRevision && <div className="flex flex-wrap gap-2">
                           <Button variant="outline" disabled={busy} onClick={() => setAddedPieceEditor({
                             measurementId: measurement.id,
                             input: { ...input, doorDesignSnapshot: addition.calculatedSnapshot?.doorDesignSnapshot },
                             key: `added-${measurement.id}-${measurement.updatedAt}`,
-                          })}>Edit Piece</Button>
+                          })}>{t("Edit Piece", "Editar pieza")}</Button>
                           <Button disabled={busy || measurement.status === "COMPLETED"} onClick={() => void run(
                             () => updateInstallationMeasurement(job.id, measurement.id, { label: measurement.label }),
-                            "Added unit measurement confirmed. Continue preparing the same revision.",
-                          )}>{measurement.status === "COMPLETED" ? "Measurement confirmed" : "Confirm measurement"}</Button>
+                            t("Added unit measurement confirmed. Continue preparing the same revision.", "Se confirmó la medida de la unidad agregada. Puedes continuar con esta revisión."),
+                          )}>{measurement.status === "COMPLETED" ? t("Measurement confirmed", "Medida confirmada") : t("Confirm measurement", "Confirmar medida")}</Button>
                           <Button variant="outline" disabled={busy} onClick={() => {
-                            if (window.confirm("Remove this added unit from the pending revision? Original material will not change."))
-                              void run(() => removeInstallationAddedPiece(job.id, measurement.id), "Pending added unit removed.");
-                          }}>Remove added unit</Button>
+                            if (window.confirm(t("Remove this added unit from the pending revision? Original material will not change.", "¿Quieres quitar esta unidad de la revisión pendiente? El material original se conserva.")))
+                              void run(() => removeInstallationAddedPiece(job.id, measurement.id), t("Pending added unit removed.", "Se quitó la unidad de la revisión pendiente."));
+                          }}>{t("Remove added unit", "Quitar unidad agregada")}</Button>
                         </div>}
                       </div>;
                     }
@@ -1283,7 +1301,7 @@ export function InstallationDetailClient({
                                 measurement.id,
                                 toMeasurementPayload(draft),
                               ),
-                            "Measurement confirmed. Submit Quote when the visit is complete.",
+                            t("Measurement confirmed. Submit Quote when the visit is complete.", "Medida confirmada. Envía la cotización al terminar la visita."),
                           )
                         }
                         onReplace={(reason, note) =>
@@ -1302,7 +1320,7 @@ export function InstallationDetailClient({
                                 measurement.id,
                                 { action: "REMOVE", reason, note },
                               ),
-                            "Removal added to the pending Estimate revision.",
+                            t("Removal added to the pending Estimate revision.", "Se incluyó la eliminación de la pieza en la revisión pendiente."),
                           )
                         }
                       />
@@ -1312,12 +1330,12 @@ export function InstallationDetailClient({
                   (measurement) => measurement.isManual,
                 ) && (
                   <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                    Manual installation-only openings:{" "}
+                    {t("Manual installation-only openings:", "Aberturas manuales solo para instalación:")}{" "}
                     {job.measurements
                       .filter((measurement) => measurement.isManual)
                       .map((measurement) => measurement.label)
                       .join(", ")}
-                    . These do not add material Pieces to the Estimate.
+                    {t(". These do not add material Pieces to the Estimate.", ". Estas aberturas se usan solo para calcular la instalación.")}
                   </div>
                 )}
               </CardContent>
@@ -1327,17 +1345,15 @@ export function InstallationDetailClient({
           {privileged && canRecordMeasurements && (
             <Card>
               <CardHeader>
-                <CardTitle>Add an opening not in the estimate</CardTitle>
+                <CardTitle>{t("Add an opening not in the estimate", "Agregar una abertura que falta en la cotización")}</CardTitle>
                 <CardDescription>
-                  Add each physical component separately when needed, then
-                  attach existing catalog services. No duplicate manual service
-                  is created.
+                  {t("Add each physical component separately when needed, then attach existing catalog services. No duplicate manual service is created.", "Agrega cada componente por separado y asígnale los servicios del catálogo que correspondan. Así evitas duplicar servicios.")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1 sm:col-span-2">
-                    <Label>Label</Label>
+                    <Label>{t("Label", "Etiqueta")}</Label>
                     <Input
                       value={manualDraft.label}
                       onChange={(event) =>
@@ -1346,22 +1362,22 @@ export function InstallationDetailClient({
                           label: event.target.value,
                         }))
                       }
-                      placeholder="Existing opening / component"
+                      placeholder={t("Existing opening / component", "Abertura o componente existente")}
                     />
                   </div>
                   {(
                     [
-                      "widthIn",
-                      "heightIn",
-                      "doorWidthIn",
-                      "doorHeightIn",
-                      "panelCount",
-                      "lengthIn",
+                      ["widthIn", "Width"],
+                      ["heightIn", "Height"],
+                      ["doorWidthIn", "Door Width"],
+                      ["doorHeightIn", "Door Height"],
+                      ["panelCount", "Panel Count"],
+                      ["lengthIn", "Length"],
                     ] as const
-                  ).map((key) => (
+                  ).map(([key, label]) => (
                     <div key={key} className="space-y-1">
                       <Label className="text-xs">
-                        {title(key.replace("In", ""))}
+                        {key === "lengthIn" ? t("Length", "Longitud") : pieceFormText(locale, label)}
                       </Label>
                       <Input
                         type="number"
@@ -1386,7 +1402,7 @@ export function InstallationDetailClient({
                       notes: event.target.value,
                     }))
                   }
-                  placeholder="Notes"
+                  placeholder={t("Notes", "Notas")}
                 />
                 <div className="flex justify-end">
                   <Button
@@ -1399,10 +1415,10 @@ export function InstallationDetailClient({
                         );
                         setManualDraft(measurementDraft());
                         return result;
-                      }, "Manual opening added.")
+                      }, t("Manual opening added.", "Se agregó la abertura manual."))
                     }
                   >
-                    <Plus className="mr-2 h-4 w-4" /> Add opening
+                    <Plus className="mr-2 h-4 w-4" /> {t("Add opening", "Agregar abertura")}
                   </Button>
                 </div>
               </CardContent>
@@ -1410,7 +1426,7 @@ export function InstallationDetailClient({
           )}
 
           {latestRevision && (
-            <EstimateRevisionSummary revision={latestRevision} comparison={job.revisionComparison} />
+            <EstimateRevisionSummary revision={latestRevision} comparison={job.revisionComparison} locale={locale} />
           )}
 
           <Card
@@ -1419,11 +1435,11 @@ export function InstallationDetailClient({
             }
           >
             <CardHeader>
-              <CardTitle>Quote {latest?.submittedAt ? `v${latest.version}` : ""}</CardTitle>
+              <CardTitle>{t("Quote", "Cotización")} {latest?.submittedAt ? `v${latest.version}` : ""}</CardTitle>
               <CardDescription>
                 {admin
-                  ? "Confirm all measurements, then submit the completed visit."
-                  : "Installation services and prices."}
+                  ? t("Confirm all measurements, then submit the completed visit.", "Confirma todas las medidas y envía la cotización al terminar la visita.")
+                  : t("Installation services and prices.", "Servicios y precios de instalación.")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1432,14 +1448,15 @@ export function InstallationDetailClient({
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
                     {privileged
-                      ? "Changes will be recalculated when you submit. You can also recalculate now to preview the total."
-                      : "The quote is being checked. You will be asked to review it if measurements, services, or prices change."}
+                      ? t("Changes will be recalculated when you submit. You can also recalculate now to preview the total.", "El total se recalculará cuando envíes la cotización. También puedes recalcularlo ahora para revisarlo.")
+                      : t("The quote is being checked. You will be asked to review it if measurements, services, or prices change.", "Se está revisando la cotización. Te pediremos que la revises si cambian las medidas, los servicios o los precios.")}
                   </span>
                 </div>
               )}
               {latest?.lines.length ? (
                 <InstallationQuoteTable
                   quote={latest}
+                  locale={locale}
                   showInternal={admin}
                   renderAction={canManageAdditionalServices ? (line) => {
                     const removable = line.canRemove ??
@@ -1448,11 +1465,12 @@ export function InstallationDetailClient({
                     return removable ? (
                       <Button
                         size="icon"
+                        aria-label={t("Remove service", "Quitar servicio")}
                         variant="ghost"
                         disabled={busy}
                         onClick={() => run(
                           () => deleteInstallationLine(job.id, line.id),
-                          "Service removed.",
+                          t("Service removed.", "Se quitó el servicio."),
                         )}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1462,25 +1480,25 @@ export function InstallationDetailClient({
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No quote lines yet.
+                  {t("No quote lines yet.", "Aún no hay servicios en la cotización.")}
                 </p>
               )}
 
               {latest && (
                 <div className="ml-auto grid max-w-sm grid-cols-2 gap-2 rounded-lg bg-slate-50 p-4 text-sm">
                   {admin && (<>
-                  <span className="text-muted-foreground">Base subtotal</span>
+                  <span className="text-muted-foreground">{t("Base subtotal", "Subtotal base")}</span>
                   <span className="text-right">
                     {money(latest.baseSubtotal)}
                   </span>
                   <span className="text-muted-foreground">
-                    Profile increases ({latest.profileNameSnapshot})
+                    {t("Profile increases", "Incrementos del perfil")} ({latest.profileNameSnapshot})
                   </span>
                   <span className="text-right">
                     {money(Number(latest.adjustedSubtotal ?? 0) - Number(latest.baseSubtotal ?? 0))}
                   </span>
                   <span className="text-muted-foreground">
-                    Adjusted subtotal
+                    {t("Adjusted subtotal", "Subtotal ajustado")}
                   </span>
                   <span className="text-right">
                     {money(latest.adjustedSubtotal)}
@@ -1491,8 +1509,7 @@ export function InstallationDetailClient({
                       className="col-span-2 grid grid-cols-2 gap-2"
                     >
                       <span className="text-muted-foreground">
-                        {minimum.serviceName} minimum (
-                        {money(minimum.minimumCharge)})
+                        {t(`${minimum.serviceName} minimum`, `Mínimo de ${minimum.serviceName}`)} ({money(minimum.minimumCharge)})
                       </span>
                       <span className="text-right">
                         {money(minimum.adjustment)}
@@ -1502,7 +1519,7 @@ export function InstallationDetailClient({
                   {Number(latest.minimumAdjustment) > 0 && (
                     <>
                       <span className="text-muted-foreground">
-                        {latest.providerCostSnapshot ? "Provider minimum adjustment" : "Initial minimum adjustment"}
+                        {latest.providerCostSnapshot ? t("Provider minimum adjustment", "Ajuste por el mínimo del proveedor") : t("Initial minimum adjustment", "Ajuste por el mínimo inicial")}
                       </span>
                       <span className="text-right">
                         {money(latest.minimumAdjustment)}
@@ -1510,19 +1527,18 @@ export function InstallationDetailClient({
                     </>
                   )}
                   </>)}
-                  {Number(latest.installationSurcharge ?? 0) > 0 && <><span className="text-muted-foreground">Installation surcharge</span><span className="text-right">{money(latest.installationSurcharge)}</span></>}
+                  {Number(latest.installationSurcharge ?? 0) > 0 && <><span className="text-muted-foreground">{t("Installation surcharge", "Recargo de instalación")}</span><span className="text-right">{money(latest.installationSurcharge)}</span></>}
                   <strong>Total</strong>
                   <strong className="text-right">{money(latest.total)}</strong>
                 </div>
               )}
-              {latest && <InstallationFinancialSummary quote={latest} processing={job.installationProcessingSummary} userRole={userRole} />}
+              {latest && <InstallationFinancialSummary quote={latest} processing={job.installationProcessingSummary} userRole={userRole} locale={locale} />}
             </CardContent>
           </Card>
 
           {showServiceChangeNotice && (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-              You can request additional services or changes to existing services
-              during the technician&apos;s remeasurement visit.
+              {t("You can request additional services or changes to existing services during the technician's remeasurement visit.", "Puedes solicitar servicios adicionales o cambios a los servicios existentes durante la visita de verificación de medidas.")}
             </div>
           )}
 
@@ -1530,10 +1546,9 @@ export function InstallationDetailClient({
             canManageAdditionalServices && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Add additional service</CardTitle>
+                  <CardTitle>{t("Add additional service", "Agregar un servicio adicional")}</CardTitle>
                   <CardDescription>
-                    Add work outside this estimate. It is priced from the manual
-                    values below and is never linked to an estimate opening.
+                    {t("Add work outside this estimate. It is priced from the manual values below and is never linked to an estimate opening.", "Agrega trabajos adicionales a la cotización. Su precio se calcula con los valores que ingreses aquí y se registra por separado de las aberturas.")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1545,7 +1560,7 @@ export function InstallationDetailClient({
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select additional service" />
+                      <SelectValue placeholder={t("Select additional service", "Selecciona un servicio adicional")} />
                     </SelectTrigger>
                     <SelectContent>
                       {serviceChoices.map((service) => (
@@ -1557,6 +1572,7 @@ export function InstallationDetailClient({
                   </Select>
                   <AdditionalServiceFields
                     service={selectedService}
+                    locale={locale}
                     value={serviceDraft}
                     onChange={setServiceDraft}
                   />
@@ -1568,7 +1584,7 @@ export function InstallationDetailClient({
                         description: event.target.value,
                       }))
                     }
-                    placeholder="Description or field note (optional)"
+                    placeholder={t("Description or field note (optional)", "Descripción o nota de la visita (opcional)")}
                   />
                   <div className="flex justify-end">
                     <Button
@@ -1578,12 +1594,13 @@ export function InstallationDetailClient({
                           additionalServiceValidationError(
                             selectedService,
                             serviceDraft,
+                            locale,
                           ),
                         )
                       }
                       onClick={addAdditionalService}
                     >
-                      <Plus className="mr-2 h-4 w-4" /> Add service
+                      <Plus className="mr-2 h-4 w-4" /> {t("Add service", "Agregar servicio")}
                     </Button>
                   </div>
                 </CardContent>
@@ -1596,18 +1613,18 @@ export function InstallationDetailClient({
               ["MEASUREMENT_SCHEDULED", "MEASUREMENT_PENDING", "QUOTE_DRAFT"].includes(job.status)) && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Submit final quote</CardTitle>
+                  <CardTitle>{t("Submit final quote", "Enviar cotización final")}</CardTitle>
                   <CardDescription>
                     {pendingMeasurements.length > 0
-                      ? `${pendingMeasurements.length} unit(s) still need confirmation.`
-                      : "Submit the completed visit. Unchanged measurements and prices keep the current quote; changes are sent for review."}
+                      ? t(`${pendingMeasurements.length} unit(s) still need confirmation.`, pendingMeasurements.length === 1 ? "Falta confirmar una unidad." : `Faltan ${pendingMeasurements.length} unidades por confirmar.`)
+                      : t("Submit the completed visit. Unchanged measurements and prices keep the current quote; changes are sent for review.", "Envía la cotización al terminar la visita. Si las medidas y los precios siguen iguales, se mantiene la cotización actual. Los cambios se envían a revisión.")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Textarea
                     value={quoteNotes}
                     onChange={(event) => setQuoteNotes(event.target.value)}
-                    placeholder="Quote notes"
+                    placeholder={t("Quote notes", "Notas de la cotización")}
                   />
                   <div className="flex justify-end gap-2">
                     <Button
@@ -1616,11 +1633,11 @@ export function InstallationDetailClient({
                       onClick={() =>
                         run(
                           () => recalculateInstallationQuote(job.id),
-                          "Quote recalculated and ready to submit.",
+                          t("Quote recalculated and ready to submit.", "Cotización recalculada y lista para enviar."),
                         )
                       }
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" /> Recalculate quote
+                      <RefreshCw className="mr-2 h-4 w-4" /> {t("Recalculate quote", "Recalcular cotización")}
                     </Button>
                     <Button
                       disabled={busy || pendingMeasurements.length > 0}
@@ -1632,12 +1649,12 @@ export function InstallationDetailClient({
                               quoteNotes || undefined,
                             ),
                           (result) => result.quotes[0]?.status === "APPROVED"
-                            ? "Remeasurement completed without changes. No new version or approval required."
-                            : "Changes submitted for review.",
+                            ? t("Remeasurement completed without changes. No new version or approval required.", "Las medidas se verificaron sin cambios. La cotización conserva su versión y su aprobación.")
+                            : t("Changes submitted for review.", "Se enviaron los cambios a revisión."),
                         )
                       }
                     >
-                      Submit quote
+                      {t("Submit quote", "Enviar cotización")}
                     </Button>
                   </div>
                 </CardContent>
@@ -1647,13 +1664,13 @@ export function InstallationDetailClient({
           {admin && latest?.status === "PENDING_ADMIN_APPROVAL" && (
             <Card className="border-amber-200">
               <CardHeader>
-                <CardTitle>Admin approval</CardTitle>
+                <CardTitle>{t("Admin approval", "Aprobación del administrador")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Textarea
                   value={decisionComment}
                   onChange={(event) => setDecisionComment(event.target.value)}
-                  placeholder="Approval or rejection comment"
+                  placeholder={t("Approval or rejection comment", "Comentario sobre la aprobación o el rechazo")}
                 />
                 <div className="flex justify-end gap-2">
                   <Button
@@ -1667,11 +1684,11 @@ export function InstallationDetailClient({
                             "REJECTED",
                             decisionComment || undefined,
                           ),
-                        "Quote returned to draft.",
+                        t("Quote returned to draft.", "La cotización volvió a borrador."),
                       )
                     }
                   >
-                    Reject
+                    {t("Reject", "Rechazar")}
                   </Button>
                   <Button
                     disabled={busy}
@@ -1683,11 +1700,11 @@ export function InstallationDetailClient({
                             "APPROVED",
                             decisionComment || undefined,
                           ),
-                        "Quote sent to customer.",
+                        t("Quote sent to customer.", "Se envió la cotización al cliente."),
                       )
                     }
                   >
-                    Approve
+                    {t("Approve", "Aprobar")}
                   </Button>
                 </div>
               </CardContent>
@@ -1697,17 +1714,16 @@ export function InstallationDetailClient({
           {owner && latest?.status === "PENDING_CUSTOMER_APPROVAL" && (
             <Card className="border-blue-200">
               <CardHeader>
-                <CardTitle>Installation approval</CardTitle>
+                <CardTitle>{t("Installation approval", "Aprobación de la instalación")}</CardTitle>
                 <CardDescription>
-                  Review the quote above and respond without leaving this
-                  installation.
+                  {t("Review the quote above and respond without leaving this installation.", "Revisa la cotización de arriba y responde aquí.")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Textarea
                   value={decisionComment}
                   onChange={(event) => setDecisionComment(event.target.value)}
-                  placeholder="Optional response"
+                  placeholder={t("Optional response", "Respuesta opcional")}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Button
@@ -1721,11 +1737,11 @@ export function InstallationDetailClient({
                             "REJECTED",
                             decisionComment || undefined,
                           ),
-                        "Installation quote rejected.",
+                        t("Installation quote rejected.", "Cotización de instalación rechazada."),
                       )
                     }
                   >
-                    Reject
+                    {t("Reject", "Rechazar")}
                   </Button>
                   <Button
                     disabled={busy}
@@ -1737,11 +1753,11 @@ export function InstallationDetailClient({
                             "APPROVED",
                             decisionComment || undefined,
                           ),
-                        "Installation quote approved.",
+                        t("Installation quote approved.", "Cotización de instalación aprobada."),
                       )
                     }
                   >
-                    Approve
+                    {t("Approve", "Aprobar")}
                   </Button>
                 </div>
               </CardContent>
@@ -1753,20 +1769,20 @@ export function InstallationDetailClient({
           {job.permit && (
             <Card>
               <CardHeader>
-                <CardTitle>Permit</CardTitle>
+                <CardTitle>{t("Permit", "Permiso")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span>Permit status</span>
+                  <span>{t("Permit status", "Estado del permiso")}</span>
                   <Badge variant="outline">
                     {permitUsesPaymentPlan && ["PAYMENT_PENDING", "PAID"].includes(job.permit.status)
-                      ? "Pending"
-                      : title(job.permit.status)}
+                      ? t("Pending", "Pendiente")
+                      : installationPermitStatusLabel(job.permit.status, locale)}
                   </Badge>
                 </div>
                 {permitUsesPaymentPlan && privileged && (
                   <p className="text-sm text-muted-foreground">
-                    The permit can be submitted before or after the order is placed.
+                    {t("The permit can be submitted before or after the order is placed.", "El permiso se puede presentar antes o después de realizar la orden.")}
                   </p>
                 )}
                 {privileged &&
@@ -1775,7 +1791,7 @@ export function InstallationDetailClient({
                     <div className="space-y-3 rounded-lg border p-3">
                       {permitOptions.length > 0 && (
                         <div className="space-y-2">
-                          <Label htmlFor="permit-next-status">Update permit status</Label>
+                          <Label htmlFor="permit-next-status">{t("Update permit status", "Actualizar el estado del permiso")}</Label>
                           <Select
                             value={
                               permitStatus === job.permit.status ? "" : permitStatus
@@ -1785,13 +1801,13 @@ export function InstallationDetailClient({
                               setPermitStatus(value as InstallationPermitStatus)
                             }
                           >
-                            <SelectTrigger id="permit-next-status" aria-label="Permit status">
-                              <SelectValue placeholder="Select permit status" />
+                            <SelectTrigger id="permit-next-status" aria-label={t("Permit status", "Estado del permiso")}>
+                              <SelectValue placeholder={t("Select permit status", "Selecciona el estado del permiso")} />
                             </SelectTrigger>
                             <SelectContent>
                               {permitOptions.map((status) => (
                                 <SelectItem key={status} value={status}>
-                                  {title(status)}
+                                  {installationPermitStatusLabel(status, locale)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1800,7 +1816,7 @@ export function InstallationDetailClient({
                       )}
                       {approvingPermit && (
                         <div className="space-y-2">
-                          <Label htmlFor="permit-city-fee">City Fee</Label>
+                          <Label htmlFor="permit-city-fee">{t("City Fee", "Tasa municipal")}</Label>
                           <Input
                             id="permit-city-fee"
                             type="number"
@@ -1809,18 +1825,18 @@ export function InstallationDetailClient({
                             value={cityFee}
                             disabled={busy}
                             onChange={(event) => setCityFee(event.target.value)}
-                            placeholder="Required for approval"
+                            placeholder={t("Required for approval", "Obligatoria para aprobar el permiso")}
                           />
                         </div>
                       )}
                       <div className="space-y-2">
-                        <Label htmlFor="permit-notes">Permit notes</Label>
+                        <Label htmlFor="permit-notes">{t("Permit notes", "Notas del permiso")}</Label>
                         <Textarea
                           id="permit-notes"
                           value={permitNotes}
                           disabled={busy}
                           onChange={(event) => setPermitNotes(event.target.value)}
-                          placeholder="Permit notes"
+                          placeholder={t("Permit notes", "Notas del permiso")}
                         />
                       </div>
                       <Button
@@ -1836,19 +1852,18 @@ export function InstallationDetailClient({
                                   : undefined,
                                 notes: permitNotes.trim(),
                               }),
-                            "Permit updated.",
+                            t("Permit updated.", "Permiso actualizado."),
                           )
                         }
                       >
-                        Save permit
+                        {t("Save permit", "Guardar permiso")}
                       </Button>
                     </div>
                   )}
                 {privileged && permitLocked && (
                   <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
                     <p>
-                      Permit status and City Fee are locked because material
-                      checkout has started.
+                      {t("Permit status and City Fee are locked because material checkout has started.", "El estado del permiso y la tasa municipal están bloqueados porque ya comenzó el pago de los materiales.")}
                     </p>
                     {job.permit.notes && (
                       <p className="mt-2 whitespace-pre-wrap text-foreground">
@@ -1859,23 +1874,23 @@ export function InstallationDetailClient({
                 )}
                 <div className="space-y-3 border-t pt-3">
                   <div className="flex justify-between gap-3 text-sm">
-                    <span>Permit Fee</span>
+                    <span>{t("Permit Fee", "Tarifa del permiso")}</span>
                     <strong>{money(job.manualDiscountSummary?.permit.total ?? job.permit.permitFeeSnapshot)}</strong>
                   </div>
                   {permitUsesPaymentPlan && (
                     <p className="text-xs text-muted-foreground">
-                      Included in the project payment schedule.
+                      {t("Included in the project payment schedule.", "Incluida en el plan de pagos del proyecto.")}
                     </p>
                   )}
                   <div className="flex justify-between gap-3 text-sm">
-                    <span>City Fee</span>
+                    <span>{t("City Fee", "Tasa municipal")}</span>
                     <strong>{job.permit.cityFee == null
-                      ? "Pending"
+                      ? t("Pending", "Pendiente")
                       : money(job.manualDiscountSummary?.city.total ?? job.permit.cityFee)}</strong>
                   </div>
                   {job.permit.cityFee == null && (
                     <p className="text-xs text-muted-foreground">
-                      The amount is entered when the permit is approved.
+                      {t("The amount is entered when the permit is approved.", "El importe se indica al aprobar el permiso.")}
                     </p>
                   )}
                 </div>
@@ -1885,10 +1900,9 @@ export function InstallationDetailClient({
 
           <Card>
             <CardHeader>
-              <CardTitle>Appointments</CardTitle>
+              <CardTitle>{t("Appointments", "Citas")}</CardTitle>
               <CardDescription>
-                Remeasurement and installation schedules are tracked
-                independently.
+                {t("Remeasurement and installation schedules are tracked independently.", "La nueva medición y la instalación se programan por separado.")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1899,14 +1913,12 @@ export function InstallationDetailClient({
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <Badge variant="secondary">
-                      {appointment.type === "REMEASUREMENT"
-                        ? "Remeasurement"
-                        : "Installation"}
+                      {installationAppointmentTypeLabel(appointment.type, locale)}
                     </Badge>
-                    <Badge variant="outline">{title(appointment.status)}</Badge>
+                    <Badge variant="outline">{installationAppointmentStatusLabel(appointment.status, locale)}</Badge>
                   </div>
                   <strong>
-                    {new Date(appointment.startsAt).toLocaleString()}
+                    {new Date(appointment.startsAt).toLocaleString(locale === "es" ? "es-US" : "en-US")}
                   </strong>
                   {appointment.note && (
                     <p className="mt-2 text-muted-foreground">
@@ -1915,7 +1927,7 @@ export function InstallationDetailClient({
                   )}
                   {appointment.responseNote && (
                     <p className="mt-1 text-muted-foreground">
-                      Response: {appointment.responseNote}
+                      {t("Response:", "Respuesta:")} {appointment.responseNote}
                     </p>
                   )}
 
@@ -1929,7 +1941,7 @@ export function InstallationDetailClient({
                             [appointment.id]: event.target.value,
                           }))
                         }
-                        placeholder="Optional response"
+                        placeholder={t("Optional response", "Respuesta opcional")}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Button
@@ -1944,7 +1956,7 @@ export function InstallationDetailClient({
                             )
                           }
                         >
-                          Request reschedule
+                          {t("Request reschedule", "Solicitar otra fecha")}
                         </Button>
                         <Button
                           type="button"
@@ -1955,7 +1967,7 @@ export function InstallationDetailClient({
                             void respondToAppointment(appointment.id, "ACCEPT")
                           }
                         >
-                          Accept schedule
+                          {t("Accept schedule", "Aceptar la fecha")}
                         </Button>
                       </div>
                     </div>
@@ -1968,12 +1980,11 @@ export function InstallationDetailClient({
                   <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground">
                       {blockingAppointment.status === "PROPOSED"
-                        ? "A date is already awaiting the project owner response."
-                        : "The current appointment has been accepted."}
+                        ? t("A date is already awaiting the project owner response.", "Hay una fecha propuesta pendiente de respuesta del titular del proyecto.")
+                        : t("The current appointment has been accepted.", "El titular aceptó la cita actual.")}
                     </p>
                     <p className="mt-1">
-                      A new date can only be proposed after the project owner
-                      requests rescheduling.
+                      {t("A new date can only be proposed after the project owner requests rescheduling.", "Podrás proponer otra fecha cuando el titular solicite cambiar la cita.")}
                     </p>
                   </div>
                 )}
@@ -1982,19 +1993,21 @@ export function InstallationDetailClient({
                 (appointmentType !== "INSTALLATION" ||
                   deliveryOverridePaid) && (
                 <>
-                  <Label>
-                    {rescheduleRequested ? "New proposed" : "Proposed"}{" "}
-                    {appointmentType === "REMEASUREMENT"
-                      ? "remeasurement start"
-                      : "installation start"}
+                  <Label htmlFor="installation-appointment-start">
+                    {t(
+                      `${rescheduleRequested ? "New proposed" : "Proposed"} ${appointmentType === "REMEASUREMENT" ? "remeasurement" : "installation"} start`,
+                      `${rescheduleRequested ? "Nueva fecha y hora" : "Fecha y hora"} de inicio para la ${appointmentType === "REMEASUREMENT" ? "nueva medición" : "instalación"}`,
+                    )}
                   </Label>
                   <Input
+                    id="installation-appointment-start"
                     type="datetime-local"
                     value={startsAt}
                     onChange={(event) => setStartsAt(event.target.value)}
                   />
-                  <Label>Optional end</Label>
+                  <Label htmlFor="installation-appointment-end">{t("Optional end", "Fecha y hora de fin (opcional)")}</Label>
                   <Input
+                    id="installation-appointment-end"
                     type="datetime-local"
                     value={endsAt}
                     onChange={(event) => setEndsAt(event.target.value)}
@@ -2002,7 +2015,7 @@ export function InstallationDetailClient({
                   <Textarea
                     value={appointmentNote}
                     onChange={(event) => setAppointmentNote(event.target.value)}
-                    placeholder="Appointment note"
+                    placeholder={t("Appointment note", "Nota de la cita")}
                   />
                   <Button
                     className="w-full"
@@ -2019,17 +2032,16 @@ export function InstallationDetailClient({
                             note: appointmentNote || undefined,
                           }),
                         appointmentType === "REMEASUREMENT"
-                          ? "Remeasurement date proposed."
-                          : "Installation date proposed.",
+                          ? t("Remeasurement date proposed.", "Se propuso una fecha para la nueva medición.")
+                          : t("Installation date proposed.", "Se propuso una fecha para la instalación."),
                       )
                     }
                   >
-                    <CalendarDays className="mr-2 h-4 w-4" /> Propose{" "}
-                    {rescheduleRequested && "new "}
-                    {appointmentType === "REMEASUREMENT"
-                      ? "remeasurement"
-                      : "installation"}{" "}
-                    date
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {t(
+                      `Propose ${rescheduleRequested ? "new " : ""}${appointmentType === "REMEASUREMENT" ? "remeasurement" : "installation"} date`,
+                      `Proponer ${rescheduleRequested ? "otra fecha" : "fecha"} para la ${appointmentType === "REMEASUREMENT" ? "nueva medición" : "instalación"}`,
+                    )}
                   </Button>
                 </>
               )}
@@ -2037,7 +2049,7 @@ export function InstallationDetailClient({
                 job.status === "SCHEDULED" &&
                 orderReadyToStartInstallation && (
                   <div className="space-y-2">
-                  {job.permit && job.permit.status !== "APPROVED" && <p id="installation-permit-blocked" className="text-sm text-amber-800">The company-managed permit must be approved before installation can start.</p>}
+                  {job.permit && job.permit.status !== "APPROVED" && <p id="installation-permit-blocked" className="text-sm text-amber-800">{t("The company-managed permit must be approved before installation can start.", "El permiso que tramita la empresa debe estar aprobado para iniciar la instalación.")}</p>}
                   <Button
                     className="w-full"
                     aria-describedby={job.permit && job.permit.status !== "APPROVED" ? "installation-permit-blocked" : undefined}
@@ -2045,11 +2057,11 @@ export function InstallationDetailClient({
                     onClick={() =>
                       run(
                         () => startInstallation(job.id),
-                        "Installation started.",
+                        t("Installation started.", "Instalación iniciada."),
                       )
                     }
                   >
-                    Start installation
+                    {t("Start installation", "Iniciar instalación")}
                   </Button>
                   </div>
                 )}
@@ -2060,11 +2072,11 @@ export function InstallationDetailClient({
                   onClick={() =>
                     run(
                       () => completeInstallation(job.id),
-                      "Installation marked Installed.",
+                      t("Installation marked Installed.", "Instalación marcada como completada."),
                     )
                   }
                 >
-                  Mark Installed
+                  {t("Mark Installed", "Marcar como instalada")}
                 </Button>
               )}
             </CardContent>
@@ -2076,11 +2088,12 @@ export function InstallationDetailClient({
             !["CANCELED", "IN_PROGRESS", "COMPLETED"].includes(job.status) && (
               <Card className="border-red-200">
                 <CardHeader>
-                  <CardTitle>Cancel installation</CardTitle>
+                  <CardTitle>{t("Cancel installation", "Cancelar instalación")}</CardTitle>
                   <CardDescription>
-                    The estimate or order will continue with material only. The{" "}
-                    {money(depositPaid)} installation deposit remains
-                    non-refundable.
+                    {t(
+                      `The estimate or order will continue with material only. The ${money(depositPaid)} installation deposit remains non-refundable.`,
+                      `La cotización o la orden seguirá solo con los materiales. El depósito de instalación de ${money(depositPaid)} no es reembolsable.`,
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -2089,7 +2102,7 @@ export function InstallationDetailClient({
                     onChange={(event) =>
                       setCancellationReason(event.target.value)
                     }
-                    placeholder="Cancellation reason"
+                    placeholder={t("Cancellation reason", "Motivo de la cancelación")}
                   />
                   <Button
                     variant="destructive"
@@ -2097,7 +2110,7 @@ export function InstallationDetailClient({
                     disabled={busy}
                     onClick={() => setCancelDialogOpen(true)}
                   >
-                    Cancel installation
+                    {t("Cancel installation", "Cancelar instalación")}
                   </Button>
                 </CardContent>
               </Card>
@@ -2106,7 +2119,7 @@ export function InstallationDetailClient({
           {quoteHistory.length > 1 && (
             <Card>
               <CardHeader>
-                <CardTitle>Version history</CardTitle>
+                <CardTitle>{t("Version history", "Historial de versiones")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {quoteHistory.map((quote) => (
@@ -2114,9 +2127,9 @@ export function InstallationDetailClient({
                     key={quote.id}
                     className="flex items-center justify-between rounded-md border p-3 text-sm"
                   >
-                    <span>Version {quote.version}</span>
+                    <span>{t("Version", "Versión")} {quote.version}</span>
                     <span>{money(quote.total)}</span>
-                    <Badge variant="outline">{title(quote.status)}</Badge>
+                    <Badge variant="outline">{installationQuoteStatusLabel(quote.status, locale)}</Badge>
                   </div>
                 ))}
               </CardContent>
@@ -2125,22 +2138,28 @@ export function InstallationDetailClient({
         </aside>
       </div>
 
-      {admin && <PaymentScheduleView schedule={job.paymentSchedule} />}
+      {admin && <PaymentScheduleView schedule={job.paymentSchedule} locale={locale} />}
 
       <DeleteConfirmationDialog
         isOpen={cancelDialogOpen}
         onClose={() => setCancelDialogOpen(false)}
         onConfirm={cancelPaidInstallation}
-        title="Cancel this installation?"
-        description={`The ${money(depositPaid)} paid deposit will remain non-refundable. The estimate or order will continue with material only.`}
-        confirmText="Cancel installation"
+        lang={locale}
+        title={t("Cancel this installation?", "¿Cancelar esta instalación?")}
+        description={t(
+          `The ${money(depositPaid)} paid deposit will remain non-refundable. The estimate or order will continue with material only.`,
+          `El depósito pagado de ${money(depositPaid)} no es reembolsable. La cotización o la orden seguirá solo con los materiales.`,
+        )}
+        cancelText={t("Cancel", "Volver")}
+        confirmText={t("Cancel installation", "Cancelar instalación")}
       />
 
       {addedPieceEditor && (
         <PieceModal
           open
           onOpenChange={(open) => { if (!open && !busy) setAddedPieceEditor(null); }}
-          title={addedPieceEditor.measurementId ? "Edit added Piece" : "Add Piece to this revision"}
+          locale={locale}
+          title={addedPieceEditor.measurementId ? t("Edit added Piece", "Editar pieza agregada") : t("Add Piece to this revision", "Agregar pieza a esta revisión")}
           pieceKey={addedPieceEditor.key}
           initialData={revisionPieceForm(addedPieceEditor.input,
             job.estimate.user.role.name === "dealer" ? Number(job.estimate.pieces?.[0]?.dealerMarkup ?? 0) * 100 : 0)}
@@ -2148,10 +2167,7 @@ export function InstallationDetailClient({
           startUnlocked
           lockQuantity={Boolean(addedPieceEditor.measurementId)}
           estimateId={job.estimateId}
-          onCalculate={(piece) => calculateInstallationAddedPiece(job.id, {
-            measurementId: addedPieceEditor.measurementId, quoteId: latest?.id,
-            piece: revisionPieceInput(piece, productsWithBrands),
-          })}
+          onCalculate={calculateAddedPiece}
           onSave={async (piece) => {
             setBusy(true);
             try {
@@ -2161,9 +2177,9 @@ export function InstallationDetailClient({
               });
               setJob(updated);
               setAddedPieceEditor(null);
-              toast.success("Piece saved in the same remeasurement revision. Confirm all units before submitting the quote.");
+              toast.success(t("Piece saved in the same remeasurement revision. Confirm all units before submitting the quote.", "Pieza guardada en la revisión de la nueva medición. Confirma todas las unidades antes de enviar la cotización."));
             } catch (error) {
-              toast.error((error as Error).message);
+              toast.error(installationActionError(locale, error));
             } finally { setBusy(false); }
           }}
           onCancel={() => { if (!busy) setAddedPieceEditor(null); }}
@@ -2180,7 +2196,8 @@ export function InstallationDetailClient({
           onOpenChange={(open) => {
             if (!open) setReplacement(null);
           }}
-          title={`Replace ${replacement.piece.mark} · Unit ${replacement.measurement.unitIndex}`}
+          locale={locale}
+          title={`${t("Replace", "Reemplazar")} ${replacement.piece.mark} · ${t("Unit", "Unidad")} ${replacement.measurement.unitIndex}`}
           pieceKey={`${replacement.measurement.id}-${replacement.piece.id}`}
           initialData={{
             ...pieceToForm(replacement.piece),
@@ -2191,13 +2208,7 @@ export function InstallationDetailClient({
             qty: 1,
           }}
           index={replacement.measurement.unitIndex - 1}
-          onCalculate={(piece) =>
-            calculateInstallationMeasurementPiece(
-              job.id,
-              replacement.measurement.id,
-              piece,
-            )
-          }
+          onCalculate={calculateReplacement}
           startUnlocked
           onSave={async (piece) => {
             setBusy(true);
@@ -2215,10 +2226,10 @@ export function InstallationDetailClient({
               setJob(updated);
               setReplacement(null);
               toast.success(
-                "Replacement added to the pending Estimate revision.",
+                t("Replacement added to the pending Estimate revision.", "Se agregó el reemplazo a la revisión pendiente de la cotización."),
               );
             } catch (error) {
-              toast.error((error as Error).message);
+              toast.error(installationActionError(locale, error));
             } finally {
               setBusy(false);
             }

@@ -10,7 +10,10 @@ import { PortalInstallProvider } from "@/components/pwa/portal-install-provider"
 import { isCompanyPublicRoute } from "@/lib/company-public-routes";
 import { CompanyBrandingProvider } from "@/contexts/CompanyBrandingContext";
 
-export function SiteShell({ children }: { children: ReactNode }) {
+export function SiteShell({ children, initialLocale }: {
+  children: ReactNode;
+  initialLocale?: "en" | "es";
+}) {
   const pathname = usePathname();
 
   // Public company pages render their server content without session requests,
@@ -21,7 +24,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Providers>
+    <Providers initialLocale={initialLocale}>
       <PortalInstallProvider>
         <LoginDialogBridge />
         <GlobalLoginDialog />

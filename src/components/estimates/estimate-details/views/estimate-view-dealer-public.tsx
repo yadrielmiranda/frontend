@@ -1,6 +1,7 @@
 "use client";
 
 import { EstimateWithRelations } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { customerCanSeePromotions } from "@/lib/estimate-customer-promotions";
 import { PiecesTable } from "../parts/pieces-table";
 import { ReportFinancialSummary } from "../parts/report-financial-summary";
@@ -9,10 +10,12 @@ type Piece = EstimateWithRelations["pieces"][number];
 
 export function EstimateViewDealerPublic({
   estimate,
+  locale = "en",
   pricingMode = "detailed",
   showPaymentSchedule = true,
 }: {
   estimate: EstimateWithRelations;
+  locale?: CompanyLocale;
   pricingMode?: "detailed" | "total";
   showPaymentSchedule?: boolean;
 }) {
@@ -23,6 +26,7 @@ export function EstimateViewDealerPublic({
     <>
       {detailedPrices ? (
         <PiecesTable
+          locale={locale}
           pieces={estimate.pieces}
           getUnitPrice={(p: Piece) => Number(p.customerPrice) || 0}
           getOriginalUnitPrice={(p: Piece) =>
@@ -38,10 +42,11 @@ export function EstimateViewDealerPublic({
           }}
         />
       ) : (
-        <PiecesTable pieces={estimate.pieces} showPrices={false} />
+        <PiecesTable pieces={estimate.pieces} locale={locale} showPrices={false} />
       )}
 
       <ReportFinancialSummary
+        locale={locale}
         estimate={estimate}
         showPaymentSchedule={showPaymentSchedule}
         reportKind={

@@ -11,14 +11,15 @@ const root = path.resolve(__dirname, '../src');
 const cache = new Map();
 const empty = () => null;
 const passthrough = ({ children }) => React.createElement('div', null, children);
+let portalLocale = 'en';
 const stubs = {
+  '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale: portalLocale }) },
+  '@/components/estimates/material-revisions/material-revision-access': { MaterialRevisionAccess: empty },
   'next/link': { __esModule: true, default: passthrough },
   '@/components/ui/button': { Button: passthrough },
   '@/components/estimates/estimate-payment-card': { EstimatePaymentCard: empty },
-  '@/components/orders/order-status-badge': { OrderStatusBadge: empty },
   '@/components/orders/order-installation-panel': { OrderInstallationPanel: empty },
   '@/components/orders/order-extra-charges-panel': { OrderExtraChargesPanel: empty },
-  '@/components/orders/order-material-panel': { OrderMaterialPanel: empty },
   '@/components/orders/order-delivery-panel': { OrderDeliveryPanel: empty },
   '@/components/payments/payment-schedule': { PaymentScheduleView: empty },
   '../../manual-discount-summary': { ManualDiscountSummary: empty },
@@ -166,6 +167,25 @@ test('the dealer card continues showing the supplied confirmed earnings without 
 test('an authorized order view distinguishes gross and net real material profits', () => {
   const html = orderView(order(), true);
   for (const text of ['Gross real material profit', '$200.00', 'Material processing cost', '$5.50', 'Net real material profit', '$194.50']) assert.ok(html.includes(text), text);
+});
+test('the client order uses the selected language and preserves the project name, PO visibility and amounts', () => {
+  const record = order({ number: '3207', date: '2026-11-27T15:00:00Z', status: { name: 'Ready to pick up' },
+    estimate: estimate({ name: 'Single Hung - North Wing' }), poNumber: 'FACTORY-PRIVATE', dealerModeSnapshot: null, dealerEarnings: null });
+  const english = orderView(record, false);
+  portalLocale = 'es';
+  try {
+    const spanish = orderView(record, false);
+    for (const label of ['Orden #3207', 'Lista para recoger', 'Ver cotización', 'Subtotal de materiales', 'Impuesto sobre las ventas', 'No incluida']) {
+      assert.ok(spanish.includes(label), label);
+    }
+    for (const html of [english, spanish]) {
+      assert.ok(html.includes('Single Hung - North Wing'));
+      assert.ok(!html.includes('FACTORY-PRIVATE'));
+    }
+    assert.deepEqual(spanish.match(/\$[\d,.]+/g), english.match(/\$[\d,.]+/g));
+    assert.match(english, /Ready to pick up/);
+    assert.doesNotMatch(spanish, /Ready to pick up|Back to Orders/);
+  } finally { portalLocale = 'en'; }
 });
 test('an order without financial permission never renders processing details, even with a staff-shaped payload', () => {
   const html = orderView(order(), false);

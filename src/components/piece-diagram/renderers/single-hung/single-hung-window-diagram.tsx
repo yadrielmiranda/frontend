@@ -29,6 +29,7 @@ export type SingleHungConfiguration =
 export type SingleHungDimension = number | string;
 
 interface SingleHungCommonProps {
+  locale?: "en" | "es";
   width: SingleHungDimension;
   height: SingleHungDimension;
   sashHeight?: SingleHungDimension | null;
@@ -961,7 +962,7 @@ export function SingleHungWindowDiagram(props: SingleHungWindowDiagramProps) {
       }}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`Single Hung ${layout.configuration}, screen ${props.screenEnabled ? "on" : "off"}`}
+      aria-label={props.locale === "es" ? `Single Hung ${layout.configuration}, ${props.screenEnabled ? "con" : "sin"} mosquitero` : `Single Hung ${layout.configuration}, screen ${props.screenEnabled ? "on" : "off"}`}
       className={props.className}
       data-authentic-evolution-family="SINGLE_HUNG_WINDOW"
       data-release={RELEASE}

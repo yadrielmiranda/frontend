@@ -33,12 +33,15 @@ const entry = `import React, {useState,useCallback,useMemo,useRef,useEffect} fro
 import {createRoot} from 'react-dom/client';
 import {useForm,useWatch} from 'react-hook-form';
 import {CustomerDetailsCard} from '@/components/estimates/customer-details-card';
+import {editorNotice} from '@/lib/estimate-editor-language';
 ${declaration('ESTIMATE_HEADER_FIELDS', source.statements)}
 window.saves=[];window.errors=[];window.requests=[];window.pending=[];window.mockMode='ok';
 window.fetch=()=>{throw new Error('Network access is forbidden in this test')};
 function Editor(){
+ const [locale,setLocale]=useState('en');window.setEditorLocale=setLocale;
+ const activeLocale=useRef(locale);activeLocale.current=locale;
  const {register,control,setValue,getValues,trigger,formState:{errors}}=useForm({defaultValues:{name:'Test',customerFirstName:'Before',customerLastName:'User',customerEmail:'',customerPhone:'',customerStreet:'',customerAddressLine2:'',customerCity:'',customerState:'',customerPostalCode:'',customerTaxRate:0}});
- const estimate={id:95};const readOnly=false,needsRecalculation=false,canUseCustomerPricing=true,isRefreshingEnergy=false;
+ const estimate={id:95};const readOnly=false,needsRecalculation=false,canUseCustomerPricing=true;
  const headerAutosaveReadyRef=useRef(false),headerAutosaveTimeoutRef=useRef(null),lastSavedHeaderRef=useRef(''),headerSaveQueueRef=useRef(Promise.resolve());
  ${declaration('headerSaveState')}
  const setPromotionEstimate=()=>{};const toast={error:message=>window.errors.push(message)};
@@ -86,6 +89,22 @@ async function main() {
       await page.addScriptTag({ path: path.join(temporary, 'bundle.js') });
       await page.waitForSelector('#customerPhone');
     }
+
+    await fresh();
+    await page.type('#customerFirstName', ' Casa de mamá / Kitchen W1');
+    await page.waitForFunction(() => window.saveState === 'saved');
+    const recorded = await page.evaluate(() => ({ name: document.getElementById('customerFirstName').value, saves: window.saves.length }));
+    await page.evaluate(() => window.setEditorLocale('es'));
+    await page.waitForFunction(() => document.querySelector('label[for="customerFirstName"]').textContent === 'Nombre');
+    assert.equal(await page.$eval('#customerFirstName', el => el.value), recorded.name);
+    await page.type('#customerEmail', 'invalid');
+    await page.waitForFunction(() => document.body.innerText.includes('Escribe un correo electrónico válido.'));
+    await page.evaluate(() => window.setEditorLocale('en'));
+    await page.waitForFunction(() => document.body.innerText.includes('Invalid email format'));
+    assert.equal(await page.$eval('#customerFirstName', el => el.value), recorded.name);
+    assert.equal(await page.$eval('#customerEmail', el => el.value), 'invalid');
+    assert.equal(await page.evaluate(() => window.saves.length), recorded.saves);
+    console.log('PASS changing language updates labels and errors, preserving entered customer data');
 
     await fresh();
     await page.type('#customerPhone', '7864536053');

@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
+import type { CompanyLocale } from "@/components/company/company-content";
+import { registrationError, registrationSmsText, registrationText } from "@/lib/registration-language";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PlatformTermsDocument } from "@/components/platform-terms/platform-terms-document";
@@ -84,7 +86,12 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
+export function CardRegister({ referralCode, locale }: { referralCode?: string; locale?: CompanyLocale } = {}) {
+  const language = locale ?? "en";
+  const t = (text: string) => registrationText(language, text);
+  const destinationLanguage = locale ? `&lang=${locale}` : "";
+  const currentLocale = useRef(locale);
+  useEffect(() => { currentLocale.current = locale; }, [locale]);
   const router = useRouter();
   const [referral, setReferral] = useState<{ code: string } | null>(null);
   const [referralLoading, setReferralLoading] = useState(Boolean(referralCode));
@@ -207,7 +214,8 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
       setEntryFailed(true);
       return;
     }
-    navigateAfterSessionChange("/estimates/new?welcome=1");
+    const nextLocale = currentLocale.current;
+    navigateAfterSessionChange(nextLocale ? `/estimates/new?welcome=1&lang=${nextLocale}` : "/estimates/new?welcome=1");
   }
 
   const handleRegister = async (data: RegisterFormData) => {
@@ -230,7 +238,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
       const conflictField = typeof code === "string" && Object.hasOwn(conflictFields, code)
         ? conflictFields[code as keyof typeof conflictFields] : undefined;
       if (conflictField && err instanceof Error) {
-        setError(conflictField, { type: "server", message: err.message }, { shouldFocus: true });
+        setError(conflictField, { type: String(code), message: err.message }, { shouldFocus: true });
         return;
       }
       if (code === 'PLATFORM_TERMS_CHANGED' || code === 'PLATFORM_TERMS_REQUIRED') {
@@ -243,16 +251,16 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
         setValue("promotionsConsent", false);
         setConsentReload((value) => value + 1);
       }
-      toast.error("Registration failed", {
-        description:
-          err instanceof Error ? err.message : "Please review your information and try again.",
+      const errorLocale = currentLocale.current ?? "en";
+      toast.error(registrationText(errorLocale, "Registration failed"), {
+        description: registrationError(errorLocale, err instanceof Error ? err.message : undefined, code),
       });
       return;
     }
 
     if (pixelEligible) await sendCompletedRegistration().catch(() => false);
     if (isAuthenticated) {
-      toast.success("Client account created.");
+      toast.success(registrationText(currentLocale.current ?? "en", "Client account created."));
       handleBackToSignIn();
       return;
     }
@@ -278,20 +286,20 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     return (
       <Card className="w-full max-w-2xl border-white/15 bg-black/45 text-white">
         <CardHeader aria-live="polite">
-          <CardTitle>Your account is ready</CardTitle>
+          <CardTitle>{t("Your account is ready")}</CardTitle>
           <CardDescription className="text-white/75">
             {entryFailed
-              ? "We couldn’t sign you in automatically. Try again to open your first estimate."
-              : "Opening your first estimate…"}
+              ? t("We couldn’t sign you in automatically. Try again to open your first estimate.")
+              : t("Opening your first estimate…")}
           </CardDescription>
         </CardHeader>
         {entryFailed && (
           <CardFooter className="flex-col gap-3">
             <Button type="button" className="w-full bg-red-600 text-white hover:bg-red-700"
               onClick={() => void openFirstEstimate(createdLogin)}>
-              Continue to my first estimate
+              {t("Continue to my first estimate")}
             </Button>
-            <a href="/login?firstEstimate=1" className="text-sm underline">Sign in manually</a>
+            <a href={`/login?firstEstimate=1${destinationLanguage}`} className="text-sm underline">{t("Sign in manually")}</a>
           </CardFooter>
         )}
       </Card>
@@ -302,24 +310,33 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
     <Card className="w-full max-w-2xl rounded-3xl border border-red-600/70 bg-black/45 text-white shadow-[0_0_45px_rgba(220,38,38,0.12)] backdrop-blur-xl">
       <CardHeader className="space-y-2 text-center">
         <CardTitle className="text-2xl font-semibold text-white">
-          Create Client Account
+          {t("Create Client Account")}
         </CardTitle>
 
         <CardDescription className="text-sm text-white/45">
-          Client account details and notification preferences.
+          {t("Client account details and notification preferences.")}
         </CardDescription>
-        {referralLoading && <p role="status" className="text-sm text-white/70">Checking your link…</p>}
-        {referralError && <div role="alert" className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"><p>{referralError}</p><button type="button" className="underline" onClick={() => setReferralRetry(value => value + 1)}>Try again</button></div>}
+        {referralLoading && <p role="status" className="text-sm text-white/70">{t("Checking your link…")}</p>}
+        {referralError && <div role="alert" className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"><p>{t(referralError)}</p><button type="button" className="underline" onClick={() => setReferralRetry(value => value + 1)}>{t("Try again")}</button></div>}
       </CardHeader>
 
-      <form onChangeCapture={() => measurement.record("started")} onSubmit={(event) => {
+      <form onInvalidCapture={event => {
+        if (language !== "es") return;
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || (input.name !== "email" && input.name !== "username")) return;
+        event.preventDefault();
+        setError(input.name, {
+          type: "native",
+          message: input.name === "email" ? "Please enter a valid email address." : USERNAME_VALIDATION_MESSAGE,
+        }, { shouldFocus: true });
+      }} onChangeCapture={() => measurement.record("started")} onSubmit={(event) => {
         measurement.record("submitted");
         return handleSubmit(handleRegister, () => measurement.record("invalid"))(event);
       }}>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="firstName" className={labelClass}>
-              First Name
+              {t("First Name")}
               <RequiredMark />
             </Label>
 
@@ -327,19 +344,19 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               id="firstName"
               autoComplete="given-name"
               maxLength={100}
-              placeholder="Enter your first name"
+              placeholder={t("Enter your first name")}
               className={inputClass}
               {...register("firstName")}
             />
 
             {errors.firstName && (
-              <p className={errorClass}>{errors.firstName.message}</p>
+              <p className={errorClass}>{registrationError(language, errors.firstName.message, errors.firstName.type)}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="lastName" className={labelClass}>
-              Last Name
+              {t("Last Name")}
               <RequiredMark />
             </Label>
 
@@ -347,19 +364,19 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               id="lastName"
               autoComplete="family-name"
               maxLength={100}
-              placeholder="Enter your last name"
+              placeholder={t("Enter your last name")}
               className={inputClass}
               {...register("lastName")}
             />
 
             {errors.lastName && (
-              <p className={errorClass}>{errors.lastName.message}</p>
+              <p className={errorClass}>{registrationError(language, errors.lastName.message, errors.lastName.type)}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="email" className={labelClass}>
-              Email
+              {t("Email")}
               <RequiredMark />
             </Label>
 
@@ -370,19 +387,19 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               aria-invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? "email-error" : undefined}
               autoComplete="email"
-              placeholder="name@example.com"
+              placeholder={t("name@example.com")}
               className={inputClass}
               {...register("email")}
             />
 
             {errors.email && (
-              <p id="email-error" role="alert" className={errorClass}>{errors.email.message}</p>
+              <p id="email-error" role="alert" className={errorClass}>{registrationError(language, errors.email.message, errors.email.type)}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone" className={labelClass}>
-              Phone
+              {t("Phone")}
               <RequiredMark />
             </Label>
 
@@ -393,8 +410,9 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                 <InternationalPhoneInput
                   {...field}
                   id="phone"
+                  locale={language}
                   autoComplete="tel"
-                  placeholder="Enter your phone number"
+                  placeholder={t("Enter your phone number")}
                   className={inputClass}
                   appearance="dark"
                   disabled={isSubmitting}
@@ -405,10 +423,10 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             />
 
             <p id="phone-sms-choice" className="text-xs leading-relaxed text-white/60">
-              Providing a phone number does not enroll you in SMS.
+              {t("Providing a phone number does not enroll you in SMS.")}
             </p>
             {errors.phone && (
-              <p id="phone-error" role="alert" className={errorClass}>{errors.phone.message}</p>
+              <p id="phone-error" role="alert" className={errorClass}>{registrationError(language, errors.phone.message, errors.phone.type)}</p>
             )}
           </div>
 
@@ -416,14 +434,14 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             {chooseUsername ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-x-4">
-                  <Label htmlFor="username" className={labelClass}>Username</Label>
+                  <Label htmlFor="username" className={labelClass}>{t("Username")}</Label>
                   <button
                     type="button"
                     className="text-xs text-blue-300 underline underline-offset-2"
                     disabled={isSubmitting}
                     onClick={() => { unregister("username"); setChooseUsername(false); }}
                   >
-                    Use automatic username
+                    {t("Use automatic username")}
                   </button>
                 </div>
                 <Input
@@ -435,18 +453,18 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                   spellCheck={false}
                   minLength={USERNAME_MIN_LENGTH}
                   maxLength={USERNAME_MAX_LENGTH}
-                  placeholder="Choose your username"
+                  placeholder={t("Choose your username")}
                   aria-invalid={Boolean(errors.username)}
                   aria-describedby={errors.username ? "username-error" : undefined}
                   className={inputClass}
                   {...register("username")}
                 />
-                {errors.username && <p id="username-error" role="alert" className={errorClass}>{errors.username.message}</p>}
+                {errors.username && <p id="username-error" role="alert" className={errorClass}>{registrationError(language, errors.username.message, errors.username.type)}</p>}
               </>
             ) : (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <span className="text-white/75">
-                  Suggested username{suggestedUsername ? <> · <strong className="break-all text-white">{suggestedUsername}</strong></> : " based on your name"}
+                  {suggestedUsername ? <>{t("Suggested username")} · <strong className="break-all text-white">{suggestedUsername}</strong></> : t("Suggested username based on your name")}
                 </span>
                 <button
                   type="button"
@@ -454,7 +472,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                   className="min-h-9 text-blue-300 underline underline-offset-2"
                   onClick={() => { setValue("username", suggestedUsername); setChooseUsername(true); }}
                 >
-                  Change
+                  {t("Change")}
                 </button>
               </div>
             )}
@@ -462,7 +480,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
 
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="password" className={labelClass}>
-              Password
+              {t("Password")}
               <RequiredMark />
             </Label>
 
@@ -472,7 +490,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 aria-describedby="password-hint"
-                placeholder="Create a password"
+                placeholder={t("Create a password")}
                 className={`${inputClass} pr-10`}
                 {...register("password")}
               />
@@ -481,7 +499,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/45 hover:text-white"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("Hide password") : t("Show password")}
                 tabIndex={-1}
               >
                 {showPassword ? (
@@ -492,80 +510,90 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
               </button>
             </div>
 
-            <p id="password-hint" className="text-xs text-white/65">Use at least 8 characters.</p>
+            <p id="password-hint" className="text-xs text-white/65">{t("Use at least 8 characters.")}</p>
             {errors.password && (
-              <p className={errorClass}>{errors.password.message}</p>
+              <p className={errorClass}>{registrationError(language, errors.password.message, errors.password.type)}</p>
             )}
           </div>
           <fieldset className="min-w-0 space-y-2 rounded-xl border border-white/15 px-3 pb-3 md:col-span-2">
-            <legend className="px-1 text-sm font-semibold">SMS notifications</legend>
-            {internationalSmsUnavailable && <p role="status" className="text-xs text-white/70">SMS notifications are not available for this phone number. You can still create your account.</p>}
+            <legend className="px-1 text-sm font-semibold">{t("SMS notifications")}</legend>
+            {internationalSmsUnavailable && <p role="status" className="text-xs text-white/70">{t("SMS notifications are not available for this phone number. You can still create your account.")}</p>}
             {consentError ? (
               <div className="text-xs text-white/75">
-                <span role="status">SMS options could not load. You can still register. </span>
-                <button type="button" onClick={() => setConsentReload(value => value + 1)} className="text-blue-300 underline">Retry</button>
+                <span role="status">{t("SMS options could not load. You can still register.")} </span>
+                <button type="button" onClick={() => setConsentReload(value => value + 1)} className="text-blue-300 underline">{t("Retry")}</button>
               </div>
             ) : !consentProgram ? (
-              <p role="status" className="text-xs text-white/70">Loading SMS options…</p>
+              <p role="status" className="text-xs text-white/70">{t("Loading SMS options…")}</p>
             ) : (
               <>
                 <label className="flex min-h-8 items-center gap-2 text-sm">
                   <input id="service-consent" type="checkbox" disabled={isSubmitting || !smsSupported} aria-describedby="service-consent-text registration-disclosure" className="size-4 shrink-0 accent-emerald-500" {...register("serviceConsent")} />
-                  Service notifications (optional)
+                  {t("Service notifications (optional)")}
                 </label>
                 <label className="flex min-h-8 items-center gap-2 text-sm">
                   <input id="promotions-consent" type="checkbox" disabled={isSubmitting || !smsSupported} aria-describedby="promotions-consent-text registration-disclosure" className="size-4 shrink-0 accent-emerald-500" {...register("promotionsConsent")} />
-                  Promotional messages (optional)
+                  {t("Promotional messages (optional)")}
                 </label>
                 <p id="registration-disclosure" className="text-xs leading-relaxed text-white/75">
-                  Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe from all SMS or HELP for help.
+                  {t("Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe from all SMS or HELP for help.")}
                 </p>
                 <details className="text-xs leading-relaxed text-white/75">
-                  <summary className="cursor-pointer text-blue-300 underline">SMS consent details</summary>
-                  <p id="service-consent-text" className="mt-1">{consentProgram.registration.serviceConsentText}</p>
-                  <p id="promotions-consent-text" className="mt-1">{consentProgram.registration.promotionsConsentText}</p>
-                  <p className="mt-1">{consentProgram.disclosure}</p>
+                  <summary className="cursor-pointer text-blue-300 underline">{t("SMS consent details")}</summary>
+                  <p id="service-consent-text" className="mt-1">{registrationSmsText(language, consentProgram.registration.serviceConsentText, consentProgram.companyName)}</p>
+                  <p id="promotions-consent-text" className="mt-1">{registrationSmsText(language, consentProgram.registration.promotionsConsentText, consentProgram.companyName)}</p>
+                  <p className="mt-1">{registrationSmsText(language, consentProgram.disclosure, consentProgram.companyName)}</p>
+                  {language === "es" && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-blue-300 underline">{t("Original SMS consent text")}</summary>
+                      <div lang="en" className="mt-1 space-y-1">
+                        <p>{consentProgram.registration.serviceConsentText}</p>
+                        <p>{consentProgram.registration.promotionsConsentText}</p>
+                        <p>{consentProgram.disclosure}</p>
+                      </div>
+                    </details>
+                  )}
                 </details>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-blue-300 underline">
-                  <Link href="/sms/terms" target="_blank" rel="noopener noreferrer">SMS Terms of Service</Link>
-                  <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer">SMS Privacy Policy</Link>
+                  <Link href="/sms/terms" target="_blank" rel="noopener noreferrer">{t("SMS Terms of Service")}</Link>
+                  <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer">{t("SMS Privacy Policy")}</Link>
                 </div>
               </>
             )}
           </fieldset>
           <fieldset className="min-w-0 rounded-xl border border-white/15 px-3 pb-3 md:col-span-2">
-            <legend className="px-1 text-sm font-semibold">Terms and Conditions</legend>
+            <legend className="px-1 text-sm font-semibold">{t("Terms and Conditions")}</legend>
             {platformTermsError ? (
               <p role="alert" className={errorClass}>
-                {platformTermsError} <button type="button" className="text-blue-300 underline" onClick={() => setPlatformTermsReload(value => value + 1)}>Try again</button>
+                {t(platformTermsError)} <button type="button" className="text-blue-300 underline" onClick={() => setPlatformTermsReload(value => value + 1)}>{t("Try again")}</button>
               </p>
             ) : !platformTermsLoaded ? (
-              <p role="status" className="text-xs text-white/70">Loading terms…</p>
+              <p role="status" className="text-xs text-white/70">{t("Loading terms…")}</p>
             ) : platformTerms ? (
               <>
                 <label className="flex items-start gap-2 py-1.5 text-sm">
                   <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-emerald-500" disabled={isSubmitting}
                     checked={platformTermsAccepted === platformTerms.id}
                     onChange={event => setPlatformTermsAccepted(event.target.checked ? platformTerms.id : null)} />
-                  {platformTerms.consentText}
+                  {t(platformTerms.consentText)}
                 </label>
                 <Dialog>
-                  <DialogTrigger asChild><button type="button" className="ml-6 text-xs text-blue-300 underline">Read Terms and Conditions</button></DialogTrigger>
-                  <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl" aria-describedby={undefined}>
-                    <DialogTitle>Terms and Conditions</DialogTitle>
-                    <div className="min-h-0 overflow-y-auto"><PlatformTermsDocument version={platformTerms} /></div>
-                    <DialogClose asChild><Button type="button" variant="outline">Back to registration</Button></DialogClose>
+                  <DialogTrigger asChild><button type="button" className="ml-6 text-xs text-blue-300 underline">{t("Read Terms and Conditions")}</button></DialogTrigger>
+                  <DialogContent lang={language} closeLabel={t("Close")} className="flex max-h-[85dvh] flex-col sm:max-w-2xl" aria-describedby={undefined}>
+                    <DialogTitle>{t("Terms and Conditions")}</DialogTitle>
+                    <div className="min-h-0 overflow-y-auto"><PlatformTermsDocument version={platformTerms} locale={language} /></div>
+                    <DialogClose asChild><Button type="button" variant="outline">{t("Back to registration")}</Button></DialogClose>
                   </DialogContent>
                 </Dialog>
               </>
-            ) : <p className="text-xs text-white/70">Terms and Conditions have not been published yet.</p>}
+            ) : <p className="text-xs text-white/70">{t("Terms and Conditions have not been published yet.")}</p>}
           </fieldset>
         </CardContent>
 
         <CardFooter className="flex-col gap-3 pt-5">
           {!REGISTRATION_ENABLED && (
             <p id="registration-availability" role="status" className="w-full rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
-              Account registration is not available yet. Please check back later.
+              {t("Account registration is not available yet. Please check back later.")}
             </p>
           )}
           <Button
@@ -579,7 +607,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             ) : (
               <UserPlus className="mr-2 h-4 w-4" />
             )}
-            {isSubmitting ? "Creating account..." : "Create Account"}
+            {isSubmitting ? t("Creating account...") : t("Create Account")}
           </Button>
 
           <Button
@@ -590,7 +618,7 @@ export function CardRegister({ referralCode }: { referralCode?: string } = {}) {
             disabled={isSubmitting}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Sign In
+            {t("Back to Sign In")}
           </Button>
         </CardFooter>
       </form>

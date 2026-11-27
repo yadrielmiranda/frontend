@@ -32,11 +32,12 @@ export default async function PublicEstimatePage({
   if (!estimate) notFound();
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
+    <main lang="en" className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-6xl">
-        <EstimateReportShell estimate={estimate} showExternalDealerPresentation>
+        <EstimateReportShell estimate={estimate} locale="en" showExternalDealerPresentation>
           <EstimateViewDealerPublic
             estimate={estimate}
+            locale="en"
             pricingMode={estimate.publicPricingMode ?? "detailed"}
           />
         </EstimateReportShell>

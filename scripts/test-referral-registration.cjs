@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const ui = new Proxy({}, { get: (_, name) => name });
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props, key) => ({ type, props, key });
 let slots = [], cursor = 0, effects = [], calls = [], resolveLink;
 let events = [], authenticated = false, loginFailure, registrationFailure;
 let pendingLogin, pendingRegistration;
@@ -14,6 +14,13 @@ const formData = { firstName: 'New', lastName: 'Client', email: 'client@example.
 const setValue = () => {};
 const getValues = field => field ? formData[field] ?? '' : formData;
 const react = {
+  createContext(initial) {
+    const context = { value: initial };
+    context.Provider = ({ value }) => { context.value = value; };
+    return context;
+  },
+  useContext: context => context.value,
+  useCallback: callback => react.useRef(callback).current,
   useRef(initial) {
     const index = cursor++;
     return slots[index] ??= { current: initial };
@@ -48,7 +55,7 @@ const mocks = {
       setValue, getValues, formState: { errors: {}, isSubmitting: false } }),
     useWatch: () => '',
   },
-  'next/navigation': { useRouter: () => ({ push: path => events.push(`push ${path}`),
+  'next/navigation': { usePathname: () => '/', useRouter: () => ({ push: path => events.push(`push ${path}`),
     replace: path => events.push(`replace ${path}`), refresh() {} }) },
   'next/link': { __esModule: true, default: 'a' },
   'lucide-react': ui,
@@ -105,11 +112,11 @@ const all = (node, predicate) => node == null || typeof node !== 'object' ? [] :
   ? node.flatMap(child => all(child, predicate)) : [...(predicate(node) ? [node] : []), ...all(node.props?.children, predicate)];
 const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node)
   ? node.map(text).join('') : text(node.props?.children);
-const render = code => { cursor = 0; return CardRegister({ referralCode: code }); };
-const settle = async code => {
+const render = (code, locale) => { cursor = 0; return CardRegister({ referralCode: code, locale }); };
+const settle = async (code, locale) => {
   let tree;
   for (let i = 0; i < 5; i++) {
-    tree = render(code);
+    tree = render(code, locale);
     effects.splice(0).forEach(run => run());
     await new Promise(resolve => setImmediate(resolve));
   }
@@ -199,6 +206,47 @@ const assertClosed = async (tree, description) => {
   assert.deepEqual(events, ['register', 'conversion', 'login', `new document ${firstEstimate}`]);
 
   reset();
+  let referralChecks = 0;
+  resolveLink = async value => { referralChecks++; return { valid: true, code: value }; };
+  const termsApi = mocks['@/app/api/platform-terms.api'];
+  const previousTermsLoader = termsApi.getCurrentPlatformTerms;
+  let termsChecks = 0;
+  termsApi.getCurrentPlatformTerms = async () => {
+    termsChecks++;
+    return { id: 17, consentText: 'I have read and accept the Terms and Conditions for using the platform.' };
+  };
+  tree = await settle(code, 'es');
+  assert.match(text(tree), /Crear cuenta de cliente/);
+  assert.equal(submitButton(tree).props.disabled, true);
+  const acceptance = all(tree, node => node.type === 'label' && text(node).includes('He leído y acepto'))[0];
+  all(acceptance, node => node.type === 'input')[0].props.onChange({ target: { checked: true } });
+  all(tree, node => node.type === 'button' && text(node) === 'Cambiar')[0].props.onClick();
+  tree = await settle(code, 'en');
+  assert.match(text(tree), /Use automatic username/, 'Language switches keep the manual username field open');
+  assert.equal(submitButton(tree).props.disabled, false, 'Changing language preserves acceptance of the same terms');
+  assert.equal(termsChecks, 1);
+  assert.equal(referralChecks, 1);
+  let finishSignIn;
+  pendingLogin = new Promise(resolve => { finishSignIn = resolve; });
+  const createInEnglish = submit(tree);
+  await settle(code, 'es');
+  finishSignIn();
+  await createInEnglish;
+  assert.deepEqual(events, ['register', 'login', `new document ${firstEstimate}&lang=es`], 'Navigation uses the latest language even during automatic sign-in');
+  assert.equal(calls[0].referralCode, code);
+  assert.equal(calls[0].platformTermsVersionId, 17);
+  termsApi.getCurrentPlatformTerms = previousTermsLoader;
+
+  reset();
+  let finishRegistration;
+  pendingRegistration = new Promise(resolve => { finishRegistration = resolve; });
+  const createInSpanish = submit(await settle(undefined, 'es'));
+  await settle(undefined, 'en');
+  finishRegistration();
+  await createInSpanish;
+  assert.deepEqual(events, ['register', 'conversion', 'login', `new document ${firstEstimate}&lang=en`], 'Explicit English survives an in-flight registration');
+
+  reset();
   loginFailure = new Error('Simulated session failure');
   await submit(await settle());
   tree = await settle();
@@ -246,26 +294,210 @@ const assertClosed = async (tree, description) => {
   await submit(await settle());
   assert.deepEqual(events, ['register', 'push /'], 'Creating an account from an existing session must preserve its identity');
 
-  const loginModule = load('components/card-login.tsx');
+  let browserLanguage = 'en';
+  let savedLanguage;
+  mocks['./company-public-routes'] = load('lib/company-public-routes.ts');
+  mocks['next/headers'] = {
+    cookies: async () => ({ get: () => savedLanguage && { value: savedLanguage } }),
+    headers: async () => ({ get: () => browserLanguage }),
+  };
+  let loadRegistrationForm;
   Object.assign(mocks, {
-    '@/components/card-login': loginModule,
+    'next/image': { __esModule: true, default: 'img' },
+    'next/dynamic': loadForm => { loadRegistrationForm = loadForm; return CardRegister; },
+    '@/components/company/company-content': load('components/company/company-content.ts'),
+    '@/components/card-register': { CardRegister },
     '@/components/auth/auth-page-shell': ui,
+    './auth-page-shell': ui,
+    '@/components/site-footer': ui,
     '@/components/pwa/portal-install-button': ui,
+    './AuthContext': mocks['@/contexts/AuthContext'],
+    '@/lib/public-language-server': load('lib/public-language-server.ts'),
   });
+  const language = load('contexts/PortalLanguageContext.tsx');
+  mocks['@/contexts/PortalLanguageContext'] = language;
+  const { PortalLanguageSwitch } = load('components/portal-language-switch.tsx');
+  mocks['@/components/portal-language-switch'] = { PortalLanguageSwitch };
+  const loginModule = load('components/card-login.tsx');
+  mocks['@/components/card-login'] = loginModule;
+  const screenModule = load('components/auth/public-auth-screen.tsx');
+  assert.equal(await loadRegistrationForm(), CardRegister);
+  mocks['@/components/auth/public-auth-screen'] = screenModule;
+  const renderScreen = props => {
+    cursor = 0;
+    const provider = language.PortalLanguageProvider({ children: null });
+    provider.type(provider.props);
+    return screenModule.PublicAuthScreen(props);
+  };
   const loginPage = load('app/login/page.tsx').default;
-  async function checkManualLogin(href, role, destination) {
+  async function checkManualLogin(href, role, destination, locale) {
     reset();
     const searchParams = Object.fromEntries(new URL(href, 'https://example.test').searchParams);
     const page = await loginPage({ searchParams: Promise.resolve(searchParams) });
-    const card = all(page, node => node.type === loginModule.CardLogin)[0];
+    assert.equal(page.type, screenModule.PublicAuthScreen);
+    assert.equal(page.props.mode, 'login');
+    const screen = renderScreen(page.props);
+    const card = all(screen, node => node.type === loginModule.CardLogin)[0];
     assert.ok(card, 'The manual login page must render the actual sign-in form');
+    assert.equal(card.props.locale, locale);
     mocks['@/contexts/AuthContext'].useAuth = () => ({ signIn: async () => ({ role: { name: role } }) });
-    await submit(loginModule.CardLogin(card.props));
+    const signInForm = loginModule.CardLogin(card.props);
+    assert.ok(text(signInForm).includes(locale === 'es' ? 'Iniciar sesión' : 'Sign In'));
+    await submit(signInForm);
     assert.deepEqual(events, [`replace ${destination}`]);
   }
-  await checkManualLogin(manualLogin.props.href, 'client', firstEstimate);
-  await checkManualLogin('/login', 'client', '/');
-  await checkManualLogin(manualLogin.props.href, 'dealer', '/');
-  await checkManualLogin(`${manualLogin.props.href}&registrationRequest=42`, 'dealer', '/dealers?registrationRequest=42');
+  await checkManualLogin(manualLogin.props.href, 'client', `${firstEstimate}&lang=en`, 'en');
+  await checkManualLogin('/login?firstEstimate=1&lang=es', 'client', `${firstEstimate}&lang=es`, 'es');
+  browserLanguage = 'es';
+  await checkManualLogin(manualLogin.props.href, 'client', `${firstEstimate}&lang=es`, 'es');
+  await checkManualLogin('/login?firstEstimate=1&lang=en', 'client', `${firstEstimate}&lang=en`, 'en');
+  await checkManualLogin('/login', 'client', '/', 'es');
+  await checkManualLogin('/login?lang=en', 'client', '/', 'en');
+  await checkManualLogin('/login?lang=es', 'client', '/', 'es');
+  savedLanguage = 'en';
+  await checkManualLogin('/login?lang=es', 'client', '/', 'en');
+  savedLanguage = undefined;
+  await checkManualLogin(manualLogin.props.href, 'dealer', '/', 'es');
+  await checkManualLogin(`${manualLogin.props.href}&registrationRequest=42`, 'dealer', '/dealers?registrationRequest=42', 'es');
+
+  const registrationPage = load('app/login/register/page.tsx').default;
+  const registration = await registrationPage({ searchParams: Promise.resolve({ ref: code, lang: 'en' }) });
+  assert.equal(registration.type, screenModule.PublicAuthScreen);
+  assert.equal(registration.props.mode, 'register');
+  reset();
+  const registrationScreen = renderScreen(registration.props);
+  const registrationCard = all(registrationScreen, node => node.type === CardRegister)[0];
+  assert.equal(registrationCard.props.referralCode, code);
+  assert.equal(registrationCard.props.locale, 'en');
+  const languageSwitch = screen => all(screen, node => node.type === 'AuthPageShell')[0].props.languageSwitch;
+  function languageMenu(screen, expected) {
+    const control = languageSwitch(screen);
+    assert.equal(control.type, PortalLanguageSwitch);
+    const menu = control.type(control.props);
+    const trigger = all(menu, node => node.type === 'DropdownMenuTrigger')[0];
+    assert.equal(text(trigger).trim(), expected.toUpperCase());
+    assert.ok(trigger.props['aria-label']);
+    const options = all(menu, node => node.type === 'DropdownMenuRadioItem');
+    assert.deepEqual(options.map(option => option.props.value), ['en', 'es']);
+    const group = all(menu, node => node.type === 'DropdownMenuRadioGroup')[0];
+    assert.equal(group.props.value, expected);
+    return value => options.find(option => option.props.value === value).props.onSelect();
+  }
+  languageMenu(registrationScreen, 'en');
+  const guestAuth = mocks['@/contexts/AuthContext'].useAuth;
+  mocks['@/contexts/AuthContext'].useAuth = () => ({ isAuthenticated: true });
+  assert.ok(!languageSwitch(renderScreen(registration.props)), 'An authenticated visitor already has the language selector in the portal header');
+  mocks['@/contexts/AuthContext'].useAuth = guestAuth;
+
+  reset();
+  const location = new URL(`https://example.test/?utm_campaign=example&ref=${code}&unrelated=private#account`);
+  global.window = { location, history: { replaceState(_, __, url) { location.href = new URL(url, location).href; } } };
+  const preferencePosts = [];
+  const originalFetch = global.fetch;
+  global.fetch = async (url, init) => { preferencePosts.push([url, init.method]); return { ok: true }; };
+  const form = mocks['react-hook-form'];
+  const originalForm = form.useForm;
+  form.useForm = ({ defaultValues }) => {
+    const values = react.useRef({ ...defaultValues }).current;
+    return {
+      register: name => ({ name, onChange: event => { values[name] = event.target.value; } }),
+      handleSubmit: callback => () => callback(values),
+      formState: { errors: {}, isSubmitting: false },
+    };
+  };
+  try {
+    const props = { mode: 'login', initialLocale: 'en' };
+    const before = renderScreen(props);
+    const loginCard = screen => all(screen, node => node.type === loginModule.CardLogin)[0];
+    const beforeCard = loginCard(before);
+    const englishForm = loginModule.CardLogin(beforeCard.props);
+    const credentials = { identifier: 'test@example.test', password: 'Example-input' };
+    for (const [name, value] of Object.entries(credentials)) {
+      all(englishForm, node => node.props?.name === name)[0].props.onChange({ target: { value } });
+    }
+    const chooseLanguage = languageMenu(before, 'en');
+    await chooseLanguage('en');
+    assert.deepEqual(preferencePosts, [], 'Selecting the current language keeps the form in place');
+    await chooseLanguage('es');
+    const after = renderScreen(props);
+    languageMenu(after, 'es');
+    const afterCard = loginCard(after);
+    assert.equal(afterCard.key, beforeCard.key, 'Changing language must not remount the credential form');
+    assert.equal(afterCard.props.locale, 'es');
+    let submitted;
+    mocks['@/contexts/AuthContext'].useAuth = () => ({ signIn: async payload => { submitted = payload; return {role:{name:'client'}}; } });
+    const spanishForm = loginModule.CardLogin(afterCard.props);
+    await submit(spanishForm);
+    assert.deepEqual(submitted, credentials);
+    const createAccount = all(spanishForm, node => node.type === 'button' && /crea.*cuenta/i.test(text(node)))[0];
+    createAccount.props.onClick();
+    const signup = new URL(events.at(-1).replace(/^push /, ''), location);
+    assert.equal(signup.pathname, '/login/register');
+    assert.equal(signup.searchParams.get('lang'), 'es');
+    assert.equal(signup.searchParams.get('utm_campaign'), 'example');
+    assert.equal(signup.searchParams.get('ref'), code);
+    assert.equal(signup.searchParams.has('unrelated'), false);
+    assert.deepEqual(preferencePosts, [['/company/language/es/company','POST']]);
+    assert.equal(location.searchParams.get('lang'), 'es');
+    assert.equal(location.hash, '#account');
+    assert.equal(location.searchParams.get('unrelated'), 'private', 'Switching languages preserves the current URL');
+    location.searchParams.set('lang', 'en');
+    cursor = 0;
+    const provider = language.PortalLanguageProvider({ children: null, initialLocale: 'en' });
+    provider.props.value.applyPageLocale('en');
+    languageMenu(renderScreen(props), 'es');
+    assert.equal(preferencePosts.length, 1, 'Restoring stale server data must preserve the manual choice');
+
+    const browserEvents = new EventTarget();
+    const storage = new Map();
+    Object.assign(global.window, {
+      addEventListener: browserEvents.addEventListener.bind(browserEvents),
+      removeEventListener: browserEvents.removeEventListener.bind(browserEvents),
+      localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    });
+    const { announceCompanyLanguage, listenForCompanyLanguage } = mocks['./company-public-routes'];
+    const observed = [];
+    const unsubscribe = listenForCompanyLanguage(value => observed.push(value));
+    announceCompanyLanguage('es');
+    browserEvents.dispatchEvent(Object.assign(new Event('storage'), { key: [...storage.keys()][0] }));
+    announceCompanyLanguage('en');
+    browserEvents.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    browserEvents.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    assert.deepEqual(observed, ['es', 'en'], 'Open tabs and restored documents apply each completed change once');
+    unsubscribe();
+
+    reset();
+    global.document = Object.assign(new EventTarget(), { documentElement: {}, visibilityState: 'visible' });
+    let cookie = 'en';
+    const reads = [];
+    global.fetch = async url => {
+      reads.push(url);
+      return { ok: true, json: async () => ({ locale: cookie ?? 'en', hasPreference: Boolean(cookie) }) };
+    };
+    const mountPortal = initialLocale => {
+      cursor = 0;
+      const { value } = language.PortalLanguageProvider({ children: null, initialLocale }).props;
+      effects.splice(0).forEach(run => run());
+      return value;
+    };
+    mountPortal('en');
+    assert.equal(reads.length, 0, 'The initial server-rendered portal already has the resolved preference');
+    reset();
+    mountPortal('es').applyPageLocale('es');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(mountPortal('es').locale, 'en', 'Returning to a cached portal tree restores the saved cookie');
+    assert.equal(reads.length, 1);
+    reset();
+    cookie = undefined;
+    mountPortal('en').applyPageLocale('es');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(mountPortal('en').locale, 'es', 'Without a saved choice, the translated registration link seeds the portal');
+    reset();
+  } finally {
+    form.useForm = originalForm;
+    global.fetch = originalFetch;
+    delete global.window;
+    delete global.document;
+  }
   console.log('Public registration passed: referrals, consents, first estimate, sign-in retry and existing sessions.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

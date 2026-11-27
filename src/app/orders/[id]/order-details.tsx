@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { summaryText } from "@/lib/estimate-financial-language";
+import { paymentMethodText } from "@/lib/estimate-payment-language";
+import { MaterialRevisionAccess } from "@/components/estimates/material-revisions/material-revision-access";
 import { EstimatePaymentCard } from "@/components/estimates/estimate-payment-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { InstallationJob, OrderWithRelations } from "@/lib/types";
-import { formatDateEn, formatMoney } from "@/lib/formatters";
+import { formatDateEn, formatDateEs, formatMoney } from "@/lib/formatters";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { OrderInstallationPanel } from "@/components/orders/order-installation-panel";
 import { OrderExtraChargesPanel } from "@/components/orders/order-extra-charges-panel";
@@ -39,6 +43,10 @@ export function OrderDetails({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
+  const { locale } = usePortalLanguage();
+  const es = locale === "es";
+  const t = summaryText(locale);
+  const formatDate = es ? formatDateEs : formatDateEn;
   const [paymentTarget, setPaymentTarget] = useState<HTMLDivElement | null>(null);
   const showNetworkProfit = isAdmin && Boolean(order.networkProfitBreakdown);
   const serviceEarnings = internalDealerServiceEarnings({
@@ -61,30 +69,31 @@ export function OrderDetails({
   }, [paymentTarget, order.id]);
 
   return (
-    <div className="space-y-6">
+    <div lang={locale} className="space-y-6">
+      <MaterialRevisionAccess estimateId={order.idEst} context="order" locale={locale} />
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Order #{order.number}</h1>
+          <h1 className="text-3xl font-bold">{es ? "Orden" : "Order"} #{order.number}</h1>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-            <span>Created: {formatDateEn(order.date)}</span>
+            <span>{es ? "Fecha de creación" : "Created"}: {formatDate(order.date)}</span>
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/orders">Back to Orders</Link>
+            <Link href="/orders">{es ? "Volver a Órdenes" : "Back to Orders"}</Link>
           </Button>
 
           {isAdmin && (
             <Button asChild variant="outline">
-              <Link href={`/orders/${order.id}/factory-import`}>Import factory order</Link>
+              <Link href={`/orders/${order.id}/factory-import`}>{es ? "Importar orden de fábrica" : "Import factory order"}</Link>
             </Button>
           )}
 
           {canEdit ? (
             <Button asChild>
-              <Link href={`/orders/${order.id}/edit`}>Edit Status</Link>
+              <Link href={`/orders/${order.id}/edit`}>{es ? "Editar estado" : "Edit Status"}</Link>
             </Button>
           ) : null}
         </div>
@@ -92,18 +101,18 @@ export function OrderDetails({
 
       {/* Core info (todo el mundo lo ve) */}
       <div className="rounded-xl border bg-white shadow-sm p-5 space-y-4">
-        <h2 className="text-lg font-semibold">Summary</h2>
+        <h2 className="text-lg font-semibold">{es ? "Resumen" : "Summary"}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <div className="text-muted-foreground">Estimate</div>
+            <div className="text-muted-foreground">{es ? "Cotización" : "Estimate"}</div>
             <div className="font-medium">
               #{order.estimate?.number} — {order.estimate?.name}
             </div>
             <div className="mt-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/estimates/${order.estimate?.id}`}>
-                  View Estimate
+                  {es ? "Ver cotización" : "View Estimate"}
                 </Link>
               </Button>
             </div>
@@ -111,14 +120,14 @@ export function OrderDetails({
 
           <div className="grid grid-cols-2 content-start gap-4">
             <div>
-              <div className="text-muted-foreground">Units</div>
+              <div className="text-muted-foreground">{es ? "Unidades" : "Units"}</div>
               <div className="font-medium">{order.units}</div>
             </div>
             <div>
-              <div className="text-muted-foreground">Status</div>
+              <div className="text-muted-foreground">{es ? "Estado" : "Status"}</div>
               <div className="font-medium">
-                <OrderStatusBadge name={order.status?.name} />
-                {order.status?.name === "Installed" && Number(order.paymentSchedule?.balance) > 0 && <span className="ml-2 text-amber-700">Balance due</span>}
+                <OrderStatusBadge locale={locale} name={order.status?.name} />
+                {order.status?.name === "Installed" && Number(order.paymentSchedule?.balance) > 0 && <span className="ml-2 text-amber-700">{es ? "Saldo pendiente" : "Balance due"}</span>}
               </div>
             </div>
           </div>
@@ -127,9 +136,10 @@ export function OrderDetails({
 
       <div className="rounded-xl border bg-white p-4 shadow-sm sm:p-5">
         <div className="grid min-w-0 grid-cols-1 items-start gap-5 md:grid-cols-2">
-          <OrderMaterialPanel order={order} />
+          <OrderMaterialPanel locale={locale} order={order} />
           {installation ? (
             <OrderInstallationPanel
+              locale={locale}
               paymentTarget={paymentTarget}
               order={order}
               initialJob={installation}
@@ -140,11 +150,11 @@ export function OrderDetails({
           ) : (
             <section className="min-w-0 overflow-hidden rounded-lg border bg-white">
               <h2 className="bg-slate-50 px-4 py-3 text-sm font-semibold">
-                Installation &amp; services
+                {t("Installation & services")}
               </h2>
               <div className="flex items-center justify-between gap-4 p-4 text-sm">
-                <span className="text-muted-foreground">Installation</span>
-                <span className="font-medium">Not included</span>
+                <span className="text-muted-foreground">{t("Installation")}</span>
+                <span className="font-medium">{t("Not included")}</span>
               </div>
             </section>
           )}
@@ -152,6 +162,7 @@ export function OrderDetails({
       </div>
 
       <OrderDeliveryPanel
+        locale={locale}
         paymentTarget={paymentTarget}
         order={order}
         installation={installation}
@@ -164,6 +175,7 @@ export function OrderDetails({
 
       {installation && installation.status !== "CANCELED" && (
         <OrderExtraChargesPanel
+          locale={locale}
           paymentTarget={paymentTarget}
           order={order}
           isOwner={isOwner}
@@ -174,38 +186,38 @@ export function OrderDetails({
       )}
 
       {showNetworkProfit ? (
-        <NetworkProfitBreakdownCard breakdown={order.networkProfitBreakdown} isAdmin={isAdmin} />
+        <NetworkProfitBreakdownCard locale={locale} breakdown={order.networkProfitBreakdown} isAdmin={isAdmin} />
       ) : order.dealerEarnings && (
-        <DealerEarningsSummaryCard earnings={order.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
+        <DealerEarningsSummaryCard locale={locale} earnings={order.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       )}
 
-      {!showNetworkProfit && isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={order.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
+      {!showNetworkProfit && isPrivileged && order.subdealerEarnings && <DealerEarningsSummaryCard locale={locale} label={t(serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit")} earnings={order.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {/* Privileged info (solo admin/operator) */}
       {canViewFinancials ? (
         <div className="rounded-xl border bg-white shadow-sm p-5 space-y-4">
           <div>
             <h2 className="text-lg font-semibold">
-              Material financial summary
+              {t("Material financial summary")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Installation profit is not included in these figures.
+              {t("Installation profit is not included in these figures.")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <div className="text-muted-foreground">Sale channel</div>
+              <div className="text-muted-foreground">{t("Sale channel")}</div>
               <div className="font-medium">
                 {order.dealerModeSnapshot
-                  ? `${order.dealerModeSnapshot} DEALER`
-                  : "DIRECT CLIENT"}
+                  ? t(`${order.dealerModeSnapshot} DEALER`)
+                  : t("DIRECT CLIENT")}
               </div>
             </div>
 
             <div>
               <div className="text-muted-foreground">
-                Material sale subtotal
+                {t("Material sale subtotal")}
               </div>
               <div className="font-medium">
                 {formatMoney(order.saleSubtotal)}
@@ -214,25 +226,25 @@ export function OrderDetails({
 
             <div>
               <div className="text-muted-foreground">
-                {order.dealerModeSnapshot === "INTERNAL" ? "App base price (before markups)" : "Estimated factory cost"}
+                {order.dealerModeSnapshot === "INTERNAL" ? t("App base price (before markups)") : t("Estimated factory cost")}
               </div>
               <div className="font-medium">{formatMoney(order.rate)}</div>
             </div>
 
             <div>
               <div className="text-muted-foreground">
-                {order.dealerModeSnapshot === "INTERNAL" ? "Expected material profit" : "Estimated material profit"}
+                {order.dealerModeSnapshot === "INTERNAL" ? t("Expected material profit") : t("Estimated material profit")}
               </div>
               <div className="font-medium">{formatMoney(order.netProfit)}</div>
             </div>
 
             <div>
-              <div className="text-muted-foreground">Factory PO Number</div>
+              <div className="text-muted-foreground">{es ? "Número de PO de fábrica" : "Factory PO Number"}</div>
               <div className="font-medium">{order.poNumber ?? "—"}</div>
             </div>
 
             <div>
-              <div className="text-muted-foreground">Real factory cost</div>
+              <div className="text-muted-foreground">{es ? "Costo real de fábrica" : "Real factory cost"}</div>
               <div className="font-medium">
                 {order.rateReal === null || order.rateReal === undefined
                   ? "—"
@@ -241,16 +253,17 @@ export function OrderDetails({
             </div>
 
             <div>
-              <div className="text-muted-foreground">{order.materialProfits?.processingCostStatus ? "Gross real material profit" : "Real material profit"}</div>
+              <div className="text-muted-foreground">{order.materialProfits?.processingCostStatus ? t("Gross real material profit") : t("Real material profit")}</div>
               <div className="font-medium">
                 {order.netProfitReal === null ||
                 order.netProfitReal === undefined
-                  ? "Pending real factory cost"
+                  ? t("Pending real factory cost")
                   : formatMoney(order.netProfitReal)}
               </div>
             </div>
             {order.materialProfits && (
               <MaterialProfitAdjustments
+                locale={locale}
                 profits={order.materialProfits}
                 referralCosts={order.referralCosts}
                 showDealerEarnings={order.dealerModeSnapshot === "INTERNAL" || Boolean(order.dealerEarnings || order.subdealerEarnings)}
@@ -259,15 +272,15 @@ export function OrderDetails({
           </div>
 
           <div className="border-t pt-3 text-xs text-muted-foreground">
-            Payment: {order.payment?.paymentMethodLabel ?? (order.payment?.stripeSessionId ? "Stripe — pending verification" : order.payment?.paymentMethod ?? "Not recorded")}
+            {es ? "Pago" : "Payment"}: {paymentMethodText(locale, order.payment?.paymentMethodLabel ?? (order.payment?.stripeSessionId ? "Stripe — pending verification" : order.payment?.paymentMethod ?? "Not recorded"))}
             {order.payment?.manualReference
               ? ` · Ref. ${order.payment.manualReference}`
               : ""}
             {order.payment?.payerName
-              ? ` · Payer: ${order.payment.payerName}`
+              ? ` · ${es ? "Pagado por" : "Payer"}: ${order.payment.payerName}`
               : ""}
             <br />
-            Created By: {order.user?.username ?? "—"} (User ID: {order.userId})
+            {es ? "Creada por" : "Created By"}: {order.user?.username ?? "—"} ({es ? "ID de usuario" : "User ID"}: {order.userId})
           </div>
         </div>
       ) : null}

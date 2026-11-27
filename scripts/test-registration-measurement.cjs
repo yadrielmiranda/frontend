@@ -28,6 +28,9 @@ test("Pixel path excludes referral, private URLs and unknown metadata", () => {
   const {safeRegistrationContext} = load("registration-pixel");
   const base = "https://authenticevolutionco.com";
   assert.equal(safeRegistrationContext(base + "/login/register?utm_source=facebook&utm_campaign=registros_web&fbclid=ExampleClickId", "https://www.facebook.com/"), true);
+  const localized = base + "/login/register?utm_source=facebook&utm_campaign=registros_web&lang=";
+  for (const language of ["es", "en"]) assert.equal(safeRegistrationContext(localized + language, ""), true);
+  for (const language of ["unknown", "es&lang=en", "es&ref=private"]) assert.equal(safeRegistrationContext(localized + language, ""), false);
   assert.equal(safeRegistrationContext(base + "/login/register?utm_source=facebook&utm_campaign=registros_web&ref=synthetic", ""), false);
   assert.equal(safeRegistrationContext(base + "/login/register?utm_source=google&utm_campaign=example", ""), false);
   assert.equal(safeRegistrationContext(base + "/login/register", ""), false);

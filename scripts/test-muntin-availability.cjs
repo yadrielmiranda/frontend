@@ -71,7 +71,7 @@ function renderExpression(expression, values) {
   return renderToStaticMarkup(evaluate(compile(`return (${expression});`), {
     exports: {},
     require(id) { assert.equal(id, 'react/jsx-runtime'); return require(id); },
-    Label: Element, Select: Element, SelectTrigger: Element, SelectValue: Element,
+    t: text => text, Label: Element, Select: Element, SelectTrigger: Element, SelectValue: Element,
     SelectContent: Element, SelectItem: Element, fieldLabelClass: '', selectTriggerClass: '',
     handleMuntinTypeChange() {}, isLocked: false, ...helper.exports, ...values,
   }));
@@ -81,7 +81,7 @@ const fixtureCode = compile([
   declaration('syncMuntinWithConfigLayout', source.statements),
   declaration('latestCalculationRef'), declaration('calculationValuesVersionRef'),
   effect('useLayoutEffect', 'calculationValuesVersionRef'),
-  declaration('muntinAllowed'),
+  declaration('hasDoorDesign'), declaration('muntinAllowed'),
   declaration('selectedSysConf'), declaration('isWindowWall'), declaration('windowWallMuntinLayout'),
   declaration('hasMuntinLayout'), declaration('muntinOptions'),
   declaration('activeMuntinPatterns'), declaration('activeMuntinTypes'),

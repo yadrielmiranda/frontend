@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cancelEstimate, reactivateEstimate } from "@/app/api/estimates.api";
 import type { EstimateWithRelations } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { estimateActionError, estimateActionText } from "@/lib/estimate-action-language";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,30 +56,34 @@ export function EstimateLifecycleDialog({
   estimate,
   action,
   onClose,
+  locale = "en",
 }: {
   estimate: EstimateWithRelations;
   action: EstimateLifecycleAction | null;
   onClose: () => void;
+  locale?: CompanyLocale;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const reactivating = action === "reactivate";
+  const t = estimateActionText.bind(null, locale);
+  const actionLabel = t(reactivating ? "Reactivate estimate" : "Cancel estimate");
   async function confirm() {
     if (!action || busy || reactivating && estimate.user?.networkSalesBlocked) return;
     setBusy(true);
     try {
       if (reactivating) await reactivateEstimate(estimate.id);
       else await cancelEstimate(estimate.id);
-      toast.success(
+      toast.success(t(
         reactivating
           ? "Estimate reactivated and recalculated. Review the updated estimate before sharing it again."
           : "Estimate canceled.",
-      );
+      ));
       onClose();
       if (reactivating) router.push(`/estimates/${estimate.id}`);
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(estimateActionError(locale, error, t(reactivating ? "Could not reactivate the estimate." : "Could not cancel the estimate.")));
     } finally {
       setBusy(false);
     }
@@ -89,34 +95,33 @@ export function EstimateLifecycleDialog({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent showCloseButton={!busy}>
+      <DialogContent lang={locale} closeLabel={t("Close")} showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>
-            {reactivating ? "Reactivate" : "Cancel"} estimate #{estimate.number}
-            ?
+            {locale === "es" ? "¿" : ""}{actionLabel} #{estimate.number}?
           </DialogTitle>
           <DialogDescription>
-            {reactivating
+            {t(reactivating
               ? "The estimate will be recalculated with current prices and a new expiration date. Review it and share an updated agreement for a new signature before payment. Previous signed documents will be preserved."
-              : "Payments and signing will stop, and open payment links will be closed. The estimate and its signed documents will be preserved. You can reactivate and recalculate it later."}
+              : "Payments and signing will stop, and open payment links will be closed. The estimate and its signed documents will be preserved. You can reactivate and recalculate it later.")}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>
-            Go back
+            {t("Go back")}
           </Button>
           <Button
             variant={reactivating ? "default" : "destructive"}
             disabled={busy || Boolean(reactivating && estimate.user?.networkSalesBlocked)}
             onClick={() => void confirm()}
           >
-            {busy
+            {t(busy
               ? reactivating
                 ? "Recalculating…"
                 : "Canceling…"
               : reactivating
                 ? "Reactivate and recalculate"
-                : "Cancel estimate"}
+                : "Cancel estimate")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -127,9 +132,11 @@ export function EstimateLifecycleDialog({
 export function EstimateLifecycleButton({
   estimate,
   actor,
+  locale = "en",
 }: {
   estimate: EstimateWithRelations;
   actor: Actor;
+  locale?: CompanyLocale;
 }) {
   const [open, setOpen] = useState(false);
   const action = estimateLifecycleAction(estimate, actor);
@@ -137,10 +144,11 @@ export function EstimateLifecycleButton({
   return (
     <>
       <Button variant="outline" disabled={action === "reactivate" && estimate.user?.networkSalesBlocked} onClick={() => setOpen(true)}>
-        {action === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
+        {estimateActionText(locale, action === "reactivate" ? "Reactivate estimate" : "Cancel estimate")}
       </Button>
       <EstimateLifecycleDialog
         estimate={estimate}
+        locale={locale}
         action={open ? action : null}
         onClose={() => setOpen(false)}
       />

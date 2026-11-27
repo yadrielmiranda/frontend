@@ -1,7 +1,7 @@
 "use client";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { financialChargeDescription, summaryText } from "@/lib/estimate-financial-language";
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
-
-
 import { ManualDiscountSummary } from "../../manual-discount-summary";
 import type { ReactNode } from "react";
 import { DealerProfitSummary } from "../../dealer-profit-summary";
@@ -69,19 +69,20 @@ function MoneyRow({
   );
 }
 
-function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
+function SingleMaterialSummary({ totals, locale }: { totals: MaterialTotals; locale: CompanyLocale }) {
+  const t = summaryText(locale);
   return (
     <div className="min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-        Materials
+        {t("Materials")}
       </div>
       <div className="px-4 py-1">
         {Number(totals.discount) > 0 && (
           <>
-            <MoneyRow label="Before promotion">
-              <OriginalPrice amount={totals.subtotal + totals.discount!} />
+            <MoneyRow label={t("Before promotion")}>
+              <OriginalPrice amount={totals.subtotal + totals.discount!} label={t("Before promotion")} />
             </MoneyRow>
-            <MoneyRow label="Promotion discount">
+            <MoneyRow label={t("Promotion discount")}>
               <span className="text-red-600">
                 −{formatMoney(totals.discount!)}
               </span>
@@ -89,25 +90,25 @@ function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
           </>
         )}
         <MoneyRow
-          label="Material subtotal"
+          label={t("Material subtotal")}
           value={formatMoney(totals.subtotal)}
           accentValue={Number(totals.discount) > 0}
         >
           {Number(totals.manualNetDiscount) > 0 ? (
-            <OriginalPrice amount={totals.subtotal} label="Before discount" />
+            <OriginalPrice amount={totals.subtotal} label={t("Before discount")} />
           ) : null}
         </MoneyRow>
         {Number(totals.manualNetDiscount) > 0 && <>
-          <MoneyRow label="Additional discount" value={`−${formatMoney(totals.manualNetDiscount!)}`} />
-          <MoneyRow label="Subtotal after discount" value={formatMoney(totals.subtotal - totals.manualNetDiscount!)} accentValue />
+          <MoneyRow label={t("Additional discount")} value={`−${formatMoney(totals.manualNetDiscount!)}`} />
+          <MoneyRow label={t("Subtotal after discount")} value={formatMoney(totals.subtotal - totals.manualNetDiscount!)} accentValue />
         </>}
         <MoneyRow
-          label={`Sales Tax (${(totals.taxRate * 100).toFixed(2)}%)`}
+          label={`${t("Sales Tax")} (${(totals.taxRate * 100).toFixed(2)}%)`}
           value={formatMoney(totals.taxAmount)}
         />
         <div className="border-t border-slate-200">
           <MoneyRow
-            label="Material total"
+            label={t("Material total")}
             value={formatMoney(totals.total)}
             strong
           />
@@ -118,35 +119,39 @@ function SingleMaterialSummary({ totals }: { totals: MaterialTotals }) {
 }
 
 function ComparativeMaterialSummary({
+  locale,
   internal,
   customer,
   adminView,
 }: {
+  locale: CompanyLocale;
   internal: MaterialTotals;
   customer: MaterialTotals;
   adminView: boolean;
 }) {
+  const t = summaryText(locale);
   return (
     <div className="min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <table className="w-full table-fixed text-sm print:text-[10px] print:[&_td]:px-2 print:[&_th]:px-2">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
-            <th className="w-[44%] px-4 py-3 text-left">Material pricing</th>
+            <th className="w-[44%] px-4 py-3 text-left">{t("Material pricing")}</th>
             <th className="px-4 py-3 text-right">
-              {adminView ? "Dealer Price" : "Your Cost"}
+              {adminView ? t("Dealer Price") : t("Your Cost")}
             </th>
-            <th className="px-4 py-3 text-right">Customer Price</th>
+            <th className="px-4 py-3 text-right">{t("Customer Price")}</th>
           </tr>
         </thead>
         <tbody>
           {(Number(internal.discount) > 0 || Number(customer.discount) > 0) && (
             <>
               <tr className="border-t">
-                <td className="px-4 py-3">Before promotion</td>
+                <td className="px-4 py-3">{t("Before promotion")}</td>
                 <td className="px-4 py-3 text-right">
                   {Number(internal.discount) > 0 ? (
                     <OriginalPrice
                       amount={internal.subtotal + internal.discount!}
+                      label={t("Before promotion")}
                     />
                   ) : (
                     formatMoney(internal.subtotal)
@@ -156,6 +161,7 @@ function ComparativeMaterialSummary({
                   {Number(customer.discount) > 0 ? (
                     <OriginalPrice
                       amount={customer.subtotal + customer.discount!}
+                      label={t("Before promotion")}
                     />
                   ) : (
                     formatMoney(customer.subtotal)
@@ -163,7 +169,7 @@ function ComparativeMaterialSummary({
                 </td>
               </tr>
               <tr className="text-red-700">
-                <td className="px-4 py-3">Promotion discount</td>
+                <td className="px-4 py-3">{t("Promotion discount")}</td>
                 <td className="px-4 py-3 text-right">
                   −{formatMoney(internal.discount ?? 0)}
                 </td>
@@ -175,12 +181,12 @@ function ComparativeMaterialSummary({
           )}
 
           <tr className="border-t border-slate-200">
-            <td className="px-4 py-3 text-black">Material subtotal</td>
+            <td className="px-4 py-3 text-black">{t("Material subtotal")}</td>
             <td className="px-4 py-3 text-right font-medium">
               {Number(internal.manualNetDiscount) > 0 ? (
                 <OriginalPrice
                   amount={internal.subtotal}
-                  label="Before discount"
+                  label={t("Before discount")}
                 />
               ) : (
                 <span
@@ -196,7 +202,7 @@ function ComparativeMaterialSummary({
               {Number(customer.manualNetDiscount) > 0 ? (
                 <OriginalPrice
                   amount={customer.subtotal}
-                  label="Before discount"
+                  label={t("Before discount")}
                 />
               ) : (
                 <span
@@ -211,18 +217,18 @@ function ComparativeMaterialSummary({
           </tr>
           {(Number(internal.manualNetDiscount) > 0 || Number(customer.manualNetDiscount) > 0) && <>
           <tr className="border-t text-emerald-700">
-            <td className="px-4 py-3">Additional discount</td>
+            <td className="px-4 py-3">{t("Additional discount")}</td>
             <td className="px-4 py-3 text-right">−{formatMoney(internal.manualNetDiscount ?? 0)}</td>
             <td className="px-4 py-3 text-right">−{formatMoney(customer.manualNetDiscount ?? 0)}</td>
           </tr>
           <tr className="border-t font-semibold text-emerald-700">
-            <td className="px-4 py-3">Subtotal after discount</td>
+            <td className="px-4 py-3">{t("Subtotal after discount")}</td>
             <td className="px-4 py-3 text-right">{formatMoney(internal.subtotal - (internal.manualNetDiscount ?? 0))}</td>
             <td className="px-4 py-3 text-right">{formatMoney(customer.subtotal - (customer.manualNetDiscount ?? 0))}</td>
           </tr>
           </>}
           <tr className="border-t border-slate-200">
-            <td className="px-4 py-3 text-black">Sales Tax</td>
+            <td className="px-4 py-3 text-black">{t("Sales Tax")}</td>
             <td className="px-4 py-3 text-right">
               <span className="block font-medium">
                 {formatMoney(internal.taxAmount)}
@@ -241,7 +247,7 @@ function ComparativeMaterialSummary({
             </td>
           </tr>
           <tr className="border-t border-slate-200 bg-slate-50/60 font-semibold">
-            <td className="px-4 py-3">Material total</td>
+            <td className="px-4 py-3">{t("Material total")}</td>
             <td className="px-4 py-3 text-right">
               {formatMoney(internal.total)}
             </td>
@@ -256,18 +262,21 @@ function ComparativeMaterialSummary({
 }
 
 function ExternalDealerChargesSummary({
+  locale,
   summary,
   comparison,
   discount = 0,
   installationDiscount = 0,
   customerDiscount = 0,
 }: {
+  locale: CompanyLocale;
   summary: EstimateCustomerChargeSummary;
   comparison: boolean;
   discount?: number;
   installationDiscount?: number;
   customerDiscount?: number;
 }) {
+  const t = summaryText(locale);
   const customerLines = summary.lines.filter(
     (line) => line.usedInCustomerQuote,
   );
@@ -279,24 +288,24 @@ function ExternalDealerChargesSummary({
     return (
       <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
         <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-          Installation &amp; services
+          {t("Installation & services")}
         </div>
         <div className="px-4 py-1">
           {!hasCharges && (
-            <MoneyRow label="Installation" value="Not included" />
+            <MoneyRow label={t("Installation")} value={t("Not included")} />
           )}
           {displayedLines.map((line) => (
             <MoneyRow
               key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
-              label={line.description}
+              label={financialChargeDescription(locale, line)}
               value={
                 line.customerAmount == null
-                  ? "Pending"
+                  ? t("Pending")
                   : formatMoney(numberValue(line.customerAmount))
               }
             />
           ))}
-          {customerDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(customerDiscount)}`} />}
+          {customerDiscount > 0 && <MoneyRow label={t("Additional discount · Installation & services")} value={`−${formatMoney(customerDiscount)}`} />}
         </div>
       </div>
     );
@@ -307,17 +316,17 @@ function ExternalDealerChargesSummary({
       <table className="w-full table-fixed text-sm print:text-[10px] print:[&_td]:px-2 print:[&_th]:px-2">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black">
           <tr>
-            <th className="w-[44%] px-4 py-3 text-left">Installation &amp; services</th>
-            <th className="px-4 py-3 text-right">Your Cost</th>
-            <th className="px-4 py-3 text-right">Customer Price</th>
+            <th className="w-[44%] px-4 py-3 text-left">{t("Installation & services")}</th>
+            <th className="px-4 py-3 text-right">{t("Your Cost")}</th>
+            <th className="px-4 py-3 text-right">{t("Customer Price")}</th>
           </tr>
         </thead>
         <tbody>
           {!hasCharges && (
             <tr className="border-t border-slate-200">
-              <td className="px-4 py-3 text-black">Installation</td>
-              <td className="px-4 py-3 text-right font-medium">Not included</td>
-              <td className="px-4 py-3 text-right font-medium">Not included</td>
+              <td className="px-4 py-3 text-black">{t("Installation")}</td>
+              <td className="px-4 py-3 text-right font-medium">{t("Not included")}</td>
+              <td className="px-4 py-3 text-right font-medium">{t("Not included")}</td>
             </tr>
           )}
           {displayedLines.map((line) => (
@@ -326,10 +335,10 @@ function ExternalDealerChargesSummary({
               className="border-t border-slate-200"
             >
               <td className="px-4 py-3 text-black">
-                {line.description}
+                {financialChargeDescription(locale, line)}
                 {line.origin === "DEALER" && (
                   <span className="ml-2 text-[11px] text-black">
-                    Dealer-created
+                    {t("Dealer-created")}
                   </span>
                 )}
               </td>
@@ -337,30 +346,30 @@ function ExternalDealerChargesSummary({
                 {line.origin === "DEALER"
                   ? "—"
                   : line.systemAmount == null
-                    ? "Pending"
+                    ? t("Pending")
                     : line.sourceKey === "INSTALLATION" && installationDiscount > 0
-                      ? <OriginalPrice amount={numberValue(line.systemAmount)} label="Before discount" />
+                      ? <OriginalPrice amount={numberValue(line.systemAmount)} label={t("Before discount")} />
                       : formatMoney(numberValue(line.systemAmount))}
               </td>
               <td className="px-4 py-3 text-right font-medium">
                 {!line.usedInCustomerQuote
-                  ? "Not used"
+                  ? t("Not used")
                   : line.customerAmount == null
-                    ? "Pending"
+                    ? t("Pending")
                     : formatMoney(numberValue(line.customerAmount))}
               </td>
             </tr>
           ))}
           {(discount > 0 || customerDiscount > 0) && (
             <tr className="border-t text-emerald-700">
-              <td className="px-4 py-3">Additional discount</td>
+              <td className="px-4 py-3">{t("Additional discount")}</td>
               <td className="px-4 py-3 text-right">{discount > 0 ? `−${formatMoney(discount)}` : "—"}</td>
               <td className="px-4 py-3 text-right">{customerDiscount > 0 ? `−${formatMoney(customerDiscount)}` : "—"}</td>
             </tr>
           )}
           {hasCharges && (
             <tr className="border-t border-slate-200 bg-slate-50/60 font-semibold">
-              <td className="px-4 py-3">Services total</td>
+              <td className="px-4 py-3">{t("Services total")}</td>
               <td className="px-4 py-3 text-right">
                 {formatMoney(numberValue(summary.systemTotal) - discount)}
               </td>
@@ -376,10 +385,13 @@ function ExternalDealerChargesSummary({
 }
 
 function ExternalDealerProjectScope({
+  locale,
   summary,
 }: {
+  locale: CompanyLocale;
   summary: EstimateCustomerChargeSummary;
 }) {
+  const t = summaryText(locale);
   const customerLines = summary.lines.filter(
     (line) => line.usedInCustomerQuote,
   );
@@ -387,17 +399,17 @@ function ExternalDealerProjectScope({
   return (
     <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-        Project scope
+        {t("Project scope")}
       </div>
       <div className="px-4 py-1">
         {customerLines.length === 0 && (
-          <MoneyRow label="Installation" value="Not included" />
+          <MoneyRow label={t("Installation")} value={t("Not included")} />
         )}
         {customerLines.map((line) => (
           <MoneyRow
             key={line.sourceKey ?? `dealer-${line.id}-${line.sortOrder}`}
-            label={line.description}
-            value={line.customerAmount == null ? "Pending" : "Included"}
+            label={financialChargeDescription(locale, line)}
+            value={line.customerAmount == null ? t("Pending") : t("Included")}
           />
         ))}
       </div>
@@ -406,33 +418,36 @@ function ExternalDealerProjectScope({
 }
 
 function InstallationSummary({
+  locale,
   summary,
   discount = 0,
 }: {
+  locale: CompanyLocale;
   summary: EstimateInstallationReportSummary | null;
   discount?: number;
 }) {
+  const t = summaryText(locale);
   if (!summary) {
-    return <NotIncludedInstallation />;
+    return <NotIncludedInstallation locale={locale} />;
   }
 
   return (
     <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-        Installation &amp; services
+        {t("Installation & services")}
       </div>
       <div className="px-4 py-1">
-        <MoneyRow label="Installation">
+        <MoneyRow label={t("Installation")}>
           <span className="flex flex-wrap items-center justify-end gap-2">
             {summary.installationAmount == null
-              ? "Pending"
+              ? t("Pending")
               : discount > 0
-                ? <OriginalPrice amount={(numberValue(summary.installationAmount) - numberValue(summary.installationSurcharge))} label="Before discount" />
+                ? <OriginalPrice amount={(numberValue(summary.installationAmount) - numberValue(summary.installationSurcharge))} label={t("Before discount")} />
                 : formatMoney((numberValue(summary.installationAmount) - numberValue(summary.installationSurcharge)))}
           </span>
         </MoneyRow>
 
-        {numberValue(summary.installationSurcharge) > 0 && <MoneyRow label="Installation surcharge" value={formatMoney(numberValue(summary.installationSurcharge))} />}
+        {numberValue(summary.installationSurcharge) > 0 && <MoneyRow label={t("Installation surcharge")} value={formatMoney(numberValue(summary.installationSurcharge))} />}
         {summary.quoteStatus !== null && (
           <>
             {summary.additionalServices.length > 0 ? (
@@ -444,14 +459,14 @@ function InstallationSummary({
                 />
               ))
             ) : (
-              <MoneyRow label="Additional services" value="None included" />
+              <MoneyRow label={t("Additional services")} value={t("None included")} />
             )}
 
             {discount > 0 && (
               <>
-                <MoneyRow label="Additional discount · Installation" value={`−${formatMoney(discount)}`} />
+                <MoneyRow label={t("Additional discount · Installation")} value={`−${formatMoney(discount)}`} />
                 <MoneyRow
-                  label="Installation total"
+                  label={t("Installation total")}
                   value={formatMoney(numberValue(summary.installationTotal) - discount)}
                   strong
                 />
@@ -461,25 +476,25 @@ function InstallationSummary({
             {summary.permitIncluded ? (
               <div className="mt-1 border-t border-slate-200 pt-1">
                 <p className="py-2 text-sm font-semibold text-black">
-                  Permit management
+                  {t("Permit management")}
                 </p>
                 <div className="border-l-2 border-slate-200 pl-3">
                   <MoneyRow
-                    label="Permit Fee"
+                    label={t("Permit Fee")}
                     value={formatMoney(numberValue(summary.permitFee))}
                   />
                   <MoneyRow
-                    label="City Fee"
+                    label={t("City Fee")}
                     value={
                       summary.cityFee == null
-                        ? "Pending"
+                        ? t("Pending")
                         : formatMoney(numberValue(summary.cityFee))
                     }
                   />
                 </div>
               </div>
             ) : (
-              <MoneyRow label="Permit management" value="Not included" />
+              <MoneyRow label={t("Permit management")} value={t("Not included")} />
             )}
           </>
         )}
@@ -489,38 +504,44 @@ function InstallationSummary({
 }
 
 function NotIncludedInstallation({
-  title = "Installation & services",
+  locale,
+  title,
 }: {
+  locale: CompanyLocale;
   title?: string;
 }) {
+  const t = summaryText(locale);
   return (
     <div className="break-inside-avoid min-w-0 rounded-lg border border-slate-200">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-        {title}
+        {title ?? t("Installation & services")}
       </div>
       <div className="px-4 py-1">
-        <MoneyRow label="Installation" value="Not included" />
+        <MoneyRow label={t("Installation")} value={t("Not included")} />
       </div>
     </div>
   );
 }
 
 function ProjectScopeSummary({
+  locale,
   summary,
 }: {
+  locale: CompanyLocale;
   summary: EstimateInstallationReportSummary | null;
 }) {
+  const t = summaryText(locale);
   if (!summary) {
-    return <NotIncludedInstallation title="Project scope" />;
+    return <NotIncludedInstallation locale={locale} title={t("Project scope")} />;
   }
 
   return (
     <div className="break-inside-avoid min-w-0 overflow-x-auto rounded-lg border border-slate-200 print:overflow-visible">
       <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-black">
-        Project scope
+        {t("Project scope")}
       </div>
       <div className="px-4 py-1">
-        <MoneyRow label="Installation" />
+        <MoneyRow label={t("Installation")} />
 
         {summary.quoteStatus !== null ? (
           <>
@@ -529,28 +550,28 @@ function ProjectScopeSummary({
                 <MoneyRow
                   key={service.serviceId}
                   label={service.name}
-                  value="Included"
+                  value={t("Included")}
                 />
               ))
             ) : (
-              <MoneyRow label="Additional services" value="None included" />
+              <MoneyRow label={t("Additional services")} value={t("None included")} />
             )}
 
             {summary.permitIncluded ? (
               <div className="mt-1 border-t border-slate-200 pt-1">
                 <p className="py-2 text-sm font-semibold text-black">
-                  Permit management
+                  {t("Permit management")}
                 </p>
                 <div className="border-l-2 border-slate-200 pl-3">
-                  <MoneyRow label="Permit Fee" value="Included" />
+                  <MoneyRow label={t("Permit Fee")} value={t("Included")} />
                   <MoneyRow
-                    label="City Fee"
-                    value={summary.cityFee == null ? "Pending" : "Included"}
+                    label={t("City Fee")}
+                    value={summary.cityFee == null ? t("Pending") : t("Included")}
                   />
                 </div>
               </div>
             ) : (
-              <MoneyRow label="Permit management" value="Not included" />
+              <MoneyRow label={t("Permit management")} value={t("Not included")} />
             )}
           </>
         ) : null}
@@ -560,12 +581,15 @@ function ProjectScopeSummary({
 }
 
 function AdminProfitability({
+  locale,
   estimate,
   ownerIsDealer,
 }: {
+  locale: CompanyLocale;
   estimate: EstimateWithRelations;
   ownerIsDealer: boolean;
 }) {
+  const t = summaryText(locale);
   const internalDealer =
     ownerIsDealer && estimate.dealerModeSnapshot === "INTERNAL";
   const factoryRate = numberValue(internalDealer ? estimate.order?.rate ?? estimate.rateT : estimate.rateT);
@@ -576,34 +600,34 @@ function AdminProfitability({
     : internalMaterialSubtotal;
   const estimatedCompanyProfit = roundMoney(materialSaleSubtotal - factoryRate);
   const saleChannel = ownerIsDealer
-    ? `${estimate.dealerModeSnapshot ?? "EXTERNAL"} DEALER`
-    : "DIRECT CLIENT";
+    ? (estimate.dealerModeSnapshot === "INTERNAL" ? t("INTERNAL DEALER") : t("EXTERNAL DEALER"))
+    : t("DIRECT CLIENT");
 
   return (
     <div className="break-inside-avoid rounded-xl border bg-white p-5 shadow-sm">
       <div>
         <h4 className="text-lg font-semibold text-black">
-          Material financial summary
+          {t("Material financial summary")}
         </h4>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Installation profit is not included in these figures.
+          {t("Installation profit is not included in these figures.")}
         </p>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
         <div>
-          <div className="text-muted-foreground">Sale channel</div>
+          <div className="text-muted-foreground">{t("Sale channel")}</div>
           <div className="font-medium">{saleChannel}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Material sale subtotal</div>
+          <div className="text-muted-foreground">{t("Material sale subtotal")}</div>
           <div className="font-medium">{formatMoney(materialSaleSubtotal)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">{internalDealer ? "App base price (before markups)" : "Estimated factory cost"}</div>
+          <div className="text-muted-foreground">{internalDealer ? t("App base price (before markups)") : t("Estimated factory cost")}</div>
           <div className="font-medium">{formatMoney(factoryRate)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">{internalDealer ? "Expected material profit" : "Estimated material profit"}</div>
+          <div className="text-muted-foreground">{internalDealer ? t("Expected material profit") : t("Estimated material profit")}</div>
           <div className="font-medium">
             {formatMoney((internalDealer || estimate.dealerNetwork) && estimate.materialProfits ? Number(estimate.materialProfits.expectedProfit) : estimatedCompanyProfit)}
           </div>
@@ -611,10 +635,11 @@ function AdminProfitability({
         {estimate.materialProfits && (
           <>
             <div>
-              <div className="text-muted-foreground">{estimate.materialProfits.processingCostStatus ? "Gross real material profit" : "Real material profit"}</div>
-              <div className="font-medium">{estimate.materialProfits.realProfit == null ? "Pending real factory cost" : formatMoney(Number(estimate.materialProfits.realProfit))}</div>
+              <div className="text-muted-foreground">{estimate.materialProfits.processingCostStatus ? t("Gross real material profit") : t("Real material profit")}</div>
+              <div className="font-medium">{estimate.materialProfits.realProfit == null ? t("Pending real factory cost") : formatMoney(Number(estimate.materialProfits.realProfit))}</div>
             </div>
             <MaterialProfitAdjustments
+              locale={locale}
               profits={estimate.materialProfits}
               referralCosts={estimate.referralCosts}
               showDealerEarnings={internalDealer || Boolean(estimate.dealerEarnings || estimate.subdealerEarnings)}
@@ -627,18 +652,21 @@ function AdminProfitability({
 }
 
 export function ReportFinancialSummary({
+  locale = "en",
   isAdmin = false,
   estimate,
   reportKind,
   installationSummary = estimate.installationSummary ?? null,
   showPaymentSchedule = true,
 }: {
+  locale?: CompanyLocale;
   estimate: EstimateWithRelations;
   reportKind: EstimateReportKind;
   isAdmin?: boolean;
   installationSummary?: EstimateInstallationReportSummary | null;
   showPaymentSchedule?: boolean;
 }) {
+  const t = summaryText(locale);
   const showNetworkProfit = isAdmin && reportKind === "admin" && Boolean(estimate.networkProfitBreakdown);
   const hideDealerPromotions =
     (reportKind === "dealer-customer" ||
@@ -740,40 +768,42 @@ export function ReportFinancialSummary({
       ? estimate.publicProjectTotalIncomplete
       : calculatedIncompleteTotal;
   const projectLabel = incompleteTotal
-    ? "Current Project Total"
-    : "Project Total";
+    ? t("Current Project Total")
+    : t("Project Total");
 
   return (
     <section className="mt-10 space-y-4">
       <div>
         <h3 className="text-lg font-bold uppercase tracking-wide text-black">
-          Project Summary
+          {t("Project Summary")}
         </h3>
       </div>
 
-      {installationSummary?.installationAddress && <p className="text-sm"><strong>Installation address: </strong>{[installationSummary.installationAddress.street, installationSummary.installationAddress.addressLine2, installationSummary.installationAddress.city, installationSummary.installationAddress.state, installationSummary.installationAddress.postalCode].filter(Boolean).join(", ")}</p>}
+      {installationSummary?.installationAddress && <p className="text-sm"><strong>{t("Installation address")}: </strong>{[installationSummary.installationAddress.street, installationSummary.installationAddress.addressLine2, installationSummary.installationAddress.city, installationSummary.installationAddress.state, installationSummary.installationAddress.postalCode].filter(Boolean).join(", ")}</p>}
       {projectTotalOnly ? (
         externalDealerCharges ? (
-          <ExternalDealerProjectScope summary={externalDealerCharges} />
+          <ExternalDealerProjectScope locale={locale} summary={externalDealerCharges} />
         ) : (
-          <ProjectScopeSummary summary={installationSummary} />
+          <ProjectScopeSummary locale={locale} summary={installationSummary} />
         )
       ) : (
         <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2 print:grid-cols-2">
           <div className="min-w-0 break-inside-avoid">
             {comparisonView ? (
               <ComparativeMaterialSummary
+                locale={locale}
                 internal={internalMaterial}
                 customer={customerMaterial}
                 adminView={reportKind === "admin"}
               />
             ) : (
-              <SingleMaterialSummary totals={selectedMaterial} />
+              <SingleMaterialSummary locale={locale} totals={selectedMaterial} />
             )}
           </div>
 
           {externalDealerCharges ? (
             <ExternalDealerChargesSummary
+              locale={locale}
               summary={externalDealerCharges}
               comparison={comparisonView}
               discount={manualDiscount?.payer === "ACCOUNT_OWNER" ? serviceDiscount : 0}
@@ -781,13 +811,13 @@ export function ReportFinancialSummary({
               customerDiscount={manualDiscount?.payer === "CUSTOMER" ? serviceDiscount : 0}
             />
           ) : (
-            <InstallationSummary summary={installationSummary} discount={numberValue(manualDiscount?.installation.discount)} />
+            <InstallationSummary locale={locale} summary={installationSummary} discount={numberValue(manualDiscount?.installation.discount)} />
           )}
         </div>
       )}
 
-      {!projectTotalOnly && !externalDealerCharges && otherServiceDiscount > 0 && <MoneyRow label="Additional discount · Installation & services" value={`−${formatMoney(otherServiceDiscount)}`} />}
-      {!projectTotalOnly && <ManualDiscountSummary summary={manualDiscount} />}
+      {!projectTotalOnly && !externalDealerCharges && otherServiceDiscount > 0 && <MoneyRow label={t("Additional discount · Installation & services")} value={`−${formatMoney(otherServiceDiscount)}`} />}
+      {!projectTotalOnly && <ManualDiscountSummary locale={locale} summary={manualDiscount} />}
       <div
         className={`break-inside-avoid rounded-xl border px-5 py-3 ${
           comparisonView
@@ -798,12 +828,12 @@ export function ReportFinancialSummary({
         {comparisonView ? (
           <>
             <MoneyRow
-              label="Customer Project Total"
+              label={t("Customer Project Total")}
               value={formatMoney(customerProjectTotal)}
               strong
             />
             <MoneyRow
-              label="Your Project Cost"
+              label={t("Your Project Cost")}
               value={formatMoney(internalProjectTotal)}
               strong
             />
@@ -819,54 +849,54 @@ export function ReportFinancialSummary({
 
         {!externalDealerCharges && installationAmountPending && (
           <p className="pb-1 text-xs font-medium text-amber-800">
-            Installation amount is pending.
+            {t("Installation amount is pending.")}
           </p>
         )}
         {(!externalDealerCharges || comparisonView) && cityFeePending && (
           <p className="pb-1 text-xs font-medium text-amber-800">
-            Final total is pending the City Fee.
+            {t("Final total is pending the City Fee.")}
           </p>
         )}
         {!externalDealerCharges &&
           preliminaryInstallation &&
           !installationAmountPending && (
             <p className="pb-1 text-xs text-blue-800">
-              Installation is proposed and is not yet confirmed.
+              {t("Installation is proposed and is not yet confirmed.")}
             </p>
           )}
         {externalDealerCharges?.customerTotalIncomplete && customerFacing && (
           <p className="pb-1 text-xs font-medium text-amber-800">
-            Customer service pricing is incomplete.
+            {t("Customer service pricing is incomplete.")}
           </p>
         )}
       </div>
 
       {showNetworkProfit ? (
-        <NetworkProfitBreakdownCard breakdown={estimate.networkProfitBreakdown} isAdmin={isAdmin} />
+        <NetworkProfitBreakdownCard locale={locale} breakdown={estimate.networkProfitBreakdown} isAdmin={isAdmin} />
       ) : comparisonView && (estimate.dealerModeSnapshot === "INTERNAL" || estimate.dealerEarnings) ? (
-        <DealerEarningsSummaryCard earnings={estimate.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
+        <DealerEarningsSummaryCard locale={locale} earnings={estimate.dealerEarnings} serviceProfit={serviceEarnings.dealer} />
       ) : comparisonView && (
         <DealerProfitSummary
+          locale={locale}
           materialProfit={estimate.dealerNetwork?.materialProfit != null ? Number(estimate.dealerNetwork.materialProfit) : dealerMaterialProfit}
           serviceProfit={estimate.dealerNetwork && !estimate.dealerNetwork.viewerIsOwner ? 0 : dealerServiceProfit}
         />
       )}
 
-      {!showNetworkProfit && reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard label={serviceEarnings.subdealer === undefined ? "Subdealer material earnings" : "Subdealer Profit"} earnings={estimate.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
+      {!showNetworkProfit && reportKind === "admin" && estimate.subdealerEarnings && <DealerEarningsSummaryCard locale={locale} label={serviceEarnings.subdealer === undefined ? t("Subdealer material earnings") : t("Subdealer Profit")} earnings={estimate.subdealerEarnings} serviceProfit={serviceEarnings.subdealer} />}
 
       {reportKind === "admin" && (
-        <AdminProfitability estimate={estimate} ownerIsDealer={ownerIsDealer} />
+        <AdminProfitability locale={locale} estimate={estimate} ownerIsDealer={ownerIsDealer} />
       )}
 
       {!(customerFacing && estimate.dealerModeSnapshot === "EXTERNAL") && (
         <div className={showPaymentSchedule ? undefined : "hidden print:block"}>
-          <PaymentScheduleView schedule={estimate.paymentSchedule} termsOnly />
+          <PaymentScheduleView locale={locale} schedule={estimate.paymentSchedule} termsOnly />
         </div>
       )}
 
       <p className="pt-1 text-[11px] text-black">
-        Product illustrations are visual references and are not to scale;
-        written specifications govern.
+        {t("Product illustrations are visual references and are not to scale; written specifications govern.")}
       </p>
     </section>
   );

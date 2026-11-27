@@ -21,6 +21,9 @@ function load(relative, mocks = {}) {
   new Function('require', 'module', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
     if (id === '@/lib/use-address-confirmation') return load('lib/use-address-confirmation.ts', mocks);
+    if (id === '@/lib/estimate-action-language') return load('lib/estimate-action-language.ts');
+    if (id === '@/lib/order-delivery-language') return load('lib/order-delivery-language.ts');
+    if (id === '@/lib/estimate-payment-language') return load('lib/estimate-payment-language.ts');
     if (id === '@/app/api/address-confirmations.api') return { reviewAddress: async (_, address) => ({ status: 'VALIDATED', address }) };
     if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (id === 'lucide-react' || id.startsWith('@/components/') || id.startsWith('./')) return ui;
@@ -231,6 +234,31 @@ test('delivery retains complete-address, two-letter state and ZIP verification',
   h.input('delivery-city', selected.city); h.input('delivery-state', 'Florida'); await h.calculate(); assert.match(h.errors.at(-1), /two-letter state/);
   h.input('delivery-state', 'FL'); h.input('delivery-zip', '1234'); await h.calculate(); assert.match(h.errors.at(-1), /5-digit ZIP/);
   assert.equal(h.calls.length, 0);
+});
+test('switching to Spanish retains the delivery address, confirms the same charge and translates its status', async () => {
+  const h = delivery('STANDARD', () => Promise.resolve({
+    id: 97, type: 'STANDARD', sequence: 1, status: 'PAYMENT_DUE', destinationStreet: selected.street,
+    destinationAddressLine2: 'Unit at East Gate', destinationCity: selected.city, destinationState: 'FL',
+    destinationPostalCode: selected.postalCode, basePriceSnapshot: 120, includedMilesSnapshot: 20,
+    roadMiles: 25, additionalMiles: 5, additionalMilePriceSnapshot: 2, total: 130,
+  }));
+  h.open();
+  h.select('delivery-street', selected);
+  h.input('delivery-address-line2', 'Unit at East Gate');
+  h.update({ locale: 'es' });
+  assert.equal(h.control('delivery-street').props.value, selected.street);
+  assert.equal(h.control('delivery-address-line2').props.value, 'Unit at East Gate');
+  assert.equal(h.control('delivery-street').props.locale, 'es');
+  assert.equal(h.button('Calcular cargo de entrega').props.disabled, true);
+  await h.click('Usar esta dirección'); await flush();
+  assert.equal(h.button('Calcular cargo de entrega').props.disabled, false);
+  await h.click('Calcular cargo de entrega'); await flush();
+  assert.deepEqual(h.calls, [{ id: 11, payload: { type: 'STANDARD', ...selected, addressLine2: 'Unit at East Gate',
+    taxable: false, internalReason: undefined } }]);
+  const output = text(h.render());
+  for (const label of ['Pendiente de pago', '25.00 millas de ida', '$130.00', 'Unit at East Gate', 'Cambiar a recogida gratuita']) {
+    assert.ok(output.includes(label), label);
+  }
 });
 test('delivery disables address editing and suggestions while address verification creates its charge', async () => {
   const pending = deferred(), h = delivery('STANDARD', () => pending.promise); h.open(); h.select('delivery-street', selected);

@@ -81,6 +81,14 @@ function assertFrenchDoor(html, configuration, width, label) {
 }
 let passed = 0;
 function test(name, run) { run(); passed += 1; console.log(`PASS ${name}`); }
+test('the Spanish preview localizes its instructions and preserves the saved garage design name', () => {
+  const empty = render(PieceDiagram, { locale: 'es', diagramFamily: 'GARAGE_DOOR' });
+  assert.match(empty, /Completa los datos de la pieza para ver la vista previa/);
+  const complete = render(PieceDiagram, {
+    locale: 'es', diagramFamily: 'GARAGE_DOOR', piece: { width: 123, height: 87, designSnapshot: garageSnapshot },
+  });
+  assert.match(complete, /<title[^>]*>Courtyard layout &lt;A&gt; &amp; B<\/title>/);
+});
 for (const variant of ['editor', 'report']) {
   test(`${variant}: unresolved product families never invent a rectangle`, () => {
     for (const diagramFamily of ['FRENCH_DOOR', 'CASEMENT', 'FIXED_SHAPE', 'WINDOW_WALL', 'GENERIC']) {

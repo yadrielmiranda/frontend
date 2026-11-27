@@ -21,9 +21,25 @@ type AddressAutocompleteProps = Omit<
   /** Changing another address field cancels a pending selection. */
   contextKey?: string;
   access?: PlacesAccess;
+  locale?: "en" | "es";
 };
 
 type Status = "idle" | "searching" | "results" | "empty" | "incomplete" | "unavailable" | "resolving";
+
+const labels = {
+  en: {
+    list: "Address suggestions", searching: "Searching addresses…", resolving: "Loading address…",
+    empty: "No matching addresses. You can enter the address manually.",
+    incomplete: "This suggestion does not include a complete street address. Choose another suggestion or finish entering the address.",
+    unavailable: "Address suggestions are unavailable. You can enter the address manually.",
+  },
+  es: {
+    list: "Direcciones sugeridas", searching: "Buscando direcciones…", resolving: "Cargando la dirección…",
+    empty: "No se encontraron direcciones. Puedes escribir la dirección manualmente.",
+    incomplete: "La dirección sugerida está incompleta. Elige otra sugerencia o termina de escribir la dirección.",
+    unavailable: "Las sugerencias de dirección no están disponibles. Puedes escribir la dirección manualmente.",
+  },
+};
 
 function createSessionToken() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -43,6 +59,7 @@ export function AddressAutocomplete({
   onAddressSelect,
   contextKey = "",
   access = "authenticated",
+  locale = "en",
   onBlur,
   onFocus,
   onKeyDown,
@@ -166,12 +183,8 @@ export function AddressAutocomplete({
   }
 
   const open = status !== "idle" && !disabled && !readOnly;
-  const message = status === "searching" ? "Searching addresses…"
-    : status === "resolving" ? "Loading address…"
-      : status === "empty" ? "No matching addresses. You can enter the address manually."
-        : status === "incomplete" ? "This suggestion does not include a complete street address. Choose another suggestion or finish entering the address."
-          : status === "unavailable" ? "Address suggestions are unavailable. You can enter the address manually."
-          : null;
+  const copy = labels[locale];
+  const message = status === "idle" || status === "results" ? null : copy[status];
 
   return (
     <div className="relative min-w-0">
@@ -230,7 +243,7 @@ export function AddressAutocomplete({
       {open && (
         <div className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-slate-200 bg-white text-slate-950 shadow-lg">
           {message && <p role="status" className="px-3 py-3 text-sm text-slate-600">{message}</p>}
-          <ul id={listId} role="listbox" aria-label="Address suggestions" className="max-h-72 overflow-y-auto py-1">
+          <ul id={listId} role="listbox" aria-label={copy.list} className="max-h-72 overflow-y-auto py-1">
             {suggestions.map((suggestion, index) => (
               <li key={suggestion.placeId} role="presentation">
                 <button

@@ -1,8 +1,14 @@
 import { paidPrincipal } from "./payment-accounting";
+import { estimateStatusLabel } from "./estimate-status";
+import type { CompanyLocale } from "@/components/company/company-content";
 import type {
   EstimatePayment,
+  InstallationAppointmentStatus,
+  InstallationAppointmentType,
   InstallationJob,
   InstallationJobStatus,
+  InstallationPermitStatus,
+  InstallationQuoteStatus,
   PaymentType,
 } from "@/lib/types";
 
@@ -39,6 +45,7 @@ export const INSTALLATION_JOB_STATUSES: InstallationJobStatus[] = [
 export function installationStageLabelFromStatus(
   status: InstallationJobStatus,
   approvalReason?: InstallationJob["quotes"][number]["approvalReason"],
+  locale: CompanyLocale = "en",
 ): string {
   const labels: Record<InstallationJobStatus, string> = {
     REQUESTED: "Installation requested",
@@ -72,10 +79,54 @@ export function installationStageLabelFromStatus(
     COMPLETED: "Installed",
     CANCELED: "Installation canceled",
   };
-  return labels[status];
+  return estimateStatusLabel(labels[status], locale);
 }
 
-export function installationStageLabel(job: InstallationJob): string {
+const appointmentStatusesEs: Record<InstallationAppointmentStatus, string> = {
+  PROPOSED: "Propuesta",
+  ACCEPTED: "Aceptada",
+  RESCHEDULE_REQUESTED: "Cambio de fecha solicitado",
+  SUPERSEDED: "Sustituida",
+  CANCELED: "Cancelada",
+  COMPLETED: "Completada",
+};
+
+const permitStatusesEs: Record<InstallationPermitStatus, string> = {
+  PAYMENT_PENDING: "Pago pendiente",
+  PAID: "Pagado",
+  SUBMITTED: "Presentado",
+  CHANGES_REQUIRED: "Requiere cambios",
+  APPROVED: "Aprobado",
+  REJECTED: "Rechazado",
+};
+
+const quoteStatusesEs: Record<InstallationQuoteStatus, string> = {
+  DRAFT: "Borrador",
+  PENDING_ADMIN_APPROVAL: "Pendiente de aprobación interna",
+  PENDING_CUSTOMER_APPROVAL: "Pendiente de aprobación del cliente",
+  APPROVED: "Aprobada",
+  REJECTED: "Rechazada",
+  SUPERSEDED: "Sustituida",
+};
+
+export function installationAppointmentTypeLabel(type: InstallationAppointmentType, locale: CompanyLocale) {
+  if (locale === "en") return titleCase(type);
+  return type === "REMEASUREMENT" ? "Nueva medición" : "Instalación";
+}
+
+export function installationAppointmentStatusLabel(status: InstallationAppointmentStatus, locale: CompanyLocale) {
+  return locale === "es" ? appointmentStatusesEs[status] : titleCase(status);
+}
+
+export function installationPermitStatusLabel(status: InstallationPermitStatus, locale: CompanyLocale) {
+  return locale === "es" ? permitStatusesEs[status] : titleCase(status);
+}
+
+export function installationQuoteStatusLabel(status: InstallationQuoteStatus, locale: CompanyLocale) {
+  return locale === "es" ? quoteStatusesEs[status] : titleCase(status);
+}
+
+function installationStage(job: InstallationJob): string {
   if (job.estimate.status?.name === "Canceled") return "Estimate canceled";
   if (job.status !== "CANCELED" && job.estimate.status?.name === "Pending order review") return "Pending order review";
   if (job.paymentSchedule) {
@@ -89,6 +140,10 @@ export function installationStageLabel(job: InstallationJob): string {
     job.status,
     job.quotes[0]?.approvalReason,
   );
+}
+
+export function installationStageLabel(job: InstallationJob, locale: CompanyLocale = "en"): string {
+  return estimateStatusLabel(installationStage(job), locale);
 }
 
 export function paymentTypeLabel(type: PaymentType): string {

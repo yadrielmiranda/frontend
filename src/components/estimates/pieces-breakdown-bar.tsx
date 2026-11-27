@@ -3,24 +3,27 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 interface PiecesBreakdownBarProps {
+  locale?: CompanyLocale;
   totalUnits: number;
   pieceBreakdown: Record<string, number>;
 }
 
 export function PiecesBreakdownBar({
+  locale = "en",
   totalUnits,
   pieceBreakdown,
 }: PiecesBreakdownBarProps) {
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
-        <Label>Pieces Breakdown</Label>
+        <Label>{locale === "es" ? "Desglose de piezas" : "Pieces Breakdown"}</Label>
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">Qty</Label>
+          <Label className="text-sm font-medium">{locale === "es" ? "Cantidad" : "Qty"}</Label>
           <Input
-            aria-label="Total pieces"
+            aria-label={locale === "es" ? "Total de piezas" : "Total pieces"}
             value={totalUnits}
             readOnly
             className="font-bold text-center cursor-not-allowed border-dashed bg-white w-20 h-8"
@@ -34,7 +37,7 @@ export function PiecesBreakdownBar({
             .map(([name, count]) => `${name}: ${count}`)
             .join(" | ")
         ) : (
-          <span className="text-gray-500 italic">No calculated pieces yet.</span>
+          <span className="text-gray-500 italic">{locale === "es" ? "Aún no hay piezas calculadas." : "No calculated pieces yet."}</span>
         )}
       </div>
     </div>

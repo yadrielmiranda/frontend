@@ -12,6 +12,7 @@ import { HIGH_BOTTOM_RAIL_IN } from "../high-bottom";
 import { garageSectionLayout } from "./garage-door-layout";
 
 export interface GarageDoorDiagramProps {
+  locale?: "en" | "es";
   width: number;
   height: number;
   maxSectionHeightIn?: number | null;
@@ -52,6 +53,7 @@ function formatDimension(value: number): string {
 
 /** A dimensional product drawing; the catalog thumbnails remain independent. */
 export function GarageDoorDiagram({
+  locale = "en",
   width,
   height,
   maxSectionHeightIn,
@@ -108,7 +110,9 @@ export function GarageDoorDiagram({
     if (row < rows.length - 1) seams.push(y);
   });
   const glassRects = cells.filter(cell => cell.material === "glass" && cell.height > 0).map(({ x, y, width: cellWidth, height: cellHeight }) => ({ x, y, width: cellWidth, height: cellHeight }));
-  const label = design ? designName?.trim() || "Garage door design" : "GF — Garage door without design";
+  const label = design
+    ? designName || (locale === "es" ? "Diseño de puerta de garaje" : "Garage door design")
+    : (locale === "es" ? "GF — Puerta de garaje sin diseño" : "GF — Garage door without design");
   const viewBox = expandedViewBox({ x: 0, y: 0, width: doorWidth, height: doorHeight }, showDimensions
     ? { top: 78, right: 115, bottom: 20, left: 20 }
     : { top: 10, right: 10, bottom: 10, left: 10 });

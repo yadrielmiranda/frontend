@@ -39,6 +39,7 @@ function load(relative) {
   const exported = {};
   new Function('require', 'exports', compiled)(name => {
     if (name === '@/lib/rbac') return load('lib/rbac.ts');
+    if (name === '@/lib/estimate-action-language') return load('lib/estimate-action-language.ts');
     if (name === '@/components/delete-conf-dialog') return load('components/delete-conf-dialog.tsx');
     if (name.startsWith('@/components/ui/')) return ui;
     assert.ok(name in mocks, `Unexpected dependency: ${name}`);
@@ -61,7 +62,7 @@ let count = 0;
 function check(name, actor, overrides, expected) {
   const estimate = { ...base, ...overrides };
   const columns = getEstimateColumns(actor);
-  const render = column => column.cell({ row: { original: estimate } });
+  const render = column => column.cell({ row: { original: estimate }, column: { columnDef: column } });
   for (const key of ['number', 'name']) {
     const links = all(render(columns.find(column => column.accessorKey === key)), node => node.type === 'Link');
     assert.equal(links.length, 1, name);
@@ -104,10 +105,14 @@ check('internal network member retains authorized access', { id: 9, role: { name
 
 const owner = { id: 7, role: { name: 'dealer' } };
 const admin = { id: 1, role: { name: 'admin' } };
+assert.equal(getEstimateColumns(owner, 'en').find(column => column.id === 'actions').cell,
+  getEstimateColumns(owner, 'es').find(column => column.id === 'actions').cell,
+  'Changing language keeps row actions and their in-flight state mounted');
 const preliminaryInstallation = { id: 12, status: 'DEPOSIT_PAYMENT_PENDING' };
 function renderActions(estimate, actor = owner) {
   stateIndex = 0;
-  return getEstimateColumns(actor).find(column => column.id === 'actions').cell({ row: { original: estimate } });
+  const column = getEstimateColumns(actor).find(column => column.id === 'actions');
+  return column.cell({ row: { original: estimate }, column: { columnDef: column } });
 }
 function deleteItem(tree) {
   return all(tree, node => node.type === 'DropdownMenuItem' && text(node) === 'Delete Estimate')[0];

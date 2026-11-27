@@ -38,7 +38,7 @@ function load(relative) {
   }, module, module.exports);
   return module.exports;
 }
-const { buildEnergyDescription, mergePieceEnergySnapshots } = load('lib/energy-ratings.ts');
+const { buildEnergyDescription } = load('lib/energy-ratings.ts');
 const { PieceReportCard } = load('components/estimates/estimate-details/parts/piece-report-card.tsx');
 const snapshot = { schemaVersion: 1, status: 'AVAILABLE', uFactor: '1.062314', shgc: '0.278', vlt: '0.501',
   ratingId: 7 };
@@ -96,19 +96,7 @@ assert.match(details, /<strong>DP:<\/strong>[\s\S]*?\+65\.0[\s\S]*?75\.0<\/p><p>
 assert.ok(!details.includes('Btu'), 'No unit metadata in Product Details');
 assert.ok(renderDetails({ energySnapshot: null }).includes('Data unavailable'));
 assert.ok(!renderDetails({ energySnapshot: { ...snapshot, status: 'NOT_APPLICABLE' } }).includes('U-factor:'));
-const refreshedSnapshot = { ...snapshot, selection };
-const currentPieces = [{ ...editPiece, energySnapshot: null }, { ...editPiece, id: 2 }];
-const originalPieces = JSON.stringify(currentPieces);
-const merged = mergePieceEnergySnapshots(currentPieces, [{ id: 1, energyRatingId: 7, energySnapshot: refreshedSnapshot }]);
-assert.equal(merged[0].energySnapshot, refreshedSnapshot);
-assert.equal(merged[0].price, currentPieces[0].price);
-assert.equal(merged[0].dealerMarkup, currentPieces[0].dealerMarkup);
-assert.equal(merged[0].mark, currentPieces[0].mark);
-assert.equal(merged[1], currentPieces[1]);
-assert.equal(JSON.stringify(currentPieces), originalPieces);
-const editedSelection = [{ ...currentPieces[0], idTint: 99 }];
-assert.equal(mergePieceEnergySnapshots(editedSelection, [{ id: 1, energySnapshot: refreshedSnapshot }])[0], editedSelection[0], 'Do not apply a stale response to changed glass selections');
-console.log('PASS editor energy values: absent under names, once below DP in Product Details, saved IDs, unchanged selections and prices');
+console.log('PASS editor energy values: absent under names, once below DP in Product Details');
 
 const { EnergyRatingsClient } = load('app/settings/energy-ratings/energy-ratings-client.tsx');
 const catalogRow = { id: 7, isActive: true, ...snapshot,

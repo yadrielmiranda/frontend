@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function CompareImpactProductsEsContent() {
@@ -43,15 +43,15 @@ export function CompareImpactProductsEsContent() {
             {"Confirma los detalles del proyecto"}
           </h2>
           <p>
-            {"Pídele al profesional calificado a cargo del trabajo que confirme qué aprobación y detalles de instalación corresponden a esa abertura y a ese sitio. Resuelve cualquier diferencia entre la cotización y la documentación antes de hacer el pedido. Conserva juntos la cotización final y los documentos correspondientes para que todos consulten la misma versión."}
+            {"Pídele al profesional calificado a cargo del trabajo que confirme qué aprobación y detalles de instalación corresponden a esa abertura y a ese sitio. Resuelve cualquier diferencia entre la cotización y la documentación antes de realizar la orden. Conserva juntos la cotización final y los documentos correspondientes para que todos consulten la misma versión."}
           </p>
         </div>
       </section>
       <section className="section" id="contact">
         <div className="wrap">
-          <Link href="/login/register" className="button">
+          <CompanyRegistrationLink className="button">
             {"Crea tu cuenta GRATIS"}
-          </Link>
+          </CompanyRegistrationLink>
           <div className="actions">
             <a href="mailto:sales@authenticevolutionco.com">
               {"Pide ayuda para preparar una cotización"}

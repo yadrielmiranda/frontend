@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceListText } from "./piece-list-language";
 import type {
   ProductWithBrands,
   SystemWithConfigs,
@@ -22,6 +24,7 @@ import { formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-descri
 import { getMuntinInputMode, muntinPatternRequiresType } from "./muntin-availability";
 
 interface PieceFormDetailsPanelProps {
+  locale?: CompanyLocale;
   piece: PieceFormValues;
   productsWithBrands: ProductWithBrands[];
   systemsWithConfigs: SystemWithConfigs[];
@@ -49,6 +52,7 @@ function formatDimension(value: string | number | null | undefined) {
 }
 
 export function PieceFormDetailsPanel({
+  locale = "en",
   piece,
   productsWithBrands,
   systemsWithConfigs,
@@ -60,6 +64,7 @@ export function PieceFormDetailsPanel({
   muntinPatterns,
   muntinTypes,
 }: PieceFormDetailsPanelProps) {
+  const t = pieceListText(locale);
   const selectedProduct =
     productsWithBrands.find((product) => product.id === Number(piece.idProd)) ??
     null;
@@ -69,7 +74,7 @@ export function PieceFormDetailsPanel({
 
   const system = systemsWithConfigs.find((s) => s.id === Number(piece.idSyst));
   const hasSolidDesign = pieceHasSolidGarageDesign(piece, system);
-  const selectedDesign = pieceGarageDesign(piece, system);
+  const selectedDesign = pieceGarageDesign(piece, system, locale);
   const systemName = system?.name ?? null;
   const brandName = system?.brandProduct?.brand?.name ?? null;
 
@@ -85,14 +90,14 @@ export function PieceFormDetailsPanel({
     selectedSysConf?.config?.requiresWindowHeight === true;
 
   const widthLabel = usesOpeningWidth(selectedSysConf)
-    ? "Opening Width"
-    : "Width";
+    ? t("Opening Width")
+    : t("Width");
 
   const heightLabel = requiresWindowHeight
-    ? "Open Height"
+    ? t("Open Height")
     : selectedSysConf?.requiresDoorHeight
-      ? "Opening Height"
-      : "Height";
+      ? t("Opening Height")
+      : t("Height");
 
   const muntinLayout = selectedSysConf?.config?.muntinLayout ?? [];
 
@@ -108,7 +113,7 @@ export function PieceFormDetailsPanel({
   const selectedFrameColor =
     frameColors.find((fc) => fc.id === Number(piece.idFC)) ?? null;
 
-  const effectiveFrame = pieceFrameColor(piece, selectedFrameColor, system);
+  const effectiveFrame = pieceFrameColor(piece, selectedFrameColor, system, locale);
   const frameColor = effectiveFrame.color;
   const frameColorHex = effectiveFrame.hexCode;
   const glass = findNameById(crystals, piece.idCryst, (c) => c.glass);
@@ -170,7 +175,7 @@ export function PieceFormDetailsPanel({
   const windowHeight = formatDimension(piece.windowHeight);
   const legHeight = formatDimension(piece.legHeight);
 
-  const doorSize = formatDoorDimensions(piece.doorWidth, piece.doorHeight, piece.height);
+  const doorSize = formatDoorDimensions(piece.doorWidth, piece.doorHeight, piece.height, locale);
   const leftSideliteWidth = formatDimension(piece.leftSideliteWidth);
   const rightSideliteWidth = formatDimension(piece.rightSideliteWidth);
 
@@ -183,35 +188,35 @@ export function PieceFormDetailsPanel({
 
   const dpPlus = piece.dpPosPsf == null ? null : formatPsf(piece.dpPosPsf, 1);
   const dpMinus = piece.dpNegPsf == null ? null : formatPsf(piece.dpNegPsf, 1);
-  const energyDescription = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, selectedProduct?.kind);
+  const energyDescription = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, selectedProduct?.kind, locale);
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 border-t bg-slate-50 p-3 text-sm md:grid-cols-2 md:gap-4 md:p-4">
       {/* LEFT: PRODUCT DETAILS */}
       <div className="min-w-0 rounded-md border bg-white p-4 [overflow-wrap:anywhere]">
         <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Product Details
+          {t("Product Details")}
         </h4>
 
         <div className="space-y-1 text-slate-700">
           <p>
-            <strong>Product:</strong> {productName ?? "—"}
+            <strong>{t("Product")}:</strong> {productName ?? "—"}
           </p>
           <p>
-            <strong>Brand:</strong> {brandName ?? "—"}
+            <strong>{t("Brand")}:</strong> {brandName ?? "—"}
           </p>
           <p>
-            <strong>System:</strong> {systemName ?? "—"}
+            <strong>{t("System")}:</strong> {systemName ?? "—"}
           </p>
           <p>
-            <strong>Configuration:</strong> {configName ?? "—"}
+            <strong>{t("Configuration")}:</strong> {configName ?? "—"}
           </p>
           <p>
-            <strong>Frame Color:</strong> {frameColor ?? "—"}
+            <strong>{t("Frame Color")}:</strong> {frameColor ?? "—"}
           </p>
 
           <p>
-            <strong>Size:</strong>{" "}
+            <strong>{t("Size")}:</strong>{" "}
             {[
               width && `${width} ${widthLabel}`,
               height && `${height} ${heightLabel}`,
@@ -222,149 +227,149 @@ export function PieceFormDetailsPanel({
 
           {heightLeft && (
             <p>
-              <strong>Height Left:</strong> {heightLeft}
+              <strong>{t("Height Left")}:</strong> {heightLeft}
             </p>
           )}
 
           {heightRight && (
             <p>
-              <strong>Height Right:</strong> {heightRight}
+              <strong>{t("Height Right")}:</strong> {heightRight}
             </p>
           )}
 
           {sashHeight && (
             <p>
-              <strong>Sash Height:</strong> {sashHeight}
+              <strong>{t("Sash Height")}:</strong> {sashHeight}
             </p>
           )}
 
           {windowHeight && (
             <p>
-              <strong>Window Height:</strong> {windowHeight}
+              <strong>{t("Window Height")}:</strong> {windowHeight}
             </p>
           )}
 
           {legHeight && (
             <p>
-              <strong>Leg Height:</strong> {legHeight}
+              <strong>{t("Leg Height")}:</strong> {legHeight}
             </p>
           )}
 
           {doorSize && (
             <p>
-              <strong>Door Size:</strong>{" "}
+              <strong>{t("Door Size")}:</strong>{" "}
               {doorSize}
             </p>
           )}
 
           {leftSideliteWidth && (
             <p>
-              <strong>Left Sidelite Width:</strong> {leftSideliteWidth}
+              <strong>{t("Left Sidelite Width")}:</strong> {leftSideliteWidth}
             </p>
           )}
 
           {rightSideliteWidth && (
             <p>
-              <strong>Right Sidelite Width:</strong> {rightSideliteWidth}
+              <strong>{t("Right Sidelite Width")}:</strong> {rightSideliteWidth}
             </p>
           )}
 
           {piece.leftPanels && (
             <p>
-              <strong>Left Panels:</strong> {piece.leftPanels}
+              <strong>{t("Left Panels")}:</strong> {piece.leftPanels}
             </p>
           )}
 
           {piece.rightPanels && (
             <p>
-              <strong>Right Panels:</strong> {piece.rightPanels}
+              <strong>{t("Right Panels")}:</strong> {piece.rightPanels}
             </p>
           )}
 
           {piece.panelCount && (
             <p>
-              <strong>Panel Count:</strong> {piece.panelCount}
+              <strong>{t("Panel Count")}:</strong> {piece.panelCount}
             </p>
           )}
 
           {horizontalPositions.length > 0 && (
             <p>
-              <strong>Horizontal Positions:</strong>{" "}
-              {horizontalPositions.join(", ")} from bottom
+              <strong>{t("Horizontal Positions")}:</strong>{" "}
+              {horizontalPositions.join(", ")} {t("from bottom")}
             </p>
           )}
 
           <p>
-            <strong>Qty:</strong> {piece.qty}
+            <strong>{t("Qty")}:</strong> {piece.qty}
           </p>
 
           {!hasSolidDesign && <p>
-            <strong>Glass:</strong>{" "}
+            <strong>{t("Glass")}:</strong>{" "}
             {[glass, tint, coating].filter(Boolean).join(" + ") || "—"}
           </p>}
 
           {!hasSolidDesign && <p>
-            <strong>Privacy:</strong> {privacy ?? "—"}
+            <strong>{t("Privacy")}:</strong> {privacy ?? "—"}
           </p>}
 
           <p>
-            <strong>Screen:</strong> {piece.screen ? "Yes" : "No"}
+            <strong>{t("Screen")}:</strong> {piece.screen ? t("Yes") : "No"}
           </p>
 
           {piece.highBottom && (
             <p>
-              <strong>High Bottom:</strong> Yes
+              <strong>{t("High Bottom")}:</strong> {t("Yes")}
             </p>
           )}
-          {piece.doorDesignSnapshot && <p><strong>Door Design:</strong> {piece.doorDesignSnapshot.code}</p>}
+          {piece.doorDesignSnapshot && <p><strong>{t("Door Design")}:</strong> {piece.doorDesignSnapshot.code}</p>}
           {selectedDesign && (
             <>
               <p>
-                <strong>Design:</strong> {selectedDesign.design.name}
+                <strong>{t("Design")}:</strong> {selectedDesign.design.name}
               </p>
               <p>
-                <strong>Design Color:</strong> {selectedDesign.color.name}
+                <strong>{t("Design Color")}:</strong> {selectedDesign.color.name}
               </p>
             </>
           )}
 
           {activeName && (
             <p>
-              <strong>Active:</strong> {activeName}
+              <strong>{t("Active")}:</strong> {activeName}
             </p>
           )}
 
           {preparationName && (
             <p>
-              <strong>Preparation:</strong> {preparationName}
+              <strong>{t("Preparation")}:</strong> {preparationName}
             </p>
           )}
 
           {sillName && (
             <p>
-              <strong>Sill:</strong> {sillName}
+              <strong>{t("Sill")}:</strong> {sillName}
             </p>
           )}
 
           {reinforcementName && (
             <p>
-              <strong>Reinforcement:</strong> {reinforcementName}
+              <strong>{t("Reinforcement")}:</strong> {reinforcementName}
             </p>
           )}
 
           {muntinAllowed && <p>
-            <strong>Muntin Pattern:</strong> {pattern?.name ?? "—"}
+            <strong>{t("Muntin Pattern")}:</strong> {pattern?.name ?? "—"}
           </p>}
 
           {muntinAllowed && getMuntinInputMode(pattern) !== "NONE" && (
             <>
               {muntinPatternRequiresType(pattern) && <p>
-                <strong>Muntin Type:</strong> {muntinType?.name ?? "—"}
+                <strong>{t("Muntin Type")}:</strong> {muntinType?.name ?? "—"}
               </p>}
 
               {getMuntinInputMode(pattern) === "GRID" && piece.muntin?.panels?.length ? (
                 <div>
-                  <strong>Panels:</strong>
+                  <strong>{t("Panels")}:</strong>
                   <div className="mt-1 space-y-1">
                     {piece.muntin.panels.map((panel) => {
                       const label =
@@ -387,7 +392,7 @@ export function PieceFormDetailsPanel({
                 </div>
               ) : null}
               {getMuntinInputMode(pattern) === "PRESET" && (
-                <p className="text-xs text-slate-600">Pattern included in the specification; drawing preview unavailable.</p>
+                <p className="text-xs text-slate-600">{t("Pattern included in the specification; drawing preview unavailable.")}</p>
               )}
             </>
           )}
@@ -409,12 +414,13 @@ export function PieceFormDetailsPanel({
       {/* RIGHT: PRODUCT IMAGE */}
       <div className="min-w-0 overflow-hidden rounded-md border bg-white p-4">
         <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">
-          Product Image
+          {t("Product Image")}
         </h4>
 
         <div className="flex h-[clamp(240px,70vw,380px)] min-w-0 items-center justify-center md:h-[clamp(280px,24vw,380px)]">
           <div className="h-full min-w-0 w-full max-w-[640px]">
             <PieceDiagram
+              locale={locale}
               diagramFamily={selectedProduct?.diagramFamily}
               systemName={systemName}
               brandName={brandName}

@@ -8,7 +8,7 @@ import { matchPivotCompositeMuntin, pivotCompositeLayout, type PivotCompositeCon
 import { DIMENSION_COLOR, expandedViewBox } from "../dimension-style";
 import { PivotDimensionText as DimensionText, PivotVerticalDimensionText as VerticalDimensionText, PIVOT_DIMENSION_RESERVE_PX as VERTICAL_DIMENSION_RESERVE_PX, PivotSegmentLabels } from "./pivot-dimension-text";
 
-export function PivotCompositeDoorDiagram({ configuration, width, height, doorWidth, doorHeight, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: Omit<PivotDoorDiagramProps, "configuration"> & { configuration: PivotCompositeConfiguration }) {
+export function PivotCompositeDoorDiagram({ locale = "en", configuration, width, height, doorWidth, doorHeight, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: Omit<PivotDoorDiagramProps, "configuration"> & { configuration: PivotCompositeConfiguration }) {
   const reactId = useId();
   const [widthLanes, setWidthLanes] = useState(1);
   const [heightLanes, setHeightLanes] = useState(1);
@@ -51,8 +51,10 @@ export function PivotCompositeDoorDiagram({ configuration, width, height, doorWi
     style={{ boxSizing: "border-box", paddingTop: showDimensions ? 18 * widthLanes : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && hasTransom ? VERTICAL_DIMENSION_RESERVE_PX + 18 * (heightLanes - 1) : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration={configuration} data-view="EXTERIOR" data-opening-direction="OUTWARD" data-exterior-pivot-side={rightActive ? "right" : "left"} data-schematic-opening-deg="24"
     data-width={width} data-height={height} data-door-width={doorWidth} data-door-height={hasTransom ? doorHeight : undefined} data-transom-height={hasTransom ? transomHeight : undefined} data-sidelite-width={sideliteWidth} data-sidelite-count={sideCount} data-left-sidelite-width={leftSide ? sideliteWidth : undefined} data-right-sidelite-width={rightSide ? sideliteWidth : undefined} data-frame-color={color} data-units-per-inch={unitsPerInch}>
-    <title id={`${id}-title`}>{`Pivot Door — Configuration ${configuration}`}</title>
-    <desc id={`${id}-description`}>{`Exterior view of a ${format(width)} × ${format(height)} assembly with an outward-opening ${format(doorWidth!)} pivot door and ${sideCount} fixed sidelite${sideCount === 1 ? "" : "s"}, each ${format(sideliteWidth)} wide. ${hasTransom ? `An aligned ${format(transomHeight)} fixed transom row sits above the ${format(doorHeight!)} door. ` : ""}Only the door leaf reflects the selected ${rightActive ? "right" : "left"} active pivot side.`}</desc>
+    <title id={`${id}-title`}>{locale === "es" ? `Pivot Door — Configuración ${configuration}` : `Pivot Door — Configuration ${configuration}`}</title>
+    <desc id={`${id}-description`}>{locale === "es"
+      ? `Vista exterior del conjunto Pivot Door de ${format(width)} × ${format(height)}. La puerta de ${format(doorWidth!)} abre hacia afuera, con pivote a la ${rightActive ? "derecha" : "izquierda"}. Paneles laterales fijos: ${sideCount}, de ${format(sideliteWidth)} de ancho cada uno.${hasTransom ? ` Una fila de paneles fijos de ${format(transomHeight)} se alinea sobre la puerta de ${format(doorHeight!)}.` : ""}`
+      : `Exterior view of a ${format(width)} × ${format(height)} assembly with an outward-opening ${format(doorWidth!)} pivot door and ${sideCount} fixed sidelite${sideCount === 1 ? "" : "s"}, each ${format(sideliteWidth)} wide. ${hasTransom ? `An aligned ${format(transomHeight)} fixed transom row sits above the ${format(doorHeight!)} door. ` : ""}Only the door leaf reflects the selected ${rightActive ? "right" : "left"} active pivot side.`}</desc>
     <defs><linearGradient id={`${id}-frame-finish`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={finish("#F5F7F6", 0.16)} /><stop offset="0.46" stopColor={finish("#EEF1EF", 0)} /><stop offset="1" stopColor={finish("#E0E5E3", -0.16)} /></linearGradient></defs>
     <g data-part="pivot-door-artwork">
       <g data-layer="FRAME" data-material="frame">

@@ -3,9 +3,11 @@
 import { AuthProvider } from "@/contexts/AuthContext"; // Asegúrate de que esta ruta sea correcta
 import { LoginDialogProvider } from "@/contexts/LoginDialogContext"; // Importa el nuevo proveedor de contexto
 import { CompanyBrandingProvider } from "@/contexts/CompanyBrandingContext";
+import { PortalLanguageProvider } from "@/contexts/PortalLanguageContext";
+import type { CompanyLocale } from "@/components/company/company-content";
 import React, { useEffect } from "react";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, initialLocale }: { children: React.ReactNode; initialLocale?: CompanyLocale }) {
   useEffect(() => {
     const preventNumberWheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.deltaY === 0) return;
@@ -33,7 +35,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // Envuelve los children con ambos proveedores
     <CompanyBrandingProvider>
       <LoginDialogProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <PortalLanguageProvider initialLocale={initialLocale}>{children}</PortalLanguageProvider>
+        </AuthProvider>
       </LoginDialogProvider>
     </CompanyBrandingProvider>
   );

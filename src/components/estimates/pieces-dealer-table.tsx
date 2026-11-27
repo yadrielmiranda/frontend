@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import type { PieceFormValues } from "./types";
 import { Button } from "@/components/ui/button";
-import { formatInchesFromEighthStep } from "@/lib/dimensions";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceListText } from "./piece-list-language";
 import { PieceFormDetailsPanel } from "./piece-form-details-panel";
-import { garageDesignDescription, pieceFrameColor } from "./piece-garage-design";
 import { InlinePieceMarkInput } from "./inline-piece-mark-input";
-import { formatDimensionPair, formatDoorDimensions, usesOpeningWidth } from "./piece-dimension-description";
+import { describeListedPiece } from "./piece-dimension-description";
 import type {
   ProductWithBrands,
   FrameColor,
@@ -30,6 +30,7 @@ import type {
 } from "@/lib/types";
 
 interface PiecesDealerTableProps {
+  locale?: CompanyLocale;
   fields: { id: string }[];
   watchedPieces: PieceFormValues[] | undefined;
   productsWithBrands: ProductWithBrands[];
@@ -50,6 +51,7 @@ interface PiecesDealerTableProps {
 }
 
 export function PiecesDealerTable({
+  locale = "en",
   fields,
   watchedPieces,
   productsWithBrands,
@@ -67,6 +69,7 @@ export function PiecesDealerTable({
   onRemove,
   onMarkSave,
 }: PiecesDealerTableProps) {
+  const t = pieceListText(locale);
   const [openPieceIds, setOpenPieceIds] = React.useState<Set<string>>(
     () => new Set(),
   );
@@ -97,7 +100,7 @@ export function PiecesDealerTable({
     return (
       <div className="min-w-0 max-w-full overflow-hidden rounded-lg border">
         <p className="py-6 text-center text-gray-500">
-          No pieces have been added yet.
+          {t("No pieces have been added yet.")}
         </p>
       </div>
     );
@@ -116,8 +119,8 @@ export function PiecesDealerTable({
                   size="icon"
                   className="h-8 w-8"
                   onClick={toggleAllPieces}
-                  title={allPiecesOpen ? "Collapse All" : "Expand All"}
-                  aria-label={allPiecesOpen ? "Collapse All" : "Expand All"}
+                  title={allPiecesOpen ? t("Collapse All") : t("Expand All")}
+                  aria-label={allPiecesOpen ? t("Collapse All") : t("Expand All")}
                 >
                   {allPiecesOpen ? (
                     <ChevronsUp className="h-4 w-4" />
@@ -126,20 +129,20 @@ export function PiecesDealerTable({
                   )}
                 </Button>
               </th>
-              <th className="px-4 py-2 text-left font-semibold">Mark</th>
-              <th className="px-4 py-2 text-left font-semibold">Description</th>
-              <th className="px-4 py-2 text-right font-semibold">Qty</th>
+              <th className="px-4 py-2 text-left font-semibold">{t("Mark")}</th>
+              <th className="px-4 py-2 text-left font-semibold">{t("Description")}</th>
+              <th className="px-4 py-2 text-right font-semibold">{t("Qty")}</th>
               <th className="px-4 py-2 text-right font-semibold">
-                Rate (unit)
+                {t("Rate (unit)")}
               </th>
-              <th className="px-4 py-2 text-right font-semibold">Markup %</th>
+              <th className="px-4 py-2 text-right font-semibold">{t("Markup %")}</th>
               <th className="px-4 py-2 text-right font-semibold">
-                Customer Price (unit)
+                {t("Customer Price (unit)")}
               </th>
               <th className="px-4 py-2 text-right font-semibold">
-                Customer Subtotal
+                {t("Customer Subtotal")}
               </th>
-              <th className="px-4 py-2 text-right font-semibold">Actions</th>
+              <th className="px-4 py-2 text-right font-semibold">{t("Actions")}</th>
             </tr>
           </thead>
 
@@ -159,25 +162,6 @@ export function PiecesDealerTable({
                 (s) => s.id === Number(currentPieceData.idSyst),
               );
 
-              const selectedSysConf = selectedSystem?.sysconfs?.find(
-                (sc) =>
-                  Number(sc.config?.id ?? sc.idConfig) ===
-                  Number(currentPieceData.idConf),
-              ) as any;
-
-              const requiresWindowHeight =
-                selectedSysConf?.config?.requiresWindowHeight === true;
-
-              const widthToken = usesOpeningWidth(selectedSysConf)
-                ? "Open W"
-                : "W";
-
-              const heightToken = requiresWindowHeight
-                ? "Open H"
-                : selectedSysConf?.requiresDoorHeight
-                  ? "Open H"
-                  : "H";
-
               const qty = Number(currentPieceData.qty) || 0;
               const unitRate = Number(currentPieceData.price) || 0;
               const originalUnitRate =
@@ -196,103 +180,7 @@ export function PiecesDealerTable({
 
               const markupPercent = Number(currentPieceData.dealerMarkup) || 0;
 
-              const sizeText = formatDimensionPair(
-                currentPieceData.width, currentPieceData.height, widthToken, heightToken,
-              );
-
-              const sashTxt = currentPieceData.sashHeight
-                ? formatInchesFromEighthStep(currentPieceData.sashHeight)
-                : null;
-
-              const windowHeightTxt = currentPieceData.windowHeight
-                ? formatInchesFromEighthStep(currentPieceData.windowHeight)
-                : null;
-
-              const descriptionParts: string[] = [];
-
-              if (product?.name) descriptionParts.push(product.name);
-
-              if (sizeText) {
-                descriptionParts.push(
-                  `${sizeText}${
-                    sashTxt ? ` / Sash ${sashTxt}` : ""
-                  }${windowHeightTxt ? ` / Window H ${windowHeightTxt}` : ""}`,
-                );
-              }
-
-              if (currentPieceData.heightLeft) {
-                descriptionParts.push(
-                  `${formatInchesFromEighthStep(currentPieceData.heightLeft)} HL`,
-                );
-              }
-
-              if (currentPieceData.heightRight) {
-                descriptionParts.push(
-                  `${formatInchesFromEighthStep(currentPieceData.heightRight)} HR`,
-                );
-              }
-
-              if (currentPieceData.legHeight) {
-                descriptionParts.push(
-                  `${formatInchesFromEighthStep(currentPieceData.legHeight)} LegH`,
-                );
-              }
-
-              const doorSize = formatDoorDimensions(
-                currentPieceData.doorWidth, currentPieceData.doorHeight, currentPieceData.height,
-              );
-              if (doorSize) descriptionParts.push(`Door ${doorSize}`);
-
-              if (currentPieceData.leftSideliteWidth) {
-                descriptionParts.push(
-                  `Left Sidelite ${formatInchesFromEighthStep(
-                    currentPieceData.leftSideliteWidth,
-                  )}`,
-                );
-              }
-
-              if (currentPieceData.rightSideliteWidth) {
-                descriptionParts.push(
-                  `Right Sidelite ${formatInchesFromEighthStep(
-                    currentPieceData.rightSideliteWidth,
-                  )}`,
-                );
-              }
-
-              if (currentPieceData.leftPanels) {
-                descriptionParts.push(
-                  `Left Panels ${currentPieceData.leftPanels}`,
-                );
-              }
-
-              if (currentPieceData.rightPanels) {
-                descriptionParts.push(
-                  `Right Panels ${currentPieceData.rightPanels}`,
-                );
-              }
-
-              if (currentPieceData.panelCount) {
-                descriptionParts.push(`Panels ${currentPieceData.panelCount}`);
-              }
-
-              if (
-                Array.isArray(currentPieceData.horizontalHeights) &&
-                currentPieceData.horizontalHeights.length > 0
-              ) {
-                descriptionParts.push(
-                  `Horizontals @ ${currentPieceData.horizontalHeights
-                    .map((value) => formatInchesFromEighthStep(String(value)))
-                    .join(", ")}`,
-                );
-              }
-
-              const effectiveFrame = pieceFrameColor(currentPieceData, frameColor, selectedSystem);
-              if (effectiveFrame.color) descriptionParts.push(effectiveFrame.color);
-
-              const designDescription = garageDesignDescription(currentPieceData, selectedSystem);
-              if (designDescription) descriptionParts.push(designDescription);
-              const description =
-                descriptionParts.join(" - ") || "Piece description";
+              const description = describeListedPiece(currentPieceData, product, selectedSystem, frameColor, locale);
 
               return (
                 <React.Fragment key={field.id}>
@@ -309,13 +197,13 @@ export function PiecesDealerTable({
                               onClick={() => togglePiece(field.id)}
                               title={
                                 openPieceIds.has(field.id)
-                                  ? "Hide Details"
-                                  : "View Details"
+                                  ? t("Hide Details")
+                                  : t("View Details")
                               }
                               aria-label={
                                 openPieceIds.has(field.id)
-                                  ? "Hide piece details"
-                                  : "View piece details"
+                                  ? t("Hide piece details")
+                                  : t("View piece details")
                               }
                               aria-expanded={openPieceIds.has(field.id)}
                             >
@@ -329,6 +217,7 @@ export function PiecesDealerTable({
                             </Button>
 
                             <InlinePieceMarkInput
+                              locale={locale}
                               value={currentPieceData.mark}
                               fallback={`#${index + 1}`}
                               className="min-w-0 max-w-40 flex-1"
@@ -343,8 +232,8 @@ export function PiecesDealerTable({
                               size="icon"
                               className="h-9 w-9"
                               onClick={() => onDuplicate(index)}
-                              title="Duplicate Piece"
-                              aria-label="Duplicate piece"
+                              title={t("Duplicate Piece")}
+                              aria-label={t("Duplicate piece")}
                             >
                               <Copy className="h-4 w-4" />
                             </Button>
@@ -355,8 +244,8 @@ export function PiecesDealerTable({
                               size="icon"
                               className="h-9 w-9"
                               onClick={() => onEdit(index)}
-                              title="Edit Piece"
-                              aria-label="Edit piece"
+                              title={t("Edit Piece")}
+                              aria-label={t("Edit piece")}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -367,8 +256,8 @@ export function PiecesDealerTable({
                               size="icon"
                               className="h-9 w-9"
                               onClick={() => onRemove(index)}
-                              title="Delete Piece"
-                              aria-label="Delete piece"
+                              title={t("Delete Piece")}
+                              aria-label={t("Delete piece")}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -379,7 +268,7 @@ export function PiecesDealerTable({
                           {description}
                           {currentPieceData.highBottom && (
                             <span className="ml-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                              High Bottom
+                              {t("High Bottom")}
                             </span>
                           )}
                         </div>
@@ -387,7 +276,7 @@ export function PiecesDealerTable({
                         <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                           <div className="min-w-0 border-b border-r px-3 py-2">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              Qty
+                              {t("Qty")}
                             </p>
                             <p className="mt-0.5 font-semibold text-slate-950">
                               {qty}
@@ -395,7 +284,7 @@ export function PiecesDealerTable({
                           </div>
                           <div className="min-w-0 border-b px-3 py-2 text-right">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              Markup
+                              {t("Markup")}
                             </p>
                             <p className="mt-0.5 font-semibold text-slate-950">
                               {markupPercent.toFixed(2)}%
@@ -403,10 +292,11 @@ export function PiecesDealerTable({
                           </div>
                           <div className="min-w-0 border-b border-r px-3 py-2">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              Rate
+                              {t("Rate")}
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
                               <PromotionPrice
+                                locale={locale}
                                 amount={unitRate}
                                 originalAmount={originalUnitRate}
                                 formatValue={formatCurrency}
@@ -415,10 +305,11 @@ export function PiecesDealerTable({
                           </div>
                           <div className="min-w-0 border-b px-3 py-2 text-right">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              Customer unit
+                              {t("Customer unit")}
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
                               <PromotionPrice
+                                locale={locale}
                                 amount={customerUnitPrice}
                                 originalAmount={originalCustomerUnitPrice}
                                 formatValue={formatCurrency}
@@ -427,10 +318,11 @@ export function PiecesDealerTable({
                           </div>
                           <div className="col-span-2 min-w-0 px-3 py-2 text-right">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              Customer subtotal
+                              {t("Customer subtotal")}
                             </p>
                             <p className="mt-0.5 truncate font-mono font-semibold text-slate-950">
                               <PromotionPrice
+                                locale={locale}
                                 amount={customerLineTotal}
                                 originalAmount={
                                   originalCustomerUnitPrice == null
@@ -453,8 +345,8 @@ export function PiecesDealerTable({
                         onClick={() => togglePiece(field.id)}
                         title={
                           openPieceIds.has(field.id)
-                            ? "Hide Details"
-                            : "View Details"
+                            ? t("Hide Details")
+                            : t("View Details")
                         }
                         aria-expanded={openPieceIds.has(field.id)}
                       >
@@ -469,6 +361,7 @@ export function PiecesDealerTable({
                     </td>
                     <td className="hidden w-40 px-4 py-2 align-middle xl:table-cell">
                       <InlinePieceMarkInput
+                        locale={locale}
                         value={currentPieceData.mark}
                         fallback={`#${index + 1}`}
                         className="w-32"
@@ -482,13 +375,13 @@ export function PiecesDealerTable({
 
                         {currentPieceData.highBottom && (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                            High Bottom
+                            {t("High Bottom")}
                           </span>
                         )}
 
                         {qty > 1 && (
                           <span className="text-xs text-gray-500">
-                            (Qty: {qty})
+                            ({t("Qty")}: {qty})
                           </span>
                         )}
                       </div>
@@ -500,6 +393,7 @@ export function PiecesDealerTable({
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
                       <PromotionPrice
+                        locale={locale}
                         amount={unitRate}
                         originalAmount={originalUnitRate}
                         formatValue={formatCurrency}
@@ -512,6 +406,7 @@ export function PiecesDealerTable({
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
                       <PromotionPrice
+                        locale={locale}
                         amount={customerUnitPrice}
                         originalAmount={originalCustomerUnitPrice}
                         formatValue={formatCurrency}
@@ -520,6 +415,7 @@ export function PiecesDealerTable({
 
                     <td className="hidden px-4 py-2 align-middle text-right font-mono xl:table-cell">
                       <PromotionPrice
+                        locale={locale}
                         amount={customerLineTotal}
                         originalAmount={
                           originalCustomerUnitPrice == null
@@ -537,7 +433,7 @@ export function PiecesDealerTable({
                           variant="outline"
                           size="icon"
                           onClick={() => onDuplicate(index)}
-                          title="Duplicate Piece"
+                          title={t("Duplicate Piece")}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -547,7 +443,7 @@ export function PiecesDealerTable({
                           variant="outline"
                           size="icon"
                           onClick={() => onEdit(index)}
-                          title="Edit Piece"
+                          title={t("Edit Piece")}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -557,7 +453,7 @@ export function PiecesDealerTable({
                           variant="destructive"
                           size="icon"
                           onClick={() => onRemove(index)}
-                          title="Delete Piece"
+                          title={t("Delete Piece")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -568,6 +464,7 @@ export function PiecesDealerTable({
                     <tr>
                       <td colSpan={9} className="p-0">
                         <PieceFormDetailsPanel
+                          locale={locale}
                           piece={currentPieceData}
                           productsWithBrands={productsWithBrands}
                           systemsWithConfigs={systemsWithConfigs}

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function CompanyEsContent() {
@@ -24,9 +25,9 @@ export function CompanyEsContent() {
               {"Vendemos e instalamos ventanas y puertas exteriores de impacto diseñadas para los huracanes y el clima severo del sur de Florida. Crea tu cuenta gratis y empieza tu primera cotización en la plataforma profesional de Authentic."}
             </p>
             <div className="actions">
-              <Link className="button" href="/login/register" data-cta="free-account" data-placement="hero">
+              <CompanyRegistrationLink className="button" data-cta="free-account" data-placement="hero">
                 {"Crea tu cuenta GRATIS"}
-              </Link>
+              </CompanyRegistrationLink>
               <a className="link" href="#products">
                 {"Explora los productos"}
               </a>
@@ -151,7 +152,7 @@ export function CompanyEsContent() {
                   {"Puertas francesas y de entrada exteriores"}
                 </h3>
                 <p>
-                  {"Para entradas principales y otras aberturas exteriores con bisagras, ofrecemos puertas de una o dos hojas, incluidas las puertas francesas ECO serie 600. Antes de hacer el pedido, te ayudamos a confirmar el sentido de apertura, el vidrio y el acabado del marco."}
+                  {"Para entradas principales y otras aberturas exteriores con bisagras, ofrecemos puertas de una o dos hojas, incluidas las puertas francesas ECO serie 600. Antes de realizar la orden, te ayudamos a confirmar el sentido de apertura, el vidrio y el acabado del marco."}
                 </p>
               </div>
             </article>
@@ -213,7 +214,7 @@ export function CompanyEsContent() {
                   {"Confirma las medidas y los siguientes pasos"}
                 </h3>
                 <p>
-                  {"Confirma las medidas finales antes de hacer el pedido. Si el proyecto incluye instalación o ayuda con permisos, coordinamos esos pasos con los profesionales locales responsables del trabajo."}
+                  {"Confirma las medidas finales antes de realizar la orden. Si el proyecto incluye instalación o ayuda con permisos, coordinamos esos pasos con los profesionales locales responsables del trabajo."}
                 </p>
               </div>
             </li>
@@ -233,7 +234,7 @@ export function CompanyEsContent() {
               {"tu propia marca."}
             </h2>
             <p className="intro">
-              {"Mantén tu marca al frente de la relación con tus clientes. Authentic ofrece a los distribuidores un espacio para preparar cotizaciones con su propia marca, gestionar pedidos y seguir su estado. Si trabajas con vendedores o subdistribuidores, puedes gestionar esa red desde tu cuenta sin tener que reenviar cada cotización."}
+              {"Mantén tu marca al frente de la relación con tus clientes. Authentic ofrece a los distribuidores un espacio para preparar cotizaciones con su propia marca, gestionar órdenes y seguir su estado. Si trabajas con vendedores o subdistribuidores, puedes gestionar esa red desde tu cuenta sin tener que reenviar cada cotización."}
             </p>
             <a className="button" href="mailto:sales@authenticevolutionco.com?subject=Authentic%20dealer%20program">
               {"Consulta el acceso para distribuidores "}
@@ -254,7 +255,7 @@ export function CompanyEsContent() {
                 {"Comparte cotizaciones con tu propia marca"}
               </li>
               <li>
-                {"Gestiona los pedidos y consulta su estado en el portal"}
+                {"Gestiona las órdenes y consulta su estado en el portal"}
               </li>
             </ul>
           </aside>
@@ -273,7 +274,7 @@ export function CompanyEsContent() {
               {"Evolution Co."}
             </h2>
             <p className="intro">
-              {"Authentic Evolution Co. es una empresa de Florida, con sede en Miramar, especializada en la venta, distribución e instalación de ventanas y puertas exteriores de impacto para huracanes y clima severo. Reunimos la selección de productos, las cotizaciones y la gestión de pedidos, con apoyo para coordinar proyectos cuando hace falta. Los propietarios pueden consultarnos directamente; los contratistas y distribuidores pueden usar la plataforma para cotizar y gestionar trabajos para sus propios clientes."}
+              {"Authentic Evolution Co. es una empresa de Florida, con sede en Miramar, especializada en la venta, distribución e instalación de ventanas y puertas exteriores de impacto para huracanes y clima severo. Reunimos la selección de productos, las cotizaciones y la gestión de órdenes, con apoyo para coordinar proyectos cuando hace falta. Los propietarios pueden consultarnos directamente; los contratistas y distribuidores pueden usar la plataforma para cotizar y gestionar trabajos para sus propios clientes."}
             </p>
           </div>
           <div className="contact" id="contact">
@@ -322,12 +323,12 @@ export function CompanyEsContent() {
               </div>
             </div>
             <div className="actions">
-              <Link className="link" data-route="registration" href="/login/register" aria-describedby="next-account">
+              <CompanyRegistrationLink className="link" data-route="registration" aria-describedby="next-account">
                 {"Crea tu cuenta "}
                 <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                   <path d="M4 12L12 4m-6 0h6v6" />
                 </svg>
-              </Link>
+              </CompanyRegistrationLink>
             </div>
             <span className="sr" id="next-account">
               {"Abre el formulario público de registro de clientes."}
@@ -357,17 +358,17 @@ export function CompanyEsContent() {
                 {"Para profesionales y distribuidores"}
               </h3>
               <p>
-                {"Las funciones dependen de los permisos y del programa. Usa herramientas profesionales para crear, editar y organizar cotizaciones; presenta cotizaciones, propuestas y documentos disponibles con tu nombre, logo y datos comerciales; consulta los precios y las promociones de tu cuenta; conecta vendedores, clientes o subdistribuidores; y administra pedidos y pagos elegibles sin ceder tu marca ni la relación con tus clientes."}
+                {"Las funciones dependen de los permisos y del programa. Usa herramientas profesionales para crear, editar y organizar cotizaciones; presenta cotizaciones, propuestas y documentos disponibles con tu nombre, logo y datos comerciales; consulta los precios y las promociones de tu cuenta; conecta vendedores, clientes o subdistribuidores; y administra órdenes y pagos elegibles sin ceder tu marca ni la relación con tus clientes."}
               </p>
               <p>
-                {"Donde esté disponible, paga tus pedidos con tarjeta o cuenta bancaria. Authentic no añade comisiones de transacción a las operaciones elegibles. Los puntos, intereses y cargos de la tarjeta dependen del emisor y de la operación, no de Authentic."}
+                {"Donde esté disponible, paga tus órdenes con tarjeta o cuenta bancaria. Authentic no añade comisiones de transacción a las operaciones elegibles. Los puntos, intereses y cargos de la tarjeta dependen del emisor y de la operación, no de Authentic."}
               </p>
             </article>
           </div>
           <div className="actions">
-            <Link href="/login/register" className="button">
+            <CompanyRegistrationLink className="button">
               {"Crea tu cuenta GRATIS"}
-            </Link>
+            </CompanyRegistrationLink>
             <p className="fine">
               {"Abre el registro público de clientes. Para acceso de distribuidor, contacta a nuestro equipo."}
             </p>
@@ -382,7 +383,7 @@ export function CompanyEsContent() {
                 {"Quién se ocupa de cada paso"}
               </h3>
               <p>
-                {"Ventas te ayuda a elegir productos y preparar una cotización. El equipo también puede explicarte el programa para distribuidores y el proceso de pedidos. Cuando tu proyecto incluye mediciones en obra, instalación o apoyo con permisos, coordinamos con los profesionales responsables de ese trabajo."}
+                {"Ventas te ayuda a elegir productos y preparar una cotización. El equipo también puede explicarte el programa para distribuidores y el proceso de órdenes. Cuando tu proyecto incluye mediciones en obra, instalación o apoyo con permisos, coordinamos con los profesionales responsables de ese trabajo."}
               </p>
             </article>
             <article>
@@ -413,7 +414,7 @@ export function CompanyEsContent() {
                 {"Cómo preparar una cotización de ventanas y puertas de impacto"}
               </Link>
               <p>
-                {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de hacer el pedido."}
+                {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de realizar la orden."}
               </p>
             </li>
             <li>
@@ -496,7 +497,7 @@ export function CompanyEsContent() {
               {"Al registrarte, puedes elegir si quieres recibir avisos de servicio o mensajes promocionales. Son dos opciones independientes y voluntarias. Puedes crear una cuenta o hacer una compra sin marcar ninguna casilla. Dar tu número de teléfono no te suscribe por sí solo a los mensajes de texto."}
             </p>
             <p>
-              {"Los mensajes de servicio pueden tratar sobre cotizaciones, citas de instalación, pedidos, pagos o novedades de tu cuenta. Si aceptas por separado los mensajes promocionales, estos pueden incluir ofertas o novedades de productos. La frecuencia varía. Pueden aplicarse cargos por mensajes y datos. Responde "}
+              {"Los mensajes de servicio pueden tratar sobre cotizaciones, citas de instalación, órdenes, pagos o novedades de tu cuenta. Si aceptas por separado los mensajes promocionales, estos pueden incluir ofertas o novedades de productos. La frecuencia varía. Pueden aplicarse cargos por mensajes y datos. Responde "}
               <strong>
                 {"STOP"}
               </strong>
@@ -538,9 +539,9 @@ export function CompanyEsContent() {
               {"Crea una cuenta gratuita de cliente para comenzar. Si eres distribuidor o contratista y buscas acceso profesional, contacta a nuestro equipo para configurarlo."}
             </p>
             <div className="actions">
-              <Link className="button" href="/login/register" data-cta="free-account" data-placement="closing">
+              <CompanyRegistrationLink className="button" data-cta="free-account" data-placement="closing">
                 {"Crea tu cuenta GRATIS"}
-              </Link>
+              </CompanyRegistrationLink>
             </div>
           </div>
           <div className="role-cards">
@@ -557,7 +558,7 @@ export function CompanyEsContent() {
                 {"Distribuidores y profesionales"}
               </h3>
               <p>
-                {"Cotiza con tu propia marca, organiza tu red comercial y gestiona pedidos. Las condiciones de precio, las opciones de pago y las herramientas profesionales dependen de tu perfil y sus funciones habilitadas."}
+                {"Cotiza con tu propia marca, organiza tu red comercial y gestiona órdenes. Las condiciones de precio, las opciones de pago y las herramientas profesionales dependen de tu perfil y sus funciones habilitadas."}
               </p>
             </article>
           </div>

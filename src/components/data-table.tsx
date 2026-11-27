@@ -72,6 +72,7 @@ export interface DataTableTextSearch {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  locale?: "en" | "es";
 
   // Mantiene compatibilidad con las tablas existentes.
   filterColumnId?: string;
@@ -102,9 +103,35 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 10;
 const EMPTY_COLUMN_FILTERS: ColumnFiltersState = [];
 
+const tableCopy = {
+  en: {
+    filter: "Filter", search: "Filter...", selectFilter: "Select filter", all: "All",
+    date: "Date", dateFrom: (label: string) => `${label} from`, dateTo: (label: string) => `${label} to`, to: "to",
+    filters: "Filters", clearFilters: "Clear filters", empty: "No results found.",
+    results: (total: number) => `${total} ${total === 1 ? "result" : "results"}`,
+    filteredResults: (count: number, total: number) => `${count} of ${total} ${total === 1 ? "result" : "results"}`,
+    range: (first: number, last: number, total: number) => `Showing ${first}-${last} of ${total}`,
+    page: (current: number, total: number) => `Page ${current} of ${total}`,
+    rowsPerPage: "Rows per page", pagination: "Table pagination", first: "First page", last: "Last page",
+    previousPage: "Previous page", nextPage: "Next page", previous: "Previous", next: "Next",
+  },
+  es: {
+    filter: "Filtrar", search: "Filtrar...", selectFilter: "Seleccionar filtro", all: "Todos",
+    date: "Fecha", dateFrom: (label: string) => `${label} (desde)`, dateTo: (label: string) => `${label} (hasta)`, to: "a",
+    filters: "Filtros", clearFilters: "Limpiar filtros", empty: "No se encontraron resultados.",
+    results: (total: number) => `${total} ${total === 1 ? "resultado" : "resultados"}`,
+    filteredResults: (count: number, total: number) => `${count} de ${total} ${total === 1 ? "resultado" : "resultados"}`,
+    range: (first: number, last: number, total: number) => `Mostrando ${first}-${last} de ${total}`,
+    page: (current: number, total: number) => `Página ${current} de ${total}`,
+    rowsPerPage: "Filas por página", pagination: "Paginación de la tabla", first: "Primera página", last: "Última página",
+    previousPage: "Página anterior", nextPage: "Página siguiente", previous: "Anterior", next: "Siguiente",
+  },
+};
+
 export function DataTable<TData, TValue>({
   columns,
   data,
+  locale = "en",
   filterColumnId,
   filterPlaceholder,
   filters,
@@ -117,6 +144,7 @@ export function DataTable<TData, TValue>({
   maxHeightClassName = "max-h-[520px]",
   scrollMode = "container",
 }: DataTableProps<TData, TValue>) {
+  const copy = tableCopy[locale];
   const storageKey = filterStorageKey
     ? `data-table:${filterStorageKey}:filters`
     : null;
@@ -249,13 +277,13 @@ export function DataTable<TData, TValue>({
         {
           columnId: filterColumnId,
           type: "text",
-          placeholder: filterPlaceholder ?? "Filter...",
+          placeholder: filterPlaceholder ?? copy.search,
         },
       ];
     }
 
     return [];
-  }, [filterColumnId, filterPlaceholder, filters]);
+  }, [filterColumnId, filterPlaceholder, filters, copy.search]);
 
   const table = useReactTable({
     data,
@@ -391,7 +419,7 @@ export function DataTable<TData, TValue>({
         >
           <Input
             type="date"
-            aria-label={`${filter.placeholder ?? "Date"} from`}
+            aria-label={copy.dateFrom(filter.placeholder ?? copy.date)}
             value={currentValue.from ?? ""}
             max={currentValue.to}
             onChange={(event) => updateDateRange("from", event.target.value)}
@@ -403,12 +431,12 @@ export function DataTable<TData, TValue>({
           />
 
           <span className="text-xs font-normal normal-case text-muted-foreground">
-            to
+            {copy.to}
           </span>
 
           <Input
             type="date"
-            aria-label={`${filter.placeholder ?? "Date"} to`}
+            aria-label={copy.dateTo(filter.placeholder ?? copy.date)}
             value={currentValue.to ?? ""}
             min={currentValue.from}
             onChange={(event) => updateDateRange("to", event.target.value)}
@@ -460,19 +488,19 @@ export function DataTable<TData, TValue>({
           }}
         >
           <SelectTrigger
-            aria-label={filter.placeholder ?? filter.allLabel ?? "Filter"}
+            aria-label={filter.placeholder ?? filter.allLabel ?? copy.filter}
             className={
               compact
                 ? "h-8 w-full min-w-[130px] font-normal normal-case"
                 : "w-full font-normal normal-case sm:w-[210px]"
             }
           >
-            <SelectValue placeholder={filter.placeholder ?? "Select filter"} />
+            <SelectValue placeholder={filter.placeholder ?? copy.selectFilter} />
           </SelectTrigger>
 
-          <SelectContent>
+          <SelectContent lang={locale}>
             <SelectItem value={ALL_FILTER_VALUE}>
-              {filter.allLabel ?? "All"}
+              {filter.allLabel ?? copy.all}
             </SelectItem>
 
             {availableOptions.map((option) => (
@@ -496,8 +524,8 @@ export function DataTable<TData, TValue>({
 
     return (
       <Input
-        aria-label={selectedPreset?.label ?? filter.placeholder ?? "Filter"}
-        placeholder={selectedPreset?.label ?? filter.placeholder ?? "Filter..."}
+        aria-label={selectedPreset?.label ?? filter.placeholder ?? copy.filter}
+        placeholder={selectedPreset?.label ?? filter.placeholder ?? copy.search}
         value={textValue ?? ""}
         onChange={(event) => {
           const text = event.target.value;
@@ -513,11 +541,11 @@ export function DataTable<TData, TValue>({
   };
 
   const resultsLabel = hasActiveFilters
-    ? `${filteredCount} of ${data.length} results`
-    : `${data.length} ${data.length === 1 ? "result" : "results"}`;
+    ? copy.filteredResults(filteredCount, data.length)
+    : copy.results(data.length);
 
   return (
-    <div>
+    <div lang={locale}>
       {configuredFilters.length > 0 && filterPlacement === "toolbar" && (
         <div className="flex flex-wrap items-center gap-3 py-4">
           {configuredFilters.map((filter) => (
@@ -534,7 +562,7 @@ export function DataTable<TData, TValue>({
               onClick={clearFilters}
               className="gap-2"
             >
-              Clear filters
+              {copy.clearFilters}
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -546,7 +574,7 @@ export function DataTable<TData, TValue>({
       )}
 
       {configuredFilters.length > 0 && filterPlacement === "header" && (
-        <div className="flex min-h-10 items-center justify-end gap-2 py-2">
+        <div className="flex min-h-10 flex-wrap items-center justify-end gap-2 py-2">
           {collapsibleFilters && (
             <Button
               type="button"
@@ -557,7 +585,7 @@ export function DataTable<TData, TValue>({
               className="gap-2"
             >
               <ListFilter className="h-4 w-4" />
-              Filters
+              {copy.filters}
               {hasActiveFilters && (
                 <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none text-primary-foreground">
                   {activeFilterCount}
@@ -579,7 +607,7 @@ export function DataTable<TData, TValue>({
               onClick={clearFilters}
               className="gap-2"
             >
-              Clear filters
+              {copy.clearFilters}
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -659,7 +687,7 @@ export function DataTable<TData, TValue>({
                     colSpan={columns.length}
                     className="h-24 text-center text-sm text-muted-foreground"
                   >
-                    No results found.
+                    {copy.empty}
                   </TableCell>
                 </TableRow>
               )}
@@ -672,10 +700,10 @@ export function DataTable<TData, TValue>({
         <div className="flex flex-col gap-3 py-3 text-sm lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <span className="text-muted-foreground" aria-live="polite">
-              Showing {firstItem}–{lastItem} of {filteredCount}
+              {copy.range(firstItem, lastItem, filteredCount)}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Rows per page</span>
+              <span className="text-muted-foreground">{copy.rowsPerPage}</span>
               <Select
                 value={String(paginationState.pageSize)}
                 onValueChange={(value) => {
@@ -686,10 +714,10 @@ export function DataTable<TData, TValue>({
                   }
                 }}
               >
-                <SelectTrigger aria-label="Rows per page" className="h-9 w-20">
+                <SelectTrigger aria-label={copy.rowsPerPage} className="h-9 w-20">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent lang={locale}>
                   {PAGE_SIZE_OPTIONS.map((pageSize) => (
                     <SelectItem key={pageSize} value={String(pageSize)}>
                       {pageSize}
@@ -701,7 +729,7 @@ export function DataTable<TData, TValue>({
           </div>
 
           <nav
-            aria-label="Table pagination"
+            aria-label={copy.pagination}
             className="flex flex-wrap items-center gap-2"
           >
             <Button
@@ -709,8 +737,8 @@ export function DataTable<TData, TValue>({
               variant="outline"
               size="icon"
               className="h-9 w-9"
-              aria-label="First page"
-              title="First page"
+              aria-label={copy.first}
+              title={copy.first}
               disabled={!table.getCanPreviousPage()}
               onClick={() => table.setPageIndex(0)}
             >
@@ -721,26 +749,26 @@ export function DataTable<TData, TValue>({
               variant="outline"
               size="sm"
               className="h-9 gap-1 px-2 sm:px-3"
-              aria-label="Previous page"
+              aria-label={copy.previousPage}
               disabled={!table.getCanPreviousPage()}
               onClick={() => table.previousPage()}
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Previous</span>
+              <span className="hidden sm:inline">{copy.previous}</span>
             </Button>
             <span className="min-w-24 whitespace-nowrap text-center">
-              Page {currentPage} of {pageCount}
+              {copy.page(currentPage, pageCount)}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="h-9 gap-1 px-2 sm:px-3"
-              aria-label="Next page"
+              aria-label={copy.nextPage}
               disabled={!table.getCanNextPage()}
               onClick={() => table.nextPage()}
             >
-              <span className="hidden sm:inline">Next</span>
+              <span className="hidden sm:inline">{copy.next}</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
@@ -748,8 +776,8 @@ export function DataTable<TData, TValue>({
               variant="outline"
               size="icon"
               className="h-9 w-9"
-              aria-label="Last page"
-              title="Last page"
+              aria-label={copy.last}
+              title={copy.last}
               disabled={!table.getCanNextPage()}
               onClick={() => table.setPageIndex(pageCount - 1)}
             >

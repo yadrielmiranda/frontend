@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { OriginalPrice } from "@/components/promotions/promotion-price";
 import type { InstallationJob } from "@/lib/types";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 import { additionalServiceTotals } from "@/lib/installation-service-totals";
+import { summaryText } from "@/lib/estimate-financial-language";
 
 function SummaryRow({
   label,
@@ -25,7 +27,8 @@ function SummaryRow({
   );
 }
 
-export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
+export function InstallationQuoteSummary({ job, locale = "en" }: { job: InstallationJob; locale?: CompanyLocale }) {
+  const t = summaryText(locale);
   const quote = job.quotes[0];
   const canceled = job.status === "CANCELED";
   const discount = job.manualDiscountSummary;
@@ -48,18 +51,18 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
 
   return (
     <div className="p-4">
-      <SummaryRow label="Installation">
-        {canceled ? "Canceled" : !quote ? "Pending" : installationDiscount > 0 ? (
-          <OriginalPrice amount={baseInstallationTotal} label="Before discount" />
+      <SummaryRow label={t("Installation")}>
+        {canceled ? (locale === "es" ? "Cancelada" : "Canceled") : !quote ? t("Pending") : installationDiscount > 0 ? (
+          <OriginalPrice amount={baseInstallationTotal} label={t("Before discount")} />
         ) : formatMoney(baseInstallationTotal)}
       </SummaryRow>
 
       {!canceled && quote && (
         <>
-          {Number(quote.installationSurcharge ?? 0) > 0 && <SummaryRow label="Installation surcharge">{formatMoney(Number(quote.installationSurcharge))}</SummaryRow>}
+          {Number(quote.installationSurcharge ?? 0) > 0 && <SummaryRow label={t("Installation surcharge")}>{formatMoney(Number(quote.installationSurcharge))}</SummaryRow>}
           {extras.length > 0 ? (
             <div className="mt-1 border-t pt-1">
-              <p className="py-1.5 text-sm font-semibold">Additional services</p>
+              <p className="py-1.5 text-sm font-semibold">{t("Additional services")}</p>
               <div className="border-l-2 border-slate-200 pl-3">
                 {extras.map((service) => (
                   <SummaryRow key={service.serviceId} label={service.name}>
@@ -69,10 +72,10 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
               </div>
             </div>
           ) : (
-            <SummaryRow label="Additional services">None included</SummaryRow>
+            <SummaryRow label={t("Additional services")}>{t("None included")}</SummaryRow>
           )}
           {installationDiscount > 0 && (
-            <SummaryRow label="Additional discount · Installation">
+            <SummaryRow label={t("Additional discount · Installation")}>
               <span className="text-emerald-700">−{formatMoney(installationDiscount)}</span>
             </SummaryRow>
           )}
@@ -81,20 +84,20 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
 
       {!canceled && (job.permit ? (
         <div className="mt-1 border-t pt-1">
-          <p className="py-1.5 text-sm font-semibold">Permit management</p>
+          <p className="py-1.5 text-sm font-semibold">{t("Permit management")}</p>
           <div className="border-l-2 border-slate-200 pl-3">
-            <SummaryRow label="Permit Fee">
+            <SummaryRow label={t("Permit Fee")}>
               {formatMoney(permitFee)}
             </SummaryRow>
-            <SummaryRow label="City Fee">
+            <SummaryRow label={t("City Fee")}>
               {cityFee == null
-                ? "Pending"
+                ? t("Pending")
                 : formatMoney(cityFee)}
             </SummaryRow>
           </div>
         </div>
       ) : (
-        <SummaryRow label="Permit management">Not included</SummaryRow>
+        <SummaryRow label={t("Permit management")}>{t("Not included")}</SummaryRow>
       ))}
 
       {!canceled && quote && (
@@ -104,7 +107,7 @@ export function InstallationQuoteSummary({ job }: { job: InstallationJob }) {
           </SummaryRow>
           {job.permit && cityFee == null && (
             <p className="mt-1 text-xs font-medium text-amber-800">
-              Final total pending City Fee.
+              {t("Final total pending City Fee.")}
             </p>
           )}
         </div>

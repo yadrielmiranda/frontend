@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function ForAiEnContent() {
@@ -57,9 +58,9 @@ export function ForAiEnContent() {
             </article>
           </div>
           <div className="actions">
-            <Link href="/login/register" className="button">
+            <CompanyRegistrationLink className="button">
               {"Create Your Free Account"}
-            </Link>
+            </CompanyRegistrationLink>
             <p className="fine">
               {"Opens the public client registration. Dealers can contact our team for professional access."}
             </p>
@@ -111,9 +112,9 @@ export function ForAiEnContent() {
               </Link>
             </li>
             <li>
-              <Link href="/login/register">
+              <CompanyRegistrationLink>
                 {"Create Your Free Account"}
-              </Link>
+              </CompanyRegistrationLink>
             </li>
             <li>
               <Link href="/login">

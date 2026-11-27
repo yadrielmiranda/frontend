@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { getOrCreateEstimatePublicToken } from "@/app/api/estimates.api";
 import { Button } from "@/components/ui/button";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { estimateActionError, estimateActionText } from "@/lib/estimate-action-language";
 
 async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
@@ -33,6 +35,7 @@ export function EstimatePaymentLinkActions({
   size = "default",
   beforeAction,
   disabled = false,
+  locale = "en",
 }: {
   estimateId: number;
   estimateNumber?: string;
@@ -40,8 +43,10 @@ export function EstimatePaymentLinkActions({
   size?: "default" | "sm";
   beforeAction?: () => Promise<boolean>;
   disabled?: boolean;
+  locale?: CompanyLocale;
 }) {
   const [busyAction, setBusyAction] = useState<"copy" | "share" | null>(null);
+  const t = estimateActionText.bind(null, locale);
 
   const getPaymentUrl = async () => {
     const response = await getOrCreateEstimatePublicToken(
@@ -59,9 +64,9 @@ export function EstimatePaymentLinkActions({
     try {
       if (beforeAction && !(await beforeAction())) return;
       await copyText(await getPaymentUrl());
-      toast.success("Payment link copied.");
+      toast.success(t("Payment link copied."));
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(estimateActionError(locale, error, t("Could not copy the payment link.")));
     } finally {
       setBusyAction(null);
     }
@@ -83,11 +88,11 @@ export function EstimatePaymentLinkActions({
         });
       } else {
         await copyText(url);
-        toast.success("Payment link copied.");
+        toast.success(t("Payment link copied."));
       }
     } catch (error) {
       if ((error as DOMException).name !== "AbortError") {
-        toast.error((error as Error).message);
+        toast.error(estimateActionError(locale, error, t("Could not share the payment link.")));
       }
     } finally {
       setBusyAction(null);
@@ -108,7 +113,7 @@ export function EstimatePaymentLinkActions({
         ) : (
           <Copy className="h-4 w-4" />
         )}
-        {busyAction === "copy" ? "Copying..." : "Copy payment link"}
+        {t(busyAction === "copy" ? "Copying..." : "Copy payment link")}
       </Button>
 
       {showShare && (
@@ -123,7 +128,7 @@ export function EstimatePaymentLinkActions({
           ) : (
             <Share2 className="h-4 w-4" />
           )}
-          Share payment link
+          {t("Share payment link")}
         </Button>
       )}
     </div>

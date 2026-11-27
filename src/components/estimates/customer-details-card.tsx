@@ -14,10 +14,12 @@ import { StateCombobox } from "@/components/StateCombobox";
 import { isValidPhone } from "@/lib/validators-phone";
 import { normalizeEmail, isValidEmail } from "@/lib/validators-email";
 import { normalizeUSZip, isValidUSZip } from "@/lib/validators-zip";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 export type CustomerDetailsSaveState = "idle" | "pending" | "saving" | "saved" | "invalid" | "error";
 
 type Props = {
+  locale?: CompanyLocale;
   register: UseFormRegister<EstimateFormValues>;
   control: Control<EstimateFormValues>;
   setValue: UseFormSetValue<EstimateFormValues>;
@@ -27,16 +29,24 @@ type Props = {
   onRetrySave?: () => void;
 };
 
-function FieldError({ message }: { message?: string }) {
+const spanishErrors: Record<string, string> = {
+  "Invalid email format": "Escribe un correo electrónico válido.",
+  "Invalid phone number": "Escribe un número de teléfono válido.",
+  "Address details must be 150 characters or fewer.": "Los detalles de la dirección deben tener como máximo 150 caracteres.",
+  "Invalid ZIP (5 digits)": "Escribe un código postal de 5 dígitos.",
+};
+
+function FieldError({ message, locale }: { message?: string; locale: CompanyLocale }) {
   if (!message) return null;
-  return <p className="mt-1 text-sm text-red-600">{message}</p>;
+  return <p className="mt-1 text-sm text-red-600">{locale === "es" ? spanishErrors[message] ?? message : message}</p>;
 }
 
 const customerFieldClassName =
   "border-slate-400 shadow-none hover:border-slate-500 focus-visible:border-slate-500 focus-visible:ring-slate-500/10";
 const customerLabelClassName = "mb-1.5 block";
 
-export function CustomerDetailsCard({ register, control, setValue, disabled, errors, saveState = "idle", onRetrySave }: Props) {
+export function CustomerDetailsCard({ locale = "en", register, control, setValue, disabled, errors, saveState = "idle", onRetrySave }: Props) {
+  const spanish = locale === "es";
   const addressContext = useWatch({
     control,
     name: ["customerCity", "customerState", "customerPostalCode"],
@@ -55,7 +65,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
   return (
     <Card className="border-blue-200 bg-blue-50/40">
       <CardHeader>
-        <CardTitle>Customer</CardTitle>
+        <CardTitle>{spanish ? "Cliente" : "Customer"}</CardTitle>
       </CardHeader>
 
       <CardContent>
@@ -66,7 +76,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerFirstName"
             >
-              First Name
+              {spanish ? "Nombre" : "First Name"}
             </Label>
             <Input
               id="customerFirstName"
@@ -75,7 +85,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               autoComplete="given-name"
               {...register("customerFirstName")}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerFirstName?.message as string | undefined}
             />
           </div>
@@ -86,7 +96,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerLastName"
             >
-              Last Name
+              {spanish ? "Apellido" : "Last Name"}
             </Label>
             <Input
               id="customerLastName"
@@ -95,7 +105,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               autoComplete="family-name"
               {...register("customerLastName")}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerLastName?.message as string | undefined}
             />
           </div>
@@ -106,7 +116,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerEmail"
             >
-              Email
+              {spanish ? "Correo electrónico" : "Email"}
             </Label>
             <Input
               id="customerEmail"
@@ -122,7 +132,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
                 },
               })}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerEmail?.message as string | undefined}
             />
           </div>
@@ -133,7 +143,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerPhone"
             >
-              Phone
+              {spanish ? "Teléfono" : "Phone"}
             </Label>
             <Controller
               control={control}
@@ -142,6 +152,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               render={({ field }) => (
                 <InternationalPhoneInput
                   {...field}
+                  locale={locale}
                   id="customerPhone"
                   className={customerFieldClassName}
                   autoComplete="tel"
@@ -150,7 +161,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
                 />
               )}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerPhone?.message as string | undefined}
             />
           </div>
@@ -161,7 +172,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerStreet"
             >
-              Street Address
+              {spanish ? "Dirección" : "Street Address"}
             </Label>
             <Controller
               control={control}
@@ -169,10 +180,11 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               render={({ field }) => (
                 <AddressAutocomplete
                   {...field}
+                  locale={locale}
                   value={field.value ?? ""}
                   id="customerStreet"
                   className={customerFieldClassName}
-                  placeholder="Start typing an address"
+                  placeholder={spanish ? "Empieza a escribir una dirección" : "Start typing an address"}
                   contextKey={JSON.stringify(addressContext)}
                   onAddressSelect={applyAddress}
                   disabled={disabled}
@@ -180,19 +192,19 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
                 />
               )}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerStreet?.message as string | undefined}
             />
           </div>
 
           <div className="md:col-span-3">
             <Label className={customerLabelClassName} htmlFor="customerAddressLine2">
-              Apartment, suite, unit, etc. (optional)
+              {spanish ? "Apartamento, suite, unidad, etc. (opcional)" : "Apartment, suite, unit, etc. (optional)"}
             </Label>
             <Input
               id="customerAddressLine2"
               className={customerFieldClassName}
-              placeholder="e.g. Apt 4B, Suite 200, Building C"
+              placeholder={spanish ? "Ej.: apto. 4B, suite 200, edificio C" : "e.g. Apt 4B, Suite 200, Building C"}
               autoComplete="address-line2"
               maxLength={150}
               disabled={disabled}
@@ -200,7 +212,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
                 maxLength: { value: 150, message: "Address details must be 150 characters or fewer." },
               })}
             />
-            <FieldError message={errors?.customerAddressLine2?.message as string | undefined} />
+            <FieldError locale={locale} message={errors?.customerAddressLine2?.message as string | undefined} />
           </div>
 
           {/* City */}
@@ -209,7 +221,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerCity"
             >
-              City
+              {spanish ? "Ciudad" : "City"}
             </Label>
             <Input
               id="customerCity"
@@ -218,16 +230,17 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               autoComplete="address-level2"
               {...register("customerCity")}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={errors?.customerCity?.message as string | undefined}
             />
           </div>
 
           {/* State (SELECT) */}
           <StateCombobox
+            locale={locale}
             control={control}
             name="customerState"
-            placeholder="Select state…"
+            placeholder={spanish ? "Selecciona el estado…" : "Select state…"}
             className="space-y-1.5"
             triggerClassName={customerFieldClassName}
             error={errors?.customerState?.message as string | undefined}
@@ -239,7 +252,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
               className={customerLabelClassName}
               htmlFor="customerPostalCode"
             >
-              Postal Code
+              {spanish ? "Código postal" : "Postal Code"}
             </Label>
             <Input
               id="customerPostalCode"
@@ -254,7 +267,7 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
                 },
               })}
             />
-            <FieldError
+            <FieldError locale={locale}
               message={
                 errors?.customerPostalCode?.message as string | undefined
               }
@@ -264,14 +277,14 @@ export function CustomerDetailsCard({ register, control, setValue, disabled, err
         {!disabled && saveState !== "idle" && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">
             <span className={saveState === "error" || saveState === "invalid" ? "text-red-600" : saveState === "saved" ? "text-emerald-700" : "text-muted-foreground"}>
-              {saveState === "pending" && "Unsaved changes"}
-              {saveState === "saving" && "Saving…"}
-              {saveState === "saved" && "Saved"}
-              {saveState === "invalid" && "Not saved. Check the highlighted fields."}
-              {saveState === "error" && "Could not save these changes."}
+              {saveState === "pending" && (spanish ? "Cambios sin guardar" : "Unsaved changes")}
+              {saveState === "saving" && (spanish ? "Guardando…" : "Saving…")}
+              {saveState === "saved" && (spanish ? "Guardado" : "Saved")}
+              {saveState === "invalid" && (spanish ? "Revisa los campos resaltados para guardar los cambios." : "Not saved. Check the highlighted fields.")}
+              {saveState === "error" && (spanish ? "No se pudieron guardar estos cambios." : "Could not save these changes.")}
             </span>
             {saveState === "error" && onRetrySave && (
-              <button type="button" className="underline underline-offset-2" onClick={onRetrySave}>Try again</button>
+              <button type="button" className="underline underline-offset-2" onClick={onRetrySave}>{spanish ? "Reintentar" : "Try again"}</button>
             )}
           </div>
         )}

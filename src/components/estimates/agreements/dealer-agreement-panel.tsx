@@ -1,5 +1,8 @@
 "use client";
 
+import type { CompanyLocale } from "@/components/company/company-content";
+import { agreementError, agreementText } from "./agreement-language";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,21 +16,24 @@ const labels = {
   AWAITING_SIGNATURE: "Awaiting signature",
   SIGNED: "Signed",
   REQUIRES_NEW_SIGNATURE: "Requires new signature",
-};
+} as const;
 
 export function DealerAgreementPanel({
+  locale = "en",
   estimateId,
   pricingMode,
   refreshKey,
   onStatusChange,
   canShare = false,
 }: {
+  locale?: CompanyLocale;
   estimateId: number;
   pricingMode: "detailed" | "total";
   refreshKey: number;
   onStatusChange: (status: AgreementStatus) => void;
   canShare?: boolean;
 }) {
+  const t = agreementText(locale);
   const [status, setStatus] = useState<AgreementStatus | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -54,18 +60,26 @@ export function DealerAgreementPanel({
   return (
     <section
       className="mt-8 space-y-3 border-t pt-5 print:hidden"
-      aria-label="Customer agreement"
+      aria-label={t("Customer agreement")}
     >
       {status?.pendingMaterialRevisionId && (
-        <p className="rounded-md border bg-slate-50 p-3 text-sm">A material revision is awaiting the customer signature. {status.estimateCanceled ? "This estimate is canceled; a new signature cannot be requested. " : canShare ? <>Select <strong>Include contract</strong> and share again. </> : "An authorized dealer or administrator can share the updated agreement. "}The original material stays unchanged until the new agreement is signed.</p>
+        <p className="rounded-md border bg-slate-50 p-3 text-sm">
+          {t("A material revision is awaiting the customer signature.")}{" "}
+          {status.estimateCanceled
+            ? t("This estimate is canceled; a new signature cannot be requested.")
+            : canShare
+              ? <>{t("Select")} <strong>{t("Include contract")}</strong> {t("and share again.")}</>
+              : t("An authorized dealer or administrator can share the updated agreement.")}{" "}
+          {t("The original material stays unchanged until the new agreement is signed.")}
+        </p>
       )}
       {current && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-medium">
-              {status?.estimateCanceled ? (current.signedAt ? "Contract · Signed before cancellation" : "Contract · Estimate canceled") : status?.nextSignatureKind === "CHANGE_ORDER"
-                ? "Contract signed · Change pending approval"
-                : `${current.kind === "CHANGE_ORDER" ? `Change Order #${current.changeOrderNumber}` : "Contract"} · ${labels[current.state]}`}
+              {status?.estimateCanceled ? (current.signedAt ? t("Contract · Signed before cancellation") : t("Contract · Estimate canceled")) : status?.nextSignatureKind === "CHANGE_ORDER"
+                ? t("Contract signed · Change pending approval")
+                : `${current.kind === "CHANGE_ORDER" ? `${t("Change Order")} #${current.changeOrderNumber}` : t("Contract")} · ${t(labels[current.state])}`}
             </p>
             {current.signedAt && (
               <Button asChild variant="outline" size="sm">
@@ -75,8 +89,8 @@ export function DealerAgreementPanel({
                   rel="noopener noreferrer"
                 >
                   {current.kind === "CHANGE_ORDER"
-                    ? "Download signed Change Order"
-                    : "Download signed agreement"}
+                    ? t("Download signed Change Order")
+                    : t("Download signed agreement")}
                 </a>
               </Button>
             )}
@@ -90,10 +104,10 @@ export function DealerAgreementPanel({
           {!status?.estimateCanceled && current.invalidatedAt && (
             <p className="text-sm text-muted-foreground">
               {!canShare
-                ? "An authorized dealer or administrator can share the updated agreement to request a new signature."
+                ? t("An authorized dealer or administrator can share the updated agreement to request a new signature.")
                 : status?.nextSignatureKind === "CHANGE_ORDER"
-                ? "Select Include contract and share again to request acceptance of the updated charges."
-                : "Select Include contract and share the estimate again to request a new signature."}
+                ? t("Select Include contract and share again to request acceptance of the updated charges.")
+                : t("Select Include contract and share the estimate again to request a new signature.")}
             </p>
           )}
         </>
@@ -101,7 +115,7 @@ export function DealerAgreementPanel({
       {status?.history.some((item) => item.id !== current?.id) && (
         <details className="text-sm">
           <summary className="cursor-pointer">
-            Previous signed documents
+            {t("Previous signed documents")}
           </summary>
           <ul className="mt-2 space-y-2">
             {status.history
@@ -115,8 +129,8 @@ export function DealerAgreementPanel({
                     rel="noopener noreferrer"
                   >
                     {item.kind === "CHANGE_ORDER"
-                      ? `Change Order #${item.changeOrderNumber}`
-                      : `Agreement revision ${item.revision}`}{" "}
+                      ? `${t("Change Order")} #${item.changeOrderNumber}`
+                      : `${t("Agreement revision")} ${item.revision}`}{" "}
                     · {item.signerName} ·{" "}
                     {item.signedAtLabel}
                   </a>
@@ -127,7 +141,7 @@ export function DealerAgreementPanel({
       )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {agreementError(locale, error)}
         </p>
       )}
     </section>

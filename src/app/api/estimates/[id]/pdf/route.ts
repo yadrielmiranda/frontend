@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { COMPANY_LANGUAGE_COOKIE, preferredCompanyLanguage } from "@/lib/company-public-routes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const PDF_VIEWS = new Set([
@@ -46,9 +47,10 @@ async function requestBackendPdf(
   id: string,
   view: string,
   cookieHeader: string,
+  locale: 'en' | 'es',
 ) {
   return fetch(
-    `${API_URL}/api/estimates/${id}/pdf?view=${encodeURIComponent(view)}`,
+    `${API_URL}/api/estimates/${id}/pdf?view=${encodeURIComponent(view)}&lang=${locale}`,
     {
       method: "GET",
       headers: {
@@ -76,13 +78,16 @@ export async function GET(
   }
 
   const cookieStore = await cookies();
+  const requested = request.nextUrl.searchParams.get("lang");
+  const locale = requested === "en" || requested === "es" ? requested
+    : preferredCompanyLanguage(cookieStore.get(COMPANY_LANGUAGE_COOKIE)?.value, request.headers.get("accept-language"));
   const cookieMap = new Map<string, string>(
     cookieStore
       .getAll()
       .map((cookie) => [cookie.name, cookie.value] as const),
   );
   let cookieHeader = buildCookieHeader(cookieMap);
-  let backendResponse = await requestBackendPdf(id, view, cookieHeader);
+  let backendResponse = await requestBackendPdf(id, view, cookieHeader, locale);
   let refreshedCookies: string[] = [];
 
   if (backendResponse.status === 401 && cookieMap.has("refresh_token")) {
@@ -99,7 +104,7 @@ export async function GET(
 
     if (refreshResponse.ok) {
       cookieHeader = buildCookieHeader(cookieMap);
-      backendResponse = await requestBackendPdf(id, view, cookieHeader);
+      backendResponse = await requestBackendPdf(id, view, cookieHeader, locale);
     }
   }
 

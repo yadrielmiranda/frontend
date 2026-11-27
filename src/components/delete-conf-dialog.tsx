@@ -20,8 +20,10 @@ interface DeleteConfirmationDialogProps {
   itemName?: string;
   title?: string;
   description?: string;
+  cancelText?: string;
   confirmText?: string;
   confirmClassName?: string;
+  lang?: string;
 }
 
 export function DeleteConfirmationDialog({
@@ -31,12 +33,14 @@ export function DeleteConfirmationDialog({
   itemName,
   title = "Are you absolutely sure?",
   description,
+  cancelText = "Cancel",
   confirmText = "Confirm",
   confirmClassName = "bg-red-600 hover:bg-red-700",
+  lang,
 }: DeleteConfirmationDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent>
+      <AlertDialogContent lang={lang}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -59,7 +63,7 @@ export function DeleteConfirmationDialog({
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={onClose}>{cancelText}</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} className={confirmClassName}>
             {confirmText}
           </AlertDialogAction>

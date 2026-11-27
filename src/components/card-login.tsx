@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -25,6 +25,8 @@ import { loginUser } from "@/app/api/auth/me/auth.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { navigateAfterSessionChange } from "@/lib/auth-session";
 import { registrationLoginDestination } from "@/lib/dealer-registration-request";
+import { companyRegistrationHref, type CompanyLocale } from "@/components/company/company-content";
+import { registrationSignInError, registrationText } from "@/lib/registration-language";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, { message: "Username or email is required." }),
@@ -46,6 +48,7 @@ interface CardLoginProps {
   lockIdentifier?: boolean;
   defaultIdentifier?: string;
   registrationRequestId?: number;
+  locale?: CompanyLocale;
   firstEstimate?: boolean;
 }
 
@@ -57,17 +60,19 @@ export function CardLogin({
   lockIdentifier = false,
   defaultIdentifier,
   registrationRequestId,
+  locale,
   firstEstimate = false,
 }: CardLoginProps) {
   const router = useRouter();
   const { revalidate, signIn } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
+  const currentLocale = useRef(locale);
+  useEffect(() => { currentLocale.current = locale; }, [locale]);
 
   const isUnlock = mode === "unlock";
   const isDark = appearance === "dark";
-  const signUpLabel = "New client? Create an account";
-  const forgotPasswordLabel = "Forgot your password?";
+  const t = (text: string) => registrationText(locale ?? "en", text);
 
   const {
     register,
@@ -88,7 +93,7 @@ export function CardLogin({
         if (!account) return;
         onLoginSuccess?.();
         router.replace(firstEstimate && account.role?.name === "client"
-          ? "/estimates/new?welcome=1"
+          ? `/estimates/new?welcome=1&lang=${currentLocale.current ?? "en"}`
           : registrationLoginDestination(account.role?.name, registrationRequestId));
         router.refresh();
         return;
@@ -104,17 +109,20 @@ export function CardLogin({
       // AuthContext recarga el documento si detecta otra cuenta o un cambio de rol.
       const account = await revalidate();
       if (!account) return;
-      toast.success("Session restored.");
+      toast.success(registrationText(currentLocale.current ?? "en", "Session restored."));
       onLoginSuccess?.();
     } catch (err) {
-      toast.error("Sign in failed", {
-        description: err instanceof Error && err.message ? err.message : "Invalid credentials or server error.",
+      const message = err instanceof Error && err.message ? err.message : "Invalid credentials or server error.";
+      const language = currentLocale.current;
+      toast.error(registrationText(language ?? "en", "Sign in failed"), {
+        description: language ? registrationSignInError(language, message) : message,
       });
     }
   };
 
   const handleSignUpClick = () => {
-    router.push("/login/register");
+    const href = locale ? companyRegistrationHref(locale, new URLSearchParams(window.location.search)) : "/login/register";
+    router.push(href);
     if (onClose) onClose();
   };
 
@@ -148,7 +156,7 @@ export function CardLogin({
               : "text-2xl font-semibold"
           }
         >
-          {isUnlock ? "Session expired" : "Access Portal"}
+          {t(isUnlock ? "Session expired" : "Access Portal")}
         </h2>
 
         <p
@@ -158,16 +166,14 @@ export function CardLogin({
               : "mt-1 text-sm text-muted-foreground"
           }
         >
-          {isUnlock
-            ? "Sign in again to continue."
-            : "Sign in to continue to your quoting workspace."}
+          {t(isUnlock ? "Sign in again to continue." : "Sign in to continue to your quoting workspace.")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="identifier" className={labelClass}>
-            Username or Email
+            {t("Username or Email")}
           </Label>
 
           <div className="relative">
@@ -180,7 +186,7 @@ export function CardLogin({
             <Input
               id="identifier"
               type="text"
-              placeholder="Enter your username or email"
+              placeholder={t("Enter your username or email")}
               disabled={isSubmitting || lockIdentifier}
               autoComplete="username"
               className={inputClass}
@@ -189,13 +195,13 @@ export function CardLogin({
           </div>
 
           {errors.identifier && (
-            <p className={errorClass}>{errors.identifier.message}</p>
+            <p className={errorClass}>{errors.identifier.message && t(errors.identifier.message)}</p>
           )}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="password" className={labelClass}>
-            Password
+            {t("Password")}
           </Label>
 
           <div className="relative">
@@ -208,7 +214,7 @@ export function CardLogin({
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              placeholder={t("Enter your password")}
               disabled={isSubmitting}
               autoComplete={isUnlock ? "current-password" : "current-password"}
               className={`${inputClass} pr-10`}
@@ -223,7 +229,7 @@ export function CardLogin({
                   ? "absolute inset-y-0 right-0 flex items-center pr-3 text-white/45 hover:text-white"
                   : "absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
               }
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={t(showPassword ? "Hide password" : "Show password")}
               tabIndex={-1}
             >
               {showPassword ? (
@@ -235,7 +241,7 @@ export function CardLogin({
           </div>
 
           {errors.password && (
-            <p className={errorClass}>{errors.password.message}</p>
+            <p className={errorClass}>{errors.password.message && t(errors.password.message)}</p>
           )}
         </div>
 
@@ -254,10 +260,10 @@ export function CardLogin({
             <LogIn className="mr-2 h-4 w-4" />
           )}
           {isSubmitting
-            ? "Signing in..."
+            ? t("Signing in...")
             : isUnlock
-              ? "Unlock session"
-              : "Sign In"}
+              ? t("Unlock session")
+              : t("Sign In")}
         </Button>
         {!isUnlock && !isDark && (
           <Button
@@ -268,7 +274,7 @@ export function CardLogin({
             disabled={isSubmitting}
           >
             <UserRoundPlus className="mr-2 h-4 w-4" />
-            {signUpLabel}
+            {t("New client? Create an account")}
           </Button>
         )}
         {!isUnlock && isDark && (
@@ -281,7 +287,7 @@ export function CardLogin({
             >
               <span className="inline-flex items-center gap-2">
                 <Lock className="h-4 w-4" />
-                {forgotPasswordLabel}
+                {t("Forgot your password?")}
               </span>
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -294,7 +300,7 @@ export function CardLogin({
             >
               <span className="inline-flex items-center gap-2">
                 <UserRoundPlus className="h-4 w-4" />
-                {signUpLabel}
+                {t("New client? Create an account")}
               </span>
               <ChevronRight className="h-4 w-4" />
             </button>

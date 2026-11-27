@@ -26,6 +26,7 @@ export type CasementWindowConfiguration =
 export type CasementWindowDimension = number | string;
 
 export interface CasementWindowDiagramProps {
+  locale?: "en" | "es";
   configuration: CasementWindowConfiguration;
   width: CasementWindowDimension;
   height: CasementWindowDimension;
@@ -47,6 +48,7 @@ export interface CasementWindowDiagramProps {
 export type CasementFixedWindowConfiguration = "O";
 
 export interface CasementFixedWindowDiagramProps {
+  locale?: "en" | "es";
   configuration: CasementFixedWindowConfiguration;
   width: CasementWindowDimension;
   height: CasementWindowDimension;
@@ -487,7 +489,9 @@ export function CasementWindowDiagram(
       data-screen-location="INTERIOR"
       data-frame-color={frameColor}
     >
-      <title id={titleId}>{`Casement Window ${props.configuration}, exterior ${hingeSide.toLowerCase()} hinge, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
+      <title id={titleId}>{props.locale === "es"
+        ? `Casement Window ${props.configuration}, bisagra ${hingeSide.toLowerCase() === "left" ? "izquierda" : "derecha"} desde el exterior, ${widthLabel} pulgadas de ancho y ${heightLabel} de alto`
+        : `Casement Window ${props.configuration}, exterior ${hingeSide.toLowerCase()} hinge, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
       <defs>
         <clipPath id={glassClipId}>
           <rect {...glass} />
@@ -609,7 +613,9 @@ export function CasementFixedWindowDiagram(
       data-screen-rendered="false"
       data-frame-color={frameColor}
     >
-      <title id={titleId}>{`Casement Fixed Window, non-operable, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
+      <title id={titleId}>{props.locale === "es"
+        ? `Casement Fixed Window, fija, ${widthLabel} pulgadas de ancho y ${heightLabel} de alto`
+        : `Casement Fixed Window, non-operable, width ${widthLabel} inches, height ${heightLabel} inches`}</title>
       <StructuralBase href={assetHref} frame={frame} />
       <GlassAppearanceLayer
         rects={[glass]}

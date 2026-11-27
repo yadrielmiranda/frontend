@@ -4,6 +4,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const assert = require("node:assert/strict");
+const language = {};
+const languageCode = ts.transpileModule(fs.readFileSync(path.resolve(__dirname,
+  "../src/lib/estimate-action-language.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+new Function("exports", languageCode)(language);
 const file = path.resolve(
   __dirname,
   "../src/components/estimates/estimate-lifecycle-actions.tsx",
@@ -62,6 +66,7 @@ function fixture() {
       reactivateEstimate: (id) => request("reactivate", id),
     },
     "@/components/ui/button": { Button: "Button" },
+    "@/lib/estimate-action-language": language,
     "@/components/ui/dialog": Object.fromEntries(
       [
         "Dialog",
@@ -86,10 +91,11 @@ function fixture() {
     order: null,
     payments: [],
   };
-  const dialog = (action) =>
+  const dialog = (action, locale) =>
     exports.EstimateLifecycleDialog({
       estimate,
       action,
+      locale,
       onClose: () => closed++,
     });
   return {
@@ -181,6 +187,25 @@ test("keeps the dialog open and reports a payment conflict without claiming succ
   assert.deepEqual(f.successes, []);
   assert.equal(f.closed(), 0);
   assert.deepEqual(f.navigation, []);
+});
+test("Spanish cancellation explains the conflict and reactivation uses the same estimate and routes", async () => {
+  const f = fixture();
+  let tree = f.dialog("cancel", "es");
+  assert.equal(nodes(tree).find(n => n.type === "DialogContent").props.closeLabel, "Cerrar");
+  assert.equal(text(nodes(tree).find(n => n.type === "DialogTitle")), "¿Cancelar cotización #190001?");
+  f.fail("A payment has completed or is processing. Reconcile it before canceling this estimate.");
+  nodes(tree).find(n => n.type === "Button" && text(n) === "Cancelar cotización").props.onClick();
+  await new Promise(setImmediate);
+  assert.match(f.errors[0], /pago completado o en proceso/);
+  assert.equal(f.closed(), 0);
+  f.fail(null);
+  tree = f.dialog("reactivate", "es");
+  assert.match(text(tree), /precios actuales/);
+  nodes(tree).find(n => n.type === "Button" && text(n) === "Reactivar y recalcular").props.onClick();
+  await new Promise(setImmediate);
+  assert.deepEqual(f.calls, [{ action: "cancel", id: 1 }, { action: "reactivate", id: 1 }]);
+  assert.match(f.successes[0], /recalculó la cotización/);
+  assert.deepEqual(f.navigation, ["/estimates/1", "refresh"]);
 });
 (async () => {
   for (const { name, fn } of tests) {

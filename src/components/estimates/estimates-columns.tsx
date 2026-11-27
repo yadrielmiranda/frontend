@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { CreditCard, Loader2, MoreHorizontal, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,8 +31,10 @@ import { DeleteConfirmationDialog } from "@/components/delete-conf-dialog";
 
 import type { EstimateWithRelations } from "@/lib/types";
 import type { AuthUser } from "@/app/types/auth";
-import { getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
-import { formatDateEn, formatMoney } from "@/lib/formatters";
+import { estimateStatusLabel, getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
+import { formatDateEn, formatDateEs, formatMoney } from "@/lib/formatters";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { estimateActionError } from "@/lib/estimate-action-language";
 import {
   canViewDealerEstimateProfit,
   canViewInternalEstimateProfit,
@@ -44,6 +46,8 @@ import { getEstimateCostColumns } from "./estimate-cost-columns";
 import { EstimatePaymentLinkActions } from "@/components/estimates/estimate-payment-link-actions";
 import { estimateLifecycleAction, EstimateLifecycleDialog, type EstimateLifecycleAction } from "./estimate-lifecycle-actions";
 import { DuplicateEstimateButton } from "./duplicate-estimate-dialog";
+
+export { estimateStatusLabel };
 
 // =============================
 // Helpers
@@ -84,14 +88,25 @@ export const getEstimateStatusName = (
   return "Unknown";
 };
 
-const getStatusBadge = (statusName: string) => {
+const spanishRoles = new Map([
+  ["admin", "Administrador"], ["operator", "Operador"], ["client", "Cliente"],
+  ["dealer", "Distribuidor"], ["subdealer", "Subdistribuidor"], ["distributor", "Distribuidor final"],
+  ["technician", "Técnico"],
+]);
+
+export function estimateRoleLabel(value: string, locale: CompanyLocale) {
+  return (locale === "es" ? spanishRoles.get(value.toLowerCase()) : undefined)
+    ?? value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+const getStatusBadge = (statusName: string, locale: CompanyLocale) => {
   const appearance = getEstimateStatusBadgeAppearance(statusName);
 
   return (
     <span
       className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${appearance.className}`}
     >
-      {appearance.label}
+      {estimateStatusLabel(appearance.label, locale)}
     </span>
   );
 };
@@ -152,16 +167,19 @@ function canEditEstimateFromList(
 const estimateListActions = {
   edit: {
     label: "Edit Estimate",
+    spanish: "Editar cotización",
     colorClassName:
       "hover:text-blue-600 focus-visible:text-blue-600 dark:hover:text-blue-400 dark:focus-visible:text-blue-400",
   },
   open: {
     label: "Open Estimate",
+    spanish: "Abrir cotización",
     colorClassName:
       "hover:text-violet-600 focus-visible:text-violet-600 dark:hover:text-violet-400 dark:focus-visible:text-violet-400",
   },
   details: {
     label: "View Details",
+    spanish: "Ver detalles",
     colorClassName:
       "hover:text-teal-700 focus-visible:text-teal-700 dark:hover:text-teal-400 dark:focus-visible:text-teal-400",
   },
@@ -194,8 +212,10 @@ function getEstimateListAction(
 
 export const getEstimateColumns = (
   currentUser: AuthUser | null,
+  locale: CompanyLocale = "en",
 ): ColumnDef<EstimateWithRelations>[] => {
   const role = currentUser?.role?.name ?? null;
+  const spanish = locale === "es";
 
   const showInternalProfit = canViewInternalEstimateProfit(role);
   const showDealerProfit = canViewDealerEstimateProfit(role);
@@ -207,7 +227,8 @@ export const getEstimateColumns = (
     if (!value) return value;
 
     const action = getEstimateListAction(estimate, currentUser);
-    const { label, colorClassName } = estimateListActions[action];
+    const label = spanish ? estimateListActions[action].spanish : estimateListActions[action].label;
+    const { colorClassName } = estimateListActions[action];
     const href = `/estimates/${estimate.id}${action === "details" ? "" : "/edit"}`;
 
     return (
@@ -236,19 +257,19 @@ export const getEstimateColumns = (
   const columns: ColumnDef<EstimateWithRelations>[] = [
     {
       accessorKey: "number",
-      header: "Number",
+      header: spanish ? "Número" : "Number",
       filterFn: "includesString",
       cell: ({ row }) => renderEstimateLink(row.original, row.original.number),
     },
     {
       accessorKey: "name",
-      header: "Name",
+      header: spanish ? "Nombre" : "Name",
       filterFn: "includesString",
       cell: ({ row }) => renderEstimateLink(row.original, row.original.name),
     },
     {
       accessorKey: "date",
-      header: "Date",
+      header: spanish ? "Fecha" : "Date",
       filterFn: (row, _columnId, range: DataTableDateRangeValue) => {
         const dateKey = getEstimateDateKey(row.original.date);
 
@@ -266,24 +287,24 @@ export const getEstimateColumns = (
 
         return true;
       },
-      cell: ({ row }) => formatDateEn(row.original.date),
+      cell: ({ row }) => spanish ? formatDateEs(row.original.date) : formatDateEn(row.original.date),
     },
     {
       accessorKey: "units",
-      header: () => <div className="text-center">Units</div>,
+      header: () => <div className="text-center">{spanish ? "Unidades" : "Units"}</div>,
       cell: ({ row }) => (
         <div className="text-center tabular-nums">{row.original.units}</div>
       ),
     },
-    ...getEstimateCostColumns<EstimateWithRelations>((estimate) => estimate),
+    ...getEstimateCostColumns<EstimateWithRelations>((estimate) => estimate, locale),
     ...(showInternalProfit
       ? [
           {
             accessorKey: "netProfit",
-            header: () => <div className="text-center">Net Profit ($)</div>,
+            header: () => <div className="text-center">{spanish ? "Ganancia neta ($)" : "Net Profit ($)"}</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {row.original.earningsReview ? <span className="text-amber-700">Pending review</span> :
+                {row.original.earningsReview ? <span className="text-amber-700">{spanish ? "Pendiente de revisión" : "Pending review"}</span> :
                   formatMoney(row.original.dealerNetwork && row.original.materialProfits ? Number(row.original.materialProfits.expectedProfit) : Number(row.original.netProfit) -
                     (row.original.manualDiscountSummary?.payer === "ACCOUNT_OWNER" ? Number(row.original.manualDiscountSummary.material.netDiscount) : 0))}
               </div>
@@ -296,11 +317,11 @@ export const getEstimateColumns = (
       ? [
           {
             accessorKey: "netProfitD",
-            header: () => <div className="text-center">Net Profit D ($)</div>,
+            header: () => <div className="text-center">{spanish ? "Ganancia neta del distribuidor ($)" : "Net Profit D ($)"}</div>,
             cell: ({ row }) => (
               <div className="text-center tabular-nums">
-                {row.original.earningsReview ? <span className="text-amber-700">Pending review</span> :
-                  row.original.dealerNetwork && row.original.dealerEarnings ? (row.original.dealerEarnings.amount == null ? 'Pending' : formatMoney(Number(row.original.dealerEarnings.amount))) : formatMoney(row.original.dealerNetwork?.materialProfit != null ? Number(row.original.dealerNetwork.materialProfit) : Number(row.original.netProfitD) +
+                {row.original.earningsReview ? <span className="text-amber-700">{spanish ? "Pendiente de revisión" : "Pending review"}</span> :
+                  row.original.dealerNetwork && row.original.dealerEarnings ? (row.original.dealerEarnings.amount == null ? (spanish ? "Pendiente" : "Pending") : formatMoney(Number(row.original.dealerEarnings.amount))) : formatMoney(row.original.dealerNetwork?.materialProfit != null ? Number(row.original.dealerNetwork.materialProfit) : Number(row.original.netProfitD) +
                   Number(row.original.manualDiscountSummary?.material.netDiscount ?? 0) *
                   (row.original.manualDiscountSummary?.payer === "CUSTOMER" ? -1 : 1))}
               </div>
@@ -313,7 +334,7 @@ export const getEstimateColumns = (
           {
             id: "createdBy",
             accessorFn: (estimate) => estimate.user?.username ?? "",
-            header: () => <div className="text-center">Created By</div>,
+            header: () => <div className="text-center">{spanish ? "Creada por" : "Created By"}</div>,
             filterFn: "equalsString",
             cell: ({ row }) => (
               <div className="text-center">{row.original.user?.username ?? "—"}</div>
@@ -326,11 +347,11 @@ export const getEstimateColumns = (
           {
             id: "createdByRole",
             accessorFn: (estimate) => (estimate.dealerNetwork?.level ?? estimate.user?.role?.name ?? "").toLowerCase(),
-            header: () => <div className="text-center">Role</div>,
+            header: () => <div className="text-center">{spanish ? "Rol" : "Role"}</div>,
             filterFn: "equalsString",
             cell: ({ row }) => (
-              <div className="text-center capitalize">
-                {(row.original.dealerNetwork?.level ?? row.original.user?.role?.name ?? "—").toLowerCase()}
+              <div className="text-center">
+                {estimateRoleLabel((row.original.dealerNetwork?.level ?? row.original.user?.role?.name ?? "-").toLowerCase(), locale)}
               </div>
             ),
           } satisfies ColumnDef<EstimateWithRelations>,
@@ -339,16 +360,17 @@ export const getEstimateColumns = (
     {
       id: "status",
       accessorFn: (estimate) => getEstimateStatusName(estimate),
-      header: () => <div className="text-center">Status</div>,
+      header: () => <div className="text-center">{spanish ? "Estado" : "Status"}</div>,
       filterFn: "equalsString",
       cell: ({ row }) => {
         const statusName = getEstimateStatusName(row.original);
 
         return <div className="text-center">
-          {getStatusBadge(statusName)}
+          {getStatusBadge(statusName, locale)}
           {role === "admin" && row.original.earningsReview && (
-            <p className="mt-1 text-xs font-medium text-amber-700" title={row.original.earningsReview.message}>
-              Earnings pending review
+            <p className="mt-1 text-xs font-medium text-amber-700" title={spanish && row.original.earningsReview.code === "INVALID_SAVED_EARNINGS_PLAN"
+              ? "Falta el plan de ganancias guardado o el plan no es válido." : row.original.earningsReview.message}>
+              {spanish ? "Ganancias pendientes de revisión" : "Earnings pending review"}
             </p>
           )}
         </div>;
@@ -356,266 +378,278 @@ export const getEstimateColumns = (
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      cell: function EstimateActionsCell({ row }) {
-        const estimate = row.original;
-
-        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-        const [lifecycle, setLifecycle] = useState<EstimateLifecycleAction | null>(null);
-        const lifecycleAction = estimateLifecycleAction(estimate, currentUser);
-        const [isPaying, setIsPaying] = useState(false);
-        const [isRecalculating, setIsRecalculating] = useState(false);
-        const router = useRouter();
-
-        const statusName =
-          estimate.status?.name ?? (estimate.order ? "Ordered" : "Unknown");
-        const statusLower = statusName.trim().toLowerCase();
-
-        const isOwner = currentUser?.id === estimate.idUser;
-        const showOwnerActions = isOwner;
-        const canDelete = isOwner || isAdminRole(currentUser?.role?.name);
-        const isDealer = currentUser?.role?.name === "dealer";
-        const effectiveDealerMode = estimate.dealerModeSnapshot ?? null;
-        const isInternalDealer = isDealer && effectiveDealerMode === "INTERNAL";
-
-        const isActive = statusLower === "active";
-        const isExpired = statusLower === "expired";
-        const isCanceled = statusLower === "canceled";
-        const isOrdered = statusLower === "ordered" || !!estimate.order;
-
-        const materialPayment = estimate.payments?.find(
-          (payment) => (payment.type === "MATERIAL" || payment.type === "INSTALLMENT"),
-        );
-        const isPaid = materialPayment?.status === "PAID";
-        const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
-        const isPaymentLocked = isPaid || hasCheckoutStarted;
-        const hasPayableMaterial = Number(estimate.totalPayable) > 0 || (Number(estimate.totalPayable) === 0 && estimate.units > 0 && Number(estimate.discountAmount) > 0);
-
-        const hasActiveInstallation = Boolean(
-          estimate.installationJob &&
-            estimate.installationJob.status !== "CANCELED",
-        );
-        const installationAllowsDelete =
-          !estimate.installationJob ||
-          (estimate.installationJob.canDeleteWithEstimate ??
-            ["DEPOSIT_PAYMENT_PENDING", "CANCELED"].includes(
-              estimate.installationJob.status,
-            ));
-        const hasDeletePaymentBlock = estimate.payments?.some(
-          (payment) =>
-            ["PAID", "REFUNDED"].includes(payment.status) ||
-            payment.paidAt ||
-            payment.stripeSessionId ||
-            payment.stripePaymentIntentId ||
-            Number(payment.netPaidBaseAmount) > 0 ||
-            Number(payment.refundedAmount) > 0 ||
-            Number(payment.refundCreditAmount) > 0 ||
-            payment.refundReviewPending ||
-            payment.receipts?.length,
-        );
-
-        const primaryAction = getEstimateListAction(estimate, currentUser);
-
-        const canPay =
-          isActive &&
-          !estimate.order &&
-          (estimate.dealerNetwork ? estimate.dealerNetwork.canPay : isOwner && !isInternalDealer) &&
-          !isPaid &&
-          hasPayableMaterial &&
-          (!estimate.installationJob ||
-            estimate.installationJob.status === "CANCELED" ||
-            estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING" ||
-            (Boolean(estimate.paymentPlanSnapshot) &&
-              ["PERMIT_PAYMENT_PENDING", "PERMIT_PROCESSING"].includes(
-                estimate.installationJob.status,
-              )));
-
-        const paymentInstallation = hasActiveInstallation
-          ? estimate.installationJob
-          : null;
-        const internalPaymentDue = paymentInstallation
-          ? [
-              "DEPOSIT_PAYMENT_PENDING",
-              "PERMIT_PAYMENT_PENDING",
-              "MATERIAL_PAYMENT_PENDING",
-              "INSTALLATION_PAYMENT_PENDING",
-            ].includes(paymentInstallation.status) ||
-            (Boolean(estimate.paymentPlanSnapshot) &&
-              paymentInstallation.status === "PERMIT_PROCESSING")
-          : isActive && !estimate.order && !isPaid && hasPayableMaterial;
-        const canCopyPaymentLink =
-          !isCanceled && isInternalDealer && isOwner && internalPaymentDue;
-
-        const canRecalculate =
-          isExpired && !estimate.order &&
-          (isOwner || isAdminRole(currentUser?.role?.name)) && !isPaymentLocked;
-
-        const handleDelete = async () => {
-          try {
-            await deleteEstimate(estimate.id);
-            setShowDeleteConfirm(false);
-            toast.success("Estimate deleted successfully.");
-            router.refresh();
-          } catch (error) {
-            toast.error((error as Error).message);
-          }
-        };
-
-        const handlePay = async () => {
-          if (estimate.paymentPlanSnapshot || currentUser?.role?.name === "client") {
-            router.push(`/estimates/${estimate.id}/edit#estimate-payment`);
-            return;
-          }
-          setIsPaying(true);
-          try {
-            const { url } = await createCheckoutSession(estimate.id);
-            window.location.href = url; // Stripe Checkout
-          } catch (error) {
-            toast.error((error as Error).message);
-            setIsPaying(false);
-          }
-        };
-
-        const handleRecalculate = async () => {
-          setIsRecalculating(true);
-
-          try {
-            await recalculateEstimate(estimate.id);
-            toast.success("Estimate recalculated successfully.");
-            router.refresh();
-          } catch (error) {
-            toast.error((error as Error).message);
-          } finally {
-            setIsRecalculating(false);
-          }
-        };
-
-        return (
-          <div className="flex items-center justify-end gap-2">
-            {showOwnerActions && canPay && (
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 px-3 shadow-sm"
-                onClick={() => void handlePay()}
-                disabled={isPaying || estimate.networkPaymentBlocked}
-                title="Open estimate payment"
-                aria-label={`Open payment for estimate #${estimate.number}`}
-              >
-                {isPaying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CreditCard className="h-4 w-4" />
-                )}
-                {isPaying ? "Opening..." : "Pay now"}
-              </Button>
-            )}
-
-            {canCopyPaymentLink && (
-              <EstimatePaymentLinkActions
-                disabled={estimate.networkPaymentBlocked}
-                estimateId={estimate.id}
-                estimateNumber={estimate.number}
-                size="sm"
-              />
-            )}
-
-            <DuplicateEstimateButton estimate={estimate} actor={currentUser} iconOnly />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                {isDealer ? (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      View Details
-                    </DropdownMenuSubTrigger>
-
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/estimates/${estimate.id}?view=details`}>
-                          Dealer View
-                        </Link>
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem asChild>
-                        <Link href={`/estimates/${estimate.id}?view=public`}>
-                          Customer View
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ) : (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/estimates/${estimate.id}?view=details`}>View Details</Link>
-                  </DropdownMenuItem>
-                )}
-
-                {primaryAction !== "details" && (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/estimates/${estimate.id}/edit`}>
-                      {estimateListActions[primaryAction].label}
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-
-                {canRecalculate && (
-                  <DropdownMenuItem
-                    onSelect={handleRecalculate}
-                    disabled={isRecalculating || estimate.user?.networkSalesBlocked}
-                    className="text-blue-700 focus:bg-blue-50 focus:text-blue-800"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    {isRecalculating
-                      ? "Recalculating..."
-                      : "Recalculate Estimate"}
-                  </DropdownMenuItem>
-                )}
-
-                {lifecycleAction && <DropdownMenuItem disabled={lifecycleAction === "reactivate" && estimate.user?.networkSalesBlocked} onSelect={() => setLifecycle(lifecycleAction)}>
-                  {lifecycleAction === "reactivate" ? "Reactivate estimate" : "Cancel estimate"}
-                </DropdownMenuItem>}
-
-                {canDelete && !isCanceled &&
-                  !isOrdered &&
-                  !hasDeletePaymentBlock &&
-                  installationAllowsDelete && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                        onSelect={() => setShowDeleteConfirm(true)}
-                      >
-                        Delete Estimate
-                      </DropdownMenuItem>
-                    </>
-                  )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DeleteConfirmationDialog
-              isOpen={showDeleteConfirm}
-              onClose={() => setShowDeleteConfirm(false)}
-              onConfirm={handleDelete}
-              title={`Delete estimate #${estimate.number}?`}
-              description={estimate.installationJob
-                ? "This action cannot be undone. This will permanently delete this estimate and its calculated installation together."
-                : "This action cannot be undone. This will permanently delete this estimate."}
-              confirmText="Delete estimate"
-            />
-            <EstimateLifecycleDialog estimate={estimate} action={lifecycle} onClose={() => setLifecycle(null)} />
-          </div>
-        );
-      },
+      header: () => <div className="text-right">{spanish ? "Acciones" : "Actions"}</div>,
+      meta: { currentUser, locale } satisfies EstimateActionsMeta,
+      cell: EstimateActionsCell,
     },
   ];
   return columns;
 };
+
+type EstimateActionsMeta = { currentUser: AuthUser | null; locale: CompanyLocale };
+
+function EstimateActionsCell({ row, column }: CellContext<EstimateWithRelations, unknown>) {
+  const { currentUser, locale } = column.columnDef.meta as EstimateActionsMeta;
+  const spanish = locale === "es";
+  const estimate = row.original;
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [lifecycle, setLifecycle] = useState<EstimateLifecycleAction | null>(null);
+  const lifecycleAction = estimateLifecycleAction(estimate, currentUser);
+  const [isPaying, setIsPaying] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const router = useRouter();
+
+  const statusName =
+    estimate.status?.name ?? (estimate.order ? "Ordered" : "Unknown");
+  const statusLower = statusName.trim().toLowerCase();
+
+  const isOwner = currentUser?.id === estimate.idUser;
+  const showOwnerActions = isOwner;
+  const canDelete = isOwner || isAdminRole(currentUser?.role?.name);
+  const isDealer = currentUser?.role?.name === "dealer";
+  const effectiveDealerMode = estimate.dealerModeSnapshot ?? null;
+  const isInternalDealer = isDealer && effectiveDealerMode === "INTERNAL";
+
+  const isActive = statusLower === "active";
+  const isExpired = statusLower === "expired";
+  const isCanceled = statusLower === "canceled";
+  const isOrdered = statusLower === "ordered" || !!estimate.order;
+
+  const materialPayment = estimate.payments?.find(
+    (payment) => (payment.type === "MATERIAL" || payment.type === "INSTALLMENT"),
+  );
+  const isPaid = materialPayment?.status === "PAID";
+  const hasCheckoutStarted = Boolean(materialPayment?.stripeSessionId);
+  const isPaymentLocked = isPaid || hasCheckoutStarted;
+  const hasPayableMaterial = Number(estimate.totalPayable) > 0 || (Number(estimate.totalPayable) === 0 && estimate.units > 0 && Number(estimate.discountAmount) > 0);
+
+  const hasActiveInstallation = Boolean(
+    estimate.installationJob &&
+      estimate.installationJob.status !== "CANCELED",
+  );
+  const installationAllowsDelete =
+    !estimate.installationJob ||
+    (estimate.installationJob.canDeleteWithEstimate ??
+      ["DEPOSIT_PAYMENT_PENDING", "CANCELED"].includes(
+        estimate.installationJob.status,
+      ));
+  const hasDeletePaymentBlock = estimate.payments?.some(
+    (payment) =>
+      ["PAID", "REFUNDED"].includes(payment.status) ||
+      payment.paidAt ||
+      payment.stripeSessionId ||
+      payment.stripePaymentIntentId ||
+      Number(payment.netPaidBaseAmount) > 0 ||
+      Number(payment.refundedAmount) > 0 ||
+      Number(payment.refundCreditAmount) > 0 ||
+      payment.refundReviewPending ||
+      payment.receipts?.length,
+  );
+
+  const primaryAction = getEstimateListAction(estimate, currentUser);
+
+  const canPay =
+    isActive &&
+    !estimate.order &&
+    (estimate.dealerNetwork ? estimate.dealerNetwork.canPay : isOwner && !isInternalDealer) &&
+    !isPaid &&
+    hasPayableMaterial &&
+    (!estimate.installationJob ||
+      estimate.installationJob.status === "CANCELED" ||
+      estimate.installationJob.status === "MATERIAL_PAYMENT_PENDING" ||
+      (Boolean(estimate.paymentPlanSnapshot) &&
+        ["PERMIT_PAYMENT_PENDING", "PERMIT_PROCESSING"].includes(
+          estimate.installationJob.status,
+        )));
+
+  const paymentInstallation = hasActiveInstallation
+    ? estimate.installationJob
+    : null;
+  const internalPaymentDue = paymentInstallation
+    ? [
+        "DEPOSIT_PAYMENT_PENDING",
+        "PERMIT_PAYMENT_PENDING",
+        "MATERIAL_PAYMENT_PENDING",
+        "INSTALLATION_PAYMENT_PENDING",
+      ].includes(paymentInstallation.status) ||
+      (Boolean(estimate.paymentPlanSnapshot) &&
+        paymentInstallation.status === "PERMIT_PROCESSING")
+    : isActive && !estimate.order && !isPaid && hasPayableMaterial;
+  const canCopyPaymentLink =
+    !isCanceled && isInternalDealer && isOwner && internalPaymentDue;
+
+  const canRecalculate =
+    isExpired && !estimate.order &&
+    (isOwner || isAdminRole(currentUser?.role?.name)) && !isPaymentLocked;
+
+  const handleDelete = async () => {
+    try {
+      await deleteEstimate(estimate.id);
+      setShowDeleteConfirm(false);
+      toast.success(spanish ? "Se eliminó la cotización." : "Estimate deleted successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(estimateActionError(locale, error, spanish ? "No se pudo eliminar la cotización." : "Could not delete the estimate."));
+    }
+  };
+
+  const handlePay = async () => {
+    if (estimate.paymentPlanSnapshot || currentUser?.role?.name === "client") {
+      router.push(`/estimates/${estimate.id}/edit#estimate-payment`);
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const { url } = await createCheckoutSession(estimate.id);
+      window.location.href = url; // Stripe Checkout
+    } catch (error) {
+      toast.error(estimateActionError(locale, error, spanish ? "No se pudo abrir el pago." : "Could not open the payment."));
+      setIsPaying(false);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+
+    try {
+      await recalculateEstimate(estimate.id);
+      toast.success(spanish ? "Se recalculó la cotización." : "Estimate recalculated successfully.");
+      router.refresh();
+    } catch (error) {
+      toast.error(estimateActionError(locale, error, spanish ? "No se pudo recalcular la cotización." : "Could not recalculate the estimate."));
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {showOwnerActions && canPay && (
+        <Button
+          type="button"
+          size="sm"
+          className="h-8 px-3 shadow-sm"
+          onClick={() => void handlePay()}
+          disabled={isPaying || estimate.networkPaymentBlocked}
+          title={spanish ? "Abrir el pago de la cotización" : "Open estimate payment"}
+          aria-label={spanish ? `Abrir el pago de la cotización #${estimate.number}` : `Open payment for estimate #${estimate.number}`}
+        >
+          {isPaying ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CreditCard className="h-4 w-4" />
+          )}
+          {isPaying ? (spanish ? "Abriendo..." : "Opening...") : (spanish ? "Pagar ahora" : "Pay now")}
+        </Button>
+      )}
+
+      {canCopyPaymentLink && (
+        <EstimatePaymentLinkActions
+          locale={locale}
+          disabled={estimate.networkPaymentBlocked}
+          estimateId={estimate.id}
+          estimateNumber={estimate.number}
+          size="sm"
+        />
+      )}
+
+      <DuplicateEstimateButton estimate={estimate} actor={currentUser} locale={locale} iconOnly />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">{spanish ? "Abrir menú" : "Open menu"}</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" lang={locale}>
+          <DropdownMenuLabel>{spanish ? "Acciones" : "Actions"}</DropdownMenuLabel>
+
+          {isDealer ? (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                {spanish ? "Ver detalles" : "View Details"}
+              </DropdownMenuSubTrigger>
+
+              <DropdownMenuSubContent lang={locale}>
+                <DropdownMenuItem asChild>
+                  <Link href={`/estimates/${estimate.id}?view=details`}>
+                    {spanish ? "Vista del distribuidor" : "Dealer View"}
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link href={`/estimates/${estimate.id}?view=public`}>
+                    {spanish ? "Vista del cliente" : "Customer View"}
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : (
+            <DropdownMenuItem asChild>
+              <Link href={`/estimates/${estimate.id}?view=details`}>{spanish ? "Ver detalles" : "View Details"}</Link>
+            </DropdownMenuItem>
+          )}
+
+          {primaryAction !== "details" && (
+            <DropdownMenuItem asChild>
+              <Link href={`/estimates/${estimate.id}/edit`}>
+                {spanish ? estimateListActions[primaryAction].spanish : estimateListActions[primaryAction].label}
+              </Link>
+            </DropdownMenuItem>
+          )}
+
+          {canRecalculate && (
+            <DropdownMenuItem
+              onSelect={handleRecalculate}
+              disabled={isRecalculating || estimate.user?.networkSalesBlocked}
+              className="text-blue-700 focus:bg-blue-50 focus:text-blue-800"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {isRecalculating
+                ? (spanish ? "Recalculando..." : "Recalculating...")
+                : (spanish ? "Recalcular cotización" : "Recalculate Estimate")}
+            </DropdownMenuItem>
+          )}
+
+          {lifecycleAction && <DropdownMenuItem disabled={lifecycleAction === "reactivate" && estimate.user?.networkSalesBlocked} onSelect={() => setLifecycle(lifecycleAction)}>
+            {lifecycleAction === "reactivate"
+              ? (spanish ? "Reactivar cotización" : "Reactivate estimate")
+              : (spanish ? "Cancelar cotización" : "Cancel estimate")}
+          </DropdownMenuItem>}
+
+          {canDelete && !isCanceled &&
+            !isOrdered &&
+            !hasDeletePaymentBlock &&
+            installationAllowsDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                  onSelect={() => setShowDeleteConfirm(true)}
+                >
+                  {spanish ? "Eliminar cotización" : "Delete Estimate"}
+                </DropdownMenuItem>
+              </>
+            )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DeleteConfirmationDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        lang={locale}
+        title={spanish ? `¿Eliminar la cotización #${estimate.number}?` : `Delete estimate #${estimate.number}?`}
+        description={estimate.installationJob
+          ? (spanish ? "Se eliminarán permanentemente esta cotización y su cálculo de instalación." : "This action cannot be undone. This will permanently delete this estimate and its calculated installation together.")
+          : (spanish ? "Se eliminará permanentemente esta cotización." : "This action cannot be undone. This will permanently delete this estimate.")}
+        cancelText={spanish ? "Cancelar" : "Cancel"}
+        confirmText={spanish ? "Eliminar cotización" : "Delete estimate"}
+      />
+      <EstimateLifecycleDialog estimate={estimate} action={lifecycle} locale={locale} onClose={() => setLifecycle(null)} />
+    </div>
+  );
+}

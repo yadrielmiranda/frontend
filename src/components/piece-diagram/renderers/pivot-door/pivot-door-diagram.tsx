@@ -12,6 +12,7 @@ import { PivotDoorLeafArtwork } from "./pivot-door-leaf";
 import { PivotCompositeDoorDiagram } from "./pivot-composite-diagram";
 
 export interface PivotDoorDiagramProps {
+  locale?: "en" | "es";
   width: number;
   height: number;
   configuration?: "X" | "O" | "O/X" | "XO" | "OX" | "OXO" | "O/O-O/X" | "O/X-O/O" | "O/O-O/X-O/O";
@@ -34,13 +35,13 @@ function frameColor(value?: string | null): string {
 }
 
 /** Fixed O and the approved outward-opening X, with a fixed transom or sidelite. */
-export function PivotDoorDiagram({ width, height, configuration = "X", doorHeight, doorWidth, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: PivotDoorDiagramProps) {
+export function PivotDoorDiagram({ locale = "en", width, height, configuration = "X", doorHeight, doorWidth, activeOptionName, frameColorHex, glassTintHex, hasCoating = false, hasPrivacy = false, highBottom, showDimensions = true, className, muntin }: PivotDoorDiagramProps) {
   const reactId = useId();
   const [widthLanes, setWidthLanes] = useState(1);
   const [heightLanes, setHeightLanes] = useState(1);
   const id = `pivot-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  if (configuration === "O") return <PivotFixedDoorDiagram width={width} height={height} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
-  if (configuration === "OXO" || configuration === "O/O-O/X" || configuration === "O/X-O/O" || configuration === "O/O-O/X-O/O") return <PivotCompositeDoorDiagram configuration={configuration} width={width} height={height} doorWidth={doorWidth} doorHeight={doorHeight} activeOptionName={activeOptionName} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} highBottom={highBottom} showDimensions={showDimensions} className={className} muntin={muntin} />;
+  if (configuration === "O") return <PivotFixedDoorDiagram locale={locale} width={width} height={height} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} showDimensions={showDimensions} className={className} muntin={muntin} />;
+  if (configuration === "OXO" || configuration === "O/O-O/X" || configuration === "O/X-O/O" || configuration === "O/O-O/X-O/O") return <PivotCompositeDoorDiagram locale={locale} configuration={configuration} width={width} height={height} doorWidth={doorWidth} doorHeight={doorHeight} activeOptionName={activeOptionName} frameColorHex={frameColorHex} glassTintHex={glassTintHex} hasCoating={hasCoating} hasPrivacy={hasPrivacy} highBottom={highBottom} showDimensions={showDimensions} className={className} muntin={muntin} />;
   if (configuration !== "X" && configuration !== "O/X" && configuration !== "XO" && configuration !== "OX") return null;
   const isTransom = configuration === "O/X";
   const isSidelite = configuration === "XO" || configuration === "OX";
@@ -92,8 +93,10 @@ export function PivotDoorDiagram({ width, height, configuration = "X", doorHeigh
   return <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby={`${id}-title ${id}-description`} className={className}
     style={{ boxSizing: "border-box", paddingTop: showDimensions && isSidelite ? 18 * widthLanes : undefined, paddingRight: showDimensions ? VERTICAL_DIMENSION_RESERVE_PX : undefined, paddingLeft: showDimensions && isTransom ? VERTICAL_DIMENSION_RESERVE_PX + 18 * (heightLanes - 1) : undefined, paddingBottom: showDimensions ? 18 : undefined }}
     data-diagram-family="PIVOT_DOOR" data-authentic-evolution-family="PIVOT_DOOR" data-configuration={configuration} data-view="EXTERIOR" data-opening-direction="OUTWARD" data-exterior-pivot-side={rightActive ? "right" : "left"} data-schematic-opening-deg="24" data-width={width} data-height={height} data-door-height={isTransom ? doorHeight : undefined} data-transom-height={isTransom ? transomHeight : undefined} data-door-width={isSidelite ? doorWidth : undefined} data-sidelite-width={sidelite?.sideliteWidth} data-frame-color={color} data-units-per-inch={layout.unitsPerInch}>
-    <title id={`${id}-title`}>{`Pivot Door — Configuration ${configuration}`}</title>
-    <desc id={`${id}-description`}>{`Exterior view of a ${format(width)} × ${format(height)} pivot door opening outward toward the observer about a hidden inboard pivot on the ${rightActive ? "right" : "left"}, with a long metal pull handle on the ${rightActive ? "left" : "right"}. ${isTransom ? `A fixed ${format(transomHeight)} transom sits above the ${format(doorHeight!)} door. ` : ""}${sidelite ? `A fixed ${format(sidelite.sideliteWidth)} sidelite sits to the ${sidelite.side} of the ${format(doorWidth!)} door. ` : ""}The frame dimensions describe the closed opening.`}</desc>
+    <title id={`${id}-title`}>{locale === "es" ? `Pivot Door — Configuración ${configuration}` : `Pivot Door — Configuration ${configuration}`}</title>
+    <desc id={`${id}-description`}>{locale === "es"
+      ? `Vista exterior de una Pivot Door de ${format(width)} × ${format(height)}. Abre hacia afuera con el pivote oculto a la ${rightActive ? "derecha" : "izquierda"} y el tirador metálico a la ${rightActive ? "izquierda" : "derecha"}. ${isTransom ? `Sobre la puerta de ${format(doorHeight!)} hay un panel fijo de ${format(transomHeight)}. ` : ""}${sidelite ? `Un panel fijo de ${format(sidelite.sideliteWidth)} está a la ${sidelite.side === "left" ? "izquierda" : "derecha"} de la puerta de ${format(doorWidth!)}. ` : ""}Las medidas corresponden al marco con la puerta cerrada.`
+      : `Exterior view of a ${format(width)} × ${format(height)} pivot door opening outward toward the observer about a hidden inboard pivot on the ${rightActive ? "right" : "left"}, with a long metal pull handle on the ${rightActive ? "left" : "right"}. ${isTransom ? `A fixed ${format(transomHeight)} transom sits above the ${format(doorHeight!)} door. ` : ""}${sidelite ? `A fixed ${format(sidelite.sideliteWidth)} sidelite sits to the ${sidelite.side} of the ${format(doorWidth!)} door. ` : ""}The frame dimensions describe the closed opening.`}</desc>
     <defs>
       <DoorFrameGradient id={`${id}-frame-finish`} finish={finish} />
     </defs>

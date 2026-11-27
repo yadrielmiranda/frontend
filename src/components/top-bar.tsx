@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { PortalLanguageSwitch } from "@/components/portal-language-switch";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,24 +28,40 @@ import { canAccessSettings, canAccessWarehouse } from "@/lib/rbac";
 import { usePathname } from "next/navigation";
 import { useCompanyBranding } from "@/contexts/CompanyBrandingContext";
 
+const navigationCopy = {
+  en: {
+    portal: "Impact Windows Portal", navigation: "Navigation", open: "Open navigation menu", close: "Close menu",
+    estimates: "Estimates", installations: "Installations", orders: "Orders", materials: "Materials",
+    myDealers: "My dealers", dealerNetwork: "Dealer network", warehouse: "Warehouse", settings: "Settings",
+  },
+  es: {
+    portal: "Portal de ventanas de impacto", navigation: "Navegación", open: "Abrir menú de navegación", close: "Cerrar menú",
+    estimates: "Cotizaciones", installations: "Instalaciones", orders: "Órdenes", materials: "Materiales",
+    myDealers: "Mis distribuidores", dealerNetwork: "Red de distribuidores", warehouse: "Almacén", settings: "Configuración",
+  },
+};
+
 function TopBar() {
   const { isAuthenticated, user } = useAuth();
   const { companyName } = useCompanyBranding();
+  const { locale, saving, changeLanguage } = usePortalLanguage();
+  const copy = navigationCopy[locale];
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const pathname = usePathname();
 
-  const isEstimatesActive = pathname.startsWith("/estimates");
-  const isWarehouseActive = pathname.startsWith("/warehouse");
-  const isOrdersActive = pathname.startsWith("/orders");
-  const isMaterialsActive = pathname === "/materials" || pathname.startsWith("/materials/");
-  const isInstallationsActive = pathname.startsWith("/installations");
-  const canAccessDealers = ["dealer", "admin", "operator"].includes(user?.role?.name ?? "");
-  const dealerNetworkLabel = user?.role?.name === "dealer" ? "My dealers" : "Dealer network";
-  const isDealersActive = pathname.startsWith("/dealers");
+  const role = user?.role?.name;
+  const links = [
+    { href: "/estimates", label: copy.estimates, icon: FileText },
+    { href: "/installations", label: copy.installations, icon: Hammer },
+    { href: "/orders", label: copy.orders, icon: ShoppingBag },
+    { href: "/materials", label: copy.materials, icon: ShoppingCart },
+    { href: "/dealers", label: role === "dealer" ? copy.myDealers : copy.dealerNetwork, icon: Users, visible: ["dealer", "admin", "operator"].includes(role ?? "") },
+    { href: "/warehouse", label: copy.warehouse, icon: Warehouse, visible: canAccessWarehouse(role) },
+  ].filter(link => link.visible !== false);
   const isSettingsActive = pathname.startsWith("/settings");
-  const hasStaffNavigation = canAccessWarehouse(user?.role?.name) || canAccessSettings(user?.role?.name);
+  const hasStaffNavigation = canAccessWarehouse(role) || canAccessSettings(role);
   const desktopMenuVisibility = hasStaffNavigation ? "hidden 2xl:flex" : "hidden xl:flex";
   const mobileMenuVisibility = hasStaffNavigation ? "2xl:hidden" : "xl:hidden";
 
@@ -65,18 +83,18 @@ function TopBar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  const Brand = () => (
+  const brand = (
     // eslint-disable-next-line @next/next/no-html-link-for-pages -- Reload the entire dashboard on every logo click, including from home.
     <a
       href="/"
-      className="group flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-white/10"
+      className="group flex min-w-0 items-center gap-1.5 rounded-2xl py-1 transition hover:bg-white/10 sm:gap-3 sm:px-2"
     >
       <Image
         src={brandLogo}
-        alt={companyName}
+        alt=""
         width={52}
         height={52}
-        className="h-14 w-auto -translate-y-0.5 object-contain transition group-hover:scale-[1.02]"
+        className="h-11 w-auto shrink-0 -translate-y-0.5 object-contain transition group-hover:scale-[1.02] sm:h-14"
         style={{
           filter:
             "drop-shadow(0 0 1px rgba(226, 232, 240, 0.8)) drop-shadow(0 0 3px rgba(226, 232, 240, 0.3)) drop-shadow(0 5px 3px rgba(0, 0, 0, 0.8))",
@@ -84,12 +102,12 @@ function TopBar() {
         priority
       />
 
-      <div className="leading-tight">
-        <h1 className="text-xl font-bold tracking-tight text-white">
+      <div className="min-w-0 leading-tight">
+        <h1 className="line-clamp-2 text-sm font-bold tracking-tight text-white sm:truncate sm:text-xl">
           {companyName}
         </h1>
-        <p className="hidden text-xs font-medium text-white/50 xl:block">
-          Impact Windows Portal
+        <p className="hidden truncate text-xs font-medium text-white/50 xl:block">
+          {copy.portal}
         </p>
       </div>
     </a>
@@ -97,11 +115,9 @@ function TopBar() {
 
   if (!mounted) {
     return (
-      <header data-app-header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+      <header data-app-header lang={locale} className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
         <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <Brand />
-          </div>
+          {brand}
 
           <div className="flex items-center gap-4">
             <div className={`h-9 w-28 animate-pulse rounded-xl bg-slate-200 ${desktopMenuVisibility}`} />
@@ -116,89 +132,45 @@ function TopBar() {
   }
 
   return (
-    <header data-app-header className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
-          <Brand />
-        </div>
+    <header data-app-header lang={locale} className="sticky top-0 z-50 bg-slate-950/95 shadow-[0_12px_35px_rgba(2,6,23,0.28)] backdrop-blur-xl">
+      <div className="flex h-20 items-center justify-between gap-1 px-2 sm:gap-2 sm:px-6 lg:px-8">
+        {brand}
 
         {isAuthenticated && (
-          <nav className={`items-center gap-2 ${desktopMenuVisibility}`}>
-            <Button
-              variant="ghost"
-              className={navButtonClass(isEstimatesActive)}
-              asChild
-            >
-              <Link href="/estimates">
-                <FileText className="mr-2 h-4 w-4" />
-                Estimates
-              </Link>
-            </Button>
+          <nav aria-label={copy.navigation} className={`shrink-0 items-center gap-1 ${desktopMenuVisibility}`}>
+            {links.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Button key={href} variant="ghost" className={navButtonClass(active)} asChild>
+                  <Link href={href} aria-current={active ? "location" : undefined}>
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                </Button>
+              );
+            })}
 
-            <Button
-              variant="ghost"
-              className={navButtonClass(isInstallationsActive)}
-              asChild
-            >
-              <Link href="/installations">
-                <Hammer className="mr-2 h-4 w-4" />
-                Installations
-              </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className={navButtonClass(isOrdersActive)}
-              asChild
-            >
-              <Link href="/orders">
-                <ShoppingBag className="mr-2 h-4 w-4" />
-                Orders
-              </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className={navButtonClass(isMaterialsActive)}
-              asChild
-            >
-              <Link href="/materials">
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Materials
-              </Link>
-            </Button>
-
-            {canAccessDealers && <Button variant="ghost" className={navButtonClass(isDealersActive)} asChild>
-              <Link href="/dealers"><Users className="mr-2 h-4 w-4" />{dealerNetworkLabel}</Link>
-            </Button>}
-
-            {canAccessWarehouse(user?.role?.name) && (
-              <Button variant="ghost" className={navButtonClass(isWarehouseActive)} asChild>
-                <Link href="/warehouse"><Warehouse className="mr-2 h-4 w-4" />Warehouse</Link>
-              </Button>
-            )}
-
-            {canAccessSettings(user?.role?.name) && (
+            {canAccessSettings(role) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     className={navButtonClass(isSettingsActive)}
                   >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    <Settings className="h-4 w-4" />
+                    {copy.settings}
                   </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent className="w-64" align="center">
-                  <SettingsMenuItems role={user?.role?.name} />
+                <DropdownMenuContent lang={locale} className="w-64" align="center">
+                  <SettingsMenuItems role={role} locale={locale} />
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
           </nav>
         )}
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           <div className={mobileMenuVisibility}>
             {isAuthenticated && (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -207,73 +179,31 @@ function TopBar() {
                     variant="ghost"
                     size="icon"
                     className="rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
-                    aria-label="Open navigation menu"
+                    aria-label={copy.open}
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
 
-                <SheetContent side="left">
+                <SheetContent side="left" lang={locale} closeLabel={copy.close} aria-describedby={undefined}>
                   <SheetHeader>
-                    <SheetTitle>Navigation</SheetTitle>
+                    <SheetTitle>{copy.navigation}</SheetTitle>
                   </SheetHeader>
 
-                  <div className="mt-6 flex flex-col gap-3">
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${mobileNavButtonClass(isEstimatesActive)}`}
-                      asChild
-                    >
-                      <Link href="/estimates">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Estimates
-                      </Link>
-                    </Button>
+                  <nav aria-label={copy.navigation} className="mt-6 flex flex-col gap-3 overflow-y-auto">
+                    {links.map(({ href, label, icon: Icon }) => {
+                      const active = pathname === href || pathname.startsWith(href + "/");
+                      return (
+                        <Button key={href} variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(active)}`} asChild>
+                          <Link href={href} aria-current={active ? "location" : undefined}>
+                            <Icon className="mr-2 h-4 w-4" />
+                            {label}
+                          </Link>
+                        </Button>
+                      );
+                    })}
 
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${mobileNavButtonClass(isInstallationsActive)}`}
-                      asChild
-                    >
-                      <Link href="/installations">
-                        <Hammer className="mr-2 h-4 w-4" />
-                        Installations
-                      </Link>
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${mobileNavButtonClass(isOrdersActive)}`}
-                      asChild
-                    >
-                      <Link href="/orders">
-                        <ShoppingBag className="mr-2 h-4 w-4" />
-                        Orders
-                      </Link>
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${mobileNavButtonClass(isMaterialsActive)}`}
-                      asChild
-                    >
-                      <Link href="/materials">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Materials
-                      </Link>
-                    </Button>
-
-                    {canAccessDealers && <Button variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(isDealersActive)}`} asChild>
-                      <Link href="/dealers"><Users className="mr-2 h-4 w-4" />{dealerNetworkLabel}</Link>
-                    </Button>}
-
-                    {canAccessWarehouse(user?.role?.name) && (
-                      <Button variant="ghost" className={`w-full justify-start ${mobileNavButtonClass(isWarehouseActive)}`} asChild>
-                        <Link href="/warehouse"><Warehouse className="mr-2 h-4 w-4" />Warehouse</Link>
-                      </Button>
-                    )}
-
-                    {canAccessSettings(user?.role?.name) && (
+                    {canAccessSettings(role) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -281,24 +211,29 @@ function TopBar() {
                             className={`w-full justify-start ${mobileNavButtonClass(isSettingsActive)}`}
                           >
                             <Settings className="mr-2 h-4 w-4" />
-                            Settings
+                            {copy.settings}
                           </Button>
                         </DropdownMenuTrigger>
 
-                        <DropdownMenuContent className="w-56">
-                          <SettingsMenuItems role={user?.role?.name} />
+                        <DropdownMenuContent lang={locale} className="w-56">
+                          <SettingsMenuItems role={role} locale={locale} />
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
-                  </div>
+                  </nav>
                 </SheetContent>
               </Sheet>
             )}
           </div>
 
-          {isAuthenticated && <NotificationBell />}
+          {isAuthenticated && (
+            <>
+              <PortalLanguageSwitch locale={locale} saving={saving} onChange={changeLanguage} />
+              <NotificationBell locale={locale} />
+            </>
+          )}
 
-          <UserDropdown />
+          <UserDropdown locale={locale} />
         </div>
       </div>
 

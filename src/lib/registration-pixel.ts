@@ -14,7 +14,9 @@ export function safeRegistrationContext(address: string, referrer: string) {
     const url = new URL(address);
     if (url.origin !== "https://" + host || url.pathname !== "/login/register" || url.hash) return false;
     for (const [key, value] of url.searchParams) {
-      if (!keys.has(key) || url.searchParams.getAll(key).length !== 1 ||
+      if (url.searchParams.getAll(key).length !== 1) return false;
+      if (key === "lang" && (value === "en" || value === "es")) continue;
+      if (!keys.has(key) ||
           !(key === "fbclid" ? /^[A-Za-z0-9_-]{1,300}$/.test(value) : tag.test(value))) return false;
     }
     const source = url.searchParams.get("utm_source")?.toLowerCase();

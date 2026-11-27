@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import type { CompanyLocale } from "@/components/company/company-content";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ import { PieceForm, type PieceFormProps } from "./piece-form";
 
 interface PieceModalProps {
   open: boolean;
+  locale: CompanyLocale;
   onOpenChange: (open: boolean) => void;
 
   title: string;
@@ -58,6 +60,7 @@ interface PieceModalProps {
 
 export function PieceModal({
   open,
+  locale,
   onOpenChange,
   title,
   pieceKey,
@@ -86,16 +89,19 @@ export function PieceModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        lang={locale}
+        closeLabel={locale === "es" ? "Cerrar" : "Close"}
         className="top-[4vh] h-[calc(96vh-12px)] w-[calc(100%-24px)] max-w-none translate-y-0 gap-0 overflow-hidden rounded-lg p-0 shadow-none sm:max-w-none"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <div className="flex h-full min-h-0 flex-col gap-4 p-6">
-          <DialogHeader>
+          <DialogHeader className="pr-8">
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
 
           <PieceForm
             key={pieceKey}
+            locale={locale}
             initialData={initialData}
             onSubmit={onSave}
             onCancel={onCancel}

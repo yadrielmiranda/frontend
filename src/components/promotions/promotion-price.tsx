@@ -1,4 +1,5 @@
 import { formatMoney, roundMoney } from "@/lib/formatters";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 type MoneyFormatter = (amount: number) => string;
 
@@ -28,11 +29,13 @@ export function PromotionPrice({
   originalAmount,
   formatValue = formatMoney,
   align = "right",
+  locale = "en",
 }: {
   amount: number;
   originalAmount?: number | null;
   formatValue?: MoneyFormatter;
   align?: "left" | "center" | "right";
+  locale?: CompanyLocale;
 }) {
   // Solo se compara lo ya calculado; los precios y sus impuestos no se recalculan.
   const discounted =
@@ -56,11 +59,12 @@ export function PromotionPrice({
     >
       <OriginalPrice
         amount={originalAmount!}
+        label={locale === "es" ? "Antes de la promoción" : "Before promotion"}
         formatValue={formatValue}
         className="text-xs"
       />
       <span className="whitespace-nowrap font-semibold text-emerald-700">
-        <span className="sr-only">After promotion: </span>
+        <span className="sr-only">{locale === "es" ? "Después de la promoción: " : "After promotion: "}</span>
         {formatValue(amount)}
       </span>
     </span>

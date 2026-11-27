@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '../src');
 const cache = new Map();
 let publicEstimate;
 const mocks = {
+  '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale: 'es' }) },
   'next/navigation': { notFound() { throw new Error('Not found'); } },
   '@/app/api/estimates.api': { getPublicEstimate: async () => publicEstimate },
   '@/app/api/contracts.api': {
@@ -22,7 +23,7 @@ const mocks = {
   },
   '@/app/api/_base': { isApiError: () => false },
   '@/components/estimates/estimate-details/views/estimate-view-dealer-public': {
-    EstimateViewDealerPublic: () => React.createElement('div', null, 'Product details'),
+    EstimateViewDealerPublic: ({ locale }) => React.createElement('div', null, locale === 'es' ? 'Detalles del producto' : 'Product details'),
   },
 };
 function load(relative) {
@@ -113,15 +114,21 @@ async function main() {
   assert.ok(ownerAddressHtml.includes('200 Owner Street, Unit 99'));
 
   publicEstimate = estimate;
-  const publicHtml = renderToStaticMarkup(await PublicPage({ params: Promise.resolve({ token: 'test-token' }) }));
+  const publicHtml = renderToStaticMarkup(await PublicPage({
+    params: Promise.resolve({ token: 'test-token' }), searchParams: Promise.resolve({ lang: 'es' }),
+  }));
+  assert.match(publicHtml, /<main lang="en"/);
+  assert.ok(publicHtml.includes('Product details'));
   assert.ok(publicHtml.includes('Independent Distributor'));
   assert.ok(publicHtml.includes('href="http://www.authenticevolutionco.com"'));
   assert.ok(!publicHtml.includes('platform@example.test'));
   for (const renderOnly of [false, true]) {
     const agreementHtml = renderToStaticMarkup(await AgreementPage({
       params: Promise.resolve({ token: 'test-token', agreementId: 'agreement-1' }),
-      searchParams: Promise.resolve(renderOnly ? { render: '1' } : {}),
+      searchParams: Promise.resolve(renderOnly ? { render: '1', lang: 'es' } : { lang: 'es' }),
     }));
+    assert.match(agreementHtml, /<main lang="en"/);
+    assert.ok(agreementHtml.includes(renderOnly ? 'Product details' : 'Agreement details'));
     assert.ok(agreementHtml.includes('Independent Distributor'));
     assert.ok(agreementHtml.includes('href="http://www.authenticevolutionco.com"'));
     assert.ok(!agreementHtml.includes('platform@example.test'));

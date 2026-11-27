@@ -90,6 +90,7 @@ export interface FixedWindowShapeSpec {
 }
 
 interface CommonProps {
+  locale?: "en" | "es";
   width: FixedWindowDimension;
   // Supplied only when width describes a whole opening of equal fixed panels.
   panelCount?: number;
@@ -534,7 +535,9 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
     width: glass.width / scaleX,
     height: glass.height / scaleY,
   };
-  const label = `Fixed Window ${spec.displayName}, ${pictureLayout && props.panelCount !== undefined ? `${picturePanelCount} equal panels, opening ` : ""}width ${formatDimension(width)}, height ${formatDimension(height)}${
+  const label = props.locale === "es"
+    ? `Fixed Window ${spec.displayName}, ${pictureLayout && props.panelCount !== undefined ? `${picturePanelCount} paneles iguales, ` : ""}ancho ${formatDimension(width)}, altura ${formatDimension(height)}${secondaryHeight === null ? "" : `, altura secundaria ${formatDimension(secondaryHeight)}`}`
+    : `Fixed Window ${spec.displayName}, ${pictureLayout && props.panelCount !== undefined ? `${picturePanelCount} equal panels, opening ` : ""}width ${formatDimension(width)}, height ${formatDimension(height)}${
     secondaryHeight === null ? "" : `, secondary height ${formatDimension(secondaryHeight)}`
   }`;
 
@@ -542,7 +545,7 @@ export function FixedWindowShapeDiagram(props: FixedWindowShapeDiagramProps) {
   // Do not shrink the frame or emit negative glass dimensions in that state.
   if (pictureLayout && (!picturePanelLayout || picturePanelLayout.glass.width <= 0 || picturePanelLayout.glass.height <= 0)) {
     return <div className={props.className} data-diagram-state="unavailable">
-      Complete the piece details to see the preview.
+      {props.locale === "es" ? "Completa los datos de la pieza para ver la vista previa." : "Complete the piece details to see the preview."}
     </div>;
   }
 

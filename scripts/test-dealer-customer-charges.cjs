@@ -133,10 +133,14 @@ baseMocks['@/lib/customer-charge-additions'] = load('lib/customer-charge-additio
 baseMocks['@/lib/dealer-service-earnings'] = load('lib/dealer-service-earnings.ts', {
   './formatters': { roundMoney: rounding },
 });
+baseMocks['@/lib/estimate-financial-language'] = load('lib/estimate-financial-language.ts');
 const Financial = load('components/estimates/estimate-financial-summary.tsx').EstimateFinancialSummary;
 const Report = load('components/estimates/estimate-details/parts/report-financial-summary.tsx').ReportFinancialSummary;
 const paymentMocks = {
   react: {}, 'next/navigation': {}, sonner: {}, '@/lib/payment-accounting': { hasRefundHistory: () => false },
+  '@/lib/payment-plan-language': load('lib/payment-plan-language.ts'),
+  '@/lib/estimate-payment-language': load('lib/estimate-payment-language.ts'),
+  '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale: 'en' }) },
   '@/components/payments/payment-history': {}, '@/components/payments/installment-selection': {},
   '@/components/payments/custom-payment-amount': {}, '@/app/api/payments.api': {},
   '@/app/api/_base': {}, './client-delivery-review': {},
@@ -211,6 +215,32 @@ test('internal estimate total includes markup and custom charges once, after bas
   const discounted = text(expand(Financial({ ...financialProps, manualDiscount: discount })));
   assert.match(discounted, /Customer Project Total\$2450\.00Your Project Cost\$2000\.00/);
   assert.match(discounted, /Services total\$1000\.00\$1250\.00/);
+});
+test('Spanish summary keeps the written charge description and every amount', () => {
+  const written = 'Customer Price / Cocina';
+  const props = { ...financialProps, customerChargesSummary: {
+    ...summary, lines: summary.lines.map(row => row.origin === 'DEALER' ? { ...row, description: written } : row),
+  } };
+  const english = text(expand(Financial({ ...props, locale: 'en' })));
+  const spanish = text(expand(Financial({ ...props, locale: 'es' })));
+  assert.ok(english.includes(written) && spanish.includes(written));
+  assert.match(spanish, /Total del proyecto para el cliente\$2550\.00Tu costo del proyecto\$2000\.00/);
+  assert.deepEqual(spanish.match(/\$[\d,.]+/g), english.match(/\$[\d,.]+/g));
+});
+test('report languages preserve financial visibility, amounts and custom descriptions in every view', () => {
+  const charges = { ...summary, lines: [line, { ...customLine, description: 'City Fee' }] };
+  const estimate = { ...reportEstimate, customerChargesSummary: charges };
+  for (const reportKind of ['admin', 'dealer', 'client', 'dealer-customer', 'dealer-customer-total']) {
+    const options = { estimate, reportKind, isAdmin: reportKind === 'admin' };
+    const en = text(expand(Report({ ...options, locale: 'en' })));
+    const es = text(expand(Report({ ...options, locale: 'es' })));
+    assert.ok(en.includes('Project Summary') && es.includes('Resumen del proyecto'), reportKind);
+    assert.deepEqual(es.match(/\$[\d,.]+/g), en.match(/\$[\d,.]+/g), reportKind);
+    assert.ok(es.includes('Instalación'), reportKind);
+    assert.ok(es.includes('City Fee'), 'a dealer-written charge must stay literal');
+    assert.equal(es.includes('Resumen financiero de materiales'), reportKind === 'admin');
+    assert.equal(es.includes('Alcance del proyecto'), reportKind === 'dealer-customer-total');
+  }
 });
 test('removing installation drops its markup but preserves custom charges', () => {
   assert.match(text(expand(Financial({ ...financialProps, installationJob: null }))), /Customer Project Total\$1350\.00Your Project Cost\$1000\.00/);

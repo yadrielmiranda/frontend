@@ -56,6 +56,7 @@ function fixture(kind, overrides = {}, firstCheckoutError) {
       order: null, materialPayments: [], installationJob: null, materialAmount: 10641.27, paymentSchedule: schedule(),
       dealerMode: 'EXTERNAL', cardSurchargeFraction: .03, canRecordManualPayment: true };
   let props = { ...defaults, ...overrides };
+  let portalLocale = 'en';
   const mocks = {
     'react/jsx-runtime': { jsx, jsxs: jsx },
     react: {
@@ -69,6 +70,7 @@ function fixture(kind, overrides = {}, firstCheckoutError) {
         } },
     },
     'next/navigation': { useRouter: () => router, useSearchParams: () => new URLSearchParams('estimateId=17&type=INSTALLMENT&sequence=1') },
+    '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale: portalLocale }) },
     'lucide-react': new Proxy({}, { get: () => 'Icon' }),
     sonner: { toast: { success: value => notices.push(value), error: value => notices.push(value) } },
     '@/lib/formatters': { formatMoney: money, roundMoney },
@@ -99,7 +101,13 @@ function fixture(kind, overrides = {}, firstCheckoutError) {
   const render = () => {
     let tree, count = 0;
     do { assert.ok(count++ < 10, 'Effects settle'); index = refIndex = effectIndex = 0; pending = []; dirty = false;
-      tree = Component(props); pending.forEach(effect => effect());
+      if (kind === 'portal') {
+        const content = module.EstimatePaymentCard(props).props.children[0];
+        tree = content.type(content.props);
+      } else {
+        tree = Component(props);
+      }
+      pending.forEach(effect => effect());
     } while (dirty);
     return tree;
   };
@@ -111,6 +119,7 @@ function fixture(kind, overrides = {}, firstCheckoutError) {
   const button = label => { const found = all(render(), node => node.type === 'Button').find(node => text(node) === label); assert.ok(found, label); return found; };
   const input = (name, value) => { const found = all(render(), node => node.type === 'Input' && (node.props.id === name || node.props['aria-label'] === name))[0]; assert.ok(found, name); found.props.onChange({ target: { value } }); };
   return { render, all, text, button, input, requests, notices, routes, props,
+    setLanguage(locale) { portalLocale = locale; },
     update(next) { props = { ...props, ...next }; },
     verified() { input('manual-reference', 'test-check'); const box = all(render(), node => node.type === 'Checkbox').at(-1); box.props.onCheckedChange(true); },
     close() { effects.forEach(effect => effect.cleanup?.()); } };
@@ -178,6 +187,60 @@ test('authenticated default pays only the next installment even when several row
   assert.equal(f.all(f.render(), node => node.type === 'Schedule')[0].props.schedule.rows.length, 3);
   f.button('Pay next installment').props.onClick(); await flush();
   assert.deepEqual(f.requests[0][6], [1]); assert.equal(f.requests[0][7], undefined); assert.equal(f.requests[0][8], undefined); f.close();
+});
+test('portal language updates the next payment, keeps checked material terms and sends identical checkout data', async () => {
+  const title = 'Place order · 100% material';
+  const description = 'Required to place the order with the manufacturer.';
+  const plan = schedule([row(1, 'ORDER', '931.05', 'DUE', { title, description })]);
+  const props = { ownerRole: 'client', clientOwner: true, materialAmount: 931.05, hasSavedProfileAddress: true, cardSurchargeFraction: 0, paymentSchedule: plan };
+  const requests = [];
+  for (const startInSpanish of [false, true]) {
+    const f = fixture('portal', props);
+    f.setLanguage(startInSpanish ? 'es' : 'en');
+    const read = () => f.text(f.render());
+    const findTerms = () => f.all(f.render(), node => node.props?.id === 'material-acceptance')[0];
+    const verify = spanish => {
+      const rendered = read();
+      for (const label of (spanish
+        ? ['Próximo pago', 'Realizar la orden · 100% de los materiales', 'Se requiere este pago para realizar la orden con el fabricante.', 'Total del pago$931.05', 'Pago seguro']
+        : ['Next payment', title, description, 'Payment total$931.05', 'Secure checkout'])) assert.ok(rendered.includes(label), label);
+      assert.equal(f.all(f.render(), node => node.type === 'Schedule')[0].props.locale, spanish ? 'es' : 'en');
+    };
+    verify(startInSpanish);
+    assert.equal(f.button(startInSpanish ? 'Acepta las condiciones para continuar' : 'Accept terms to continue').props.disabled, true);
+    findTerms().props.onCheckedChange(true);
+    f.setLanguage(startInSpanish ? 'en' : 'es');
+    verify(!startInSpanish);
+    assert.equal(findTerms().props.checked, true);
+    const pay = f.button(startInSpanish ? 'Pay next installment' : 'Pagar la próxima cuota');
+    assert.equal(pay.props.disabled, false);
+    pay.props.onClick(); await flush();
+    assert.equal(f.requests.length, 1); requests.push(f.requests[0]); f.close();
+  }
+  assert.deepEqual(requests[0], [17, 'INSTALLMENT', undefined, undefined, true, undefined, [1], undefined, undefined]);
+  assert.deepEqual(requests[1], requests[0]);
+  assert.equal(plan.next.title, title); assert.equal(plan.next.description, description);
+});
+test('Spanish payment selection keeps custom schedule text, entered amounts, and saved deposit terms verbatim', () => {
+  const title = 'Entry from office / cuota especial';
+  const description = 'Detalle escrito by operator';
+  const plan = schedule([row(1, 'ORDER', '931.05', 'DUE', { title, description })]);
+  const f = fixture('portal', { paymentSchedule: plan, cardSurchargeFraction: 0 });
+  f.setLanguage('es');
+  for (const label of [title, description, '$931.05']) assert.ok(f.text(f.render()).includes(label), label);
+  f.button('Pagar otro importe').props.onClick(); f.input('Importe que deseas pagar', '100.45');
+  f.setLanguage('en');
+  assert.equal(f.all(f.render(), node => node.type === 'Input' && node.props['aria-label'] === 'Custom payment amount')[0].props.value, '100.45');
+  f.setLanguage('es');
+  for (const label of [title, '$100.45', '$830.60', 'Saldo restante']) assert.ok(f.text(f.render()).includes(label), label);
+  f.close();
+  const terms = 'Condiciones especiales / Final signed terms #27';
+  const deposit = fixture('portal', { paymentSchedule: null, installationJob: { status: 'DEPOSIT_PAYMENT_PENDING',
+    quotes: [], payments: [], depositAmountSnapshot: '100', depositTermsSnapshot: terms } });
+  deposit.setLanguage('es');
+  assert.ok(deposit.text(deposit.render()).includes(terms));
+  assert.ok(deposit.text(deposit.render()).includes('Entiendo y acepto las condiciones del depósito no reembolsable'));
+  deposit.close();
 });
 test('authenticated full balance shows a read-only breakdown and returns to the next installment', async () => {
   const plan = schedule([row(1, 'ORDER', '100', 'DUE'), row(101, 'ORDER', '20', 'DUE')]);

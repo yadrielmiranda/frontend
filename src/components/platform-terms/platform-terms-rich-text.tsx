@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { TERMS_TYPOGRAPHY, type TermsNode } from './platform-terms-rich-content';
 
 // Se generan únicamente elementos permitidos de React, sin insertar HTML recibido.
-export function PlatformTermsRichText({ document }: { document: TermsNode }) {
+export function PlatformTermsRichText({ document, label = 'Terms and Conditions text' }: { document: TermsNode; label?: string }) {
   function render(node: TermsNode, key: number, depth = 0): ReactNode {
     if (depth > 20) return null;
     const children = node.content?.map((child, index) => render(child, index, depth + 1));
@@ -39,5 +39,5 @@ export function PlatformTermsRichText({ document }: { document: TermsNode }) {
       default: return null;
     }
   }
-  return <article aria-label="Terms and Conditions text" className={TERMS_TYPOGRAPHY}>{render(document, 0)}</article>;
+  return <article aria-label={label} className={TERMS_TYPOGRAPHY}>{render(document, 0)}</article>;
 }

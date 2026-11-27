@@ -1,5 +1,5 @@
-/* Isolated regressions for actual table description blocks and expanded details.
- * TypeScript is transpiled in memory; React SSR uses a stub only for the diagram.
+/* Isolated regressions for rendered table rows and expanded details.
+ * TypeScript is transpiled in memory; React renders the production components.
  * No requests, environment files, database or generated application files.
  * Run: node scripts/test-piece-dimension-description.cjs */
 const assert = require('node:assert/strict');
@@ -27,6 +27,10 @@ function load(filename) {
   new Function('require', 'module', 'exports', compile(fs.readFileSync(filename, 'utf8'), filename))(id => {
     if (id === 'react' || id === 'react/jsx-runtime') return require(id);
     if (id === '@/components/piece-diagram') return { PieceDiagram: () => null };
+    if (id === 'lucide-react') return new Proxy({}, { get: () => () => null });
+    if (id === '@/components/ui/button') return { Button: ({ children, variant, size, ...props }) => React.createElement('button', props, children) };
+    if (id === '@/components/ui/input') return { Input: props => React.createElement('input', props) };
+    if (id === '@/lib/utils') return { cn: (...parts) => parts.filter(Boolean).join(' ') };
     const target = id.startsWith('@/') ? path.resolve(root, id.slice(2))
       : id.startsWith('.') ? path.resolve(path.dirname(filename), id) : null;
     assert.ok(target, `Unexpected dependency ${id}`);
@@ -35,35 +39,20 @@ function load(filename) {
   }, module, module.exports);
   return module.exports;
 }
-const dimensions = load('lib/dimensions.ts');
-const helperPath = 'components/estimates/piece-dimension-description.ts';
-const helper = fs.existsSync(path.join(root, helperPath)) ? load(helperPath) : {};
-function tableDescription(relative) {
-  const filename = path.join(root, relative);
-  const source = ts.createSourceFile(filename, fs.readFileSync(filename, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const hasVariable = (node, name) => ts.isVariableStatement(node)
-    && node.declarationList.declarations.some(item => item.name.getText(source) === name);
-  let statements;
-  function visit(node) {
-    if (ts.isBlock(node) && node.statements.some(item => hasVariable(item, 'description'))) statements = node.statements;
-    ts.forEachChild(node, visit);
-  }
-  visit(source); assert.ok(statements, 'Actual table description block');
-  const start = statements.findIndex(node => hasVariable(node, 'wTxt') || hasVariable(node, 'sizeText'));
-  const end = statements.findIndex(node => hasVariable(node, 'description'));
-  assert.ok(start >= 0 && end >= start);
-  const code = compile(statements.slice(start, end + 1).map(node => node.getText(source)).join('\n') + '\nreturn description;');
-  return (piece, tokens = {}) => {
-    const scope = { ...dimensions, ...helper, currentPieceData: piece,
-      product: { name: 'French Door' }, frameColor: { color: 'White' },
-      widthToken: tokens.width ?? 'Open W', heightToken: tokens.height ?? 'H' };
-    return new Function(...Object.keys(scope), code)(...Object.values(scope));
-  };
-}
 const tableCases = [
-  ['dealer', tableDescription('components/estimates/pieces-dealer-table.tsx')],
-  ['client', tableDescription('components/estimates/pieces-client-list.tsx')],
+  ['dealer', load('components/estimates/pieces-dealer-table.tsx').PiecesDealerTable],
+  ['client', load('components/estimates/pieces-client-list.tsx').PiecesClientList],
 ];
+function renderList(Table, piece, options = {}) {
+  return renderToStaticMarkup(React.createElement(Table, {
+    locale: options.locale, fields: piece ? [{ id: 'row1' }] : [],
+    watchedPieces: piece ? [{ idProd: 1, idSyst: 2, idFC: 3, idConf: 4, ...piece }] : [],
+    productsWithBrands: [{ id: 1, name: options.productName ?? 'French Door' }],
+    systemsWithConfigs: [{ id: 2, sysconfs: [{ idConfig: 4, requiresDoorWidth: true, requiresDoorHeight: options.height === 'Open H' }] }],
+    frameColors: [{ id: 3, color: 'White' }], tints: [], coatings: [], crystals: [], privacies: [], muntinPatterns: [], muntinTypes: [],
+    formatCurrency: amount => '$' + amount.toFixed(2),
+  }));
+}
 const { PieceFormDetailsPanel } = load('components/estimates/piece-form-details-panel.tsx');
 const detailedDoor = piece => {
   const html = renderToStaticMarkup(React.createElement(PieceFormDetailsPanel, { piece,
@@ -74,7 +63,20 @@ const detailedDoor = piece => {
 };
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
-for (const [name, describe] of tableCases) {
+for (const [name, Table] of tableCases) {
+  const describe = (piece, options) => {
+    const html = renderList(Table, piece, options);
+    return /<span>(French Door[^<]*)<\/span>/.exec(html)?.[1];
+  };
+  test(`${name}: Spanish localizes controls without translating even a mark or product named like a label`, () => {
+    const piece = { mark: 'Kitchen W1 – Precio', width: '40', height: '80', qty: 2, price: 150 };
+    const html = renderList(Table, piece, { locale: 'es', productName: 'Door' });
+    for (const text of ['Duplicar pieza', 'Editar pieza', 'Eliminar pieza', 'Identificador de la pieza', 'Kitchen W1 – Precio', 'Door - 40 ancho de la abertura x 80 altura - White']) {
+      assert.ok(html.includes(text), text);
+    }
+    assert.ok(renderList(Table, { ...piece, mark: 'Mark' }, { locale: 'es' }).includes('value="Mark"'));
+    assert.ok(renderList(Table, null, { locale: 'es' }).includes('Agrega la primera pieza a tu cotización'));
+  });
   test(`${name}: screenshot shows only supplied door width`, () => {
     const piece = { width: '55', height: '80', doorWidth: '39', doorHeight: null };
     const before = JSON.stringify(piece);
@@ -119,6 +121,21 @@ test('Expanded details omit absent or repeated door height consistently', () => 
 test('Expanded details retain differing height and height-only door dimensions', () => {
   assert.equal(detailedDoor({ height: '96', doorWidth: '39', doorHeight: '80' }), '39 W x 80 H');
   assert.equal(detailedDoor({ height: '96', doorHeight: '80' }), '80 H');
+});
+test('Spanish expanded labels preserve the exact product, brand, system and catalog options', () => {
+  const html = renderToStaticMarkup(React.createElement(PieceFormDetailsPanel, {
+    locale: 'es', piece: { idProd: 1, idSyst: 2, idCryst: 3, idConf: 4, idFC: 5, screen: true },
+    productsWithBrands: [{ id: 1, name: 'Single Hung' }],
+    systemsWithConfigs: [{ id: 2, name: 'System', brandProduct: { brand: { name: 'Eco Windows' } },
+      sysconfs: [{ idConfig: 4, config: { conf: 'Equal Lites' } }] }],
+    frameColors: [{ id: 5, color: 'Glass' }], crystals: [{ id: 3, glass: 'White Laminated' }],
+    tints: [], coatings: [], privacies: [], muntinPatterns: [], muntinTypes: [],
+  }));
+  for (const text of ['Detalles del producto', 'Producto:</strong> Single Hung', 'Marca:</strong> Eco Windows',
+    'Sistema:</strong> System', 'Configuración:</strong> Equal Lites', 'Color del marco:</strong> Glass',
+    'Vidrio:</strong> White Laminated', 'Mosquitero:</strong> Sí', 'Rendimiento energético: datos no disponibles']) {
+    assert.ok(html.includes(text), text);
+  }
 });
 let failed = 0;
 for (const { name, run } of tests) {

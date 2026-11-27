@@ -80,6 +80,7 @@ export type PieceDiagramSeries600MixedPiece =
     });
 
 interface SharedMaterialProps {
+  locale?: "en" | "es";
   highBottom?: boolean;
   frenchDoorDesignKey?: string | null;
   showHardware?: boolean;
@@ -812,6 +813,7 @@ function containerClass(variant: PieceDiagramVariant, className?: string) {
 }
 
 export function Series600MixedAssemblyDiagram({
+  locale = "en",
   highBottom,
   configuration,
   showHardware,
@@ -885,7 +887,7 @@ export function Series600MixedAssemblyDiagram({
         viewBox={`${-left} ${-top} ${layout.totalWidth + left + right} ${layout.height + top + bottom}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`French Door ${configuration}, ${formatDimension(layout.totalWidth)} by ${formatDimension(layout.height)} inches`}
+        aria-label={locale === "es" ? `French Door ${configuration}, ${formatDimension(layout.totalWidth)} por ${formatDimension(layout.height)} pulgadas` : `French Door ${configuration}, ${formatDimension(layout.totalWidth)} by ${formatDimension(layout.height)} inches`}
         style={{ backgroundColor: "transparent" }}
       >
         {layout.pieces.map((piece) => {
@@ -957,6 +959,7 @@ export function Series600MixedAssemblyDiagram({
 }
 
 export function PieceDiagram({
+  locale = "en",
   highBottom,
   diagramFamily = "FRENCH_DOOR",
   showHardware,
@@ -990,6 +993,7 @@ export function PieceDiagram({
     }
     return (
       <Series600MixedAssemblyDiagram
+        locale={locale}
         highBottom={highBottom}
         configuration={configuration as PieceDiagramSeries600MixedConfiguration}
         pieces={series600MixedPieces}
@@ -1103,7 +1107,7 @@ export function PieceDiagram({
         viewBox={`${-left} ${-top} ${width + left + right} ${height + top + bottom}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`French Door ${configuration}, ${formatDimension(width)} by ${formatDimension(height)} inches`}
+        aria-label={locale === "es" ? `French Door ${configuration}, ${formatDimension(width)} por ${formatDimension(height)} pulgadas` : `French Door ${configuration}, ${formatDimension(width)} by ${formatDimension(height)} inches`}
         style={{ backgroundColor: "transparent" }}
       >
         {product}

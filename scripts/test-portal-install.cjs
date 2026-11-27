@@ -337,9 +337,12 @@ test('login and menu buttons invoke the shared controller, do not submit forms a
   assert.equal(button.props.type, 'button'); button.props.onClick(); assert.equal(calls, 1);
   const menu = PortalInstallMenuItem({ onSelected: () => selections++ });
   assert.equal(menu.props.children.props.type, 'button'); menu.props.onSelect(); assert.equal(calls, 2); assert.equal(selections, 1);
+  assert.ok(menu.props.children.props.children.includes('Install app'));
+  assert.ok(PortalInstallMenuItem({ locale: 'es' }).props.children.props.children.includes('Instalar aplicación'));
   state.installing = true;
   const busyButton = PortalInstallButton({}).props.children[0], busyMenu = PortalInstallMenuItem({ onSelected: () => selections++ });
   assert.equal(busyButton.props.disabled, true); assert.equal(busyButton.props['aria-busy'], true); assert.equal(busyMenu.props.disabled, true);
+  assert.ok(PortalInstallMenuItem({ locale: 'es' }).props.children.props.children.includes('Instalando…'));
   busyButton.props.onClick(); busyMenu.props.onSelect(); assert.equal(calls, 2); assert.equal(selections, 1);
   state.visible = false; assert.equal(PortalInstallButton({}), null); assert.equal(PortalInstallMenuItem({}), null);
 });
@@ -434,7 +437,8 @@ test('worker headers permit only root script scope and force revalidation withou
 test('root layout mounts the portal once while technician metadata keeps its own manifest', () => {
   const layout = read('src/app/layout.tsx');
   assert.match(layout, /manifest:\s*["']\/manifest\.webmanifest["']/);
-  assert.equal((layout.match(/<PortalInstallProvider\b/g) ?? []).length, 1);
+  assert.equal((layout.match(/<SiteShell\b/g) ?? []).length, 1);
+  assert.equal((read('src/components/site-shell.tsx').match(/<PortalInstallProvider\b/g) ?? []).length, 1);
   assert.match(read('src/app/technician/layout.tsx'), /manifest:\s*["']\/technician\/manifest\.webmanifest["']/);
   assert.match(read('src/app/technician/install-app.tsx'), /register\("\/technician-sw\.js",\s*\{\s*scope:\s*"\/technician"/);
 });

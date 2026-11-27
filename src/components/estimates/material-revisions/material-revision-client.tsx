@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PieceModal } from "../piece-modal";
@@ -81,6 +82,8 @@ function Specifications({ input, catalogs }: { input: CreatePieceData; catalogs:
 }
 
 export function MaterialRevisionClient({ initialData, readOnly = false, ...catalogs }: Catalogs & { initialData: MaterialRevisionsData; readOnly?: boolean }) {
+  const { locale } = usePortalLanguage();
+  const spanish = locale === "es";
   const [data, setData] = useState(initialData);
   const [reason, setReason] = useState("");
   const [factoryConfirmed, setFactoryConfirmed] = useState(false);
@@ -96,6 +99,14 @@ export function MaterialRevisionClient({ initialData, readOnly = false, ...catal
   const latestEstimateId = useRef(initialData.estimateId);
   latestEstimateId.current = initialData.estimateId;
   const current = data.current;
+  const revisionId = current?.id;
+  const calculatePiece = useMemo<PieceFormProps["onCalculate"]>(() => {
+    if (!editor || revisionId == null) return undefined;
+    return values => calculateMaterialRevisionPiece(data.estimateId, revisionId, {
+      originalPieceId: editor.originalPieceId, itemKey: editor.itemKey,
+      piece: revisionPieceInput(values, catalogs.productsWithBrands),
+    });
+  }, [catalogs.productsWithBrands, data.estimateId, revisionId, editor]);
   const canEdit = Boolean(current?.canEdit && !readOnly);
   const canApprove = Boolean(current?.canApprove && !readOnly);
   const effectiveCustomer = data.customer ?? data.currentCustomer;
@@ -159,7 +170,7 @@ export function MaterialRevisionClient({ initialData, readOnly = false, ...catal
     if (!current || !editor || !canEdit) return;
     if (await update(() => saveMaterialRevisionPiece(data.estimateId, current.id, {
       originalPieceId: editor.originalPieceId, itemKey: editor.itemKey, piece: revisionPieceInput(values, catalogs.productsWithBrands),
-    }), "Piece saved in the revision. Original material remains unchanged.")) setEditor(null);
+    }), spanish ? "La pieza se guardó en la revisión. El material original se conserva." : "Piece saved in the revision. Original material remains unchanged.")) setEditor(null);
   };
   const saveCustomer = async () => {
     if (!current || !canEdit || !data.canEditCustomer || !effectiveCustomer || !customerDraft || !customerDirty) return;
@@ -247,8 +258,11 @@ export function MaterialRevisionClient({ initialData, readOnly = false, ...catal
     {data.history.length > 0 && <section className={`${panel} space-y-4`}><h2 className="text-xl font-semibold">Revision history</h2>{data.history.map(revision => <details key={revision.id} className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Revision {revision.version} · {statusText[revision.status]} · {date(revision.appliedAt ?? revision.closedAt ?? revision.createdAt)}</summary>
       <div className="mt-4 space-y-4"><p className="whitespace-pre-wrap text-sm">{revision.reason}</p><RevisionCustomerComparison before={revision.originalCustomer} after={revision.customer} />{revision.items.map(item => itemCard(item, false))}<Totals before={revision.original} after={revision.revised} dealerPricing={data.dealerPricing} /></div>
     </details>)}</section>}
-    {editor && current && canEdit && <PieceModal {...catalogs} open onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor.originalPieceId ? "Revise Piece" : "Add Piece to revision"} pieceKey={editor.key} initialData={editor.initialData} index={0} onSave={savePiece} onCancel={() => { if (!busy) setEditor(null); }} canUseCustomerPricing={data.dealerPricing} estimateId={data.estimateId} startUnlocked lockQuantity={!!editor.originalPieceId && !data.canChangeQuantity} lockDealerMarkup={!!editor.originalPieceId}
+    {editor && current && canEdit && <PieceModal {...catalogs} open locale={locale}
+      onOpenChange={open => { if (!open && !busy) setEditor(null); }}
+      title={editor.originalPieceId ? (spanish ? "Revisar pieza" : "Revise Piece") : (spanish ? "Agregar pieza a la revisión" : "Add Piece to revision")}
+      pieceKey={editor.key} initialData={editor.initialData} index={0} onSave={savePiece} onCancel={() => { if (!busy) setEditor(null); }} canUseCustomerPricing={data.dealerPricing} estimateId={data.estimateId} startUnlocked lockQuantity={!!editor.originalPieceId && !data.canChangeQuantity} lockDealerMarkup={!!editor.originalPieceId}
       existingDesignContext={editor.originalPieceId ? data.pieces.find(piece => piece.id === editor.originalPieceId)?.input : undefined}
-      onCalculate={values => calculateMaterialRevisionPiece(data.estimateId, current.id, { originalPieceId: editor.originalPieceId, itemKey: editor.itemKey, piece: revisionPieceInput(values, catalogs.productsWithBrands) })} />}
+      onCalculate={calculatePiece} />}
   </div>;
 }

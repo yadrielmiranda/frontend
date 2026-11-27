@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { InstallationQuote, InstallationQuoteLine } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
+import type { InstallationLineOrigin, InstallationQuote, InstallationQuoteLine } from "@/lib/types";
 import { formatMoney } from "@/lib/formatters";
 import { titleCase } from "@/lib/installation-flow";
 
@@ -11,15 +12,23 @@ const unitMoney = (value: number) =>
     maximumFractionDigits: 4,
   }).format(value);
 
-function measurements(line: InstallationQuoteLine) {
+const spanishOrigins: Record<InstallationLineOrigin, string> = {
+  AUTO: "Automático",
+  USER_SELECTED: "Seleccionado por el usuario",
+  FIELD_ADDED: "Agregado en obra",
+};
+
+function measurements(line: InstallationQuoteLine, locale: CompanyLocale) {
+  const spanish = locale === "es";
+  const inches = spanish ? "pulg." : "in";
   const parts: string[] = [];
-  if (line.widthIn != null) parts.push(`Width ${Number(line.widthIn)} in`);
-  if (line.heightIn != null) parts.push(`Height ${Number(line.heightIn)} in`);
+  if (line.widthIn != null) parts.push(`${spanish ? "Ancho" : "Width"} ${Number(line.widthIn)} ${inches}`);
+  if (line.heightIn != null) parts.push(`${spanish ? "Altura" : "Height"} ${Number(line.heightIn)} ${inches}`);
   if (line.areaSqFt != null)
-    parts.push(`Area ${Number(line.areaSqFt).toFixed(2)} sq ft`);
-  if (line.panelCount != null) parts.push(`${line.panelCount} panels`);
-  if (line.lengthIn != null) parts.push(`Length ${Number(line.lengthIn)} in`);
-  parts.push(`Quantity ${line.occurrences}`);
+    parts.push(`${spanish ? "Área" : "Area"} ${Number(line.areaSqFt).toFixed(2)} ${spanish ? "pies²" : "sq ft"}`);
+  if (line.panelCount != null) parts.push(spanish ? `Cantidad de paneles: ${line.panelCount}` : `${line.panelCount} panels`);
+  if (line.lengthIn != null) parts.push(`${spanish ? "Longitud" : "Length"} ${Number(line.lengthIn)} ${inches}`);
+  parts.push(`${spanish ? "Cantidad" : "Quantity"} ${line.occurrences}`);
   return parts.join(" · ");
 }
 
@@ -27,11 +36,14 @@ export function InstallationQuoteTable({
   quote,
   showInternal = false,
   renderAction,
+  locale = "en",
 }: {
   quote: InstallationQuote;
   showInternal?: boolean;
   renderAction?: (line: InstallationQuoteLine) => ReactNode;
+  locale?: CompanyLocale;
 }) {
+  const spanish = locale === "es";
   const additionalCharge = Number(
     quote.additionalInstallationCharge ??
       Math.max(
@@ -48,13 +60,15 @@ export function InstallationQuoteTable({
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
-            <th className="p-3">Service</th>
-            {showInternal && <th className="p-3">Origin</th>}
+            <th className="p-3">{spanish ? "Servicio" : "Service"}</th>
+            {showInternal && <th className="p-3">{spanish ? "Origen" : "Origin"}</th>}
             <th className="p-3 text-right">
-              {showInternal ? "Provider rate" : "Unit Price"}
+              {showInternal
+                ? (spanish ? "Tarifa del proveedor" : "Provider rate")
+                : (spanish ? "Precio unitario" : "Unit Price")}
             </th>
-            {showInternal && <th className="p-3 text-right">Profile rate</th>}
-            <th className="p-3 text-right">Qty</th>
+            {showInternal && <th className="p-3 text-right">{spanish ? "Tarifa del perfil" : "Profile rate"}</th>}
+            <th className="p-3 text-right">{spanish ? "Cantidad" : "Qty"}</th>
             <th className="p-3 text-right">Total</th>
             {renderAction && <th className="p-3" />}
           </tr>
@@ -71,7 +85,7 @@ export function InstallationQuoteTable({
                 )}
                 {showInternal && line.origin !== "AUTO" && (
                   <span className="block text-xs text-muted-foreground">
-                    {measurements(line)}
+                    {measurements(line, locale)}
                   </span>
                 )}
                 {line.description && (
@@ -81,7 +95,7 @@ export function InstallationQuoteTable({
                 )}
               </td>
               {showInternal && (
-                <td className="p-3">{titleCase(line.origin ?? "")}</td>
+                <td className="p-3">{spanish && line.origin ? spanishOrigins[line.origin] : titleCase(line.origin ?? "")}</td>
               )}
               <td className="p-3 text-right">
                 {showInternal
@@ -110,7 +124,7 @@ export function InstallationQuoteTable({
           ))}
           {!showInternal && additionalCharge >= 0.005 && (
             <tr className="border-t border-slate-200">
-              <td className="p-3 font-medium">Installation charge</td>
+              <td className="p-3 font-medium">{spanish ? "Cargo por instalación" : "Installation charge"}</td>
               <td className="p-3 text-right">
                 {formatMoney(additionalCharge)}
               </td>
@@ -121,7 +135,15 @@ export function InstallationQuoteTable({
               {renderAction && <td />}
             </tr>
           )}
-          {!showInternal && Number(quote.installationSurcharge ?? 0) > 0 && <tr className="border-t border-slate-200"><td className="p-3 font-medium">Installation surcharge</td><td className="p-3 text-right">{formatMoney(Number(quote.installationSurcharge))}</td><td className="p-3 text-right">1</td><td className="p-3 text-right font-medium">{formatMoney(Number(quote.installationSurcharge))}</td>{renderAction && <td />}</tr>}
+          {!showInternal && Number(quote.installationSurcharge ?? 0) > 0 && (
+            <tr className="border-t border-slate-200">
+              <td className="p-3 font-medium">{spanish ? "Recargo por instalación" : "Installation surcharge"}</td>
+              <td className="p-3 text-right">{formatMoney(Number(quote.installationSurcharge))}</td>
+              <td className="p-3 text-right">1</td>
+              <td className="p-3 text-right font-medium">{formatMoney(Number(quote.installationSurcharge))}</td>
+              {renderAction && <td />}
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

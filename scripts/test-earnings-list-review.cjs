@@ -10,7 +10,7 @@ const childrenOnly = ({ children }) => React.createElement(React.Fragment, null,
 const stub = new Proxy({}, { get: () => () => null });
 const ui = new Proxy({}, { get: () => childrenOnly });
 const actual = new Set([
-  'lib/rbac.ts', 'lib/formatters.ts', 'lib/estimate-status.ts', 'lib/order-po.ts',
+  'lib/rbac.ts', 'lib/formatters.ts', 'lib/estimate-status.ts', 'lib/order-po.ts', 'lib/estimate-action-language.ts',
   'components/estimates/estimate-cost-columns.tsx',
 ]);
 const mocks = {
@@ -34,7 +34,7 @@ function load(relative) {
   cache.set(filename, exported);
   new Function('require', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
-    if (id === 'react' || id === 'react/jsx-runtime') return require(id);
+    if (id === 'react' || id === 'react/jsx-runtime' || id === '@tanstack/react-table') return require(id);
     if (id.startsWith('@/components/ui/')) return ui;
     const resolved = id.startsWith('@/') ? path.join(sourceRoot, id.slice(2)) : path.resolve(path.dirname(filename), id);
     const name = path.relative(sourceRoot, resolved).split(path.sep).join('/');

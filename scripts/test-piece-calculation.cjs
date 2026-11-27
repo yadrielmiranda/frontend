@@ -22,11 +22,11 @@ function containsIdentifier(node, name) {
   return (ts.isIdentifier(node) && node.text === name)
     || Boolean(ts.forEachChild(node, child => containsIdentifier(child, name)));
 }
-function declaration(name, list = statements) {
+function declaration(name, list = statements, file = source) {
   const node = list.find(node => (ts.isFunctionDeclaration(node) && node.name?.text === name)
-    || (ts.isVariableStatement(node) && node.declarationList.declarations.some(d => d.name.getText(source) === name)));
+    || (ts.isVariableStatement(node) && node.declarationList.declarations.some(d => d.name.getText(file) === name)));
   assert.ok(node, `Real declaration ${name} exists`);
-  return node.getText(source);
+  return node.getText(file);
 }
 function jsxAttribute(tag, attr, predicate = () => true) {
   const found = [];
@@ -45,6 +45,18 @@ function jsxAttribute(tag, attr, predicate = () => true) {
 const submitDisabled = jsxAttribute("Button", "disabled", node => node.attributes.properties.some(prop =>
   ts.isJsxAttribute(prop) && prop.name.text === "type" && prop.initializer?.text === "submit"));
 const submitCallback = jsxAttribute("form", "onSubmit");
+let calculateLabel;
+function findCalculateLabel(node) {
+  if (ts.isJsxElement(node) && node.openingElement.tagName.getText(source) === "Button"
+    && node.openingElement.attributes.properties.some(prop => ts.isJsxAttribute(prop)
+      && prop.name.text === "onClick" && containsIdentifier(prop.initializer, "handleCalculate"))) {
+    calculateLabel = source.text.slice(node.openingElement.end, node.closingElement.getStart(source));
+  }
+  ts.forEachChild(node, findCalculateLabel);
+}
+findCalculateLabel(component);
+assert.ok(calculateLabel, "Calculate button is present");
+const calculateLabelCode = compile(`return (<> ${calculateLabel} </>);`);
 const horizontalInput = attribute => jsxAttribute("Input", attribute, node => containsIdentifier(node, "handleHorizontalHeightChange"));
 const horizontalInputValue = horizontalInput("value");
 const horizontalInputChange = horizontalInput("onChange");
@@ -64,6 +76,9 @@ function compile(code) {
   } }).outputText;
 }
 const handlerCode = compile([
+  declaration("t"), declaration("languageRef"),
+  ...statements.filter(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && node.expression.expression.getText(source) === "useLayoutEffect" && containsIdentifier(node, "languageRef")).map(node => node.getText(source)),
   declaration("withoutInactiveDimensions", source.statements),
   declaration("MIN_HORIZONTAL_HEIGHT_IN", source.statements),
   declaration("hasDoorDesign"), declaration("muntinAllowed"),
@@ -101,6 +116,7 @@ function loadPureModule(relative) {
 const dimensions = loadPureModule("../src/lib/dimensions.ts");
 const formatters = loadPureModule("../src/lib/formatters.ts");
 const energy = loadPureModule("../src/lib/energy-ratings.ts");
+const pieceLanguage = loadPureModule("../src/lib/piece-form-language.ts");
 const garageDesign = loadPureModule("../src/components/estimates/piece-garage-design.ts");
 const frameRestore = loadPureModule("../src/components/estimates/piece-frame-restore.ts");
 const doorDesign = loadPureModule("../src/lib/door-designs.ts");
@@ -173,10 +189,11 @@ function fixture(options = {}) {
     return pending.promise;
   };
   const props = { estimateId: 41, canUseCustomerPricing: true,
+    locale: options.locale ?? "en",
     estimateFrameColorId: options.estimateFrameColorId,
     onCalculate: options.revision ? calculateMock("revision") : undefined };
   const scope = {
-    ...dimensions, ...formatters, ...frameRestore, ...doorDesign, props, initialData: { ...initial, ...options.values },
+    ...dimensions, ...formatters, ...frameRestore, ...doorDesign, ...pieceLanguage, props, initialData: { ...initial, ...options.values },
     selectedSystem: options.designSystem ?? { systemFrameColors: [{ idFrameColor: 5, isDefault: true }] },
     availableFrameColors: options.frameColors ?? [{ id: 5, color: "Original" }, { id: 37, color: "Walnut" }],
     selectedConfigUnavailable: false, selectedCrystalUnavailable: false,
@@ -228,16 +245,23 @@ function fixture(options = {}) {
       piece: form.getValues(), system: options.designSystem, frameColors: options.frameColors ?? [{ id: 5 }, { id: 37 }] });
     state.designSelectionError ??= garageFrameSelection.error;
     const pieceValues = form.getValues();
-    handlers = evaluate(handlerCode, { ...scope, ...state, garageFrameSelection, pieceValues,
+    handlers = evaluate(handlerCode, { ...scope, ...state, locale: props.locale, garageFrameSelection, pieceValues,
       idProd: pieceValues.idProd, brandId: pieceValues.idBrand, systemId: pieceValues.idSyst, idConf: pieceValues.idConf,
       selectedSysConf: options.configs?.[pieceValues.idConf],
       hasSolidGarageDesign: state.designEnabled && garageDesign.pieceHasSolidGarageDesign(form.getValues(), options.designSystem),
     });
   };
+  function languageScope() {
+    return { ...pieceLanguage, locale: props.locale, t: text => pieceLanguage.pieceFormText(props.locale, text),
+      languageRef: { current: props.locale } };
+  }
   render();
   return {
     form, state, requests, prechecks, validations, validatedFields, writes, errors, successes, notices, submissions, props,
     calculate() { return handlers.calculate(); }, render,
+    calculateLabel() {
+      return renderToStaticMarkup(evaluate(calculateLabelCode, { ...languageScope(), require, exports: {}, Calculator: () => null })).trim();
+    },
     changeDesign(enabled, idDesign, idDesignColor, resetContext = false) { handlers.changeDesign(enabled, idDesign, idDesignColor, resetContext); render(); },
     changeDoorDesign(id) { handlers.changeDoorDesign(id); render(); },
     horizontalValue(index) { return evaluate(`return (${horizontalInputValue});`, { value: form.getValues("horizontalHeights")[index] }); },
@@ -246,7 +270,7 @@ function fixture(options = {}) {
       render();
     },
     blurHorizontal(index) {
-      evaluate(compile(`return (${horizontalInputBlur});`), { ...dimensions, heightIndex: index,
+      evaluate(compile(`return (${horizontalInputBlur});`), { ...dimensions, ...languageScope(), heightIndex: index,
         handleHorizontalHeightChange: handlers.handleHorizontalHeightChange, MIN_HORIZONTAL_HEIGHT_IN: 18, toast: scope.toast,
       })({ target: { value: this.horizontalValue(index) } });
       render();
@@ -266,6 +290,7 @@ function fixture(options = {}) {
     async reject(index) { requests[index].reject(new Error("Simulated calculation failure")); await flush(); },
     resultsHtml() {
       return renderToStaticMarkup(evaluate(energyResultsCode, {
+        ...languageScope(),
         pieceValues: form.getValues(), isLinearMaterial: Boolean(options.linear), index: 0,
         hasSolidGarageDesign: state.designEnabled && garageDesign.pieceHasSolidGarageDesign(form.getValues(), options.designSystem),
         formatEnergyValue: energy.formatEnergyValue, require, exports: {},
@@ -276,7 +301,7 @@ function fixture(options = {}) {
     async submit() {
       assert.equal(this.disabled(), false, "Submit must be enabled before clicking it");
       const callback = evaluate(compile(declaration("withoutInactiveDimensions", source.statements) + `\nreturn (${submitCallback});`),
-        { ...dimensions, handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
+        { ...dimensions, ...languageScope(), handleSubmit: form.handleSubmit, onSubmit: values => submissions.push(structuredClone(values)), dimensionRequirements: requirements,
           designSelectionError: state.designSelectionError, doorDesignError: handlers.doorDesignError, toast: scope.toast,
           validatePentagonLegHeight: handlers.validatePentagonLegHeight });
       await callback();
@@ -291,6 +316,104 @@ function fixture(options = {}) {
 
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
+
+test("the piece dialog and its form use the portal's language without a language control of their own", () => {
+  const pathToDialog = path.join(path.dirname(filename), "piece-modal.tsx");
+  const dialog = ts.createSourceFile(pathToDialog, fs.readFileSync(pathToDialog, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  for (const file of [dialog, source]) {
+    assert.equal(containsIdentifier(file, "PortalLanguageSwitch"), false);
+    assert.equal(containsIdentifier(file, "changeLanguage"), false);
+  }
+});
+
+// Exercise the editor handlers that actually open the modal and the props it passes to it.
+function editorDialogFixture(locale) {
+  const editorPath = path.join(path.dirname(filename), "estimate-form.tsx");
+  const editor = ts.createSourceFile(editorPath, fs.readFileSync(editorPath, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const body = editor.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === "EstimateForm").body;
+  let modal;
+  function visit(n) {
+    if (ts.isJsxSelfClosingElement(n) && n.tagName.getText(editor) === "PieceModal") modal = n;
+    ts.forEachChild(n, visit);
+  }
+  visit(body);
+  assert.ok(modal);
+  assert.ok(!modal.attributes.properties.some(p => p.name?.text === "languageSwitch"), "The piece dialog has no language selector");
+  const actions = ["handleAddNewPiece", "handleEditPiece", "handleDuplicatePiece"];
+  const props = ["open", "locale", "title", "pieceKey", "onCancel", "onOpenChange"];
+  const code = compile([
+    ...["spanish", "pieceKey", "modalTitle", "closePieceModal", ...actions].map(name => declaration(name, body.statements, editor)),
+    `return { ${actions.join(", ")}, ${props.map(name => {
+      const attr = modal.attributes.properties.find(p => p.name?.text === name);
+      return `${name}: ${attr.initializer.expression.getText(editor)}`;
+    }).join(", ")} };`,
+  ].join("\n"));
+  const scope = {
+    locale, pieceModalOpen: false, editingPieceIndex: null, editingPieceData: { mark: "New Piece" },
+    setPieceModalOpen: value => { scope.pieceModalOpen = value; },
+    setEditingPieceIndex: value => { scope.editingPieceIndex = value; },
+    setDuplicatingPieceData() {}, getValues: () => initial,
+    toast: { info() {} }, editorNotice: () => "",
+  };
+  return {
+    render: () => evaluate(code, scope),
+    changePortalLanguage(value) { scope.locale = value; },
+  };
+}
+
+for (const [action, id] of [["handleAddNewPiece", undefined], ["handleEditPiece", 7], ["handleDuplicatePiece", undefined]]) {
+  test(`${action} follows the portal language while open and preserves the draft and pending calculation`, async () => {
+    const dialog = editorDialogFixture("es");
+    dialog.render()[action](0);
+    const opened = dialog.render();
+    assert.equal(opened.open, true);
+    assert.equal(opened.locale, "es");
+    assert.equal(opened.title, id ? "Editar pieza - New Piece" : "Nueva pieza");
+    const f = fixture({ locale: opened.locale, values: { id, price: id ? 200 : 0 }, locked: Boolean(id) });
+    if (id) f.unlock();
+    await f.change("mark", id == null ? "W1 Cocina / My Door" : "Calculate");
+    await f.change("width", "38 1/8");
+    await f.change("height", "50 3/4");
+    const entered = structuredClone(f.form.getValues());
+    assert.equal(f.calculateLabel(), "Calcular");
+    assert.deepEqual(f.form.getValues(), entered);
+
+    const { done } = await f.start();
+    assert.deepEqual([f.requests[0].dto.width, f.requests[0].dto.height], ["38.125", "50.75"]);
+    const pendingDraft = structuredClone(f.form.getValues());
+    dialog.changePortalLanguage("en");
+    const stillOpen = dialog.render();
+    assert.equal(stillOpen.open, true);
+    assert.equal(stillOpen.pieceKey, opened.pieceKey);
+    assert.equal(stillOpen.title, id ? "Edit Piece - New Piece" : "New Piece");
+    assert.equal(stillOpen.locale, "en");
+    f.props.locale = stillOpen.locale; f.render();
+    assert.deepEqual(f.form.getValues(), pendingDraft);
+    await f.resolve(0, response(243.25)); await done;
+    assert.equal(f.successes.at(-1), "Piece calculated successfully.");
+    const calculated = structuredClone(f.form.getValues());
+    assert.equal(calculated.price, 243.25);
+    assert.equal(calculated.energySnapshot.uFactor, "1.053");
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.disabled(), false);
+    assert.deepEqual(f.form.getValues(), calculated);
+    await f.submit();
+    assert.equal(f.submissions.length, 1);
+    for (const name of ["mark", "idProd", "idBrand", "idSyst", "idConf", "idCryst", "width", "height", "price", "energySnapshot"]) {
+      assert.deepEqual(f.submissions[0][name], calculated[name], name);
+    }
+    assert.equal(f.submissions[0].mark, entered.mark);
+    f.unmount();
+    if (id) stillOpen.onOpenChange(false);
+    else stillOpen.onCancel();
+    assert.equal(dialog.render().open, false);
+    dialog.render()[action](0);
+    const reopened = dialog.render();
+    assert.equal(reopened.open, true);
+    assert.equal(reopened.locale, "en");
+    assert.equal(reopened.title, id ? "Edit Piece - New Piece" : "New Piece");
+  });
+}
 function assertNotApplied(f) {
   assert.equal(f.form.getValues("price"), 0, "Obsolete result must not set price");
   assert.equal(f.form.getValues("customerPrice"), 0, "Obsolete result must not set customer price");
@@ -526,8 +649,8 @@ test("horizontal blur normalizes both formats, and removal preserves the other d
 
 for (const [values, expectedError] of [
   [["33.1"], /1\/8/],
-  [["33 1/16"], /denominador/],
-  [["33 1/"], /inválido/],
+  [["33 1/16"], /denominator/],
+  [["33 1/"], /invalid value/],
   [[""], /greater than 0/],
   [["17 7/8"], /less than 18/],
   [["33 1/4", "51.125"], /less than 18/],

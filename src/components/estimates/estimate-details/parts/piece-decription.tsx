@@ -1,6 +1,8 @@
 "use client";
 
 import { EstimateWithRelations } from "@/lib/types";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceListText } from "../../piece-list-language";
 import { formatInchesFromEighthStep, formatPsf } from "@/lib/dimensions";
 import { buildEnergyDescription } from "@/lib/energy-ratings";
 import { garageDesignDescription, pieceFrameColor, pieceHasSolidGarageDesign } from "../../piece-garage-design";
@@ -43,22 +45,23 @@ function getMuntinPatternName(piece: PieceWithRelations): string | null {
   return null;
 }
 
-function buildGridLine(piece: PieceWithRelations): string {
+function buildGridLine(piece: PieceWithRelations, locale: CompanyLocale): string {
   const p = piece as any;
   const patternName = getMuntinPatternName(piece);
+  const label = locale === "es" ? pieceListText(locale)("Muntin Pattern") : "Grid";
 
   const muntin = p.pieceMuntin ?? p.muntin;
   const panels = Array.isArray(muntin?.panels) ? muntin.panels : [];
 
   if (!muntin) {
-    return "Grid: None";
+    return `${label}: ${locale === "es" ? "Ninguno" : "None"}`;
   }
 
   if (patternName) {
     const typeName = getOptionName(muntin.type);
     const patternDescription = typeName ? `${patternName} · ${typeName}` : patternName;
     if (panels.length === 0) {
-      return `Grid: ${patternDescription}`;
+      return `${label}: ${patternDescription}`;
     }
 
     const panelDetails = panels
@@ -78,11 +81,11 @@ function buildGridLine(piece: PieceWithRelations): string {
       .join(" | ");
 
     return panelDetails
-      ? `Grid: ${patternDescription} - ${panelDetails}`
-      : `Grid: ${patternDescription}`;
+      ? `${label}: ${patternDescription} - ${panelDetails}`
+      : `${label}: ${patternDescription}`;
   }
 
-  return "Grid: Yes";
+  return `${label}: ${pieceListText(locale)("Yes")}`;
 }
 
 export type PieceReportDetails = {
@@ -97,17 +100,21 @@ function formatOptionalDimension(value: unknown): string | null {
   return formatInchesFromEighthStep(value as string | number);
 }
 
-function buildSizeLabel(piece: PieceWithRelations): string {
+function buildSizeLabel(piece: PieceWithRelations, locale: CompanyLocale): string {
   const width = formatOptionalDimension(piece.width);
   const height = formatOptionalDimension(piece.height);
+  const unit = locale === "es" ? "pulg" : "in";
 
-  if (width && height) return `${width} x ${height} in`;
-  if (width) return `${width} in`;
-  if (height) return `${height} in`;
-  return "Not specified";
+  if (width && height) return `${width} x ${height} ${unit}`;
+  if (width) return `${width} ${unit}`;
+  if (height) return `${height} ${unit}`;
+  return locale === "es" ? "Sin especificar" : "Not specified";
 }
 
-function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
+function buildSpecialDimensionLines(piece: PieceWithRelations, locale: CompanyLocale): string[] {
+  const t = pieceListText(locale);
+  const es = locale === "es";
+  const unit = es ? "pulg" : "in";
   const lines: string[] = [];
   const dimensionParts: string[] = [];
   const heightLeft = formatOptionalDimension(piece.heightLeft);
@@ -116,11 +123,11 @@ function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
   const sashHeight = formatOptionalDimension(piece.sashHeight);
   const windowHeight = formatOptionalDimension(piece.windowHeight);
 
-  if (heightLeft) dimensionParts.push(`HL: ${heightLeft} in`);
-  if (heightRight) dimensionParts.push(`HR: ${heightRight} in`);
-  if (legHeight) dimensionParts.push(`Leg: ${legHeight} in`);
-  if (sashHeight) dimensionParts.push(`Sash: ${sashHeight} in`);
-  if (windowHeight) dimensionParts.push(`Window: ${windowHeight} in`);
+  if (heightLeft) dimensionParts.push(`${es ? t("Height Left") : "HL"}: ${heightLeft} ${unit}`);
+  if (heightRight) dimensionParts.push(`${es ? t("Height Right") : "HR"}: ${heightRight} ${unit}`);
+  if (legHeight) dimensionParts.push(`${es ? t("Leg Height") : "Leg"}: ${legHeight} ${unit}`);
+  if (sashHeight) dimensionParts.push(`${t("Sash")}: ${sashHeight} ${unit}`);
+  if (windowHeight) dimensionParts.push(`${es ? t("Window Height") : "Window"}: ${windowHeight} ${unit}`);
 
   if (dimensionParts.length > 0) {
     lines.push(dimensionParts.join(" | "));
@@ -130,7 +137,7 @@ function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
   const doorHeight = formatOptionalDimension(piece.doorHeight);
   if (doorWidth || doorHeight) {
     lines.push(
-      `Door: ${doorWidth ?? "?"}${doorHeight ? ` x ${doorHeight}` : ""} in`,
+      `${t("Door")}: ${doorWidth ?? "?"}${doorHeight ? ` x ${doorHeight}` : ""} ${unit}`,
     );
   }
 
@@ -138,20 +145,20 @@ function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
   const leftSideliteWidth = formatOptionalDimension(piece.leftSideliteWidth);
   const rightSideliteWidth = formatOptionalDimension(piece.rightSideliteWidth);
   if (leftSideliteWidth) {
-    sideliteParts.push(`Left Sidelite: ${leftSideliteWidth} in`);
+    sideliteParts.push(`${t("Left Sidelite")}: ${leftSideliteWidth} ${unit}`);
   }
   if (rightSideliteWidth) {
-    sideliteParts.push(`Right Sidelite: ${rightSideliteWidth} in`);
+    sideliteParts.push(`${t("Right Sidelite")}: ${rightSideliteWidth} ${unit}`);
   }
   if (sideliteParts.length > 0) lines.push(sideliteParts.join(" | "));
 
   const panelParts: string[] = [];
   if (piece.leftPanels != null)
-    panelParts.push(`Left Panels: ${piece.leftPanels}`);
+    panelParts.push(`${t("Left Panels")}: ${piece.leftPanels}`);
   if (piece.rightPanels != null) {
-    panelParts.push(`Right Panels: ${piece.rightPanels}`);
+    panelParts.push(`${t("Right Panels")}: ${piece.rightPanels}`);
   }
-  if (piece.panelCount != null) panelParts.push(`Panels: ${piece.panelCount}`);
+  if (piece.panelCount != null) panelParts.push(`${t("Panels")}: ${piece.panelCount}`);
   if (panelParts.length > 0) lines.push(panelParts.join(" | "));
 
   if (
@@ -159,8 +166,8 @@ function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
     piece.horizontalHeights.length > 0
   ) {
     lines.push(
-      `Horizontal Heights: ${piece.horizontalHeights
-        .map((value) => `${formatInchesFromEighthStep(value)} in`)
+      `${es ? t("Horizontal Positions") : "Horizontal Heights"}: ${piece.horizontalHeights
+        .map((value) => `${formatInchesFromEighthStep(value)} ${unit}`)
         .join(" | ")}`,
     );
   }
@@ -170,9 +177,12 @@ function buildSpecialDimensionLines(piece: PieceWithRelations): string[] {
 
 export function buildPieceReportDetails(
   piece: PieceWithRelations,
+  locale: CompanyLocale = "en",
 ): PieceReportDetails {
+  const t = pieceListText(locale);
+  const es = locale === "es";
   const p = piece as any;
-  const productName = piece.prod?.name?.trim() || "Product";
+  const productName = piece.prod?.name?.trim() || t("Product");
   const hasSolidDesign = pieceHasSolidGarageDesign(piece, piece.syst);
   const systemLine = [piece.bran?.name, piece.syst?.name]
     .filter(Boolean)
@@ -182,9 +192,9 @@ export function buildPieceReportDetails(
     getOptionName(p.actOpt) ??
     getOptionName(p.active);
   const summaryParts = [
-    piece.conf?.conf ? `Config: ${piece.conf.conf}` : null,
-    `Size: ${buildSizeLabel(piece)}`,
-    activeName ? `Active: ${activeName}` : null,
+    piece.conf?.conf ? `${es ? t("Configuration") : "Config"}: ${piece.conf.conf}` : null,
+    `${t("Size")}: ${buildSizeLabel(piece, locale)}`,
+    activeName ? `${t("Active")}: ${activeName}` : null,
   ].filter((value): value is string => Boolean(value));
 
   const glassTokens = [p.cryst?.glass, p.tin?.color, p.coat?.name].filter(
@@ -194,14 +204,14 @@ export function buildPieceReportDetails(
       value.trim().toLowerCase() !== "none",
   );
   const detailLines: string[] = [
-    `Frame Color: ${pieceFrameColor(piece, p.fColor, piece.syst).color?.trim() || "Not specified"}`,
+    `${t("Frame Color")}: ${pieceFrameColor(piece, p.fColor, piece.syst, locale).color?.trim() || (es ? "Sin especificar" : "Not specified")}`,
   ];
-  const designLine = garageDesignDescription(piece, piece.syst);
+  const designLine = garageDesignDescription(piece, piece.syst, locale);
   if (designLine) detailLines.push(designLine);
-  if (piece.doorDesignSnapshot) detailLines.push(`Door Design: ${piece.doorDesignSnapshot.code}`);
+  if (piece.doorDesignSnapshot) detailLines.push(`${t("Door Design")}: ${piece.doorDesignSnapshot.code}`);
 
   if (!hasSolidDesign && glassTokens.length > 0) {
-    detailLines.push(`Glass: ${glassTokens.join(" + ")}`);
+    detailLines.push(`${t("Glass")}: ${glassTokens.join(" + ")}`);
   }
 
   const preparationName =
@@ -212,20 +222,20 @@ export function buildPieceReportDetails(
   const reinforcementName =
     getOptionName(p.reinforcementOption) ?? getOptionName(p.reinforcement);
 
-  if (preparationName) detailLines.push(`Preparation: ${preparationName}`);
-  if (sillName) detailLines.push(`Sill: ${sillName}`);
+  if (preparationName) detailLines.push(`${t("Preparation")}: ${preparationName}`);
+  if (sillName) detailLines.push(`${t("Sill")}: ${sillName}`);
   if (reinforcementName) {
-    detailLines.push(`Reinforcement: ${reinforcementName}`);
+    detailLines.push(`${t("Reinforcement")}: ${reinforcementName}`);
   }
 
-  detailLines.push(...buildSpecialDimensionLines(piece));
+  detailLines.push(...buildSpecialDimensionLines(piece, locale));
 
   const optionParts = [
-    `Screen: ${piece.screen ? "Yes" : "No"}`,
-    buildGridLine(piece),
-    ...(!hasSolidDesign ? [`Privacy: ${piece.privacyOption?.name ?? "None"}`] : []),
+    `${t("Screen")}: ${piece.screen ? t("Yes") : "No"}`,
+    buildGridLine(piece, locale),
+    ...(!hasSolidDesign ? [`${t("Privacy")}: ${piece.privacyOption?.name ?? (es ? "Ninguna" : "None")}`] : []),
   ];
-  if (piece.highBottom) optionParts.push("High Bottom: Yes");
+  if (piece.highBottom) optionParts.push(`${t("High Bottom")}: ${t("Yes")}`);
   detailLines.push(optionParts.join(" | "));
 
   if (p.dpPosPsf != null && p.dpNegPsf != null) {
@@ -234,7 +244,7 @@ export function buildPieceReportDetails(
     );
   }
 
-  const energyLine = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, piece.prod?.kind);
+  const energyLine = hasSolidDesign ? null : buildEnergyDescription(piece.energySnapshot, piece.prod?.kind, locale);
   if (energyLine) detailLines.push(energyLine);
 
   return {
@@ -251,8 +261,9 @@ export function buildPieceReportDetails(
  */
 export function buildPieceDescriptionLines(
   piece: PieceWithRelations,
+  locale: CompanyLocale = "en",
 ): string[] {
-  const details = buildPieceReportDetails(piece);
+  const details = buildPieceReportDetails(piece, locale);
   return [
     details.productName,
     details.systemLine,

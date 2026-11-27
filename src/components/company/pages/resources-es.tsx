@@ -27,7 +27,7 @@ export function ResourcesEsContent() {
                 </Link>
               </h2>
               <p>
-                {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de hacer el pedido."}
+                {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de realizar la orden."}
               </p>
             </li>
             <li>

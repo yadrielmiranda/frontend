@@ -1,13 +1,14 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import type { CompanyLocale } from "@/components/company/company-content";
 import type { EstimateWithRelations } from "@/lib/types";
-import { formatDateEn } from "@/lib/formatters";
+import { formatDateEn, formatDateEs } from "@/lib/formatters";
 import {
   getReadableTextColor,
   normalizeBrandingColor,
 } from "@/lib/branding-color";
-import { getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
+import { estimateStatusLabel, getEstimateStatusBadgeAppearance } from "@/lib/estimate-status";
 import { isDealerRole } from "@/lib/rbac";
 import { customerCanSeePromotions } from "@/lib/estimate-customer-promotions";
 
@@ -58,16 +59,21 @@ export function EstimateReportShell({
   estimate,
   children,
   reportLabel,
+  locale = "en",
   internal = false,
   showExternalDealerPresentation = false,
 }: {
   estimate: EstimateWithRelations;
   children: ReactNode;
   reportLabel?: string;
+  locale?: CompanyLocale;
   internal?: boolean;
   showExternalDealerPresentation?: boolean;
 }) {
   const b = buildBrandingModel(estimate);
+  const es = locale === "es";
+  const formatDate = es ? formatDateEs : formatDateEn;
+  const generatedWith = es ? "Generada con Authentic Evolution" : "Generated with Authentic Evolution";
   const issuer = showExternalDealerPresentation
     ? estimate.externalDealerPresentation
     : null;
@@ -80,8 +86,8 @@ export function EstimateReportShell({
   );
   const validThrough = estimate.expiresAt
     ? estimate.promotionExpiresAt || hideDealerPromotions
-      ? new Date(estimate.expiresAt).toLocaleString("en-US")
-      : formatDateEn(estimate.expiresAt)
+      ? new Date(estimate.expiresAt).toLocaleString(es ? "es-US" : "en-US")
+      : formatDate(estimate.expiresAt)
     : null;
   const customerName = [estimate.customerFirstName, estimate.customerLastName]
     .filter(Boolean)
@@ -129,6 +135,7 @@ export function EstimateReportShell({
   return (
     <div
       id="printable-area"
+      lang={locale}
       style={reportStyle}
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white font-sans shadow-sm [print-color-adjust:exact] [-webkit-print-color-adjust:exact] print:rounded-none print:border-0 print:shadow-none"
       data-estimate-report={estimate.id}
@@ -137,10 +144,10 @@ export function EstimateReportShell({
         <header className="grid items-start gap-6 border-b border-slate-200 pb-6 lg:grid-cols-[1fr_auto_1fr]">
           <div>
             <h1 className="text-3xl font-black uppercase tracking-[0.08em] text-[var(--report-brand-color)] sm:text-4xl">
-              Estimate
+              {es ? "Cotización" : "Estimate"}
             </h1>
             <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-black">
-              Number
+              {es ? "Número" : "Number"}
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-3">
               <p className="text-xl font-bold text-[var(--report-brand-color)]">
@@ -150,14 +157,14 @@ export function EstimateReportShell({
                 <span
                   className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${statusAppearance.className}`}
                 >
-                  {statusAppearance.label}
+                  {estimateStatusLabel(statusAppearance.label, locale)}
                 </span>
               ) : null}
             </div>
 
             {internal && reportLabel ? (
               <span className="mt-3 inline-flex rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase text-white">
-                Internal - {reportLabel}
+                {es ? "Interno" : "Internal"} - {reportLabel}
               </span>
             ) : null}
           </div>
@@ -174,7 +181,7 @@ export function EstimateReportShell({
             ) : null}
             {issuer ? (
               <p className="mt-1 text-center text-[10px] text-slate-500">
-                Generated with Authentic Evolution
+                {generatedWith}
               </p>
             ) : null}
           </div>
@@ -188,7 +195,7 @@ export function EstimateReportShell({
               </h2>
             ) : null}
             {issuer ? (
-              <p className="mt-1 text-xs text-slate-500">Independent Distributor</p>
+              <p className="mt-1 text-xs text-slate-500">{es ? "Distribuidor independiente" : "Independent Distributor"}</p>
             ) : null}
             {headerPhone ? (
               <p className="mt-1 text-xs text-black">{headerPhone}</p>
@@ -208,13 +215,13 @@ export function EstimateReportShell({
         <section className="my-6 grid gap-5 rounded-xl border border-slate-200 bg-slate-50/70 px-5 py-4 md:grid-cols-[1.1fr_1.5fr_auto] md:items-center">
           <div>
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-black">
-              Prepared For
+              {es ? "Preparada para" : "Prepared For"}
             </h3>
             <p className="mt-1 text-lg font-bold text-[var(--report-brand-color)]">
               {preparedFor}
             </p>
             {projectName ? (
-              <p className="mt-1 text-xs text-black">Project: {projectName}</p>
+              <p className="mt-1 text-xs text-black">{es ? "Proyecto" : "Project"}: {projectName}</p>
             ) : null}
           </div>
 
@@ -227,16 +234,16 @@ export function EstimateReportShell({
           <div className="space-y-3 md:text-right">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wide text-black">
-                Date
+                {es ? "Fecha" : "Date"}
               </p>
               <p className="text-xs font-semibold text-[var(--report-brand-color)]">
-                {formatDateEn(estimate.date)}
+                {formatDate(estimate.date)}
               </p>
             </div>
             {validThrough && !termsPreservedAfterPayment ? (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-black">
-                  Valid Through
+                  {es ? "Válida hasta" : "Valid Through"}
                 </p>
                 <p className="text-xs font-semibold text-[var(--report-brand-color)]">
                   {validThrough}
@@ -254,10 +261,10 @@ export function EstimateReportShell({
           {issuer ? (
             <>
               <p className="mb-2 break-words text-slate-500">
-                This estimate is issued by {issuer.name}, an independent distributor.
+                {es ? `Esta cotización la emite ${issuer.name}, distribuidor independiente.` : `This estimate is issued by ${issuer.name}, an independent distributor.`}
               </p>
               <p className="border-t border-slate-200 py-3 text-slate-500">
-                Generated with Authentic Evolution |{" "}
+                {generatedWith} |{" "}
                 <a
                   href="http://www.authenticevolutionco.com"
                   className="underline underline-offset-2"
@@ -270,12 +277,12 @@ export function EstimateReportShell({
           <p>
             {termsPreservedAfterPayment
               ? hideDealerPromotions || !estimate.promotionLockedAt
-                ? "The agreed terms are preserved after payment."
-                : "The agreed promotion is preserved after payment."
+                ? (es ? "Las condiciones acordadas se mantienen después del pago." : "The agreed terms are preserved after payment.")
+                : (es ? "La promoción acordada se mantiene después del pago." : "The agreed promotion is preserved after payment.")
               : validThrough
-                ? `This estimate is valid through ${validThrough}.`
-                : "This estimate is valid for 30 days."}{" "}
-            Thank you for your business.
+                ? (es ? `Esta cotización es válida hasta el ${validThrough}.` : `This estimate is valid through ${validThrough}.`)
+                : (es ? "Esta cotización es válida por 30 días." : "This estimate is valid for 30 days.")}{" "}
+            {es ? "Gracias por su confianza." : "Thank you for your business."}
           </p>
         </footer>
       </div>

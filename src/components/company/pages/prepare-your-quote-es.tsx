@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
 export function PrepareYourQuoteEsContent() {
@@ -13,7 +13,7 @@ export function PrepareYourQuoteEsContent() {
             {"Cómo preparar una cotización de ventanas y puertas de impacto"}
           </h1>
           <p className="lead">
-            {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de hacer el pedido."}
+            {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de realizar la orden."}
           </p>
         </div>
       </header>
@@ -23,7 +23,7 @@ export function PrepareYourQuoteEsContent() {
             {"Identifica cada abertura"}
           </h2>
           <p>
-            {"Asigna un nombre a cada abertura, como Cocina 01 o Patio 02, y anota cuántas unidades necesitas. Indica el ancho y el alto aproximados con sus unidades y aclara si mediste el vano, el marco existente u otra referencia. Si es posible, toma una foto desde el interior y otra desde el exterior. Estas medidas sirven para la cotización inicial, no para fabricar."}
+            {"Asigna un nombre a cada abertura, como Cocina 01 o Patio 02, y anota cuántas unidades necesitas. Indica el ancho y el alto aproximados con sus unidades y aclara si mediste la abertura, el marco existente u otra referencia. Si es posible, toma una foto desde el interior y otra desde el exterior. Estas medidas sirven para la cotización inicial, no para fabricar."}
           </p>
         </div>
       </section>
@@ -49,9 +49,9 @@ export function PrepareYourQuoteEsContent() {
       </section>
       <section className="section" id="contact">
         <div className="wrap">
-          <Link href="/login/register" className="button">
+          <CompanyRegistrationLink className="button">
             {"Crea tu cuenta GRATIS"}
-          </Link>
+          </CompanyRegistrationLink>
           <div className="actions">
             <a href="mailto:sales@authenticevolutionco.com">
               {"Pide ayuda para preparar una cotización"}

@@ -5,10 +5,12 @@ import { Loader2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 
 interface InlinePieceMarkInputProps {
+  locale?: CompanyLocale;
   value: string | null | undefined;
   fallback: string;
   onSave: (mark: string) => Promise<boolean>;
@@ -16,6 +18,7 @@ interface InlinePieceMarkInputProps {
 }
 
 export function InlinePieceMarkInput({
+  locale = "en",
   value,
   fallback,
   onSave,
@@ -74,9 +77,9 @@ export function InlinePieceMarkInput({
         maxLength={PIECE_MARK_MAX_LENGTH}
         disabled={isSaving}
         placeholder={fallback}
-        aria-label="Piece mark"
+        aria-label={locale === "es" ? "Identificador de la pieza" : "Piece mark"}
         aria-busy={isSaving}
-        title={`Edit mark (maximum ${PIECE_MARK_MAX_LENGTH} characters)`}
+        title={locale === "es" ? `Editar identificador (máximo ${PIECE_MARK_MAX_LENGTH} caracteres)` : `Edit mark (maximum ${PIECE_MARK_MAX_LENGTH} characters)`}
         className={cn(
           "h-9 min-w-0 bg-white pr-8 font-semibold",
           isSaving && "text-slate-500",

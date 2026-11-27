@@ -1,0 +1,57 @@
+import type { CompanyLocale } from "@/components/company/company-content";
+
+const spanish = {
+  "Admin Report": "Informe del administrador",
+  "Dealer Report": "Informe del distribuidor",
+  "Customer Report": "Informe del cliente",
+  "Customer Detailed Prices": "Cliente · Precios detallados",
+  "Customer Project Total": "Cliente · Total del proyecto",
+  "Could not generate customer link.": "No se pudo generar el enlace del cliente.",
+  "Upload a contract in My Branding before including it.": "Sube un contrato a «Mi marca» para incluirlo.",
+  "The estimate owner has no contract available. Ask them to upload one in My Branding.": "Pídele al propietario de la cotización que suba un contrato a «Mi marca».",
+  "Customer link copied.": "Enlace del cliente copiado.",
+  "Enter valid recipient email addresses.": "Escribe direcciones de correo válidas.",
+  "Enter a valid SMS phone number with country code +1.": "Escribe un número válido para SMS con el código de país +1.",
+  "Estimate sent by email and SMS.": "Cotización enviada por correo y SMS.",
+  "Estimate SMS sent.": "Cotización enviada por SMS.",
+  "Estimate email sent.": "Cotización enviada por correo.",
+  "Could not send the estimate. Please try again.": "No se pudo enviar la cotización. Vuelve a intentarlo.",
+  "Back to Edit Estimate": "Volver a editar la cotización",
+  "Back to Estimates": "Volver a cotizaciones",
+  "Copying…": "Copiando…",
+  "Copy link": "Copiar enlace",
+  "Preparing…": "Preparando…",
+  "Close": "Cerrar",
+  "Cancel": "Cancelar",
+  "Sending…": "Enviando…",
+  "Send": "Enviar",
+  "Send estimate": "Enviar cotización",
+  "Send by": "Enviar por",
+  "To": "Para",
+  "Main email recipient.": "Destinatario principal del correo.",
+  "(optional)": "(opcional)",
+  "Mobile number": "Número de celular",
+  "Send the customer link to this number. SMS supports numbers with country code +1.": "El enlace se enviará por SMS a este número. Usa el código de país +1.",
+  "Customer link ready": "Enlace del cliente listo",
+  "Your link is ready. Copy it below to share the estimate.": "Copia el enlace para compartir la cotización.",
+  "Customer link": "Enlace del cliente",
+  "Select the link above and copy it manually.": "Selecciona el enlace y cópialo manualmente.",
+  "Estimate ready to share": "Cotización lista para compartir",
+  "Your customer link is ready.": "El enlace del cliente está listo.",
+  "Share estimate": "Compartir cotización",
+  "Upload contract": "Subir contrato",
+  "The estimate owner has no contract uploaded.": "El propietario de la cotización aún no ha subido un contrato.",
+  "Include contract": "Incluir contrato",
+  "Select report": "Seleccionar reporte",
+  "Share": "Compartir",
+  "Print / PDF": "Imprimir / PDF",
+  "Email": "Correo",
+  "Both": "Ambos"
+} as const;
+
+type ReportText = (english: keyof typeof spanish) => string;
+
+export const reportActionText: Record<CompanyLocale, ReportText> = {
+  en: english => english,
+  es: english => spanish[english],
+};

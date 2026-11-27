@@ -1,6 +1,24 @@
 "use client";
 
-export function OrderStatusBadge({ name }: { name?: string | null }) {
+import type { CompanyLocale } from "@/components/company/company-content";
+
+const spanishStatuses = new Map([
+  ["pending", "Pendiente"],
+  ["in production", "En producción"],
+  ["awaiting release", "Pendiente de liberación"],
+  ["preparing for pickup", "En preparación para recogida"],
+  ["ready to pick up", "Lista para recoger"],
+  ["picked up", "Recogida"],
+  ["delivered", "Entregada"],
+  ["installation in progress", "Instalación en curso"],
+  ["installed", "Instalada"],
+]);
+
+export function orderStatusLabel(name: string, locale: CompanyLocale) {
+  return locale === "es" ? spanishStatuses.get(name.toLowerCase().trim()) ?? name : name;
+}
+
+export function OrderStatusBadge({ name, locale = "en" }: { name?: string | null; locale?: CompanyLocale }) {
   const statusName = (name ?? "").trim();
 
   let colorClasses = "bg-gray-100 text-gray-800";
@@ -17,7 +35,7 @@ export function OrderStatusBadge({ name }: { name?: string | null }) {
 
   return (
     <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${colorClasses}`}>
-      {statusName || "—"}
+      {orderStatusLabel(statusName, locale) || "-"}
     </span>
   );
 }

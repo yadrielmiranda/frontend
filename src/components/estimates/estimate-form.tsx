@@ -36,6 +36,8 @@ import type {
 import { Button } from "@/components/ui/button";
 import { roundMoney } from "@/lib/formatters";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { editorNotice, type EditorNotice } from "@/lib/estimate-editor-language";
 import type { DeliveryProfileAddress } from "@/app/api/client-delivery.api";
 
 import type {
@@ -65,8 +67,6 @@ import { DuplicateEstimateButton } from "./duplicate-estimate-dialog";
 import { DealerCustomerChargesCard } from "./dealer-customer-charges-card";
 import { normalizePieceMark, PIECE_MARK_MAX_LENGTH } from "./piece-mark";
 import { canEditInstallationBeforePayment } from "@/lib/installation-flow";
-import { EnergyRefreshButton } from "./energy-refresh-button";
-import { mergePieceEnergySnapshots } from "@/lib/energy-ratings";
 
 function mapPieceMuntinToForm(
   piece: EstimateWithRelations["pieces"][number],
@@ -206,6 +206,10 @@ export function EstimateForm({
   muntinPatterns,
   muntinTypes,
 }: EstimateFormProps) {
+  const { locale } = usePortalLanguage();
+  const spanish = locale === "es";
+  const activeLocale = useRef(locale);
+  useEffect(() => { activeLocale.current = locale; }, [locale]);
   const [discountData, setDiscountData] = useState<Awaited<ReturnType<typeof getEstimateDiscount>>>({
     config: estimate?.manualDiscount ?? null,
     summary: estimate?.manualDiscountSummary ?? null,
@@ -280,7 +284,7 @@ export function EstimateForm({
     [coatings],
   );
 
-  const [isPieceModalOpen, setIsPieceModalOpen] = useState(false);
+  const [pieceModalOpen, setPieceModalOpen] = useState(false);
   const [editingPieceIndex, setEditingPieceIndex] = useState<number | null>(
     null,
   );
@@ -311,7 +315,6 @@ export function EstimateForm({
   const needsRecalculation = expiredPromotion || promotionEstimate?.status?.name === "Expired";
   const [isOpeningDetails, setIsOpeningDetails] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [isRefreshingEnergy, setIsRefreshingEnergy] = useState(false);
 
   const [showColorUpdateAlert, setShowColorUpdateAlert] = useState(false);
   const [pendingColorId, setPendingColorId] = useState<number | null>(null);
@@ -490,11 +493,7 @@ export function EstimateForm({
           return true;
         } catch (error) {
           setHeaderSaveState("error");
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : "Failed to save the Estimate details.",
-          );
+          toast.error(editorNotice(activeLocale.current, "Failed to save the Estimate details.", error));
 
           return false;
         }
@@ -555,7 +554,7 @@ export function EstimateForm({
   ]);
 
   const handleExit = async () => {
-    if (isExiting || isRefreshingEnergy) {
+    if (isExiting) {
       return;
     }
 
@@ -583,27 +582,6 @@ export function EstimateForm({
 
   const watchedPieces = useWatch({ control, name: "pieces" });
   const customerTaxRatePercent = useWatch({ control, name: "customerTaxRate" });
-
-  const canRefreshEnergy = Boolean(estimate?.id && !readOnly && !needsRecalculation &&
-    estimate.status?.name === "Active" && !estimate.order && !estimate.user?.networkSalesBlocked &&
-    !discountData.config?.lockedAt &&
-    !(estimate.payments ?? []).some(payment =>
-      ["PENDING", "PAID", "REFUNDED"].includes(payment.status) || payment.paidAt != null));
-  const prepareEnergyRefresh = async () => {
-    if (!canRefreshEnergy || isPieceModalOpen || isApplyingGeneralMarkupRef.current ||
-      isDeletingPieceRef.current || isApplyingBulkAttributeRef.current) return false;
-    await headerSaveQueueRef.current.catch(() => undefined);
-    return true;
-  };
-  const onEnergyRefreshed = (updated: EstimateWithRelations) => {
-    const current = getValues("pieces");
-    const merged = mergePieceEnergySnapshots(current, updated.pieces);
-    merged.forEach((piece, index) => {
-      if (piece === current[index]) return;
-      setValue(`pieces.${index}.energyRatingId`, piece.energyRatingId, { shouldDirty: false });
-      setValue(`pieces.${index}.energySnapshot`, piece.energySnapshot, { shouldDirty: false });
-    });
-  };
 
   const refreshAfterQuoteApproval = async () => {
     if (!estimate?.id) return;
@@ -687,14 +665,10 @@ export function EstimateForm({
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
       setPromotionEstimate(updatedEstimate);
 
-      toast.success("Estimate recalculated successfully.");
+      toast.success(editorNotice(activeLocale.current, "Estimate recalculated successfully."));
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to recalculate the Estimate.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to recalculate the Estimate.", error));
     } finally {
       setIsRecalculating(false);
     }
@@ -762,20 +736,20 @@ export function EstimateForm({
 
   const handleApplyBulkPieceAttribute = async (
     changes: ApplyBulkPieceAttributeData,
-    successMessage: string,
+    successMessage: EditorNotice,
   ): Promise<boolean> => {
     if (isApplyingBulkAttributeRef.current) {
       return false;
     }
 
     if (!estimate?.id) {
-      toast.error("The Estimate must be created before updating its pieces.");
+      toast.error(editorNotice(activeLocale.current, "The Estimate must be created before updating its pieces."));
 
       return false;
     }
 
     if (!fields.length) {
-      toast.error("Add at least one Piece before applying this update.");
+      toast.error(editorNotice(activeLocale.current, "Add at least one Piece before applying this update."));
 
       return false;
     }
@@ -806,13 +780,11 @@ export function EstimateForm({
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
       setPromotionEstimate(updatedEstimate);
 
-      toast.success(successMessage);
+      toast.success(editorNotice(activeLocale.current, successMessage));
 
       return true;
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update the Pieces.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to update the Pieces.", error));
 
       return false;
     } finally {
@@ -848,7 +820,7 @@ export function EstimateForm({
       {
         idTint: pendingTintId,
       },
-      "Tint updated and saved for all applicable Pieces.",
+      "Glass color saved for all applicable pieces.",
     );
 
     if (!applied) return;
@@ -927,7 +899,7 @@ export function EstimateForm({
     const generalMarkup = Number(value || 0);
 
     if (!Number.isFinite(generalMarkup) || generalMarkup < 0) {
-      toast.error("General Dealer Markup must be zero or greater.");
+      toast.error(editorNotice(activeLocale.current, "General Dealer Markup must be zero or greater."));
       return;
     }
 
@@ -964,13 +936,9 @@ export function EstimateForm({
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
       setPromotionEstimate(updatedEstimate);
 
-      toast.success("General Dealer Markup applied and saved successfully.");
+      toast.success(editorNotice(activeLocale.current, "General Dealer Markup applied and saved successfully."));
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to apply General Dealer Markup.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to apply General Dealer Markup.", error));
     } finally {
       isApplyingGeneralMarkupRef.current = false;
     }
@@ -1209,15 +1177,21 @@ export function EstimateForm({
     };
   };
 
+  const closePieceModal = () => {
+    setPieceModalOpen(false);
+    setEditingPieceIndex(null);
+    setDuplicatingPieceData(null);
+  };
+
   const handleAddNewPiece = () => {
     setEditingPieceIndex(null);
     setDuplicatingPieceData(null);
-    setIsPieceModalOpen(true);
+    setPieceModalOpen(true);
   };
 
   const handleEditPiece = (index: number) => {
     setEditingPieceIndex(index);
-    setIsPieceModalOpen(true);
+    setPieceModalOpen(true);
   };
 
   const handleDuplicatePiece = (index: number) => {
@@ -1249,9 +1223,9 @@ export function EstimateForm({
 
     setEditingPieceIndex(null);
     setDuplicatingPieceData(newPiece);
-    setIsPieceModalOpen(true);
+    setPieceModalOpen(true);
 
-    toast.info("Piece duplicated. Please enter a new mark and recalculate.");
+    toast.info(editorNotice(locale, "Piece duplicated. Please enter a new mark and recalculate."));
   };
 
   const handleSavePiece = async (data: PieceFormValues): Promise<void> => {
@@ -1264,9 +1238,7 @@ export function EstimateForm({
         append(data);
       }
 
-      setIsPieceModalOpen(false);
-      setEditingPieceIndex(null);
-      setDuplicatingPieceData(null);
+      closePieceModal();
       return;
     }
 
@@ -1281,7 +1253,7 @@ export function EstimateForm({
         const pieceId = Number(currentPiece?.id ?? data.id ?? 0);
 
         if (!pieceId) {
-          toast.error("The persisted Piece could not be identified.");
+          toast.error(editorNotice(activeLocale.current, "The persisted Piece could not be identified."));
           return;
         }
 
@@ -1291,11 +1263,11 @@ export function EstimateForm({
           payload,
         );
 
-        toast.success("Piece updated successfully.");
+        toast.success(editorNotice(activeLocale.current, "Piece updated successfully."));
       } else {
         updatedEstimate = await addEstimatePiece(estimate.id, payload);
 
-        toast.success("Piece added successfully.");
+        toast.success(editorNotice(activeLocale.current, "Piece added successfully."));
       }
 
       // reemplazamos las piezas locales con la fuente de verdad
@@ -1303,13 +1275,9 @@ export function EstimateForm({
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
       setPromotionEstimate(updatedEstimate);
 
-      setIsPieceModalOpen(false);
-      setEditingPieceIndex(null);
-      setDuplicatingPieceData(null);
+      closePieceModal();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save the Piece.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to save the Piece.", error));
 
       // no cerramos el modal cuando falla el backend.
     }
@@ -1322,14 +1290,14 @@ export function EstimateForm({
     const normalizedMark = normalizePieceMark(mark);
 
     if (normalizedMark.length > PIECE_MARK_MAX_LENGTH) {
-      toast.error(`Mark must be ${PIECE_MARK_MAX_LENGTH} characters or fewer.`);
+      toast.error(spanish ? `El identificador admite hasta ${PIECE_MARK_MAX_LENGTH} caracteres.` : `Mark must be ${PIECE_MARK_MAX_LENGTH} characters or fewer.`);
       return false;
     }
 
     const currentPiece = getValues(`pieces.${index}`);
 
     if (!currentPiece) {
-      toast.error("The Piece could not be found.");
+      toast.error(editorNotice(activeLocale.current, "The Piece could not be found."));
       return false;
     }
 
@@ -1359,15 +1327,13 @@ export function EstimateForm({
         normalizedMark,
       );
 
-      toast.success("Mark updated successfully.");
+      toast.success(editorNotice(activeLocale.current, "Mark updated successfully."));
       return true;
     } catch (error) {
       setValue(`pieces.${index}.mark`, previousMark, {
         shouldDirty: false,
       });
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update the Mark.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to update the Mark.", error));
       return false;
     }
   };
@@ -1378,7 +1344,7 @@ export function EstimateForm({
     const currentPiece = getValues(`pieces.${index}`);
 
     if (!currentPiece) {
-      toast.error("The Piece could not be found.");
+      toast.error(editorNotice(activeLocale.current, "The Piece could not be found."));
       return;
     }
     // fallback para cualquier flujo antiguo no persistido.
@@ -1398,11 +1364,9 @@ export function EstimateForm({
       replace(updatedEstimate.pieces.map(mapEstimatePieceToForm));
       setPromotionEstimate(updatedEstimate);
 
-      toast.success("Piece deleted successfully.");
+      toast.success(editorNotice(activeLocale.current, "Piece deleted successfully."));
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete the Piece.",
-      );
+      toast.error(editorNotice(activeLocale.current, "Failed to delete the Piece.", error));
     } finally {
       isDeletingPieceRef.current = false;
     }
@@ -1515,8 +1479,8 @@ export function EstimateForm({
 
   const modalTitle =
     editingPieceIndex !== null
-      ? `Edit Piece - ${editingPieceData.mark || `#${editingPieceIndex + 1}`}`
-      : "New Piece";
+      ? `${spanish ? "Editar pieza" : "Edit Piece"} - ${editingPieceData.mark || `#${editingPieceIndex + 1}`}`
+      : spanish ? "Nueva pieza" : "New Piece";
 
   const pieceKey = editingPieceIndex ?? "new";
   const pieceIndex = editingPieceIndex ?? fields.length;
@@ -1578,13 +1542,13 @@ export function EstimateForm({
     <>
       <div className="min-w-0 space-y-6 sm:space-y-8">
         {isEditMode && estimate && (
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10">
+          <div lang={locale} className="flex flex-wrap items-center justify-end gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10">
             <Button
               type="button"
               variant="outline"
               className="group gap-2 border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900"
               onClick={() => void handleViewDetails()}
-              disabled={isOpeningDetails || isRecalculating || isExiting || isRefreshingEnergy}
+              disabled={isOpeningDetails || isRecalculating || isExiting}
             >
               {isOpeningDetails ? (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
@@ -1593,7 +1557,7 @@ export function EstimateForm({
                   <Eye className="h-3.5 w-3.5" />
                 </span>
               )}
-              {isOpeningDetails ? "Opening..." : "View Details"}
+              {isOpeningDetails ? (spanish ? "Abriendo..." : "Opening...") : (spanish ? "Ver detalles" : "View Details")}
             </Button>
 
             <Button
@@ -1601,12 +1565,12 @@ export function EstimateForm({
               variant="blue"
               onClick={() => void handleRecalculateEstimate()}
               disabled={
-                readOnly || isRecalculating || isOpeningDetails || isExiting || isRefreshingEnergy || estimate?.user?.networkSalesBlocked
+                readOnly || isRecalculating || isOpeningDetails || isExiting || estimate?.user?.networkSalesBlocked
               }
               title={
                 readOnly
-                  ? "Recalculation is unavailable while this Estimate is locked."
-                  : "Recalculate every Piece using the current pricing rules."
+                  ? (spanish ? "La cotización está bloqueada para recalcular." : "Recalculation is unavailable while this Estimate is locked.")
+                  : (spanish ? "Recalcula todas las piezas con los precios vigentes." : "Recalculate every Piece using the current pricing rules.")
               }
             >
               {isRecalculating ? (
@@ -1614,9 +1578,10 @@ export function EstimateForm({
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              {isRecalculating ? "Recalculating..." : "Recalculate"}
+              {isRecalculating ? (spanish ? "Recalculando..." : "Recalculating...") : (spanish ? "Recalcular" : "Recalculate")}
             </Button>
             <DuplicateEstimateButton
+              locale={locale}
               estimate={{
                 ...(promotionEstimate ?? estimate),
                 installationJob: financialInstallation
@@ -1626,30 +1591,31 @@ export function EstimateForm({
               actor={user}
               iconOnly
               beforeOpen={prepareEstimateDuplication}
-              disabled={isOpeningDetails || isRecalculating || isExiting || isRefreshingEnergy || isApplyingBulkAttribute || isInstallationRequestEditing || discountDirty || discountLoading}
+              disabled={isOpeningDetails || isRecalculating || isExiting || isApplyingBulkAttribute || isInstallationRequestEditing || discountDirty || discountLoading}
             />
           </div>
         )}
 
-        <PromotionBanner estimate={promotionEstimate} />
+        <PromotionBanner locale={locale} estimate={promotionEstimate} />
         {readOnly && estimate?.status?.name !== "Pending order review" && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div lang={locale} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             {depositWaived
-              ? "This installation is locked after payment starts or while a revision is in progress."
-              : "This estimate is read-only. Use a revision to request changes. Existing payments stay credited."}
+              ? (spanish ? "La instalación se bloquea al comenzar los pagos o durante una revisión." : "This installation is locked after payment starts or while a revision is in progress.")
+              : (spanish ? "Esta cotización es de solo lectura. Solicita los cambios mediante una revisión. Los pagos realizados siguen acreditados." : "This estimate is read-only. Use a revision to request changes. Existing payments stay credited.")}
           </div>
         )}
 
         <div
-          className="min-w-0 space-y-6 sm:space-y-8"
+          lang={locale} className="min-w-0 space-y-6 sm:space-y-8"
         >
           <div className="min-w-0 rounded-lg border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
             <h3 className="mb-4 border-l-4 border-red-600 pl-3 text-xl font-semibold sm:mb-6">
-              Details
+              {spanish ? "Detalles" : "Details"}
             </h3>
 
-            <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy}>
+            <fieldset disabled={readOnly || needsRecalculation}>
             <EstimateDetailsLeft
+              locale={locale}
               isEditMode={isEditMode}
               estimateNumber={estimate?.number}
               canUseCustomerPricing={canUseCustomerPricing}
@@ -1683,9 +1649,10 @@ export function EstimateForm({
             </fieldset>
 
             {canUseCustomerPricing && (
-              <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="mt-6 min-w-0"
+              <fieldset disabled={readOnly || needsRecalculation} className="mt-6 min-w-0"
                 onBlur={() => { void flushEstimateHeaderAutosave(); }}>
                 <CustomerDetailsCard
+                  locale={locale}
                   register={register}
                   control={control}
                   setValue={setValue}
@@ -1698,31 +1665,21 @@ export function EstimateForm({
             )}
           </div>
 
-          <EstimateProductApprovals pieces={watchedPieces ?? []} />
+          <EstimateProductApprovals locale={locale} pieces={watchedPieces ?? []} />
 
           {estimate?.id && <EstimateInternalNote estimateId={estimate.id} userRole={role} />}
 
-          <fieldset disabled={readOnly || needsRecalculation || isRefreshingEnergy} className="min-w-0 space-y-4">
+          <fieldset disabled={readOnly || needsRecalculation} className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold">Pieces</h3>
-              <div className="flex flex-wrap gap-2">
-              {canRefreshEnergy && estimate && <EnergyRefreshButton
-                estimateId={estimate.id}
-                beforeRefresh={prepareEnergyRefresh}
-                onBusyChange={setIsRefreshingEnergy}
-                onRefreshed={onEnergyRefreshed}
-                disabled={isOpeningDetails || isRecalculating || isExiting || isApplyingBulkAttribute ||
-                  isPieceModalOpen || showColorUpdateAlert || showTintUpdateAlert || showCoatingUpdateAlert ||
-                  isInstallationRequestEditing || customerChargesBusy || discountDirty || discountLoading || discountError}
-              />}
+              <h3 className="text-xl font-semibold">{spanish ? "Piezas" : "Pieces"}</h3>
               <Button type="button" variant="green" onClick={handleAddNewPiece}>
-                + Add Piece
+                {spanish ? "+ Agregar pieza" : "+ Add Piece"}
               </Button>
-              </div>
             </div>
 
             {canUseCustomerPricing ? (
               <PiecesDealerTable
+                locale={locale}
                 fields={fields as any}
                 watchedPieces={watchedPieces}
                 productsWithBrands={productsWithBrands}
@@ -1742,6 +1699,7 @@ export function EstimateForm({
               />
             ) : (
               <PiecesClientList
+                locale={locale}
                 fields={fields as any}
                 watchedPieces={watchedPieces}
                 productsWithBrands={productsWithBrands}
@@ -1765,6 +1723,7 @@ export function EstimateForm({
 
         {isEditMode && estimate && currentUserId && (
           <InstallationEstimatePanel
+            locale={locale}
             networkPaymentBlocked={estimate.networkPaymentBlocked}
             estimateId={estimate.id}
             estimateOwnerId={estimate.idUser}
@@ -1783,7 +1742,7 @@ export function EstimateForm({
             isAdmin={isAdminRole(role)}
             canAssist={estimate.dealerNetwork?.canAssist}
             allowAdditionalServiceNotes={isDealerRole(ownerRole)}
-            companyName={estimate.companyBranding?.name?.trim() || "Company"}
+            companyName={estimate.companyBranding?.name?.trim() || (spanish ? "la empresa" : "Company")}
             refreshKey={installationRefreshKey}
             beforeRequest={saveEstimateHeader}
             onJobChange={setFinancialInstallation}
@@ -1823,6 +1782,7 @@ export function EstimateForm({
           )}
 
         <EstimateFinancialSummary
+          locale={locale}
           isAdmin={isAdminRole(role)}
           networkProfitBreakdown={discountData.networkProfitBreakdown}
           manualDiscount={discountData.summary}
@@ -1877,8 +1837,13 @@ export function EstimateForm({
             cardSurchargeFraction={cardSurchargeFraction}
             beforePayment={saveEstimateHeader}
             paymentBlockedReason={
-              customerChargesBusy ? "Updating customer charges and payment totals…" : discountDirty ? "Save or discard the additional discount changes before payment." : discountLoading ? "Updating estimate totals…" : discountError ? "Could not refresh estimate totals. Reload to continue." : needsRecalculation ? "This promotion or estimate has expired. Recalculate to continue." : isInstallationRequestEditing
-                ? "Finish or cancel the installation calculation to continue to payment."
+              customerChargesBusy ? (spanish ? "Actualizando los cargos del cliente y los totales de pago…" : "Updating customer charges and payment totals…")
+                : discountDirty ? (spanish ? "Guarda o descarta los cambios del descuento adicional antes de pagar." : "Save or discard the additional discount changes before payment.")
+                : discountLoading ? (spanish ? "Actualizando los totales de la cotización…" : "Updating estimate totals…")
+                : discountError ? (spanish ? "No se pudieron actualizar los totales de la cotización. Recarga la página para continuar." : "Could not refresh estimate totals. Reload to continue.")
+                : needsRecalculation ? (spanish ? "La promoción o la cotización venció. Vuelve a calcularla para continuar." : "This promotion or estimate has expired. Recalculate to continue.")
+                : isInstallationRequestEditing
+                ? (spanish ? "Completa o cancela el cálculo de la instalación para continuar con el pago." : "Finish or cancel the installation calculation to continue to payment.")
                 : undefined
             }
             canRecordManualPayment={
@@ -1890,40 +1855,31 @@ export function EstimateForm({
           />
         )}
 
-        <div className="flex justify-end mt-8">
+        <div lang={locale} className="flex justify-end mt-8">
           <Button
             type="button"
             variant="outline"
             onClick={() => void handleExit()}
-            disabled={isExiting || isRefreshingEnergy}
+            disabled={isExiting}
           >
             {isExiting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 
-            {isExiting ? "Saving..." : "Exit"}
+            {isExiting ? (spanish ? "Guardando..." : "Saving...") : (spanish ? "Salir" : "Exit")}
           </Button>
         </div>
       </div>
 
       <PieceModal
-        open={isPieceModalOpen}
-        onOpenChange={(open) => {
-          setIsPieceModalOpen(open);
-          if (!open) {
-            setEditingPieceIndex(null);
-            setDuplicatingPieceData(null);
-          }
-        }}
+        locale={locale}
+        open={pieceModalOpen}
+        onOpenChange={open => { if (!open) closePieceModal(); }}
         title={modalTitle}
         pieceKey={pieceKey}
         initialData={editingPieceData}
         index={pieceIndex}
         startUnlocked={editingPieceIndex !== null}
         onSave={handleSavePiece}
-        onCancel={() => {
-          setIsPieceModalOpen(false);
-          setEditingPieceIndex(null);
-          setDuplicatingPieceData(null);
-        }}
+        onCancel={closePieceModal}
         productsWithBrands={productsWithBrands}
         systemsWithConfigs={systemsForPieceModal}
         frameColors={frameColors}
@@ -1939,6 +1895,7 @@ export function EstimateForm({
       />
 
       <ColorUpdateAlertDialog
+        locale={locale}
         open={showColorUpdateAlert}
         onOpenChange={setShowColorUpdateAlert}
         onCancel={handleCancelColorChange}
@@ -1948,10 +1905,9 @@ export function EstimateForm({
       />
 
       <ColorUpdateAlertDialog
+        locale={locale} attribute="tint"
         open={showTintUpdateAlert}
         onOpenChange={setShowTintUpdateAlert}
-        title="Update Tint?"
-        description="You have changed the default tint. Do you want to apply this new tint to all existing pieces in this estimate?"
         onCancel={handleCancelTintChange}
         onNewPiecesOnly={setNewTintForFuturePieces}
         onUpdateAll={updateAllPiecesTint}
@@ -1959,10 +1915,9 @@ export function EstimateForm({
       />
 
       <ColorUpdateAlertDialog
+        locale={locale} attribute="coating"
         open={showCoatingUpdateAlert}
         onOpenChange={setShowCoatingUpdateAlert}
-        title="Update Coating?"
-        description="You have changed the default coating. Do you want to apply this new coating to all existing pieces in this estimate?"
         onCancel={handleCancelCoatingChange}
         onNewPiecesOnly={setNewCoatingForFuturePieces}
         onUpdateAll={updateAllPiecesCoating}

@@ -91,6 +91,11 @@ const fields = { index: 0, allowed: true, enabled: true, locked: false, retained
   idDesign: 21, idDesignColor: 31, options: system.designOptions, selected: selection.pieceGarageDesign(piece, system),
   error: null, onToggle() {}, onDesignChange() {}, onColorChange() {} };
 let html = renderToStaticMarkup(React.createElement(GarageDesignFields, fields));
+const spanishFields = renderToStaticMarkup(React.createElement(GarageDesignFields, { ...fields, locale: 'es' }));
+assert.match(spanishFields, /Agregar diseño/);
+assert.match(spanishFields, /Color del diseño/);
+assert.match(spanishFields, /<option value="31" selected="">Walnut/);
+assert.match(spanishFields, /Original horizontal/);
 assert.match(html, /Add design/); assert.match(html, /Design Color/); assert.match(html, /Walnut/); assert.match(html, /White/);
 assert.match(html, /src="\/old.jpg"/); assert.match(html, /Original walnut color swatch/);
 assert.match(html, /background-color:#614126/); assert.equal((html.match(/<img /g) ?? []).length, 1);
@@ -232,7 +237,8 @@ for (const scenario of muntinCases) {
 }
 let duplicate;
 evaluateDeclaration('components/estimates/estimate-form.tsx', 'handleDuplicatePiece', { getValues: () => ({ ...piece, frameColorBeforeDesignId: 73 }),
-  setEditingPieceIndex() {}, setDuplicatingPieceData: value => { duplicate = value; }, setIsPieceModalOpen() {}, toast: { info() {} },
+  setEditingPieceIndex() {}, setDuplicatingPieceData: value => { duplicate = value; }, setPieceModalOpen() {}, toast: { info() {} },
+  editorNotice: load('lib/estimate-editor-language.ts').editorNotice, locale: 'en',
 })(0);
 assert.equal(duplicate.id, undefined); assert.equal(duplicate.idDesign, 21); assert.equal(duplicate.idDesignColor, 31);
 assert.equal(duplicate.designSnapshot, null); assert.equal(duplicate.price, 0);

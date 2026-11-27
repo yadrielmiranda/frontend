@@ -1,27 +1,32 @@
+import type { CompanyLocale } from "@/components/company/company-content";
+import { summaryText } from "@/lib/estimate-financial-language";
 import type { DealerEarningsSummary } from "@/lib/dealer-earnings";
 import { formatMoney, roundMoney } from "@/lib/formatters";
 
 export function DealerEarningsSummaryCard({
+  locale = "en",
   earnings,
   pendingChanges = false,
   label,
   serviceProfit,
 }: {
+  locale?: CompanyLocale;
   earnings?: DealerEarningsSummary | null;
   pendingChanges?: boolean;
   label?: string;
   serviceProfit?: number | null;
 }) {
+  const t = summaryText(locale);
   const combined = serviceProfit !== undefined;
-  const heading = label ?? (combined ? "Dealer Profit" : "Dealer material earnings");
+  const heading = label ?? (combined ? t("Dealer Profit") : t("Dealer material earnings"));
   const amount = pendingChanges ? null : earnings?.amount;
   const pendingMessage = pendingChanges
-    ? "Earnings update after changes are saved and approved."
+    ? t("Earnings update after changes are saved and approved.")
     : earnings?.status === "PENDING_COST"
-      ? "Earnings pending confirmation"
+      ? t("Earnings pending confirmation")
       : earnings?.status === "PENDING_REAL_COST"
-        ? "Pending real factory cost"
-        : "Earnings unavailable. Refresh the estimate to try again.";
+        ? t("Pending real factory cost")
+        : t("Earnings unavailable. Refresh the estimate to try again.");
 
   const total = amount != null && (!combined || serviceProfit != null)
     ? roundMoney(Number(amount) + (serviceProfit ?? 0)) : null;
@@ -33,15 +38,15 @@ export function DealerEarningsSummaryCard({
           <span className={`text-xl font-bold tabular-nums ${total < 0 ? "text-red-700" : "text-emerald-800"}`}>
             {formatMoney(total)}
           </span>
-        ) : <span className="text-sm font-medium text-amber-800">{combined ? "Profit pending confirmation" : pendingMessage}</span>}
+        ) : <span className="text-sm font-medium text-amber-800">{combined ? t("Profit pending confirmation") : pendingMessage}</span>}
       </div>
       {combined && <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-2 text-sm text-emerald-900">
-        <span>Material: <strong className={amount == null ? "text-amber-800" : Number(amount) < 0 ? "text-red-700" : undefined}>{amount == null ? "Pending" : formatMoney(Number(amount))}</strong></span>
+        <span>{t("Material")}: <strong className={amount == null ? "text-amber-800" : Number(amount) < 0 ? "text-red-700" : undefined}>{amount == null ? t("Pending") : formatMoney(Number(amount))}</strong></span>
         <span aria-hidden="true" className="text-emerald-700">+</span>
-        <span>Installation &amp; services: <strong className={serviceProfit == null ? "text-amber-800" : serviceProfit < 0 ? "text-red-700" : undefined}>{serviceProfit == null ? "Pending" : formatMoney(serviceProfit)}</strong></span>
+        <span>{t("Installation & services")}: <strong className={serviceProfit == null ? "text-amber-800" : serviceProfit < 0 ? "text-red-700" : undefined}>{serviceProfit == null ? t("Pending") : formatMoney(serviceProfit)}</strong></span>
       </div>}
       {combined && amount == null && <p className="mt-2 text-xs text-amber-800">{pendingMessage}</p>}
-      <p className="mt-2 text-xs text-emerald-800">{combined ? "Sales tax excluded. Installation & services shown before card processing fees." : "Sales tax, installation and services excluded."}</p>
+      <p className="mt-2 text-xs text-emerald-800">{combined ? t("Sales tax excluded. Installation & services shown before card processing fees.") : t("Sales tax, installation and services excluded.")}</p>
     </section>
   );
 }

@@ -29,26 +29,36 @@ import { logoutUser } from "@/app/api/auth/me/auth.api";
 import { isDealerRole } from "@/lib/rbac";
 import { navigateAfterSessionChange } from "@/lib/auth-session";
 import { PortalInstallMenuItem } from "@/components/pwa/portal-install-button";
+import type { CompanyLocale } from "@/components/company/company-content";
 
-export function UserDropdown() {
+const accountCopy = {
+  en: {
+    signIn: "Sign in", account: "Account", accountMenu: "Account menu", loading: "Loading...",
+    profile: "Profile", branding: "My Branding", referrals: "My referrals", logOut: "Log out",
+    signInPrompt: "Sign in to access your workspace.",
+  },
+  es: {
+    signIn: "Iniciar sesión", account: "Cuenta", accountMenu: "Menú de cuenta", loading: "Cargando…",
+    profile: "Perfil", branding: "Mi marca", referrals: "Mis referidos", logOut: "Cerrar sesión",
+    signInPrompt: "Inicia sesión para acceder a tu espacio de trabajo.",
+  },
+};
+
+const spanishRoles = new Map([
+  ["admin", "Administrador"], ["operator", "Operador"], ["dealer", "Distribuidor"],
+  ["client", "Cliente"], ["technician", "Técnico"],
+]);
+
+export function UserDropdown({ locale }: { locale: CompanyLocale }) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const { openLoginDialog } = useLoginDialog();
   const router = useRouter();
-
+  const copy = accountCopy[locale];
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const displayName = useMemo(() => {
-    if (!user) return "Sign in";
-
-    const fullName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
-
-    return fullName || user.username || user.email || "Account";
-  }, [user]);
-
-  const triggerName = useMemo(() => {
-    if (!user) return "Sign in";
-    return user.username || user.firstName || "Account";
-  }, [user]);
+  const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+  const displayName = fullName || user?.username || user?.email || copy.account;
+  const triggerName = user?.username || user?.firstName || copy.account;
 
   const initials = useMemo(() => {
     if (!user) return "U";
@@ -89,7 +99,7 @@ export function UserDropdown() {
         className="text-white/70 hover:bg-white/10 hover:text-white"
       >
         <User className="h-4 w-4 animate-spin" />
-        <span className="ml-1">Loading...</span>
+        <span className="ml-1">{copy.loading}</span>
       </Button>
     );
   }
@@ -99,9 +109,10 @@ export function UserDropdown() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
+          aria-label={isAuthenticated ? `${copy.accountMenu}, ${triggerName}` : copy.signIn}
           className={
             isAuthenticated
-              ? "h-10 gap-2 rounded-full px-2 pr-3 text-white/85 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
+              ? "h-11 min-w-11 gap-2 rounded-full px-1 text-white/85 hover:bg-white/10 hover:text-white sm:h-10 sm:px-2 sm:pr-3 data-[state=open]:bg-white/10 data-[state=open]:text-white"
               : "h-10 gap-2 rounded-full px-3 text-white/85 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
           }
         >
@@ -121,7 +132,7 @@ export function UserDropdown() {
             <>
               <User className="h-4 w-4" />
               <span className="hidden text-sm font-semibold sm:inline">
-                Sign in
+                {copy.signIn}
               </span>
             </>
           )}
@@ -129,6 +140,7 @@ export function UserDropdown() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
+        lang={locale}
         className="w-72 rounded-2xl border-slate-200 p-2 shadow-xl"
         align="end"
         forceMount
@@ -155,7 +167,7 @@ export function UserDropdown() {
                   {roleName && (
                     <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-700">
                       <BadgeCheck className="h-3 w-3 text-red-600" />
-                      {roleName}
+                      {locale === "es" ? spanishRoles.get(roleName) ?? roleName : roleName}
                     </div>
                   )}
                 </div>
@@ -172,10 +184,10 @@ export function UserDropdown() {
               }}
             >
               <UserCircle className="h-4 w-4 text-slate-500" />
-              Profile
+              {copy.profile}
             </DropdownMenuItem>
 
-            <PortalInstallMenuItem onSelected={() => setIsDropdownOpen(false)} />
+            <PortalInstallMenuItem locale={locale} onSelected={() => setIsDropdownOpen(false)} />
 
             {isDealerRole(roleName) && (
               <DropdownMenuItem
@@ -186,14 +198,14 @@ export function UserDropdown() {
                 }}
               >
                 <Building2 className="h-4 w-4 text-slate-500" />
-                My Branding
+                {copy.branding}
               </DropdownMenuItem>
             )}
 
             {(roleName === "dealer" || roleName === "client") && <DropdownMenuItem
               className="cursor-pointer gap-2 rounded-lg"
               onClick={() => { setIsDropdownOpen(false); router.push("/referrals"); }}
-            ><Gift className="h-4 w-4 text-slate-500" />My referrals</DropdownMenuItem>}
+            ><Gift className="h-4 w-4 text-slate-500" />{copy.referrals}</DropdownMenuItem>}
 
             <DropdownMenuSeparator />
 
@@ -202,16 +214,16 @@ export function UserDropdown() {
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
-              Log out
+              {copy.logOut}
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuLabel className="p-3">
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-950">Account</p>
+                <p className="text-sm font-semibold text-slate-950">{copy.account}</p>
                 <p className="text-xs font-normal text-muted-foreground">
-                  Sign in to access your workspace.
+                  {copy.signInPrompt}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -226,7 +238,7 @@ export function UserDropdown() {
               }}
             >
               <LogIn className="h-4 w-4 text-slate-500" />
-              Sign in
+              {copy.signIn}
             </DropdownMenuItem>
           </>
         )}

@@ -6,6 +6,10 @@ import { FullBalancePrompt, FullBalanceReview, FullBalanceToggle, selectedInstal
 import { PaymentScheduleView } from "@/components/payments/payment-schedule";
 import { CustomPaymentAmount, useCustomPayment } from "@/components/payments/custom-payment-amount";
 import type { PaymentSchedule } from "@/lib/payment-plan";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import { paymentRowTitle, paymentRowDescription } from "@/lib/payment-plan-language";
+import { paymentText, paymentDepositTerms, reviewedBalanceDescription, checkoutErrorText } from "@/lib/estimate-payment-language";
 import type { EstimateDiscountSummary } from "@/lib/estimate-discount";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -50,6 +54,7 @@ const DEFAULT_DEPOSIT_NOTICE =
   "Once paid, this deposit is non-refundable. If installation proceeds, the full deposit is credited toward the installation balance.";
 
 export function resolveEstimatePaymentAction({
+  locale = "en",
   estimateStatus,
   order,
   materialPayments,
@@ -61,6 +66,7 @@ export function resolveEstimatePaymentAction({
   dealerMode,
   customerChargesSummary,
 }: {
+  locale?: CompanyLocale;
   estimateStatus: string;
   order: Order | null;
   materialPayments: EstimatePayment[];
@@ -72,6 +78,7 @@ export function resolveEstimatePaymentAction({
   dealerMode?: DealerMode | null;
   customerChargesSummary?: EstimateCustomerChargeSummary | null;
 }): PaymentAction | null {
+  const t = paymentText.bind(null, locale);
   if (estimateStatus === "Canceled" || paymentSchedule?.estimateCanceled) return null;
   manualDiscount = manualDiscount ?? installationJob?.manualDiscountSummary;
   materialAmount = Number(manualDiscount?.material.total ?? materialAmount);
@@ -89,13 +96,19 @@ export function resolveEstimatePaymentAction({
   const payments = [...materialPayments, ...(installationJob?.payments ?? [])];
   const recovery = payments.find(p => p.type !== 'INSTALLMENT' && !p.refundReviewPending && hasRefundHistory(p) && refundedBalance(p) > 0 &&
     (!paymentSchedule || ['DELIVERY', 'EXTRA'].includes(p.type) || (p.type === 'INSTALLATION_DEPOSIT' && activeJob?.status === 'DEPOSIT_PAYMENT_PENDING')));
-  if (recovery) return { type: recovery.type, sequence: recovery.sequence, title: 'Reviewed payment balance',
-    description: `Remaining ${recovery.type.toLowerCase().replaceAll('_', ' ')} balance after refund review.`, amount: refundedBalance(recovery) };
+  if (recovery) return {
+    type: recovery.type, sequence: recovery.sequence, amount: refundedBalance(recovery),
+    title: t("Reviewed payment balance"), description: reviewedBalanceDescription(locale, recovery.type),
+  };
   if (payments.some(p => p.refundReviewPending && p.type === 'INSTALLATION_DEPOSIT') && activeJob?.status === 'DEPOSIT_PAYMENT_PENDING') return null;
 
   if (paymentSchedule && activeJob?.status !== 'DEPOSIT_PAYMENT_PENDING') {
     const next = paymentSchedule.next;
-    return next ? { type: 'INSTALLMENT', sequence: next.sequence, title: next.title, description: next.description, amount: Number(next.balance), requiresCityFeeAcceptance: next.kind === 'CITY_FEE', cityFeeAmount: Number(next.amount) } : null;
+    return next ? {
+      type: "INSTALLMENT", sequence: next.sequence, title: paymentRowTitle(locale, next),
+      description: paymentRowDescription(locale, next), amount: Number(next.balance),
+      requiresCityFeeAcceptance: next.kind === "CITY_FEE", cityFeeAmount: Number(next.amount),
+    } : null;
   }
 
   if (!activeJob) {
@@ -114,11 +127,10 @@ export function resolveEstimatePaymentAction({
 
     return {
       type: "MATERIAL",
-      title: "Ready to place your order",
-      description:
-        additions.custom > 0
-          ? "Pay the material total and additional charges. Your order will be created automatically after payment is confirmed."
-          : "Pay the material total. Your order will be created automatically after payment is confirmed.",
+      title: t("Ready to place your order"),
+      description: t(additions.custom > 0
+        ? "Pay the material total and additional charges. Your order will be created automatically after payment is confirmed."
+        : "Pay the material total. Your order will be created automatically after payment is confirmed."),
       amount: materialAmount,
     };
   }
@@ -126,9 +138,8 @@ export function resolveEstimatePaymentAction({
   if (!order && activeJob.status === "DEPOSIT_PAYMENT_PENDING") {
     return {
       type: "INSTALLATION_DEPOSIT",
-      title: "Installation deposit",
-      description:
-        "This is the next required payment before remeasurement can be scheduled.",
+      title: t("Installation deposit"),
+      description: t("This is the next required payment before remeasurement can be scheduled."),
       amount: manualDiscount ? Math.min(Number(activeJob.depositAmountSnapshot), Number(manualDiscount.installation.total)) : Number(activeJob.depositAmountSnapshot),
     };
   }
@@ -140,9 +151,8 @@ export function resolveEstimatePaymentAction({
   ) {
     return {
       type: "PERMIT",
-      title: "Permit Fee",
-      description:
-        "The installation quote is approved. The Permit Fee is the next required payment.",
+      title: t("Permit Fee"),
+      description: t("The installation quote is approved. The Permit Fee is the next required payment."),
       amount: roundMoney(Number(manualDiscount?.permit.total ?? activeJob.permit.permitFeeSnapshot) + additions.permit),
     };
   }
@@ -152,9 +162,8 @@ export function resolveEstimatePaymentAction({
 
     return {
       type: "MATERIAL",
-      title: activeJob.permit ? "Materials + City Fee" : "Material payment",
-      description:
-        "Payment submits this estimate for administrative order review.",
+      title: t(activeJob.permit ? "Materials + City Fee" : "Material payment"),
+      description: t("Payment submits this estimate for administrative order review."),
       amount: roundMoney(materialAmount + cityFee),
     };
   }
@@ -174,9 +183,8 @@ export function resolveEstimatePaymentAction({
 
     return {
       type: "INSTALLATION",
-      title: "Installation balance",
-      description:
-        "The remaining installation balance is now available for payment.",
+      title: t("Installation balance"),
+      description: t("The remaining installation balance is now available for payment."),
       amount: balance,
     };
   }
@@ -185,6 +193,7 @@ export function resolveEstimatePaymentAction({
 }
 
 function EstimatePaymentCardContent({
+  locale = "en",
   estimateId,
   estimateOwnerId,
   dealerNetwork,
@@ -210,6 +219,7 @@ function EstimatePaymentCardContent({
   onProfileAddressSaved,
   className = "",
 }: {
+  locale?: CompanyLocale;
   estimateId: number;
   estimateOwnerId: number;
   dealerNetwork?: import("@/lib/types").EstimateDealerNetwork | null;
@@ -236,6 +246,7 @@ function EstimatePaymentCardContent({
   className?: string;
 }) {
   const router = useRouter();
+  const t = paymentText.bind(null, locale);
   const [busy, setBusy] = useState(false);
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false);
   const [materialAccepted, setMaterialAccepted] = useState(false);
@@ -251,6 +262,7 @@ function EstimatePaymentCardContent({
   const isInternalDealer = dealerNetwork ? dealerNetwork.payerType === "CUSTOMER" : dealerMode === "INTERNAL";
   const canPay = dealerNetwork ? dealerNetwork.canPay : isOwner && !isInternalDealer;
   const defaultAction = resolveEstimatePaymentAction({
+    locale,
     estimateStatus,
     order,
     materialPayments,
@@ -267,16 +279,16 @@ function EstimatePaymentCardContent({
   const action: PaymentAction | null = custom.active ? {
     type: "INSTALLMENT" as const,
     amount: custom.preview.valid ? custom.preview.amount : 0,
-    title: "Custom project payment",
-    description: "Choose an amount to apply toward your project installments.",
+    title: t("Custom project payment"),
+    description: t("Choose an amount to apply toward your project installments."),
     requiresCityFeeAcceptance: Boolean(custom.preview.cityFeeKey),
     cityFeeAmount: custom.preview.cityFeeAmount,
   } : installments.isFullBalance ? {
     type: "INSTALLMENT" as const,
     sequence: installments.selected[0]?.sequence,
     amount: installments.amount,
-    title: "Full project balance",
-    description: "Pay all remaining project installments, including payments not yet due.",
+    title: t("Full project balance"),
+    description: t("Pay all remaining project installments, including payments not yet due."),
     requiresCityFeeAcceptance: Boolean(installments.cityFeeKey),
     cityFeeAmount: installments.cityFeeAmount,
   } : defaultAction;
@@ -294,7 +306,7 @@ function EstimatePaymentCardContent({
     !paymentBlockedReason && !networkPaymentBlocked && (action?.type === "MATERIAL" || action?.type === "INSTALLMENT");
   const deliveryReview = showAddressOption && (
     <div key="profile-address" className="not-first:mt-4 empty:hidden">
-      <ClientDeliveryReview key={`${estimateId}:${deliveryRetry?.attempt ?? 0}`} estimateId={estimateId}
+      <ClientDeliveryReview key={`${estimateId}:${deliveryRetry?.attempt ?? 0}`} estimateId={estimateId} locale={locale}
         requiredForCheckout={requiresDeliveryReview} onProfileAddressSaved={onProfileAddressSaved}
         onAcknowledged={() => setDeliveryReviewedEstimate(estimateId)} />
     </div>
@@ -303,10 +315,10 @@ function EstimatePaymentCardContent({
   if (!showPaymentOptions || !action || !Number.isFinite(action.amount) || (!custom.active && action.amount <= 0 && !(action.amount === 0 && (paymentSchedule || allowNoCharge || Number(manualDiscount?.discount ?? installationJob?.manualDiscountSummary?.discount) > 0)))) {
     // Keep the same keyed address panel mounted when an editable draft acquires its first payable item.
     return <div className="space-y-5">
-      <PaymentScheduleView schedule={paymentSchedule} />
+      <PaymentScheduleView schedule={paymentSchedule} locale={locale} />
       {deliveryReview && <section className="has-[>div:empty]:hidden print:hidden">{deliveryReview}</section>}
       {showPaymentOptions && !action && installments.canPayFullBalance && paymentSchedule &&
-        <FullBalancePrompt schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)}
+        <FullBalancePrompt locale={locale} schedule={paymentSchedule} onSelect={() => installments.setFullBalance(true)}
           onCustomAmount={custom.available ? custom.enable : undefined} />}
     </div>;
   }
@@ -344,15 +356,15 @@ function EstimatePaymentCardContent({
     }
 
     if (requiresDepositTerms && !depositTermsSatisfied) {
-      toast.error("Accept the non-refundable deposit terms first.");
+      toast.error(t("Accept the non-refundable deposit terms first."));
       return;
     }
     if (requiresMaterialAcceptance && !materialAccepted) {
-      toast.error("Accept the material details first.");
+      toast.error(t("Accept the material details first."));
       return;
     }
 
-    if (action.requiresCityFeeAcceptance && !cityFeeAccepted) { toast.error("Review and accept the City Fee adjustment first."); return; }
+    if (action.requiresCityFeeAcceptance && !cityFeeAccepted) { toast.error(t("Review and accept the City Fee adjustment first.")); return; }
     setBusy(true);
     try {
       if ((requiresDepositTerms || installationJob?.dealerMeasurementsAcceptedAt) && beforePayment && !(await beforePayment())) {
@@ -377,14 +389,14 @@ function EstimatePaymentCardContent({
         setDeliveryReviewedEstimate(null);
         setDeliveryRetry(previous => ({ estimateId, attempt: (previous?.attempt ?? 0) + 1 }));
       }
-      toast.error((error as Error).message);
+      toast.error(checkoutErrorText(locale, error));
       setBusy(false);
     }
   };
 
   return (
     <div className="space-y-5">
-    <PaymentScheduleView schedule={paymentSchedule} />
+    <PaymentScheduleView schedule={paymentSchedule} locale={locale} />
     <section
       id="estimate-payment"
       className={`group/payment scroll-mt-28 print:hidden rounded-xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm ${className}`}
@@ -396,7 +408,7 @@ function EstimatePaymentCardContent({
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {custom.active ? "Custom payment" : installments.isFullBalance ? "Advance payment" : "Next payment"}
+              {t(custom.active ? "Custom payment" : installments.isFullBalance ? "Advance payment" : "Next payment")}
             </p>
             <h3 className="mt-0.5 text-base font-semibold text-slate-950">
               {action.title}
@@ -409,7 +421,7 @@ function EstimatePaymentCardContent({
 
         <div className="shrink-0 text-left sm:min-w-80 sm:text-right">
           <p className="text-xs font-medium text-slate-500">
-            {showCardCheckoutAmounts ? "Payment total" : installments.isFullBalance || custom.active ? "Payment amount" : "Due now"}
+            {t(showCardCheckoutAmounts ? "Payment total" : installments.isFullBalance || custom.active ? "Payment amount" : "Due now")}
           </p>
           <p aria-live="polite" className="text-2xl font-semibold tracking-tight text-slate-950">
             {formatMoney(
@@ -420,6 +432,7 @@ function EstimatePaymentCardContent({
           </p>
           {showCardCheckoutAmounts && (
             <CardFeeBreakdown
+              locale={locale}
               breakdown={cardBreakdown}
               className="mt-2 text-left"
             />
@@ -427,9 +440,9 @@ function EstimatePaymentCardContent({
         </div>
       </div>
 
-      {custom.active ? <CustomPaymentAmount input={custom.input} preview={custom.preview} disabled={busy}
+      {custom.active ? <CustomPaymentAmount locale={locale} input={custom.input} preview={custom.preview} disabled={busy}
         onChange={value => { custom.setInput(value); setAcceptedCityKey(""); }} />
-        : installments.isFullBalance && <FullBalanceReview rows={installments.rows} cityFeePending={paymentSchedule?.cityFeePending} />}
+        : installments.isFullBalance && <FullBalanceReview locale={locale} rows={installments.rows} cityFeePending={paymentSchedule?.cityFeePending} />}
 
       {requiresDepositTerms && canPay && (
         <label
@@ -454,7 +467,7 @@ function EstimatePaymentCardContent({
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center justify-between gap-2">
               <strong className="font-semibold">
-                I understand and accept the non-refundable deposit terms
+                {t("I understand and accept the non-refundable deposit terms")}
               </strong>
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
@@ -463,14 +476,14 @@ function EstimatePaymentCardContent({
                     : "bg-amber-200 text-amber-950"
                 }`}
               >
-                {depositTermsSatisfied ? "Accepted" : "Required"}
+                {t(depositTermsSatisfied ? "Accepted" : "Required")}
               </span>
             </span>
             <span
               id="installation-deposit-terms-description"
               className="mt-1 block text-xs leading-relaxed"
             >
-              {installationJob?.depositTermsSnapshot || DEFAULT_DEPOSIT_NOTICE}
+              {paymentDepositTerms(locale, installationJob?.depositTermsSnapshot || DEFAULT_DEPOSIT_NOTICE)}
             </span>
           </span>
         </label>
@@ -479,7 +492,7 @@ function EstimatePaymentCardContent({
       {deliveryReview}
       {firstMaterialOrder && !hasSavedProfileAddress && canRecordManualPayment && !isOwner && (
         <p className="mt-4 text-sm text-slate-600">
-          If this client registered online, ask them to add an address or confirm they can pick up in Miami before paying.
+          {t("If this client registered online, ask them to add an address or confirm they can pick up in Miami before paying.")}
         </p>
       )}
 
@@ -502,7 +515,7 @@ function EstimatePaymentCardContent({
           />
           <span className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2">
             <strong className="max-w-4xl font-semibold">
-              I have reviewed and accept the products, dimensions, configurations and prices in this estimate.
+              {t("I have reviewed and accept the products, dimensions, configurations and prices in this estimate.")}
             </strong>
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
@@ -511,7 +524,7 @@ function EstimatePaymentCardContent({
                   : "bg-amber-200 text-amber-950"
               }`}
             >
-              {materialAccepted ? "Accepted" : "Required"}
+              {t(materialAccepted ? "Accepted" : "Required")}
             </span>
           </span>
         </label>
@@ -520,7 +533,7 @@ function EstimatePaymentCardContent({
       {action.requiresCityFeeAcceptance && canPay && (
         <label className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
           <Checkbox checked={cityFeeAccepted} disabled={busy} onCheckedChange={value => setAcceptedCityKey(value === true ? cityKey : "")} />
-          <span>I accept the City Fee adjustment of {formatMoney(action.cityFeeAmount ?? action.amount)}.</span>
+          <span>{locale === "es" ? "Acepto el ajuste de la tasa municipal de" : "I accept the City Fee adjustment of"} {formatMoney(action.cityFeeAmount ?? action.amount)}.</span>
         </label>
       )}
 
@@ -537,19 +550,19 @@ function EstimatePaymentCardContent({
         {custom.available && <Button type="button" variant="outline" disabled={busy} onClick={() => {
           if (custom.active) custom.disable(); else custom.enable();
           installments.setFullBalance(false); setAcceptedCityKey("");
-        }}>{custom.active ? "Back to next payment" : "Pay another amount"}</Button>}
-        {(installments.offerFullBalance || installments.isFullBalance) && <FullBalanceToggle selected={installments.isFullBalance}
+        }}>{t(custom.active ? "Back to next payment" : "Pay another amount")}</Button>}
+        {(installments.offerFullBalance || installments.isFullBalance) && <FullBalanceToggle locale={locale} selected={installments.isFullBalance}
           disabled={busy} onChange={() => { custom.disable(); installments.setFullBalance(!installments.isFullBalance); setAcceptedCityKey(""); }} />}
         {canPay ? (
           <>
             {requiresDeliveryReview && (
               <a href={`#delivery-review-${estimateId}`}
                 className="hidden min-h-11 items-center justify-center rounded-sm px-1 text-center text-sm font-semibold text-amber-900 underline underline-offset-4 hover:text-amber-950 focus-visible:outline-2 focus-visible:outline-offset-2 group-has-[[data-delivery-pending]]/payment:inline-flex">
-                Add your address or confirm you can pick up in Miami
+                {t("Add your address or confirm you can pick up in Miami")}
               </a>
             )}
             <span className="flex items-center justify-center gap-1.5 text-xs text-slate-500 group-has-[[data-delivery-pending]]/payment:hidden">
-              <ShieldCheck className="h-3.5 w-3.5" /> Secure checkout
+              <ShieldCheck className="h-3.5 w-3.5" /> {t("Secure checkout")}
             </span>
             <Button
               type="button"
@@ -569,27 +582,28 @@ function EstimatePaymentCardContent({
               ) : (
                 <CreditCard className="h-4 w-4" />
               )}
-              {busy
+              {t(busy
                 ? "Opening checkout..."
                 : !hasSelection ? custom.active ? "Enter a valid amount" : "Select a payment"
                 : (requiresDepositTerms && !depositTermsSatisfied) || (requiresMaterialAcceptance && !materialAccepted)
                   ? "Accept terms to continue"
                   : checkoutStarted
                     ? "Resume payment"
-                    : action.amount === 0 ? action.requiresCityFeeAcceptance ? "Confirm City Fee" : ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1))) ? (installationJob && installationJob.status !== "CANCELED" ? "Submit for order review" : "Confirm order") : "Confirm step") : action.type === "INSTALLMENT" && !custom.active && !installments.isFullBalance ? "Pay next installment" : "Continue to payment"}
+                    : action.amount === 0 ? action.requiresCityFeeAcceptance ? "Confirm City Fee" : ((action.type === "MATERIAL" || (action.type === "INSTALLMENT" && installments.sequences.includes(paymentSchedule?.initialSequence ?? -1))) ? (installationJob && installationJob.status !== "CANCELED" ? "Submit for order review" : "Confirm order") : "Confirm step") : action.type === "INSTALLMENT" && !custom.active && !installments.isFullBalance ? "Pay next installment" : "Continue to payment")}
             </Button>
           </>
         ) : isOwner && isInternalDealer && !custom.active ? (
           <div className="space-y-2 text-right">
             <p className="text-sm text-slate-600">
-              Send this payment link to the final customer.
+              {t("Send this payment link to the final customer.")}
             </p>
-            <EstimatePaymentLinkActions estimateId={estimateId} showShare beforeAction={beforePayment} disabled={networkPaymentBlocked} />
+            <EstimatePaymentLinkActions locale={locale} estimateId={estimateId} showShare beforeAction={beforePayment} disabled={networkPaymentBlocked} />
           </div>
         ) : null}
 
         {canRecordManualPayment && hasSelection && action.amount > 0 && !paymentBlockedReason && (
           <ManualPaymentDialog
+            locale={locale}
             disabled={networkPaymentBlocked}
             estimateId={estimateId}
             type={action.type}
@@ -605,9 +619,9 @@ function EstimatePaymentCardContent({
             requiresDepositTerms={
               requiresDepositTerms && !depositTermsPreviouslyAccepted
             }
-            depositTerms={installationJob?.depositTermsSnapshot}
+            depositTerms={installationJob?.depositTermsSnapshot ? paymentDepositTerms(locale, installationJob.depositTermsSnapshot) : undefined}
             beforeSubmit={requiresDepositTerms || installationJob?.dealerMeasurementsAcceptedAt ? beforePayment : undefined}
-            label="Record verified payment"
+            label={t("Record verified payment")}
             onRecorded={(payment) => {
               if (order?.id) { router.replace(`/orders/${order.id}`); router.refresh(); return; }
               if (payment.order?.id) {
@@ -629,9 +643,10 @@ function EstimatePaymentCardContent({
   );
 }
 
-export function EstimatePaymentCard(props: Parameters<typeof EstimatePaymentCardContent>[0]) {
-  return <div className="space-y-5"><EstimatePaymentCardContent key={props.estimateId} {...props} />
+export function EstimatePaymentCard(props: Omit<Parameters<typeof EstimatePaymentCardContent>[0], "locale">) {
+  const { locale } = usePortalLanguage();
+  return <div lang={locale} className="space-y-5"><EstimatePaymentCardContent key={props.estimateId} {...props} locale={locale} />
     {(props.currentUserId === props.estimateOwnerId || props.canRecordManualPayment) &&
-      <PaymentHistory estimateId={props.estimateId} reviewPending={[...props.materialPayments, ...(props.installationJob?.payments ?? [])].some(p => p.refundReviewPending)} />}
+      <PaymentHistory locale={locale} estimateId={props.estimateId} reviewPending={[...props.materialPayments, ...(props.installationJob?.payments ?? [])].some(p => p.refundReviewPending)} />}
   </div>;
 }

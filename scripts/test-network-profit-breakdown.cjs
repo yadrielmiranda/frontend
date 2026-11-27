@@ -17,6 +17,7 @@ const markers = {
 };
 const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
 const mocks = {
+  '@/contexts/PortalLanguageContext': { usePortalLanguage: () => ({ locale: 'en' }) },
   '@/lib/formatters': { formatMoney: money, roundMoney: value => Math.round(value * 100) / 100, formatDateEn: () => 'Today' },
   './formatters': { roundMoney: value => Math.round(value * 100) / 100 },
   '@/lib/installation-flow': { paidBaseFor: () => 0, paidInstallationCredit: () => 0 },
@@ -26,7 +27,8 @@ const mocks = {
   'lucide-react': stub,
 };
 const actualFiles = new Set([
-  'lib/rbac.ts', 'lib/dealer-service-earnings.ts', 'lib/customer-charge-additions.ts',
+  'lib/estimate-payment-language.ts',
+  'lib/estimate-financial-language.ts', 'lib/rbac.ts', 'lib/dealer-service-earnings.ts', 'lib/customer-charge-additions.ts',
   'components/estimates/network-profit-breakdown-card.tsx',
 ]);
 const cache = new Map();

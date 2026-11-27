@@ -50,6 +50,7 @@ export type HorizontalRollingWindowSplit =
 export type HorizontalRollingWindowDimension = number | string;
 
 interface HorizontalRollingWindowCommonProps {
+  locale?: "en" | "es";
   width: HorizontalRollingWindowDimension;
   height: HorizontalRollingWindowDimension;
   screenEnabled: boolean;
@@ -663,7 +664,9 @@ export function HorizontalRollingWindowDiagram(
     };
   });
 
-  const title = `Horizontal Rolling Window ${layout.configuration} ${layout.split}, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches, screen ${screenEnabled ? "on" : "off"}, frame ${normalizedFrameColor}`;
+  const title = props.locale === "es"
+    ? `Horizontal Rolling Window ${layout.configuration} ${layout.split}, ${formatDimension(resolvedWidth)} por ${formatDimension(resolvedHeight)} pulgadas, ${screenEnabled ? "con" : "sin"} mosquitero, marco ${normalizedFrameColor}`
+    : `Horizontal Rolling Window ${layout.configuration} ${layout.split}, ${formatDimension(resolvedWidth)} by ${formatDimension(resolvedHeight)} inches, screen ${screenEnabled ? "on" : "off"}, frame ${normalizedFrameColor}`;
 
   return (
     <svg

@@ -93,6 +93,24 @@ test('adding, removing and replacing a system refresh the batch and hide previou
   assert.deepEqual(f.requests.map(r => r.ids), [[700], [700, 800], [800], [810]]);
 });
 
+test('switching the open panel language keeps catalog names, approval links and loaded results', async () => {
+  const f = fixture(pieces(700));
+  f.requests[0].resolve({ systems: [row(700, { systemName: 'Series 100', variant: 'Large Missile Impact' })] });
+  await flush();
+  const originalUrls = links(f).map(link => link.props.href);
+  f.update({ locale: 'es' });
+  assert.match(text(tree(f)), /Aprobaciones de producto/);
+  assert.match(text(tree(f)), /Eco Windows Systems · Sliding Glass Door/);
+  assert.match(text(tree(f)), /Large Missile Impact/);
+  assert.deepEqual(names(f), ['Series 100']);
+  assert.deepEqual(links(f).map(text), ['Instrucciones de instalación', 'Informe de evaluación', 'Registro oficial de aprobación']);
+  assert.deepEqual(links(f).map(link => link.props.href), originalUrls);
+  assert.equal(f.requests.length, 1);
+  f.update({ locale: 'en' });
+  assert.equal(text(links(f)[0]), 'Installation instructions');
+  assert.equal(f.requests.length, 1);
+});
+
 test('late responses and late errors cannot replace a newer selected system set', async () => {
   const f = fixture(pieces(700)); f.update({ pieces: pieces(800) }); f.update({ pieces: pieces(700) });
   f.requests[0].resolve(result(700)); await flush(); assert.equal(links(f).length, 0);

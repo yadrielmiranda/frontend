@@ -1,22 +1,20 @@
-import { AuthPageShell } from "@/components/auth/auth-page-shell";
-import { CardLogin } from "@/components/card-login";
-import { PortalInstallButton } from "@/components/pwa/portal-install-button";
+import { PublicAuthScreen } from "@/components/auth/public-auth-screen";
 import { dealerRegistrationRequestId } from "@/lib/dealer-registration-request";
+import { requestPortalLanguage } from "@/lib/public-language-server";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{
   registrationRequest?: string | string[];
   firstEstimate?: string | string[];
+  lang?: string | string[];
 }> }) {
   const params = await searchParams;
   const requestId = dealerRegistrationRequestId(params.registrationRequest);
   return (
-    <AuthPageShell
-      title="Welcome"
-      description="Professional quoting for impact windows and doors."
-      contentMaxWidth="max-w-md"
-    >
-      <CardLogin appearance="dark" registrationRequestId={requestId} firstEstimate={params.firstEstimate === "1"} />
-      <PortalInstallButton appearance="dark" />
-    </AuthPageShell>
+    <PublicAuthScreen
+      mode="login"
+      initialLocale={await requestPortalLanguage(params.lang)}
+      registrationRequestId={requestId}
+      firstEstimate={params.firstEstimate === "1" && !requestId}
+    />
   );
 }

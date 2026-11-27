@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Bell, Trash2, X } from "lucide-react";
@@ -21,7 +22,43 @@ import {
 } from "@/app/api/notifications.api";
 import { toast } from "sonner";
 
-export function NotificationBell() {
+const notificationCopy = {
+  en: {
+    title: "Notifications",
+    open: "Open",
+    remove: "Delete notification",
+    clear: "Clear All Notifications",
+    empty: "No notifications.",
+    markReadError: "Could not mark as read.",
+    deleted: "Notification deleted.",
+    deleteError: "Could not delete the notification.",
+    cleared: (count: number) => `${count} ${count === 1 ? "notification" : "notifications"} cleared.`,
+    clearError: "Could not clear notifications.",
+    clearTitle: "Are you absolutely sure?",
+    clearDescription: "This action cannot be undone. This will permanently delete all your notifications.",
+    cancel: "Cancel",
+    confirm: "Confirm",
+  },
+  es: {
+    title: "Notificaciones",
+    open: "Abrir",
+    remove: "Eliminar notificación",
+    clear: "Eliminar todas las notificaciones",
+    empty: "No tienes notificaciones.",
+    markReadError: "No se pudo marcar la notificación como leída.",
+    deleted: "Notificación eliminada.",
+    deleteError: "No se pudo eliminar la notificación.",
+    cleared: (count: number) => count === 1 ? "Se eliminó 1 notificación." : `Se eliminaron ${count} notificaciones.`,
+    clearError: "No se pudieron eliminar las notificaciones.",
+    clearTitle: "¿Eliminar todas las notificaciones?",
+    clearDescription: "Se eliminarán permanentemente todas tus notificaciones.",
+    cancel: "Cancelar",
+    confirm: "Eliminar todas",
+  },
+};
+
+export function NotificationBell({ locale = "en" }: { locale?: CompanyLocale } = {}) {
+  const copy = notificationCopy[locale];
   const router = useRouter();
   const { notifications, unreadCount, setNotifications, refreshNotifications } =
     useAuth();
@@ -37,7 +74,7 @@ export function NotificationBell() {
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
     } catch {
-      toast.error("Could not mark as read.");
+      toast.error(copy.markReadError);
     }
   };
 
@@ -58,9 +95,9 @@ export function NotificationBell() {
     try {
       await deleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      toast.success("Notification deleted.");
+      toast.success(copy.deleted);
     } catch {
-      toast.error("Could not delete the notification.");
+      toast.error(copy.deleteError);
     }
   };
 
@@ -68,9 +105,9 @@ export function NotificationBell() {
     try {
       const result = await deleteAllNotifications();
       setNotifications([]);
-      toast.success(`${result.count} notifications cleared.`);
+      toast.success(copy.cleared(result.count));
     } catch {
-      toast.error("Could not clear notifications.");
+      toast.error(copy.clearError);
     } finally {
       setShowConfirmDialog(false); // Cierra el diálogo sin importar el resultado
     }
@@ -88,7 +125,7 @@ export function NotificationBell() {
             variant="ghost"
             size="icon"
             className="relative rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
-            aria-label="Notifications"
+            aria-label={copy.title}
           >
             <Bell className="h-5 w-5" />
 
@@ -99,8 +136,8 @@ export function NotificationBell() {
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-80" lang={locale}>
+          <DropdownMenuLabel>{copy.title}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {notifications.length > 0 ? (
             <>
@@ -115,11 +152,11 @@ export function NotificationBell() {
                       {notification.message}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {new Date(notification.createdAt).toLocaleString(locale === "es" ? "es-US" : "en-US")}
                     </p>
                     {notification.actionUrl && (
                       <p className="mt-1 text-xs font-semibold text-primary">
-                        {notification.actionLabel || "Open"} →
+                        {notification.actionLabel || copy.open} →
                       </p>
                     )}
                   </div>
@@ -131,7 +168,8 @@ export function NotificationBell() {
                       e.stopPropagation();
                       handleDelete(notification.id);
                     }}
-                    title="Delete notification"
+                    title={copy.remove}
+                    aria-label={copy.remove}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -146,12 +184,12 @@ export function NotificationBell() {
                 }}
               >
                 <Trash2 className="h-4 w-4" />
-                <span>Clear All Notifications</span>
+                <span>{copy.clear}</span>
               </DropdownMenuItem>
             </>
           ) : (
             <p className="p-4 text-sm text-center text-muted-foreground">
-              No notifications.
+              {copy.empty}
             </p>
           )}
         </DropdownMenuContent>
@@ -161,7 +199,11 @@ export function NotificationBell() {
         isOpen={showConfirmDialog}
         onClose={() => setShowConfirmDialog(false)}
         onConfirm={handleClearAll}
-        itemName="all your notifications"
+        title={copy.clearTitle}
+        description={copy.clearDescription}
+        cancelText={copy.cancel}
+        confirmText={copy.confirm}
+        lang={locale}
       />
     </>
   );

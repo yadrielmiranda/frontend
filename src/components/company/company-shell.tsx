@@ -1,27 +1,19 @@
 /* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
+import { CompanyRegistrationLink } from "./company-registration-link";
+import { CompanyLanguageLink } from "./company-language-link";
 import type { ReactNode } from "react";
 import type { CompanyLocale, CompanyPageName } from "./company-content";
-import { companyPath } from "./company-content";
 
-function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alternateHref: string }) {
+type ShellProps = { children: ReactNode; readBar: ReactNode };
+
+function CompanyEnShell({ children, readBar }: ShellProps) {
   return (
     <>
       <a className="skip" href="#main">
         {"Skip to content"}
       </a>
-      <div className="readbar">
-        <div className="wrap">
-          <Link href="/llms.txt">
-            {"AI agents, click here"}
-          </Link>
-          <span>
-            <Link href={alternateHref}>
-              {"Español"}
-            </Link>
-          </span>
-        </div>
-      </div>
+      {readBar}
       <header className="mast">
         <div className="wrap bar">
           <a href="#main" className="logo" aria-label="Authentic Evolution Co. About">
@@ -50,9 +42,9 @@ function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alte
             <a href="#resources">
               {"Resources"}
             </a>
-            <Link className="nav-free" href="/login/register" data-cta="free-account" data-placement="header">
+            <CompanyRegistrationLink className="nav-free" data-cta="free-account" data-placement="header">
               {"Create Your Free Account"}
-            </Link>
+            </CompanyRegistrationLink>
             <Link className="outline" href="/login">
               {"Sign in "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
@@ -106,24 +98,13 @@ function CompanyEnShell({ children, alternateHref }: { children: ReactNode; alte
   );
 }
 
-function EditorialEnShell({ children, alternateHref }: { children: ReactNode; alternateHref: string }) {
+function EditorialEnShell({ children, readBar }: ShellProps) {
   return (
     <>
       <a className="skip" href="#main">
         {"Skip to content"}
       </a>
-      <div className="readbar">
-        <div className="wrap">
-          <Link href="/llms.txt">
-            {"AI agents, click here"}
-          </Link>
-          <span>
-            <Link href={alternateHref}>
-              {"Español"}
-            </Link>
-          </span>
-        </div>
-      </div>
+      {readBar}
       <header className="mast">
         <div className="wrap bar">
           <Link className="logo" href="/company">
@@ -146,9 +127,9 @@ function EditorialEnShell({ children, alternateHref }: { children: ReactNode; al
             <Link href="/for-ai">
               {"AI reference"}
             </Link>
-            <Link href="/login/register" className="outline">
+            <CompanyRegistrationLink className="outline">
               {"Create Your Free Account"}
-            </Link>
+            </CompanyRegistrationLink>
           </nav>
         </div>
       </header>
@@ -170,24 +151,13 @@ function EditorialEnShell({ children, alternateHref }: { children: ReactNode; al
   );
 }
 
-function CompanyEsShell({ children, alternateHref }: { children: ReactNode; alternateHref: string }) {
+function CompanyEsShell({ children, readBar }: ShellProps) {
   return (
     <>
       <a className="skip" href="#main">
         {"Saltar al contenido"}
       </a>
-      <div className="readbar">
-        <div className="wrap">
-          <Link href="/llms.txt">
-            {"Agentes de IA, clic aquí"}
-          </Link>
-          <span>
-            <Link href={alternateHref}>
-              {"English"}
-            </Link>
-          </span>
-        </div>
-      </div>
+      {readBar}
       <header className="mast">
         <div className="wrap bar">
           <a href="#main" className="logo" aria-label="Acerca de Authentic Evolution Co.">
@@ -216,9 +186,9 @@ function CompanyEsShell({ children, alternateHref }: { children: ReactNode; alte
             <a href="#resources">
               {"Recursos"}
             </a>
-            <Link className="nav-free" href="/login/register" data-cta="free-account" data-placement="header">
+            <CompanyRegistrationLink className="nav-free" data-cta="free-account" data-placement="header">
               {"Crea tu cuenta GRATIS"}
-            </Link>
+            </CompanyRegistrationLink>
             <Link className="outline" href="/login">
               {"Iniciar sesión "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
@@ -272,24 +242,13 @@ function CompanyEsShell({ children, alternateHref }: { children: ReactNode; alte
   );
 }
 
-function EditorialEsShell({ children, alternateHref }: { children: ReactNode; alternateHref: string }) {
+function EditorialEsShell({ children, readBar }: ShellProps) {
   return (
     <>
       <a className="skip" href="#main">
         {"Ir al contenido"}
       </a>
-      <div className="readbar">
-        <div className="wrap">
-          <Link href="/llms.txt">
-            {"Agentes de IA, clic aquí"}
-          </Link>
-          <span>
-            <Link href={alternateHref}>
-              {"English"}
-            </Link>
-          </span>
-        </div>
-      </div>
+      {readBar}
       <header className="mast">
         <div className="wrap bar">
           <Link className="logo" href="/es/company">
@@ -312,9 +271,9 @@ function EditorialEsShell({ children, alternateHref }: { children: ReactNode; al
             <Link href="/es/for-ai">
               {"Referencia para IA"}
             </Link>
-            <Link href="/login/register" className="outline">
+            <CompanyRegistrationLink className="outline">
               {"Crea tu cuenta GRATIS"}
-            </Link>
+            </CompanyRegistrationLink>
           </nav>
         </div>
       </header>
@@ -338,9 +297,17 @@ function EditorialEsShell({ children, alternateHref }: { children: ReactNode; al
 
 export function CompanyShell({ children, page, locale }: { children: ReactNode; page: CompanyPageName; locale: CompanyLocale }) {
   const Shell = page === "company" ? (locale === "es" ? CompanyEsShell : CompanyEnShell) : (locale === "es" ? EditorialEsShell : EditorialEnShell);
+  const readBar = (
+    <div className="readbar">
+      <div className="wrap">
+        <Link href="/llms.txt">{locale === "es" ? "Agentes de IA, clic aquí" : "AI agents, click here"}</Link>
+        <CompanyLanguageLink page={page} locale={locale} />
+      </div>
+    </div>
+  );
   return (
     <div className="company" lang={locale}>
-      <Shell alternateHref={companyPath(page, locale === "en" ? "es" : "en")}>{children}</Shell>
+      <Shell readBar={readBar}>{children}</Shell>
     </div>
   );
 }

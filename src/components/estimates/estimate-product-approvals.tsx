@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ExternalLink, FileCheck, FileText, FolderOpen, Landmark, Loader2 } from "lucide-react";
 import { getSystemsApprovals, type SystemApprovals } from "@/app/api/systems.api";
 import { Button } from "@/components/ui/button";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 type ApprovalState =
   | { status: "loading" | "error" }
@@ -20,15 +21,16 @@ function documentUrl(value?: string | null): string | null {
   }
 }
 
-function SystemDocuments({ system }: { system: SystemApprovals }) {
+function SystemDocuments({ system, locale }: { system: SystemApprovals; locale: CompanyLocale }) {
+  const spanish = locale === "es";
   const links = system.status === "available" ? [
-    { label: "Installation instructions", url: documentUrl(system.installationUrl), Icon: FileText },
-    { label: "Evaluation report", url: documentUrl(system.evaluationUrl), Icon: FileCheck },
-    { label: "Official approval record", url: documentUrl(system.officialUrl), Icon: Landmark },
+    { type: "installation", label: spanish ? "Instrucciones de instalación" : "Installation instructions", url: documentUrl(system.installationUrl), Icon: FileText },
+    { type: "evaluation", label: spanish ? "Informe de evaluación" : "Evaluation report", url: documentUrl(system.evaluationUrl), Icon: FileCheck },
+    { type: "official", label: spanish ? "Registro oficial de aprobación" : "Official approval record", url: documentUrl(system.officialUrl), Icon: Landmark },
   ].filter(link => link.url) : [];
 
   return (
-    <section className="border-t border-slate-200 py-4" aria-label={`${system.systemName} product approvals`}>
+    <section className="border-t border-slate-200 py-4" aria-label={spanish ? `Aprobaciones de producto de ${system.systemName}` : `${system.systemName} product approvals`}>
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <h4 className="text-sm font-semibold text-slate-900">{system.systemName}</h4>
         {system.status === "available" && system.variant && (
@@ -38,9 +40,9 @@ function SystemDocuments({ system }: { system: SystemApprovals }) {
       <p className="mb-3 text-xs text-slate-500">{[system.brandName, system.productName].filter(Boolean).join(" · ")}</p>
       {links.length > 0 ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {links.map(({ label, url, Icon }) => (
-            <Button key={label} asChild variant="outline" size="sm" className="h-auto min-h-10 justify-start whitespace-normal py-2 text-left text-xs text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:min-h-9">
-              <a href={url!} target="_blank" rel="noopener noreferrer" aria-label={`${label} — ${system.systemName} (opens in a new tab)`}>
+          {links.map(({ type, label, url, Icon }) => (
+            <Button key={type} asChild variant="outline" size="sm" className="h-auto min-h-10 justify-start whitespace-normal py-2 text-left text-xs text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:min-h-9">
+              <a href={url!} target="_blank" rel="noopener noreferrer" aria-label={`${label} - ${system.systemName} (${spanish ? "se abre en una pestaña nueva" : "opens in a new tab"})`}>
                 <Icon className="h-4 w-4" aria-hidden="true" />
                 {label}
                 <ExternalLink className="ml-auto h-3 w-3" aria-hidden="true" />
@@ -50,16 +52,18 @@ function SystemDocuments({ system }: { system: SystemApprovals }) {
         </div>
       ) : (
         <p className="text-sm text-slate-500">{system.status === "ambiguous"
-          ? "An exact product approval is not available for this system."
-          : "No product approval documents are available for this system."}</p>
+          ? (spanish ? "No se encontró una aprobación que coincida exactamente con este sistema." : "An exact product approval is not available for this system.")
+          : (spanish ? "No hay documentos de aprobación disponibles para este sistema." : "No product approval documents are available for this system.")}</p>
       )}
     </section>
   );
 }
 
-export function EstimateProductApprovals({ pieces }: {
+export function EstimateProductApprovals({ pieces, locale = "en" }: {
   pieces: readonly { idSyst?: number | null }[];
+  locale?: CompanyLocale;
 }) {
+  const spanish = locale === "es";
   const key = [...new Set(pieces.map(piece => piece.idSyst)
     .filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0))]
     .sort((a, b) => a - b).join(",");
@@ -104,23 +108,23 @@ export function EstimateProductApprovals({ pieces }: {
       className="group min-w-0 rounded-xl border border-blue-200 bg-white print:hidden">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-4 text-base font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 [&::-webkit-details-marker]:hidden">
         <FolderOpen className="h-5 w-5 shrink-0 text-blue-600" aria-hidden="true" />
-        Product approvals
+        {spanish ? "Aprobaciones de producto" : "Product approvals"}
         <ChevronDown className="ml-auto h-4 w-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0" aria-hidden="true" />
       </summary>
       {open && (
         <div className="px-4 pb-1">
           {!key ? (
-            <p className="border-t border-slate-200 py-4 text-sm text-slate-500">Add a piece to see its product approval documents.</p>
+            <p className="border-t border-slate-200 py-4 text-sm text-slate-500">{spanish ? "Agrega una pieza para ver sus documentos de aprobación." : "Add a piece to see its product approval documents."}</p>
           ) : state.status === "loading" ? (
             <p role="status" className="flex items-center gap-2 border-t border-slate-200 py-4 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Loading product approvals…
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{spanish ? "Cargando las aprobaciones de producto…" : "Loading product approvals…"}
             </p>
           ) : state.status === "error" ? (
             <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 py-4">
-              <p role="status" className="text-sm text-slate-500">Product approvals could not be loaded.</p>
-              <Button type="button" size="sm" variant="outline" onClick={() => setAttempt(value => value + 1)}>Retry</Button>
+              <p role="status" className="text-sm text-slate-500">{spanish ? "No se pudieron cargar las aprobaciones de producto." : "Product approvals could not be loaded."}</p>
+              <Button type="button" size="sm" variant="outline" onClick={() => setAttempt(value => value + 1)}>{spanish ? "Reintentar" : "Retry"}</Button>
             </div>
-          ) : state.status === "ready" ? state.systems.map(system => <SystemDocuments key={system.systemId} system={system} />) : null}
+          ) : state.status === "ready" ? state.systems.map(system => <SystemDocuments key={system.systemId} system={system} locale={locale} />) : null}
         </div>
       )}
     </details>

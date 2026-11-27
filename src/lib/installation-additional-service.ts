@@ -1,3 +1,4 @@
+import type { CompanyLocale } from "@/components/company/company-content";
 import type { InstallationService } from "@/lib/types";
 
 export type AdditionalServiceField =
@@ -19,13 +20,13 @@ export type AdditionalServiceDraft = {
 
 export const additionalServiceFieldMeta: Record<
   AdditionalServiceField,
-  { label: string; step: string; integer?: boolean }
+  { label: string; labelEs: string; step: string; integer?: boolean }
 > = {
-  widthIn: { label: "Width (in)", step: "0.001" },
-  heightIn: { label: "Height (in)", step: "0.001" },
-  areaSqFt: { label: "Area (sq ft)", step: "0.0001" },
-  panelCount: { label: "Panel count", step: "1", integer: true },
-  lengthIn: { label: "Length (in)", step: "0.001" },
+  widthIn: { label: "Width (in)", labelEs: "Ancho (pulgadas)", step: "0.001" },
+  heightIn: { label: "Height (in)", labelEs: "Altura (pulgadas)", step: "0.001" },
+  areaSqFt: { label: "Area (sq ft)", labelEs: "Área (pies²)", step: "0.0001" },
+  panelCount: { label: "Panel count", labelEs: "Cantidad de paneles", step: "1", integer: true },
+  lengthIn: { label: "Length (in)", labelEs: "Longitud (pulgadas)", step: "0.001" },
 };
 
 export function emptyAdditionalServiceDraft(): AdditionalServiceDraft {
@@ -89,22 +90,30 @@ export function additionalServiceFields(
 export function additionalServiceValidationError(
   service: InstallationService | null | undefined,
   draft: AdditionalServiceDraft,
+  locale: CompanyLocale = "en",
 ): string | null {
-  if (!service) return "Select an additional service.";
+  const spanish = locale === "es";
+  if (!service) return spanish ? "Selecciona un servicio adicional." : "Select an additional service.";
 
   const occurrences = Number(draft.occurrences);
   if (!Number.isInteger(occurrences) || occurrences < 1) {
-    return "Quantity must be a whole number greater than zero.";
+    return spanish
+      ? "La cantidad debe ser un número entero mayor que cero."
+      : "Quantity must be a whole number greater than zero.";
   }
 
   for (const field of additionalServiceFields(service)) {
     const value = Number(draft[field]);
     const meta = additionalServiceFieldMeta[field];
     if (!Number.isFinite(value) || value <= 0) {
-      return `${meta.label} is required and must be greater than zero.`;
+      return spanish
+        ? `Ingresa un valor mayor que cero en «${meta.labelEs}».`
+        : `${meta.label} is required and must be greater than zero.`;
     }
     if (meta.integer && !Number.isInteger(value)) {
-      return `${meta.label} must be a whole number.`;
+      return spanish
+        ? `Ingresa un número entero en «${meta.labelEs}».`
+        : `${meta.label} must be a whole number.`;
     }
   }
 

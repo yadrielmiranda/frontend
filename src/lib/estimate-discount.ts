@@ -61,4 +61,4 @@ export const discountScopeLabel = {
   MATERIAL: "Material",
   INSTALLATION: "Installation",
   MULTIPLE: "Material & Installation",
-};
+} as const;

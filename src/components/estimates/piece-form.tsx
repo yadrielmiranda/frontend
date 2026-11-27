@@ -72,6 +72,8 @@ import { GarageDesignFields } from "./garage-design-fields";
 import { availableGarageDesignOptions, defaultGarageDesignPair, garageDesignPairForColor, garageDesignPairForDesign, garageDesignSelectionError, garageDesignFrameSelection, isRetainedGarageDesign, pieceGarageDesign, pieceHasSolidGarageDesign, type ExistingGarageDesignContext } from "./piece-garage-design";
 import { positiveFrameColorId, restoreFrameColorAfterDesign } from "./piece-frame-restore";
 import { PIECE_MARK_MAX_LENGTH } from "./piece-mark";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { pieceFormMessage, pieceFormText, pieceDimensionError } from "@/lib/piece-form-language";
 import { usesOpeningWidth } from "./piece-dimension-description";
 import { getMuntinInputMode, getMuntinOptions, isMuntinSelectionAvailable, muntinPatternRequiresType, normalizeMuntinSelection, type MuntinOptions } from "./muntin-availability";
 import { buildWindowWallMuntinLayout, hasAmbiguousWindowWallMuntinPanels, syncWindowWallMuntinPanels } from "./window-wall-muntin";
@@ -196,14 +198,15 @@ function withoutInactiveDimensions(
 
 const MIN_HORIZONTAL_HEIGHT_IN = 18;
 
-function PieceSectionHeader({ title }: { title: string }) {
+function PieceSectionHeader({ title, locale }: { title: string; locale: CompanyLocale }) {
+  const toggleLabel = locale === "es" ? `Mostrar u ocultar ${title}` : `Show or hide ${title}`;
   return (
     <div className="my-1 flex items-center justify-between rounded-md border border-slate-200 border-l-4 border-l-blue-400 bg-slate-50 px-3 py-0.5">
       <span className="text-base font-semibold text-slate-900">{title}</span>
 
       <AccordionTrigger
-        aria-label={`Show or hide ${title}`}
-        title={`Show or hide ${title}`}
+        aria-label={toggleLabel}
+        title={toggleLabel}
         className="h-8 w-8 flex-none items-center justify-center gap-0 rounded-md p-0 text-slate-600 hover:bg-blue-100 hover:no-underline focus-visible:border-blue-400 focus-visible:ring-blue-200 [&>svg]:size-5 [&>svg]:translate-y-0"
       />
     </div>
@@ -295,6 +298,7 @@ function ColorSelectOption({
 }
 
 export interface PieceFormProps {
+  locale?: CompanyLocale;
   initialData: PieceFormValues;
   onSubmit: (data: PieceFormValues) => void | Promise<void>;
   onCancel: () => void;
@@ -321,6 +325,7 @@ export interface PieceFormProps {
 }
 
 export function PieceForm({
+  locale = "en",
   onSubmit,
   onCancel,
   initialData,
@@ -328,6 +333,9 @@ export function PieceForm({
   startUnlocked = false,
   ...props
 }: PieceFormProps) {
+  const t = (text: string) => pieceFormText(locale, text);
+  const languageRef = useRef(locale);
+  useLayoutEffect(() => { languageRef.current = locale; }, [locale]);
   // Una promoción de 100% también tiene resultados calculados.
   const hasInitialResults =
     Number(initialData.price) > 0 ||
@@ -667,8 +675,10 @@ export function PieceForm({
       setValue("idFC", restored?.id ?? 0, { shouldDirty: true, shouldValidate: true });
       setValue("frameColorBeforeDesignId", null, { shouldDirty: true });
       toast.info(restored
-        ? `Design removed. Frame color is now ${restored.color}. Recalculate the piece.`
-        : "Design removed. Select a frame color before calculating.");
+        ? locale === "es"
+          ? `Se quitó el diseño. El color del marco ahora es ${restored.color}. Vuelve a calcular la pieza.`
+          : `Design removed. Frame color is now ${restored.color}. Recalculate the piece.`
+        : t("Design removed. Select a frame color before calculating."));
     }
     setDesignEnabled(enabled);
     setValue("idDesign", idDesign, { shouldDirty: true });
@@ -1431,7 +1441,7 @@ export function PieceForm({
       } catch (error) {
         if (!cancelled) {
           setDimensionPolicies([]);
-          toast.error("Failed to load rated glass options.");
+          toast.error(pieceFormMessage(languageRef.current, "Failed to load rated glass options."));
         }
       } finally {
         if (!cancelled) {
@@ -1941,7 +1951,7 @@ export function PieceForm({
       ...items.filter((item) => item !== "item-results" && item !== "item-details-size"),
       "item-details-size",
     ]);
-    toast.error(message);
+    toast.error(pieceFormMessage(languageRef.current, message));
     return false;
   };
 
@@ -1955,20 +1965,20 @@ export function PieceForm({
 
     try {
       if (designSelectionError || doorDesignError) {
-        toast.error(designSelectionError || doorDesignError);
+        toast.error(pieceFormMessage(languageRef.current, designSelectionError || doorDesignError));
         return;
       }
       if (selectedConfigUnavailable) {
         toast.error(
-          "The selected configuration is currently unavailable in estimates.",
+          pieceFormMessage(languageRef.current, "The selected configuration is currently unavailable in estimates."),
         );
         return;
       }
       if (!isLinearMaterial && selectedCrystalUnavailable) {
         toast.error(
-          hasSolidGarageDesign
+          pieceFormMessage(languageRef.current, hasSolidGarageDesign
             ? "The base pricing configuration is unavailable for this piece. Review the series settings before recalculating."
-            : "The selected glass is currently unavailable. Select another glass before recalculating.",
+            : "The selected glass is currently unavailable. Select another glass before recalculating."),
         );
         return;
       }
@@ -2025,7 +2035,7 @@ export function PieceForm({
       if (!isCurrentCalculation()) return;
 
       if (!isValid) {
-        toast.error("Please complete the required fields before calculating.");
+        toast.error(pieceFormMessage(languageRef.current, "Please complete the required fields before calculating."));
         return;
       }
 
@@ -2035,7 +2045,7 @@ export function PieceForm({
       );
 
       if (!selectedConfig) {
-        toast.error("Please select a configuration first.");
+        toast.error(pieceFormMessage(languageRef.current, "Please select a configuration first."));
         return;
       }
 
@@ -2087,7 +2097,7 @@ export function PieceForm({
 
       if (sashHeightNorm !== undefined) {
         if (sashHeightNorm < 19.625) {
-          toast.error("Sash Height cannot be less than 19.625 inches.");
+          toast.error(pieceFormMessage(languageRef.current, "Sash Height cannot be less than 19.625 inches."));
           return;
         }
 
@@ -2097,7 +2107,7 @@ export function PieceForm({
             : Number(currentValues.height || 0);
 
         if (!Number.isFinite(totalHeightForSash) || totalHeightForSash <= 0) {
-          toast.error(`${heightLabel} is required to validate Sash Height.`);
+          toast.error(locale === "es" ? `Ingresa el valor de «${t(heightLabel)}» para validar la altura de la hoja.` : `${heightLabel} is required to validate Sash Height.`);
           return;
         }
 
@@ -2105,7 +2115,9 @@ export function PieceForm({
 
         if (sashHeightNorm > maxSashHeight) {
           toast.error(
-            `Sash Height cannot be greater than half of the total height (${maxSashHeight.toFixed(3)} inches).`,
+            locale === "es"
+              ? `La altura de la hoja no puede superar la mitad de la altura total (${maxSashHeight.toFixed(3)} pulgadas).`
+              : `Sash Height cannot be greater than half of the total height (${maxSashHeight.toFixed(3)} inches).`,
           );
           return;
         }
@@ -2119,12 +2131,12 @@ export function PieceForm({
             : Number(currentValues.height || 0);
 
         if (!Number.isFinite(openHeightForWindow) || openHeightForWindow <= 0) {
-          toast.error("Open Height is required to validate Window Height.");
+          toast.error(pieceFormMessage(languageRef.current, "Open Height is required to validate Window Height."));
           return;
         }
 
         if (windowHeightNorm >= openHeightForWindow) {
-          toast.error("Window Height must be less than Open Height.");
+          toast.error(pieceFormMessage(languageRef.current, "Window Height must be less than Open Height."));
           return;
         }
       }
@@ -2151,12 +2163,12 @@ export function PieceForm({
           !Number.isFinite(openingHeightForDoor) ||
           openingHeightForDoor <= 0
         ) {
-          toast.error(`${heightLabel} is required to validate Door Height.`);
+          toast.error(locale === "es" ? `Ingresa el valor de «${t(heightLabel)}» para validar la altura de la puerta.` : `${heightLabel} is required to validate Door Height.`);
           return;
         }
 
         if (doorHeightNorm > openingHeightForDoor) {
-          toast.error(`Door Height cannot be greater than ${heightLabel}.`);
+          toast.error(locale === "es" ? `La altura de la puerta no puede superar el valor de «${t(heightLabel)}».` : `Door Height cannot be greater than ${heightLabel}.`);
           return;
         }
       }
@@ -2208,7 +2220,7 @@ export function PieceForm({
           totalHeightForHorizontals <= 0
         ) {
           toast.error(
-            `${heightLabel} is required to validate Horizontal Heights.`,
+            locale === "es" ? `Ingresa el valor de «${t(heightLabel)}» para validar las alturas de los travesaños.` : `${heightLabel} is required to validate Horizontal Heights.`,
           );
           return;
         }
@@ -2223,7 +2235,9 @@ export function PieceForm({
 
         if (outOfRangeIndex !== -1) {
           toast.error(
-            `Horizontal Height ${outOfRangeIndex + 1} must be greater than 0 and less than ${heightLabel}.`,
+            locale === "es"
+              ? `La altura del travesaño ${outOfRangeIndex + 1} debe ser mayor que 0 y menor que el valor de «${t(heightLabel)}».`
+              : `Horizontal Height ${outOfRangeIndex + 1} must be greater than 0 and less than ${heightLabel}.`,
           );
           return;
         }
@@ -2233,7 +2247,7 @@ export function PieceForm({
         );
 
         if (duplicatedIndex !== -1) {
-          toast.error("Horizontal Heights cannot contain duplicate positions.");
+          toast.error(pieceFormMessage(languageRef.current, "Horizontal Heights cannot contain duplicate positions."));
           return;
         }
 
@@ -2253,7 +2267,9 @@ export function PieceForm({
           const to = horizontalPoints[invalidGapIndex];
 
           toast.error(
-            `The space between ${from}" and ${to}" cannot be less than ${MIN_HORIZONTAL_HEIGHT_IN} inches.`,
+            locale === "es"
+              ? `La separación entre ${from}″ y ${to}″ debe ser de al menos ${MIN_HORIZONTAL_HEIGHT_IN} pulgadas.`
+              : `The space between ${from}" and ${to}" cannot be less than ${MIN_HORIZONTAL_HEIGHT_IN} inches.`,
           );
           return;
         }
@@ -2400,9 +2416,9 @@ export function PieceForm({
         const idCrystForPreview = Number(pieceDtoToSend.idCryst);
 
         if (!Number.isFinite(idCrystForPreview) || idCrystForPreview <= 0) {
-          toast.error(hasSolidGarageDesign
+          toast.error(pieceFormMessage(languageRef.current, hasSolidGarageDesign
             ? "A base pricing selection is required. Review the series settings before calculating."
-            : "Please select a valid glass type.");
+            : "Please select a valid glass type."));
           return;
         }
 
@@ -2433,15 +2449,14 @@ export function PieceForm({
         if (!precheck.ok) {
           if (precheck.reason === "NOT_RATED") {
             toast.error(
-              precheck.note ||
-                "No dimension policy exists for this System + Config + Crystal combination.",
+              pieceFormMessage(languageRef.current, precheck.note || "No dimension policy exists for this System + Config + Crystal combination."),
             );
           } else if (precheck.reason === "OVERSIZE") {
             toast.error(
-              "The entered dimensions are not allowed for this piece. Please review and adjust the measurements.",
+              pieceFormMessage(languageRef.current, "The entered dimensions are not allowed for this piece. Please review and adjust the measurements."),
             );
           } else {
-            toast.error("Dimension validation failed.");
+            toast.error(pieceFormMessage(languageRef.current, "Dimension validation failed."));
           }
 
           return;
@@ -2528,10 +2543,12 @@ export function PieceForm({
 
       setHasPendingDealerMarkup(false);
       if (scrollToResults) setResultsScrollRequest(calculationId);
-      toast.success("Piece calculated successfully.");
+      toast.success(pieceFormMessage(languageRef.current, "Piece calculated successfully."));
     } catch (error) {
       if (!isCurrentCalculation()) return;
-      toast.error((error as Error).message ?? "Error during calculation");
+      toast.error(error instanceof DimensionParseError
+        ? pieceDimensionError(languageRef.current, error.message)
+        : pieceFormMessage(languageRef.current, (error as Error).message ?? "Error during calculation"));
     }
   };
 
@@ -2644,7 +2661,7 @@ export function PieceForm({
     <form
       className="relative flex min-h-0 flex-1 flex-col"
       onSubmit={handleSubmit((values) => {
-        if (designSelectionError || doorDesignError) { toast.error(designSelectionError || doorDesignError); return; }
+        if (designSelectionError || doorDesignError) { toast.error(pieceFormMessage(languageRef.current, designSelectionError || doorDesignError)); return; }
         const activeValues = withoutInactiveDimensions(values, dimensionRequirements);
         try {
           if (!validatePentagonLegHeight(activeValues)) return;
@@ -2655,7 +2672,7 @@ export function PieceForm({
             ) ?? null,
           });
         } catch (err) {
-          if (err instanceof DimensionParseError) toast.error(err.message);
+          if (err instanceof DimensionParseError) toast.error(pieceDimensionError(languageRef.current, err.message));
           else throw err;
         }
       })}
@@ -2672,7 +2689,7 @@ export function PieceForm({
             className="w-full"
           >
             <AccordionItem value="item-frame">
-              <PieceSectionHeader title="Product Specifications" />
+              <PieceSectionHeader locale={locale} title={t("Product Specifications")} />
 
               <AccordionContent>
                 <div
@@ -2681,7 +2698,7 @@ export function PieceForm({
                   }`}
                 >
                   <div>
-                    <Label className={fieldLabelClass}>Product</Label>
+                    <Label className={fieldLabelClass}>{t("Product")}</Label>
                     <Controller
                       name="idProd"
                       control={control}
@@ -2706,7 +2723,7 @@ export function PieceForm({
                           value={String(field.value || "0")}
                         >
                           <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select product" />
+                            <SelectValue placeholder={t("Select product")} />
                           </SelectTrigger>
                           <SelectContent>
                             {/* Solo activos; se conserva el valor previo inactivo, pero no se puede seleccionar. */}
@@ -2731,13 +2748,13 @@ export function PieceForm({
                     />
                     {errors.idProd && (
                       <p className="mt-1 text-xs text-red-500">
-                        Product required
+                        {t("Product required")}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label className={fieldLabelClass}>Brand</Label>
+                    <Label className={fieldLabelClass}>{t("Brand")}</Label>
                     <Controller
                       name="idBrand"
                       control={control}
@@ -2761,12 +2778,12 @@ export function PieceForm({
                           value={String(field.value || "0")}
                         >
                           <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select brand" />
+                            <SelectValue placeholder={t("Select brand")} />
                           </SelectTrigger>
                           <SelectContent>
                             {retainedGarageDesign && Number(field.value) > 0 && !availableBrands.some(brand => brand.id === Number(field.value)) && (
                               <SelectItem value={String(field.value)} disabled>
-                                {selectedProduct?.brandProducts.find(link => link.brand.id === Number(field.value))?.brand.name ?? `Brand #${field.value}`} (saved)
+                                {selectedProduct?.brandProducts.find(link => link.brand.id === Number(field.value))?.brand.name ?? `${t("Brand")} #${field.value}`} {t("(saved)")}
                               </SelectItem>
                             )}
                             {availableBrands.map((b) => (
@@ -2780,15 +2797,15 @@ export function PieceForm({
                     />
                     {errors.idBrand && (
                       <p className="mt-1 text-xs text-red-500">
-                        Brand required
+                        {t("Brand required")}
                       </p>
                     )}
                   </div>
 
                   <div>
                     <div className="mb-2 flex h-5 items-center gap-1.5">
-                      <Label className="text-sm font-semibold text-slate-800">System</Label>
-                      <SystemApprovalLink systemId={systemId} />
+                      <Label className="text-sm font-semibold text-slate-800">{t("System")}</Label>
+                      <SystemApprovalLink locale={locale} systemId={systemId} />
                     </div>
                     <Controller
                       name="idSyst"
@@ -2823,11 +2840,11 @@ export function PieceForm({
                           value={String(field.value || "0")}
                         >
                           <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select system" />
+                            <SelectValue placeholder={t("Select system")} />
                           </SelectTrigger>
                           <SelectContent>
                             {retainedGarageDesign && Number(field.value) > 0 && !availableSystems.some(system => system.id === Number(field.value)) && (
-                              <SelectItem value={String(field.value)} disabled>{selectedSystem?.name ?? `System #${field.value}`} (saved)</SelectItem>
+                              <SelectItem value={String(field.value)} disabled>{selectedSystem?.name ?? `${t("System")} #${field.value}`} {t("(saved)")}</SelectItem>
                             )}
                             {availableSystems.map((s) => (
                               <SelectItem key={s.id} value={String(s.id)}>
@@ -2840,13 +2857,13 @@ export function PieceForm({
                     />
                     {errors.idSyst && (
                       <p className="mt-1 text-xs text-red-500">
-                        System required
+                        {t("System required")}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label className={fieldLabelClass}>Configuration</Label>
+                    <Label className={fieldLabelClass}>{t("Configuration")}</Label>
                     <Controller
                       name="idConf"
                       control={control}
@@ -2869,7 +2886,7 @@ export function PieceForm({
                           value={String(field.value || "0")}
                         >
                           <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue placeholder="Select configuration" />
+                            <SelectValue placeholder={t("Select configuration")} />
                           </SelectTrigger>
                           <SelectContent position="popper" align="start">
                             {!groupedConfigs.hasCategories ? (
@@ -2916,29 +2933,28 @@ export function PieceForm({
                     />
                     {errors.idConf && (
                       <p className="mt-1 text-xs text-red-500">
-                        Config required
+                        {t("Config required")}
                       </p>
                     )}
                     {!errors.idConf && selectedConfigUnavailable && (
                       <p className="mt-1 text-xs text-red-500">
-                        This configuration is currently unavailable. Select
-                        another configuration before recalculating.
+                        {t("This configuration is currently unavailable. Select another configuration before recalculating.")}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label className={fieldLabelClass}>Frame Color</Label>
+                    <Label className={fieldLabelClass}>{t("Frame Color")}</Label>
                     {designEnabled && (
                       <div data-frame-color-source="DESIGN">
-                        <div className={`${selectTriggerClass} flex items-center bg-slate-50`} aria-label="Frame color matches design color">
+                        <div className={`${selectTriggerClass} flex items-center bg-slate-50`} aria-label={t("Frame color matches design color")}>
                           <ColorSelectOption
-                            label={pieceValues.idDesignColor ? selectedGarageDesign?.color.name ?? "Select a design color" : "Select a design color"}
+                            label={pieceValues.idDesignColor ? selectedGarageDesign?.color.name ?? t("Select a design color") : t("Select a design color")}
                             hexCode={selectedGarageDesign?.color.hexCode ?? "transparent"}
                           />
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">Matches Design Color.</p>
-                        {garageFrameSelection.error && <p className="mt-1 text-xs text-red-500">{garageFrameSelection.error}</p>}
+                        <p className="mt-1 text-xs text-muted-foreground">{t("Matches Design Color.")}</p>
+                        {garageFrameSelection.error && <p className="mt-1 text-xs text-red-500">{pieceFormMessage(locale, garageFrameSelection.error)}</p>}
                       </div>
                     )}
                     <Controller
@@ -2955,8 +2971,8 @@ export function PieceForm({
                               : undefined
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass} aria-label="Frame Color">
-                            <SelectValue placeholder="Select frame color" />
+                          <SelectTrigger className={selectTriggerClass} aria-label={t("Frame Color")}>
+                            <SelectValue placeholder={t("Select frame color")} />
                           </SelectTrigger>
                           <SelectContent>
                             {availableFrameColors.map((fc) => (
@@ -2973,7 +2989,7 @@ export function PieceForm({
                     />
                     {errors.idFC && (
                       <p className="mt-1 text-xs text-red-500">
-                        Color required
+                        {t("Color required")}
                       </p>
                     )}
                   </div>
@@ -2981,7 +2997,7 @@ export function PieceForm({
                   {!isLinearMaterial && !hasSolidGarageDesign && (
                     <>
                       <div>
-                        <Label className={fieldLabelClass}>Glass Color</Label>
+                        <Label className={fieldLabelClass}>{t("Glass Color")}</Label>
                         <Controller
                           name="idTint"
                           control={control}
@@ -2993,7 +3009,7 @@ export function PieceForm({
                               value={String(field.value || "0")}
                             >
                               <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select glass color" />
+                                <SelectValue placeholder={t("Select glass color")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {availableTints.map((t) => (
@@ -3010,21 +3026,20 @@ export function PieceForm({
                         />
                         {errors.idTint && (
                           <p className="mt-1 text-xs text-red-500">
-                            Glass Color required
+                            {t("Glass Color required")}
                           </p>
                         )}
                         {!errors.idTint &&
                           Number(brandId) > 0 &&
                           availableTints.length === 0 && (
                             <p className="mt-1 text-xs text-red-500">
-                              No active Glass Color is configured for this
-                              Brand.
+                              {t("No active Glass Color is configured for this Brand.")}
                             </p>
                           )}
                       </div>
 
                       <div>
-                        <Label className={fieldLabelClass}>Coating</Label>
+                        <Label className={fieldLabelClass}>{t("Coating")}</Label>
                         <Controller
                           name="idCoat"
                           control={control}
@@ -3036,7 +3051,7 @@ export function PieceForm({
                               value={String(field.value || "0")}
                             >
                               <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select coating" />
+                                <SelectValue placeholder={t("Select coating")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {availableCoatings.map((c) => (
@@ -3050,20 +3065,20 @@ export function PieceForm({
                         />
                         {errors.idCoat && (
                           <p className="mt-1 text-xs text-red-500">
-                            Coating required
+                            {t("Coating required")}
                           </p>
                         )}
                         {!errors.idCoat &&
                           Number(brandId) > 0 &&
                           availableCoatings.length === 0 && (
                             <p className="mt-1 text-xs text-red-500">
-                              No active Coating is configured for this Brand.
+                              {t("No active Coating is configured for this Brand.")}
                             </p>
                           )}
                       </div>
 
                       <div>
-                        <Label className={fieldLabelClass}>Privacy</Label>
+                        <Label className={fieldLabelClass}>{t("Privacy")}</Label>
                         <Controller
                           name="idPrivacy"
                           control={control}
@@ -3077,7 +3092,7 @@ export function PieceForm({
                               value={String(field.value || "0")}
                             >
                               <SelectTrigger className={selectTriggerClass}>
-                                <SelectValue placeholder="Select privacy" />
+                                <SelectValue placeholder={t("Select privacy")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {availablePrivacies.map((privacy) => (
@@ -3094,14 +3109,14 @@ export function PieceForm({
                         />
                         {errors.idPrivacy && (
                           <p className="mt-1 text-xs text-red-500">
-                            Privacy required
+                            {t("Privacy required")}
                           </p>
                         )}
                         {!errors.idPrivacy &&
                           Number(brandId) > 0 &&
                           availablePrivacies.length === 0 && (
                             <p className="mt-1 text-xs text-red-500">
-                              No active Privacy is configured for this Brand.
+                              {t("No active Privacy is configured for this Brand.")}
                             </p>
                           )}
                       </div>
@@ -3112,12 +3127,12 @@ export function PieceForm({
             </AccordionItem>
 
             <AccordionItem value="item-details-size">
-              <PieceSectionHeader title="Details & Size" />
+              <PieceSectionHeader locale={locale} title={t("Details & Size")} />
               <AccordionContent>
                 <div className={`pt-3 ${isLocked ? "opacity-70" : ""}`}>
                   <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div>
-                      <Label className={fieldLabelClass}>Mark</Label>
+                      <Label className={fieldLabelClass}>{t("Mark")}</Label>
                       <Input
                         className={inputClass}
                         disabled={isLocked}
@@ -3131,13 +3146,13 @@ export function PieceForm({
                       />
                       {errors.mark && (
                         <p className="mt-1 text-xs text-red-500">
-                          {errors.mark.message}
+                          {pieceFormMessage(locale, errors.mark.message)}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label className={fieldLabelClass}>Quantity</Label>
+                      <Label className={fieldLabelClass}>{t("Quantity")}</Label>
                       <Input
                         className={inputClass}
                         type="number"
@@ -3151,7 +3166,7 @@ export function PieceForm({
                       />
                       {errors.qty && (
                         <p className="mt-1 text-xs text-red-500">
-                          {errors.qty.message}
+                          {pieceFormMessage(locale, errors.qty.message)}
                         </p>
                       )}
                     </div>
@@ -3159,7 +3174,7 @@ export function PieceForm({
 
                   {!idConf && (
                     <p className="text-sm text-muted-foreground">
-                      Select a configuration to see required dimensions.
+                      {t("Select a configuration to see required dimensions.")}
                     </p>
                   )}
 
@@ -3169,7 +3184,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresWidth && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              {widthLabel} (inches)
+                              {t(widthLabel)} {t("(inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3193,14 +3208,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.width && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.width.message}
+                                {pieceFormMessage(locale, errors.width.message)}
                               </p>
                             )}
                           </div>
@@ -3209,7 +3224,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresHeight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              {heightLabel} (inches)
+                              {t(heightLabel)} {t("(inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3233,14 +3248,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.height && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.height.message}
+                                {pieceFormMessage(locale, errors.height.message)}
                               </p>
                             )}
                           </div>
@@ -3249,7 +3264,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresSashHeight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Sash Height (inches)
+                              {t("Sash Height (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3273,18 +3288,18 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.sashHeight && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.sashHeight.message}
+                                {pieceFormMessage(locale, errors.sashHeight.message)}
                               </p>
                             )}
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Min 19.625″. Cannot exceed half of total height.
+                              {t("Min 19.625″. Cannot exceed half of total height.")}
                             </p>
                           </div>
                         )}
@@ -3292,7 +3307,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresWindowHeight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Window Height (inches)
+                              {t("Window Height (inches)")}
                             </Label>
 
                             <Input
@@ -3319,7 +3334,7 @@ export function PieceForm({
                                   });
                                 } catch (error) {
                                   if (error instanceof DimensionParseError) {
-                                    toast.error(error.message);
+                                    toast.error(pieceDimensionError(languageRef.current, error.message));
                                   }
                                 }
                               }}
@@ -3327,13 +3342,12 @@ export function PieceForm({
 
                             {errors.windowHeight && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.windowHeight.message}
+                                {pieceFormMessage(locale, errors.windowHeight.message)}
                               </p>
                             )}
 
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Height of the upper Single Hung. Must be less than
-                              Open Height.
+                              {t("Height of the upper Single Hung. Must be less than Open Height.")}
                             </p>
                           </div>
                         )}
@@ -3341,7 +3355,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresHeightLeft && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Height Left (inches)
+                              {t("Height Left (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3365,14 +3379,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.heightLeft && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.heightLeft.message}
+                                {pieceFormMessage(locale, errors.heightLeft.message)}
                               </p>
                             )}
                           </div>
@@ -3381,7 +3395,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresHeightRight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Height Right (inches)
+                              {t("Height Right (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3405,14 +3419,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.heightRight && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.heightRight.message}
+                                {pieceFormMessage(locale, errors.heightRight.message)}
                               </p>
                             )}
                           </div>
@@ -3421,7 +3435,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresLegHeight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Leg Height (inches)
+                              {t("Leg Height (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3445,14 +3459,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.legHeight && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.legHeight.message}
+                                {pieceFormMessage(locale, errors.legHeight.message)}
                               </p>
                             )}
                           </div>
@@ -3461,7 +3475,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresDoorWidth && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Door Width (inches)
+                              {t("Door Width (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3485,14 +3499,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.doorWidth && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.doorWidth.message}
+                                {pieceFormMessage(locale, errors.doorWidth.message)}
                               </p>
                             )}
                           </div>
@@ -3501,7 +3515,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresDoorHeight && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Door Height (inches)
+                              {t("Door Height (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3527,14 +3541,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.doorHeight && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.doorHeight.message}
+                                {pieceFormMessage(locale, errors.doorHeight.message)}
                               </p>
                             )}
                           </div>
@@ -3543,7 +3557,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresLeftSideliteWidth && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Left Sidelite Width (inches)
+                              {t("Left Sidelite Width (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3567,14 +3581,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.leftSideliteWidth && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.leftSideliteWidth.message}
+                                {pieceFormMessage(locale, errors.leftSideliteWidth.message)}
                               </p>
                             )}
                           </div>
@@ -3583,7 +3597,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresRightSideliteWidth && (
                           <div className="min-w-0">
                             <Label className={fieldLabelClass}>
-                              Right Sidelite Width (inches)
+                              {t("Right Sidelite Width (inches)")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3607,14 +3621,14 @@ export function PieceForm({
                                   });
                                 } catch (err) {
                                   if (err instanceof DimensionParseError) {
-                                    toast.error(err.message);
+                                    toast.error(pieceDimensionError(languageRef.current, err.message));
                                   }
                                 }
                               }}
                             />
                             {errors.rightSideliteWidth && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.rightSideliteWidth.message}
+                                {pieceFormMessage(locale, errors.rightSideliteWidth.message)}
                               </p>
                             )}
                           </div>
@@ -3623,7 +3637,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresLeftPanels && (
                           <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
-                              Left Panels
+                              {t("Left Panels")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3638,7 +3652,7 @@ export function PieceForm({
                             />
                             {errors.leftPanels && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.leftPanels.message}
+                                {pieceFormMessage(locale, errors.leftPanels.message)}
                               </p>
                             )}
                           </div>
@@ -3647,7 +3661,7 @@ export function PieceForm({
                         {dimensionRequirements.requiresRightPanels && (
                           <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
-                              Right Panels
+                              {t("Right Panels")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3662,7 +3676,7 @@ export function PieceForm({
                             />
                             {errors.rightPanels && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.rightPanels.message}
+                                {pieceFormMessage(locale, errors.rightPanels.message)}
                               </p>
                             )}
                           </div>
@@ -3671,7 +3685,7 @@ export function PieceForm({
                         {fixedPanelCount !== null && (
                           <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
-                              Panel Count
+                              {t("Panel Count")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3681,7 +3695,7 @@ export function PieceForm({
                               readOnly
                             />
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Automatic from configuration.
+                              {t("Automatic from configuration.")}
                             </p>
                           </div>
                         )}
@@ -3689,7 +3703,7 @@ export function PieceForm({
                         {requiresManualPanelCount && (
                           <div className="min-w-0 xl:max-w-40">
                             <Label className={fieldLabelClass}>
-                              Panel Count
+                              {t("Panel Count")}
                             </Label>
                             <Input
                               className={inputClass}
@@ -3704,7 +3718,7 @@ export function PieceForm({
                             />
                             {errors.panelCount && (
                               <p className="mt-1 text-xs text-red-500">
-                                {errors.panelCount.message}
+                                {pieceFormMessage(locale, errors.panelCount.message)}
                               </p>
                             )}
                           </div>
@@ -3715,10 +3729,10 @@ export function PieceForm({
                             <div className="flex items-center justify-between border-b bg-slate-50 px-3 py-2">
                               <div>
                                 <Label className="text-sm font-semibold text-slate-800">
-                                  Horizontal Heights
+                                  {t("Horizontal Heights")}
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                  Positions from bottom. Min spacing{" "}
+                                  {t("Positions from bottom. Min spacing")}{" "}
                                   {MIN_HORIZONTAL_HEIGHT_IN}
                                   &quot;.
                                 </p>
@@ -3732,13 +3746,13 @@ export function PieceForm({
                                 onClick={handleAddHorizontalHeight}
                                 className="h-8 px-3"
                               >
-                                Add
+                                {t("Add")}
                               </Button>
                             </div>
 
                             {currentHorizontalHeights.length === 0 ? (
                               <div className="px-3 py-3 text-sm text-slate-600">
-                                No horizontal heights added.
+                                {t("No horizontal heights added.")}
                               </div>
                             ) : (
                               <div className="divide-y divide-slate-100">
@@ -3758,7 +3772,7 @@ export function PieceForm({
                                         type="text"
                                         disabled={isLocked}
                                         value={value ?? ""}
-                                        aria-label={`Horizontal Height ${heightIndex + 1} (inches)`}
+                                        aria-label={`${t("Horizontal Height")} ${heightIndex + 1} ${t("(inches)")}`}
                                         onChange={(e) =>
                                           handleHorizontalHeightChange(
                                             heightIndex,
@@ -3782,7 +3796,9 @@ export function PieceForm({
                                               MIN_HORIZONTAL_HEIGHT_IN
                                             ) {
                                               toast.error(
-                                                `Horizontal ${heightIndex + 1} must be at least ${MIN_HORIZONTAL_HEIGHT_IN} inches from the bottom.`,
+                                                locale === "es"
+                                                  ? `El travesaño ${heightIndex + 1} debe estar al menos a ${MIN_HORIZONTAL_HEIGHT_IN} pulgadas de la base.`
+                                                  : `Horizontal ${heightIndex + 1} must be at least ${MIN_HORIZONTAL_HEIGHT_IN} inches from the bottom.`,
                                               );
                                               return;
                                             }
@@ -3795,7 +3811,7 @@ export function PieceForm({
                                             if (
                                               err instanceof DimensionParseError
                                             ) {
-                                              toast.error(err.message);
+                                              toast.error(pieceDimensionError(languageRef.current, err.message));
                                             }
                                           }
                                         }}
@@ -3812,7 +3828,7 @@ export function PieceForm({
                                           )
                                         }
                                         className="h-8 w-8 px-0 text-red-600 hover:text-red-700"
-                                        aria-label={`Remove Horizontal Height ${heightIndex + 1}`}
+                                        aria-label={locale === "es" ? `Quitar la altura del travesaño ${heightIndex + 1}` : `Remove Horizontal Height ${heightIndex + 1}`}
                                       >
                                         ×
                                       </Button>
@@ -3828,8 +3844,7 @@ export function PieceForm({
                           Boolean,
                         ) && (
                           <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-4">
-                            This configuration does not require specific
-                            dimensions for calculation.
+                            {t("This configuration does not require specific dimensions for calculation.")}
                           </p>
                         )}
                       </div>
@@ -3841,7 +3856,7 @@ export function PieceForm({
 
             {(hasOptionsSection || !isLinearMaterial) && (
               <AccordionItem value="item-options">
-                <PieceSectionHeader title="Options" />
+                <PieceSectionHeader locale={locale} title={t("Options")} />
                 <AccordionContent>
                   <div
                     className={`space-y-4 pt-4 ${isLocked ? "opacity-70" : ""}`}
@@ -3849,7 +3864,7 @@ export function PieceForm({
                     {((!isLinearMaterial && !hasSolidGarageDesign) || availableActiveOptions.length > 0 || availablePreparationOptions.length > 0) && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                       {!isLinearMaterial && !hasSolidGarageDesign && (
                         <div>
-                          <Label className={fieldLabelClass}>Glass Type</Label>
+                          <Label className={fieldLabelClass}>{t("Glass Type")}</Label>
                           <Controller
                             name="idCryst"
                             control={control}
@@ -3869,7 +3884,7 @@ export function PieceForm({
                                 value={String(field.value || "0")}
                               >
                                 <SelectTrigger className={selectTriggerClass}>
-                                  <SelectValue placeholder="Select glass type" />
+                                  <SelectValue placeholder={t("Select glass type")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {crystalSelectOptions.map((crystal) => {
@@ -3885,7 +3900,7 @@ export function PieceForm({
                                       >
                                         {crystal.glass}
                                         {isUnavailableOption
-                                          ? " (Unavailable)"
+                                            ? (locale === "es" ? " (No disponible)" : " (Unavailable)")
                                           : ""}
                                       </SelectItem>
                                     );
@@ -3896,13 +3911,12 @@ export function PieceForm({
                           />
                           {errors.idCryst && (
                             <p className="mt-1 text-xs text-red-500">
-                              Glass type required
+                              {t("Glass type required")}
                             </p>
                           )}
                           {!errors.idCryst && selectedCrystalUnavailable && (
                             <p className="mt-1 text-xs text-red-500">
-                              This glass is currently unavailable. Select
-                              another glass before recalculating.
+                              {t("This glass is currently unavailable. Select another glass before recalculating.")}
                             </p>
                           )}
                           {!errors.idCryst &&
@@ -3911,7 +3925,7 @@ export function PieceForm({
                             reinforcementRequired &&
                             !selectedReinforcementOptionId && (
                               <p className="mt-1 text-xs text-amber-600">
-                                Select a Reinforcement option first.
+                                {t("Select a Reinforcement option first.")}
                               </p>
                             )}
 
@@ -3925,8 +3939,8 @@ export function PieceForm({
                             availableCrystals.length === 0 && (
                               <p className="mt-1 text-xs text-red-500">
                                 {reinforcementRequired
-                                  ? "No rated glass is available for this System + Config + Reinforcement."
-                                  : "No rated glass is available for this System + Config."}
+                                  ? t("No rated glass is available for this System + Config + Reinforcement.")
+                                : t("No rated glass is available for this System + Config.")}
                               </p>
                             )}
                         </div>
@@ -3934,7 +3948,7 @@ export function PieceForm({
 
                       {availableActiveOptions.length > 0 && (
                         <div>
-                          <Label className={fieldLabelClass}>Active</Label>
+                          <Label className={fieldLabelClass}>{t("Active")}</Label>
                           <Controller
                             name="idActiveOption"
                             control={control}
@@ -3958,7 +3972,7 @@ export function PieceForm({
                                 }
                               >
                                 <SelectTrigger className={selectTriggerClass}>
-                                  <SelectValue placeholder="Select active..." />
+                                  <SelectValue placeholder={t("Select active...")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {availableActiveOptions.map((opt) => (
@@ -3975,7 +3989,7 @@ export function PieceForm({
                           />
                           {errors.idActiveOption && (
                             <p className="text-red-500 text-xs mt-1">
-                              {errors.idActiveOption.message}
+                              {pieceFormMessage(locale, errors.idActiveOption.message)}
                             </p>
                           )}
                         </div>
@@ -3983,7 +3997,7 @@ export function PieceForm({
 
                       {availablePreparationOptions.length > 0 && (
                         <div className="xl:col-span-2">
-                          <Label className={fieldLabelClass}>Preparation</Label>
+                          <Label className={fieldLabelClass}>{t("Preparation")}</Label>
                           <Controller
                             name="idPreparationOption"
                             control={control}
@@ -4002,7 +4016,7 @@ export function PieceForm({
                                 }
                               >
                                 <SelectTrigger className={selectTriggerClass}>
-                                  <SelectValue placeholder="Select preparation..." />
+                                  <SelectValue placeholder={t("Select preparation...")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {availablePreparationOptions.map((opt) => (
@@ -4019,22 +4033,22 @@ export function PieceForm({
                           />
                           {errors.idPreparationOption && (
                             <p className="text-red-500 text-xs mt-1">
-                              {errors.idPreparationOption.message}
+                              {pieceFormMessage(locale, errors.idPreparationOption.message)}
                             </p>
                           )}
                         </div>
                       )}
                     </div>}
 
-                    <FrenchDoorDesignFields options={doorDesignOptions} selectedId={pieceValues.idDoorDesign}
+                    <FrenchDoorDesignFields locale={locale} options={doorDesignOptions} selectedId={pieceValues.idDoorDesign}
                       selected={currentDoorDesign} locked={isLocked} frameColorHex={selectedFrameColorHex}
                       glassTintHex={selectedTintHex} highBottom={showHighBottom}
                       onChange={changeDoorDesign} />
 
-                    <GarageDesignFields index={index} allowed={garageDesignAllowed} enabled={designEnabled}
+                    <GarageDesignFields locale={locale} index={index} allowed={garageDesignAllowed} enabled={designEnabled}
                       locked={isLocked} retained={retainedGarageDesign} idDesign={pieceValues.idDesign}
                       idDesignColor={pieceValues.idDesignColor} options={garageDesignOptions}
-                      selected={selectedGarageDesign} error={designSelectionError}
+                      selected={selectedGarageDesign} error={designSelectionError ? pieceFormMessage(locale, designSelectionError) : null}
                       onToggle={enabled => {
                         const pair = enabled ? defaultGarageDesignPair(selectedSystem) : { idDesign: null, idDesignColor: null };
                         changeGarageDesign(enabled, pair.idDesign, pair.idDesignColor);
@@ -4069,14 +4083,14 @@ export function PieceForm({
                                 htmlFor={`highBottom-${index}`}
                                 className="cursor-pointer select-none text-sm"
                               >
-                                High Bottom
+                                {t("High Bottom")}
                               </Label>
                             </div>
                           )}
                         />
 
                         <p className="text-xs text-muted-foreground">
-                          Applies High Bottom to this piece.
+                          {t("Applies High Bottom to this piece.")}
                         </p>
                       </div>
                     )}
@@ -4100,15 +4114,14 @@ export function PieceForm({
                                 htmlFor={`screen-${index}`}
                                 className="cursor-pointer select-none text-sm"
                               >
-                                Screen
+                                {t("Screen")}
                               </Label>
                             </div>
                           )}
                         />
 
                         <p className="text-xs text-muted-foreground">
-                          Screen is allowed for this configuration and is
-                          selected by default.
+                          {t("Screen is allowed for this configuration and is selected by default.")}
                         </p>
                       </div>
                     )}
@@ -4118,7 +4131,7 @@ export function PieceForm({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {availableSillOptions.length > 0 && (
                           <div>
-                            <Label>Sill</Label>
+                            <Label>{t("Sill")}</Label>
                             <Controller
                               name="idSillOption"
                               control={control}
@@ -4137,7 +4150,7 @@ export function PieceForm({
                                   }
                                 >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select sill..." />
+                                    <SelectValue placeholder={t("Select sill...")} />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableSillOptions.map((opt) => (
@@ -4154,7 +4167,7 @@ export function PieceForm({
                             />
                             {errors.idSillOption && (
                               <p className="text-red-500 text-xs mt-1">
-                                {errors.idSillOption.message}
+                                {pieceFormMessage(locale, errors.idSillOption.message)}
                               </p>
                             )}
                           </div>
@@ -4162,7 +4175,7 @@ export function PieceForm({
 
                         {availableReinforcementOptions.length > 0 && (
                           <div>
-                            <Label>Reinforcement</Label>
+                            <Label>{t("Reinforcement")}</Label>
                             <Controller
                               name="idReinforcementOption"
                               control={control}
@@ -4197,7 +4210,7 @@ export function PieceForm({
                                   }
                                 >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select reinforcement..." />
+                                    <SelectValue placeholder={t("Select reinforcement...")} />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableReinforcementOptions.map(
@@ -4216,7 +4229,7 @@ export function PieceForm({
                             />
                             {errors.idReinforcementOption && (
                               <p className="text-red-500 text-xs mt-1">
-                                {errors.idReinforcementOption.message}
+                                {pieceFormMessage(locale, errors.idReinforcementOption.message)}
                               </p>
                             )}
                           </div>
@@ -4224,17 +4237,17 @@ export function PieceForm({
                       </div>
                     )}
                     {hasDoorDesign && selectedProduct?.allowMuntin !== false && <div className="max-w-sm">
-                      <label className={fieldLabelClass} htmlFor={`door-design-full-view-${index}`}>Muntin</label>
+                      <label className={fieldLabelClass} htmlFor={`door-design-full-view-${index}`}>{t("Muntin")}</label>
                       <Input id={`door-design-full-view-${index}`} value="Full View" readOnly disabled />
-                      <p className="mt-1 text-xs text-muted-foreground">Door designs use Full View. Remove the design to choose a muntin.</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t("Door designs use Full View. Remove the design to choose a muntin.")}</p>
                     </div>}
                     {muntinAllowed && (
                       <div className="pb-4 text-sm">
                         {!selectedConfig ? (
                           <div>
-                            <Label className={fieldLabelClass}>Muntin</Label>
+                            <Label className={fieldLabelClass}>{t("Muntin")}</Label>
                             <p className="text-sm text-muted-foreground">
-                              Select a configuration first to configure muntin.
+                              {t("Select a configuration first to configure muntin.")}
                             </p>
                           </div>
                         ) : (
@@ -4244,7 +4257,7 @@ export function PieceForm({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                               <div>
                                 <Label className={fieldLabelClass}>
-                                  Muntin
+                                  {t("Muntin")}
                                 </Label>
                                 <Select
                                   disabled={isLocked}
@@ -4252,8 +4265,8 @@ export function PieceForm({
                                   onValueChange={handleMuntinPatternChange}
                                 >
                                   <SelectTrigger className={selectTriggerClass}>
-                                    <SelectValue placeholder="Select pattern...">
-                                      {selectedPattern?.name ?? (currentMuntin?.idPattern ? `Saved pattern #${currentMuntin.idPattern}` : "Full View")}
+                                    <SelectValue placeholder={t("Select pattern...")}>
+                                      {selectedPattern?.name ?? (currentMuntin?.idPattern ? `${locale === "es" ? "Patrón guardado" : "Saved pattern"} #${currentMuntin.idPattern}` : "Full View")}
                                     </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
@@ -4273,7 +4286,7 @@ export function PieceForm({
                               {patternRequiresType && (
                                 <div>
                                   <Label className={fieldLabelClass}>
-                                    Muntin Type
+                                    {t("Muntin Type")}
                                   </Label>
                                   <Select
                                     disabled={isLocked}
@@ -4287,7 +4300,7 @@ export function PieceForm({
                                     <SelectTrigger
                                       className={selectTriggerClass}
                                     >
-                                      <SelectValue placeholder="Select type...">
+                                      <SelectValue placeholder={t("Select type...")}>
                                         {props.muntinTypes.find((type) => type.id === Number(currentMuntin?.idType))?.name}
                                       </SelectValue>
                                     </SelectTrigger>
@@ -4308,29 +4321,29 @@ export function PieceForm({
 
                             {muntinAvailabilityNotice && (
                               <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                {muntinAvailabilityNotice}
+                                {pieceFormMessage(locale, muntinAvailabilityNotice)}
                               </p>
                             )}
                             {getMuntinInputMode(selectedPattern) === "PRESET" && (
                               <p className="text-sm text-muted-foreground">
-                                This pattern is included in the specification. A drawing preview is not available.
+                                {t("This pattern is included in the specification. A drawing preview is not available.")}
                               </p>
                             )}
                             {hasAmbiguousWindowWallMuntin && (
                               <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                <p>Window Wall uses the same grid in every glass panel. Reconfigure the saved grids to choose one Horizontal and Vertical setting for all panels.</p>
+                                <p>{t("Window Wall uses the same grid in every glass panel. Reconfigure the saved grids to choose one Horizontal and Vertical setting for all panels.")}</p>
                                 <Button type="button" variant="outline" size="sm" className="mt-2" onClick={handleReconfigureWindowWallMuntin}>
-                                  Reconfigure grid
+                                  {t("Reconfigure grid")}
                                 </Button>
                               </div>
                             )}
                             {!patternRequiresLites || hasAmbiguousWindowWallMuntin ? null : !hasMuntinLayout ? (
                               <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                This configuration supports Full View only.
+                                {t("This configuration supports Full View only.")}
                               </div>
                             ) : currentMuntinPanels.length === 0 ? (
                               <div className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600">
-                                This configuration does not define a muntin panel layout.
+                                {t("This configuration does not define a muntin panel layout.")}
                               </div>
                             ) : (
                               <div className="rounded-md border border-slate-200 overflow-hidden">
@@ -4396,17 +4409,18 @@ export function PieceForm({
             {hasResults && (
               <AccordionItem ref={resultsRef} value="item-results">
                 <AccordionTrigger className="font-semibold text-base text-green-700">
-                  Results
+                  {t("Results")}
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="p-4 bg-green-50 border-t space-y-4">
                     <div className="flex justify-between items-center flex-wrap gap-4 text-sm">
                       <div>
                         <span className="font-semibold mr-2">
-                          Your Price (Unit):
+                          {t("Your Price (Unit):")}
                         </span>
                         <strong className="font-mono text-base">
-                          <PromotionPrice
+                            <PromotionPrice
+                              locale={locale}
                             amount={pieceValues.price || 0}
                             originalAmount={originalUnitPrice}
                           />
@@ -4414,10 +4428,11 @@ export function PieceForm({
                       </div>
                       <div>
                         <span className="font-semibold mr-2">
-                          Your Price (Line):
+                          {t("Your Price (Line):")}
                         </span>
                         <strong className="font-mono text-base">
                           <PromotionPrice
+                            locale={locale}
                             amount={pieceValues.subtotal || 0}
                             originalAmount={originalLinePrice}
                           />
@@ -4427,7 +4442,7 @@ export function PieceForm({
 
                     <div className="bg-white border rounded-md p-3">
                       <div className="text-xs font-semibold text-gray-600 mb-2">
-                        Design Pressures
+                        {t("Design Pressures")}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                         <div className="flex items-center gap-2">
@@ -4470,7 +4485,7 @@ export function PieceForm({
                     {props.canUseCustomerPricing && (
                       <div className="border-t border-green-200 pt-4 space-y-3">
                         <h4 className="font-semibold text-gray-600">
-                          Dealer Pricing
+                          {t("Dealer Pricing")}
                         </h4>
 
                         <div className="flex items-center gap-4">
@@ -4479,7 +4494,7 @@ export function PieceForm({
                               htmlFor={`dealerMarkup-${index}`}
                               className="flex-shrink-0"
                             >
-                              Dealer Markup (%)
+                              {t("Dealer Markup (%)")}
                             </Label>
                             <Input
                               id={`dealerMarkup-${index}`}
@@ -4503,14 +4518,15 @@ export function PieceForm({
                           </div>
 
                           <span className="text-xs text-slate-500">
-                            Updates automatically when you leave the field.
+                            {t("Updates automatically when you leave the field.")}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center text-sm">
-                          <span>Customer Price (Unit):</span>
+                          <span>{t("Customer Price (Unit):")}</span>
                           <strong className="font-mono text-base">
                             <PromotionPrice
+                              locale={locale}
                               amount={pieceValues.customerPrice || 0}
                               originalAmount={originalCustomerUnitPrice}
                             />
@@ -4518,9 +4534,10 @@ export function PieceForm({
                         </div>
 
                         <div className="flex justify-between items-center text-sm">
-                          <span>Customer Subtotal (Line):</span>
+                          <span>{t("Customer Subtotal (Line):")}</span>
                           <strong className="font-mono text-base">
                             <PromotionPrice
+                              locale={locale}
                               amount={pieceValues.customerSubtotal || 0}
                               originalAmount={originalCustomerLinePrice}
                             />
@@ -4528,7 +4545,7 @@ export function PieceForm({
                         </div>
 
                         <div className="flex justify-between items-center text-sm">
-                          <span>Your Net Profit (Line):</span>
+                          <span>{t("Your Net Profit (Line):")}</span>
                           <strong className="font-mono text-base text-green-700">
                             {new Intl.NumberFormat("en-US", {
                               style: "currency",
@@ -4548,10 +4565,11 @@ export function PieceForm({
         <div className="hidden xl:block">
           <div className="sticky top-8">
             <Label className="text-center block mb-2 font-semibold text-gray-600">
-              Preview
+              {t("Preview")}
             </Label>
             <div className="flex h-[clamp(400px,65vh,640px)] items-center justify-center overflow-hidden rounded-lg border bg-slate-50 p-4">
               <PieceDiagram
+                locale={locale}
                 variant="editor"
                 diagramFamily={selectedProduct?.diagramFamily}
                 systemName={selectedSystem?.name}
@@ -4584,7 +4602,7 @@ export function PieceForm({
           className="border-red-200 bg-red-50 text-red-700 shadow-none hover:bg-red-100 hover:text-red-800"
           onClick={onCancel}
         >
-          Cancel
+          {t("Cancel")}
         </Button>
 
         {isLocked ? (
@@ -4594,7 +4612,7 @@ export function PieceForm({
             className="border border-amber-200 bg-amber-100 text-amber-800 shadow-none hover:bg-amber-200"
             onClick={handleUnlock}
           >
-            <Pencil className="mr-2 h-4 w-4" /> Edit
+            <Pencil className="mr-2 h-4 w-4" /> {t("Edit")}
           </Button>
         ) : (
           <Button
@@ -4603,7 +4621,7 @@ export function PieceForm({
             className="border border-blue-200 bg-blue-100 text-blue-800 shadow-none hover:bg-blue-200"
             onClick={() => void handleCalculate(true)}
           >
-            <Calculator className="mr-2 h-4 w-4" /> Calculate
+            <Calculator className="mr-2 h-4 w-4" /> {t("Calculate")}
           </Button>
         )}
 
@@ -4613,7 +4631,7 @@ export function PieceForm({
           disabled={!isLocked || isSubmitting || hasPendingDealerMarkup || Boolean(designSelectionError)}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Submit
+          {t("Submit")}
         </Button>
       </DialogFooter>
     </form>

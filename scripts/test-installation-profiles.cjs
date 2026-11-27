@@ -163,6 +163,17 @@ test('admin summary separates total provider cost and gross margin from partial 
   for (const expected of ['Provider cost$500.00', 'Company gross margin$60.00', 'Quote total$560.00', 'Card collections to date', '$245.00']) assert.ok(output.includes(expected), expected);
   assert.ok(!output.includes('$495.00'), 'Does not subtract partial card costs from the full provider quote');
 });
+test('Spanish installation finances keep the same amounts and distinguish pending collections', () => {
+  const props = { quote, processing, userRole: 'admin', locale: 'es' };
+  const confirmed = text(Financial(props));
+  assert.ok(confirmed.includes('Costo del proveedor$500.00'));
+  assert.ok(confirmed.includes('Margen bruto de la empresa$60.00'));
+  assert.ok(confirmed.includes('Total de la cotización$560.00'));
+  const pending = Financial({ ...props, processing: { ...processing, status: 'PENDING' } });
+  assert.ok(text(pending).includes('Comisiones por pago con tarjeta pendientes de confirmación'));
+  assert.ok(all(pending, node => node.type === 'td').every(cell => text(cell) === 'Pendiente'));
+  assert.equal(Financial({ ...props, userRole: 'dealer' }), null);
+});
 test('unconfirmed processing amounts are pending and missing historical provider costs are not invented', () => {
   const pending = text(Financial({ quote, processing: { ...processing, status: 'PENDING' }, userRole: 'admin' }));
   assert.ok(pending.includes('Card fees pending confirmation')); assert.ok(!pending.includes('$245.00'));

@@ -13,6 +13,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { deliveryError, deliveryStatusEs, deliveryText } from "@/lib/order-delivery-language";
+import { checkoutErrorText } from "@/lib/estimate-payment-language";
 import type {
   DeliveryType,
   InstallationAddress,
@@ -58,13 +61,14 @@ const deliveryName = (type: DeliveryType) => {
   return "Delivery";
 };
 
-const displayDateTime = (value: string) =>
-  new Intl.DateTimeFormat("en-US", {
+const displayDateTime = (value: string, locale: CompanyLocale) =>
+  new Intl.DateTimeFormat(locale === "es" ? "es-US" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 
 export function OrderDeliveryPanel({
+  locale = "en",
   paymentTarget,
   order,
   installation,
@@ -74,6 +78,7 @@ export function OrderDeliveryPanel({
   cardSurchargeFraction,
   canRecordManualPayment,
 }: {
+  locale?: CompanyLocale;
   paymentTarget: HTMLDivElement | null;
   order: OrderWithRelations;
   installation: InstallationJob | null;
@@ -83,6 +88,7 @@ export function OrderDeliveryPanel({
   cardSurchargeFraction: number;
   canRecordManualPayment: boolean;
 }) {
+  const t = deliveryText.bind(null, locale);
   const canPay = order.estimate.dealerNetwork ? order.estimate.dealerNetwork.canPay : isOwner;
   const router = useRouter();
   const installationActive = Boolean(
@@ -152,10 +158,10 @@ export function OrderDeliveryPanel({
       }
       setFulfillmentMethod("CUSTOMER_PICKUP");
       setFormType(null);
-      toast.success("Pickup selected.");
+      toast.success(t("Pickup selected."));
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -170,10 +176,10 @@ export function OrderDeliveryPanel({
       }
       setFulfillmentMethod("FACTORY_PICKUP");
       setFormType(null);
-      toast.success("Factory pickup selected.");
+      toast.success(t("Factory pickup selected."));
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -183,10 +189,10 @@ export function OrderDeliveryPanel({
     setBusy(true);
     try {
       await completeOrderPickup(order.id);
-      toast.success("Pickup completed.");
+      toast.success(t("Pickup completed."));
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -200,31 +206,31 @@ export function OrderDeliveryPanel({
       !address.state.trim() ||
       !address.postalCode.trim()
     ) {
-      toast.error("Complete the entire delivery address.");
+      toast.error(t("Complete the entire delivery address."));
       return;
     }
     if (address.street.trim().length > 150 || address.city.trim().length > 100) {
-      toast.error("Use no more than 150 characters for the street and 100 for the city.");
+      toast.error(t("Use no more than 150 characters for the street and 100 for the city."));
       return;
     }
     if ((address.addressLine2 ?? "").trim().length > 150) {
-      toast.error("Address details must be 150 characters or fewer.");
+      toast.error(t("Address details must be 150 characters or fewer."));
       return;
     }
     if (!/^[A-Za-z]{2}$/.test(address.state.trim())) {
-      toast.error("Enter the two-letter state code, for example FL.");
+      toast.error(t("Enter the two-letter state code, for example FL."));
       return;
     }
     if (!/^\d{5}(?:-\d{4})?$/.test(address.postalCode.trim())) {
-      toast.error("Enter a valid 5-digit ZIP code or ZIP+4.");
+      toast.error(t("Enter a valid 5-digit ZIP code or ZIP+4."));
       return;
     }
     if (formType !== "STANDARD" && !internalReason.trim()) {
-      toast.error("Enter the required internal reason.");
+      toast.error(t("Enter the required internal reason."));
       return;
     }
 
-    if (!confirmation.isConfirmed) { toast.error("Confirm the delivery address before creating its charge."); return; }
+    if (!confirmation.isConfirmed) { toast.error(t("Confirm the delivery address before creating its charge.")); return; }
     requestInFlight.current = true;
     const revision = addressRevision.current, context = requestContext;
     const isCurrent = () => mounted.current && revision === addressRevision.current && context === latestContext.current;
@@ -254,10 +260,10 @@ export function OrderDeliveryPanel({
       setFormType(null);
       setInternalReason("");
       setTaxable(false);
-      toast.success("Delivery address verified and charge added for payment.");
+      toast.success(t("Delivery address verified and charge added for payment."));
       router.refresh();
     } catch (error) {
-      if (isCurrent() && !confirmation.handleFinalError(error)) toast.error((error as Error).message);
+      if (isCurrent() && !confirmation.handleFinalError(error)) toast.error(deliveryError(locale, error));
     } finally {
       requestInFlight.current = false;
       if (mounted.current) setBusy(false);
@@ -274,7 +280,7 @@ export function OrderDeliveryPanel({
       );
       window.location.href = url;
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(checkoutErrorText(locale, error));
       setBusy(false);
     }
   };
@@ -288,7 +294,7 @@ export function OrderDeliveryPanel({
         delivery.sequence,
       );
       if (result.status === "paid") {
-        toast.success("Delivery payment was already confirmed.");
+        toast.success(t("Delivery payment was already confirmed."));
         router.refresh();
         return;
       }
@@ -304,11 +310,11 @@ export function OrderDeliveryPanel({
         });
       }
       toast.success(
-        "Payment attempt canceled. You can now change this order to pickup.",
+        t("Payment attempt canceled. You can now change this order to pickup."),
       );
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -317,7 +323,7 @@ export function OrderDeliveryPanel({
   const schedule = async (delivery: OrderDelivery) => {
     const localDate = scheduledFor[delivery.id];
     if (!localDate || Number.isNaN(new Date(localDate).getTime())) {
-      toast.error("Select a valid delivery date and time.");
+      toast.error(t("Select a valid delivery date and time."));
       return;
     }
     setBusy(true);
@@ -328,10 +334,10 @@ export function OrderDeliveryPanel({
           new Date(localDate).toISOString(),
         ),
       );
-      toast.success("Delivery scheduled.");
+      toast.success(t("Delivery scheduled."));
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -341,10 +347,10 @@ export function OrderDeliveryPanel({
     setBusy(true);
     try {
       replaceDelivery(await completeOrderDelivery(delivery.id));
-      toast.success("Delivery completed.");
+      toast.success(t("Delivery completed."));
       router.refresh();
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(deliveryError(locale, error));
     } finally {
       setBusy(false);
     }
@@ -386,26 +392,23 @@ export function OrderDeliveryPanel({
     <section id="pickup-delivery" className="scroll-mt-28 rounded-xl border bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Pickup &amp; Delivery</h2>
+          <h2 className="text-lg font-semibold">{t("Pickup & Delivery")}</h2>
           <p className="text-sm text-muted-foreground">
-            Pickup is free. A valid delivery address, including the correct ZIP
-            code, is required for delivery.
+            {t("Pickup is free. A valid delivery address, including the correct ZIP code, is required for delivery.")}
           </p>
         </div>
       </div>
 
       {releasePaymentRelevant && releaseBlocked && (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-          Pay the installments required for material release before pickup or delivery.
+          {t("Pay the installments required for material release before pickup or delivery.")}
         </p>
       )}
       {installationActive && (
         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-          <strong className="block">Delivery included with installation</strong>
+          <strong className="block">{t("Delivery included with installation")}</strong>
           <span>
-            Materials travel with the installation crew at no additional
-            delivery charge unless an administrator creates an exception or a
-            separate pre-delivery.
+            {t("Materials travel with the installation crew at no additional delivery charge unless an administrator creates an exception or a separate pre-delivery.")}
           </span>
         </div>
       )}
@@ -414,16 +417,16 @@ export function OrderDeliveryPanel({
         <div className="mt-4 rounded-lg border p-4">
           {fulfillmentMethod === "CUSTOMER_PICKUP" ? (
             <div>
-              <WarehousePickupAddress />
+              <WarehousePickupAddress locale={locale} />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <strong className="flex items-center gap-2">
-                    <Store className="h-4 w-4" /> Pickup selected
+                    <Store className="h-4 w-4" /> {t("Pickup selected")}
                   </strong>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {ready
-                      ? "This order is ready for pickup."
-                      : "An administrator will mark the order Ready to pick up when the materials are available."}
+                      ? t("This order is ready for pickup.")
+                      : t("An administrator will mark the order Ready to pick up when the materials are available.")}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -433,7 +436,7 @@ export function OrderDeliveryPanel({
                       disabled={busy}
                       onClick={() => setFormType("STANDARD")}
                     >
-                      Change to delivery
+                      {t("Change to delivery")}
                     </Button>
                   )}
                   {isAdmin && preparing && (
@@ -442,7 +445,7 @@ export function OrderDeliveryPanel({
                       disabled={busy}
                       onClick={() => void chooseFactoryPickup()}
                     >
-                      <Factory className="h-4 w-4" /> Change to factory pickup
+                      <Factory className="h-4 w-4" /> {t("Change to factory pickup")}
                     </Button>
                   )}
                   {isPrivileged && ready && (
@@ -450,7 +453,7 @@ export function OrderDeliveryPanel({
                       disabled={busy || releaseBlocked}
                       onClick={() => void finishPickup()}
                     >
-                      <PackageCheck className="h-4 w-4" /> Complete pickup
+                      <PackageCheck className="h-4 w-4" /> {t("Complete pickup")}
                     </Button>
                   )}
                 </div>
@@ -460,12 +463,12 @@ export function OrderDeliveryPanel({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <strong className="flex items-center gap-2">
-                  <Factory className="h-4 w-4" /> Factory pickup selected
+                  <Factory className="h-4 w-4" /> {t("Factory pickup selected")}
                 </strong>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {ready
-                    ? "Pickup is authorized. Follow the pickup instructions provided by the company."
-                    : "Pickup instructions will be provided when the order is ready."}
+                    ? t("Pickup is authorized. Follow the pickup instructions provided by the company.")
+                    : t("Pickup instructions will be provided when the order is ready.")}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -475,7 +478,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Change to pickup
+                    <Store className="h-4 w-4" /> {t("Change to pickup")}
                   </Button>
                 )}
                 {canCreateStandard && (
@@ -484,19 +487,19 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => setFormType("STANDARD")}
                   >
-                    Change to delivery
+                    {t("Change to delivery")}
                   </Button>
                 )}
                 {isPrivileged && ready && (
                   <Button disabled={busy || releaseBlocked} onClick={() => void finishPickup()}>
-                    <PackageCheck className="h-4 w-4" /> Complete pickup
+                    <PackageCheck className="h-4 w-4" /> {t("Complete pickup")}
                   </Button>
                 )}
               </div>
             </div>
           ) : (
             <div>
-              <strong>Choose how to receive this order</strong>
+              <strong>{t("Choose how to receive this order")}</strong>
               <div className="mt-3 flex flex-wrap gap-2">
                 {canChoose && (
                   <Button
@@ -504,7 +507,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Pickup
+                    <Store className="h-4 w-4" /> {t("Pickup")}
                   </Button>
                 )}
                 {isAdmin && (
@@ -513,7 +516,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void chooseFactoryPickup()}
                   >
-                    <Factory className="h-4 w-4" /> Factory pickup
+                    <Factory className="h-4 w-4" /> {t("Factory pickup")}
                   </Button>
                 )}
                 {canCreateStandard && (
@@ -521,7 +524,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => setFormType("STANDARD")}
                   >
-                    <Truck className="h-4 w-4" /> Calculate delivery
+                    <Truck className="h-4 w-4" /> {t("Calculate delivery")}
                   </Button>
                 )}
               </div>
@@ -536,10 +539,10 @@ export function OrderDeliveryPanel({
             variant="outline"
             onClick={() => setFormType("INSTALLATION_OVERRIDE")}
           >
-            Charge delivery with installation
+            {t("Charge delivery with installation")}
           </Button>
           <Button variant="outline" onClick={() => setFormType("PRE_DELIVERY")}>
-            Add separate pre-delivery
+            {t("Add separate pre-delivery")}
           </Button>
         </div>
       )}
@@ -547,7 +550,7 @@ export function OrderDeliveryPanel({
       {canCreateRedelivery && formType === null && (
         <div className="mt-4">
           <Button variant="outline" onClick={() => setFormType("REDELIVERY")}>
-            Add redelivery charge
+            {t("Add redelivery charge")}
           </Button>
         </div>
       )}
@@ -555,17 +558,17 @@ export function OrderDeliveryPanel({
       {formType && (
         <div className="mt-4 space-y-4 rounded-lg border border-dashed p-4">
           <div>
-            <strong>{deliveryName(formType)}</strong>
+            <strong>{t(deliveryName(formType))}</strong>
             <p className="text-sm text-muted-foreground">
-              Enter the complete delivery address, including the correct ZIP
-              code. It must be verified before a delivery charge can be created.
+              {t("Enter the complete delivery address, including the correct ZIP code. It must be verified before a delivery charge can be created.")}
             </p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
-              <Label htmlFor="delivery-street">Street</Label>
+              <Label htmlFor="delivery-street">{t("Street")}</Label>
               <AddressAutocomplete
+                locale={locale}
                 id="delivery-street"
                 value={address.street}
                 maxLength={150}
@@ -581,19 +584,19 @@ export function OrderDeliveryPanel({
               />
             </div>
             <div className="md:col-span-2">
-              <Label htmlFor="delivery-address-line2">Apartment, suite, unit, etc. (optional)</Label>
+              <Label htmlFor="delivery-address-line2">{t("Apartment, suite, unit, etc. (optional)")}</Label>
               <Input
                 id="delivery-address-line2"
                 value={address.addressLine2 ?? ""}
                 maxLength={150}
                 disabled={busy}
                 autoComplete="address-line2"
-                placeholder="e.g. Apt 4B, Suite 200, Building C"
+                placeholder={t("e.g. Apt 4B, Suite 200, Building C")}
                 onChange={(event) => editAddress((current) => ({ ...current, addressLine2: event.target.value }))}
               />
             </div>
             <div>
-              <Label htmlFor="delivery-city">City</Label>
+              <Label htmlFor="delivery-city">{t("City")}</Label>
               <Input
                 id="delivery-city"
                 value={address.city}
@@ -610,7 +613,7 @@ export function OrderDeliveryPanel({
             </div>
             <div className="grid grid-cols-[1fr_1.4fr] gap-3">
               <div>
-                <Label htmlFor="delivery-state">State</Label>
+                <Label htmlFor="delivery-state">{t("State")}</Label>
                 <Input
                   id="delivery-state"
                   value={address.state}
@@ -626,7 +629,7 @@ export function OrderDeliveryPanel({
                 />
               </div>
               <div>
-                <Label htmlFor="delivery-zip">ZIP code</Label>
+                <Label htmlFor="delivery-zip">{t("ZIP code")}</Label>
                 <Input
                   id="delivery-zip"
                   value={address.postalCode}
@@ -634,7 +637,7 @@ export function OrderDeliveryPanel({
                   maxLength={10}
                   inputMode="numeric"
                   autoComplete="postal-code"
-                  placeholder="12345 or 12345-6789"
+                  placeholder={t("12345 or 12345-6789")}
                   onChange={(event) =>
                     editAddress((current) => ({
                       ...current,
@@ -646,21 +649,21 @@ export function OrderDeliveryPanel({
             </div>
           </div>
 
-          <AddressConfirmationPanel confirmation={confirmation} address={address} purpose="delivery"
+          <AddressConfirmationPanel locale={locale} confirmation={confirmation} address={address} purpose="delivery"
             disabled={busy || confirmation.checking} onEdit={() => editAddress(current => current)} />
-          <Button type="button" disabled={busy || confirmation.checking} onClick={() => void confirmation.review()}>Use this address</Button>
+          <Button type="button" disabled={busy || confirmation.checking} onClick={() => void confirmation.review()}>{t("Use this address")}</Button>
 
           {formType !== "STANDARD" && (
             <div>
               <Label htmlFor="delivery-internal-reason">
-                Internal reason (required)
+                {t("Internal reason (required)")}
               </Label>
               <Textarea
                 id="delivery-internal-reason"
                 value={internalReason}
                 maxLength={1000}
                 onChange={(event) => setInternalReason(event.target.value)}
-                placeholder="Company-only explanation; the customer will not see it"
+                placeholder={t("Company-only explanation; the customer will not see it")}
               />
             </div>
           )}
@@ -673,9 +676,8 @@ export function OrderDeliveryPanel({
                 className="mt-0.5"
               />
               <span>
-                <strong className="block">Apply sales tax</strong>
-                Leave this off when the separately stated delivery charge is
-                treated as non-taxable.
+                <strong className="block">{t("Apply sales tax")}</strong>
+                {t("Leave this off when the separately stated delivery charge is treated as non-taxable.")}
               </span>
             </label>
           )}
@@ -692,10 +694,10 @@ export function OrderDeliveryPanel({
                 setTaxable(false);
               }}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button disabled={busy || confirmation.checking || !confirmation.isConfirmed} onClick={() => void calculateDelivery()}>
-              <MapPin className="h-4 w-4" /> Calculate delivery charge
+              <MapPin className="h-4 w-4" /> {t("Calculate delivery charge")}
             </Button>
           </div>
         </div>
@@ -726,29 +728,29 @@ export function OrderDeliveryPanel({
             <div key={delivery.id} className="rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <strong>
-                  {deliveryName(delivery.type)} #{delivery.sequence}
+                  {t(deliveryName(delivery.type))} #{delivery.sequence}
                 </strong>
                 <Badge
                   variant={
                     delivery.status === "COMPLETED" ? "default" : "secondary"
                   }
                 >
-                  {titleCase(delivery.status)}
+                  {(locale === "es" && deliveryStatusEs[delivery.status]) || titleCase(delivery.status)}
                 </Badge>
               </div>
 
               <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
                 <div>
-                  <div className="text-muted-foreground">Destination</div>
+                  <div className="text-muted-foreground">{t("Destination")}</div>
                   <div className="font-medium">
                     {[delivery.destinationStreet, delivery.destinationAddressLine2].filter(Boolean).join(", ")}, {delivery.destinationCity},{" "}
                     {delivery.destinationState} {delivery.destinationPostalCode}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Road distance</div>
+                  <div className="text-muted-foreground">{t("Road distance")}</div>
                   <div className="font-medium">
-                    {Number(delivery.roadMiles).toFixed(2)} one-way miles
+                    {Number(delivery.roadMiles).toFixed(2)} {t("one-way miles")}
                   </div>
                 </div>
               </div>
@@ -756,14 +758,15 @@ export function OrderDeliveryPanel({
               <div className="ml-auto mt-3 max-w-lg space-y-1 text-sm">
                 <div className="flex justify-between gap-3">
                   <span>
-                    Base price · first {Number(delivery.includedMilesSnapshot)}{" "}
-                    miles
+                    {locale === "es"
+                      ? `Precio base (incluye ${Number(delivery.includedMilesSnapshot)} millas)`
+                      : `Base price · first ${Number(delivery.includedMilesSnapshot)} miles`}
                   </span>
                   <span>{formatMoney(Number(delivery.basePriceSnapshot))}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>
-                    Additional miles ·{" "}
+                    {t("Additional miles")} ·{" "}
                     {Number(delivery.additionalMiles).toFixed(2)} ×{" "}
                     {formatMoney(Number(delivery.additionalMilePriceSnapshot))}
                   </span>
@@ -776,43 +779,43 @@ export function OrderDeliveryPanel({
                 </div>
                 {Number(delivery.tollAmount) > 0 && (
                   <div className="flex justify-between gap-3">
-                    <span>Tolls</span>
+                    <span>{t("Tolls")}</span>
                     <span>{formatMoney(Number(delivery.tollAmount))}</span>
                   </div>
                 )}
                 {Number(delivery.taxAmount) > 0 && (
                   <div className="flex justify-between gap-3">
-                    <span>Sales Tax</span>
+                    <span>{t("Sales Tax")}</span>
                     <span>{formatMoney(Number(delivery.taxAmount))}</span>
                   </div>
                 )}
                 <div className="flex justify-between gap-3 border-t pt-2 font-semibold">
-                  <span>Delivery total</span>
+                  <span>{t("Delivery total")}</span>
                   <span>{formatMoney(Number(delivery.total))}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Additional mileage is prorated using the measured one-way road
-                  distance. Return mileage is not charged automatically.
+                  {t("Additional mileage is prorated using the measured one-way road distance. Return mileage is not charged automatically.")}
                 </p>
               </div>
 
               {isAdmin && delivery.internalReason && (
                 <p className="mt-3 rounded-md bg-slate-50 p-2 text-xs">
-                  <strong>Internal reason:</strong> {delivery.internalReason}
+                  <strong>{t("Internal reason:")}</strong> {delivery.internalReason}
                 </p>
               )}
 
               {delivery.scheduledFor && (
                 <p className="mt-3 text-sm">
-                  <CalendarDays className="mr-1 inline h-4 w-4" /> Scheduled for{" "}
-                  <strong>{displayDateTime(delivery.scheduledFor)}</strong>
+                  <CalendarDays className="mr-1 inline h-4 w-4" /> {t("Scheduled for")}{" "}
+                  <strong>{displayDateTime(delivery.scheduledFor, locale)}</strong>
                 </p>
               )}
 
               {delivery.status === "PAYMENT_DUE" && (canPay || canRecordManualPayment) && (
                 <OrderPaymentSection
+                  locale={locale}
                   target={paymentTarget}
-                  title={`${deliveryName(delivery.type)} #${delivery.sequence}`}
+                  title={`${t(deliveryName(delivery.type))} #${delivery.sequence}`}
                   description={[delivery.destinationStreet, delivery.destinationAddressLine2, delivery.destinationCity, `${delivery.destinationState} ${delivery.destinationPostalCode}`].filter(Boolean).join(", ")}
                   amount={Number(delivery.total)}
                 >
@@ -822,10 +825,11 @@ export function OrderDeliveryPanel({
                       <div className="mt-4 space-y-2">
                         <div className="ml-auto max-w-md rounded-lg border p-3 text-sm">
                           <div className="flex items-center justify-between gap-3 font-semibold">
-                            <span>Payment total</span>
+                            <span>{t("Payment total")}</span>
                             <span>{formatMoney(cardBreakdown.totalAmount)}</span>
                           </div>
                           <CardFeeBreakdown
+                            locale={locale}
                             breakdown={cardBreakdown}
                             className="mt-2"
                           />
@@ -837,8 +841,8 @@ export function OrderDeliveryPanel({
                         >
                           <CreditCard className="h-4 w-4" />{" "}
                           {activeCheckout
-                            ? "Resume delivery payment"
-                            : "Pay delivery"}
+                            ? t("Resume delivery payment")
+                            : t("Pay delivery")}
                           {" · "}
                           {formatMoney(cardBreakdown.totalAmount)}
                         </Button>
@@ -849,8 +853,9 @@ export function OrderDeliveryPanel({
                     order.dealerModeSnapshot === "INTERNAL" &&
                     delivery.status === "PAYMENT_DUE" && (
                       <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                        <p>Send the payment link to the final customer.</p>
+                        <p>{t("Send the payment link to the final customer.")}</p>
                         <EstimatePaymentLinkActions
+                          locale={locale}
                           estimateId={order.idEst}
                           estimateNumber={order.estimate.number}
                           showShare
@@ -862,11 +867,12 @@ export function OrderDeliveryPanel({
                   {canRecordManualPayment && delivery.status === "PAYMENT_DUE" && (
                     <div className="mt-4 flex justify-end">
                       <ManualPaymentDialog
+                        locale={locale}
                         estimateId={order.idEst}
                         type="DELIVERY"
                         sequence={delivery.sequence}
                         amount={Number(delivery.total)}
-                        label="Record delivery payment"
+                        label={t("Record delivery payment")}
                         onRecorded={(payment) => {
                           replaceDelivery({
                             ...delivery,
@@ -884,11 +890,9 @@ export function OrderDeliveryPanel({
 
               {activeCheckout && delivery.status === "PAYMENT_DUE" && (
                 <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-                  <strong className="block">Payment checkout is active</strong>
+                  <strong className="block">{t("Payment checkout is active")}</strong>
                   <p className="mt-1">
-                    Cancel this payment attempt before changing the order to
-                    free pickup. Returning to this page alone does not
-                    cancel Stripe checkout.
+                    {t("Cancel this payment attempt before changing the order to free pickup. Returning to this page alone does not cancel Stripe checkout.")}
                   </p>
                   {isOwner && (
                     <Button
@@ -899,7 +903,7 @@ export function OrderDeliveryPanel({
                       disabled={busy}
                       onClick={() => void cancelDeliveryPayment(delivery)}
                     >
-                      <XCircle className="h-4 w-4" /> Cancel payment attempt
+                      <XCircle className="h-4 w-4" /> {t("Cancel payment attempt")}
                     </Button>
                   )}
                 </div>
@@ -913,7 +917,7 @@ export function OrderDeliveryPanel({
                     disabled={busy}
                     onClick={() => void choosePickup()}
                   >
-                    <Store className="h-4 w-4" /> Change to free pickup
+                    <Store className="h-4 w-4" /> {t("Change to free pickup")}
                   </Button>
                 </div>
               )}
@@ -927,7 +931,7 @@ export function OrderDeliveryPanel({
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="min-w-64 flex-1">
                         <Label htmlFor={`delivery-date-${delivery.id}`}>
-                          Delivery date and time
+                          {t("Delivery date and time")}
                         </Label>
                         <Input
                           id={`delivery-date-${delivery.id}`}
@@ -946,13 +950,13 @@ export function OrderDeliveryPanel({
                         disabled={busy || releaseBlocked}
                         onClick={() => void schedule(delivery)}
                       >
-                        Schedule
+                        {t("Schedule")}
                       </Button>
                       <Button
                         disabled={busy || releaseBlocked}
                         onClick={() => void complete(delivery)}
                       >
-                        Complete delivery
+                        {t("Complete delivery")}
                       </Button>
                     </div>
                   </div>
@@ -961,9 +965,7 @@ export function OrderDeliveryPanel({
               {delivery.type === "INSTALLATION_OVERRIDE" &&
                 delivery.status === "READY_TO_SCHEDULE" && (
                   <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-                    Paid. This delivery uses the accepted installation
-                    appointment and completes automatically when installation
-                    starts.
+                    {t("Paid. This delivery uses the accepted installation appointment and completes automatically when installation starts.")}
                   </p>
                 )}
             </div>
@@ -973,7 +975,7 @@ export function OrderDeliveryPanel({
 
       {!fulfillmentStage && deliveries.length === 0 && !installationActive && (
         <p className="mt-4 text-sm text-muted-foreground">
-          Pickup or delivery becomes available after the material release stage.
+          {t("Pickup or delivery becomes available after the material release stage.")}
         </p>
       )}
     </section>

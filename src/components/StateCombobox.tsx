@@ -23,10 +23,12 @@ import {
 } from "@/components/ui/popover";
 
 import { US_STATES } from "@/lib/us-states";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 type StateComboboxAppearance = "light" | "dark";
 
 type Props<TFieldValues extends FieldValues> = {
+  locale?: CompanyLocale;
   control: Control<TFieldValues>;
   name: FieldPath<TFieldValues>;
   label?: string;
@@ -39,10 +41,11 @@ type Props<TFieldValues extends FieldValues> = {
 };
 
 export function StateCombobox<TFieldValues extends FieldValues>({
+  locale = "en",
   control,
   name,
-  label = "State",
-  placeholder = "Select state...",
+  label = locale === "es" ? "Estado" : "State",
+  placeholder = locale === "es" ? "Selecciona el estado..." : "Select state...",
   disabled,
   error,
   appearance = "light",
@@ -51,6 +54,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
 }: Props<TFieldValues>) {
   const [open, setOpen] = React.useState(false);
   const isDark = appearance === "dark";
+  const labelId = React.useId();
 
   const byValue = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -72,7 +76,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <Label className={labelClass}>{label}</Label>
+      <Label id={labelId} className={labelClass}>{label}</Label>
 
       <Controller
         control={control}
@@ -90,6 +94,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
                   variant="outline"
                   role="combobox"
                   aria-expanded={open}
+                  aria-labelledby={labelId}
                   className={cn(
                     triggerClass,
                     triggerClassName,
@@ -108,12 +113,13 @@ export function StateCombobox<TFieldValues extends FieldValues>({
                 </Button>
               </PopoverTrigger>
 
-              <PopoverContent className={popoverClass} align="start">
+              <PopoverContent className={popoverClass} align="start" lang={locale}>
                 <Command
                   className={isDark ? "bg-[#080808] text-white" : undefined}
                 >
                   <CommandInput
-                    placeholder="Type to search..."
+                    placeholder={locale === "es" ? "Escribe para buscar..." : "Type to search..."}
+                    aria-label={locale === "es" ? "Buscar estado" : "Search states"}
                     className={
                       isDark
                         ? "border-white/10 text-white placeholder:text-white/35"
@@ -129,7 +135,7 @@ export function StateCombobox<TFieldValues extends FieldValues>({
                           : undefined
                       }
                     >
-                      No state found.
+                      {locale === "es" ? "No se encontró ningún estado." : "No state found."}
                     </CommandEmpty>
 
                     <CommandGroup>

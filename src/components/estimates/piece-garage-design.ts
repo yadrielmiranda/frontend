@@ -1,4 +1,5 @@
 import type { GarageDesignSnapshot, SystemDesignOption } from "@/lib/garage-designs";
+import type { CompanyLocale } from "@/components/company/company-content";
 import { garageDesignHasGlass } from "@/lib/garage-design-templates";
 
 type DesignPiece = {
@@ -96,7 +97,7 @@ export function garageDesignFrameSelection({ enabled, piece, system, frameColors
 }
 
 /** Prefer the captured names for the selected pair, even after catalog changes. */
-export function pieceGarageDesign(piece: DesignPiece, system?: DesignSystem | null) {
+export function pieceGarageDesign(piece: DesignPiece, system?: DesignSystem | null, locale: CompanyLocale = "en") {
   if (!piece.idDesign && !piece.idDesignColor) return null;
   const snapshot = piece.designSnapshot;
   if (snapshot?.version === 1 && snapshot.systemId === Number(piece.idSyst)
@@ -108,15 +109,19 @@ export function pieceGarageDesign(piece: DesignPiece, system?: DesignSystem | nu
   if (option) return { design: option.design, color: option.color };
   const design = system?.designOptions?.find(item => item.idSystem === Number(piece.idSyst) && item.idDesign === Number(piece.idDesign))?.design;
   const color = system?.designOptions?.find(item => item.idSystem === Number(piece.idSyst) && item.idDesignColor === Number(piece.idDesignColor))?.color;
+  const unselected = locale === "es" ? "Sin seleccionar" : "Not selected";
+  const designLabel = locale === "es" ? "Diseño" : "Design";
   return {
-    design: design ?? { id: Number(piece.idDesign), name: piece.idDesign ? `Design #${piece.idDesign}` : "Not selected", imageUrl: null, template: null },
-    color: color ?? { id: Number(piece.idDesignColor), name: piece.idDesignColor ? `Color #${piece.idDesignColor}` : "Not selected", hexCode: null },
+    design: design ?? { id: Number(piece.idDesign), name: piece.idDesign ? `${designLabel} #${piece.idDesign}` : unselected, imageUrl: null, template: null },
+    color: color ?? { id: Number(piece.idDesignColor), name: piece.idDesignColor ? `Color #${piece.idDesignColor}` : unselected, hexCode: null },
   };
 }
 
-export function garageDesignDescription(piece: DesignPiece, system?: DesignSystem | null): string | null {
-  const selected = pieceGarageDesign(piece, system);
-  return selected ? `Design: ${selected.design.name} | Design Color: ${selected.color.name}` : null;
+export function garageDesignDescription(piece: DesignPiece, system?: DesignSystem | null, locale: CompanyLocale = "en"): string | null {
+  const selected = pieceGarageDesign(piece, system, locale);
+  if (!selected) return null;
+  return locale === "es" ? `Diseño: ${selected.design.name} | Color del diseño: ${selected.color.name}`
+    : `Design: ${selected.design.name} | Design Color: ${selected.color.name}`;
 }
 
 /** Only a complete selection with a validated all-slat template suppresses glass. */
@@ -131,8 +136,9 @@ export function pieceFrameColor(
   piece: DesignPiece,
   ordinaryFrame?: { color?: string | null; hexCode?: string | null } | null,
   system?: DesignSystem | null,
+  locale: CompanyLocale = "en",
 ): { color: string | null; hexCode: string | null } {
-  const selected = pieceGarageDesign(piece, system);
+  const selected = pieceGarageDesign(piece, system, locale);
   if (selected && Number(piece.idDesignColor) > 0) {
     return { color: selected.color.name, hexCode: selected.color.hexCode ?? null };
   }

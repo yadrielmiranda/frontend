@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Estimate, EstimateInstallationReportSummary } from "@/lib/types";
 import { formatMoney, roundMoney } from "@/lib/formatters";
+import type { CompanyLocale } from "@/components/company/company-content";
 
 type EstimateCosts = Pick<Estimate, "priceT" | "taxAmount" | "installationJob" | "manualDiscountSummary"> & {
   installationSummary?: EstimateInstallationReportSummary | null;
@@ -21,7 +22,8 @@ function installationAmount(estimate: EstimateCosts): number | null {
   return roundMoney(installation + permit + city);
 }
 
-export function getEstimateCostColumns<T>(getEstimate: (row: T) => EstimateCosts): ColumnDef<T>[] {
+export function getEstimateCostColumns<T>(getEstimate: (row: T) => EstimateCosts, locale: CompanyLocale = "en"): ColumnDef<T>[] {
+  const spanish = locale === "es";
   return [
     {
       id: "priceT",
@@ -40,13 +42,13 @@ export function getEstimateCostColumns<T>(getEstimate: (row: T) => EstimateCosts
         return Number(estimate.manualDiscountSummary?.payer === "ACCOUNT_OWNER"
           ? estimate.manualDiscountSummary.material.tax : estimate.taxAmount);
       },
-      header: () => <div className="text-center">Tax</div>,
+      header: () => <div className="text-center">{spanish ? "Impuesto" : "Tax"}</div>,
       cell: ({ row }) => <div className="whitespace-nowrap text-center font-medium tabular-nums">{formatMoney(row.getValue<number>("taxAmount"))}</div>,
     },
     {
       id: "installationAmount",
       accessorFn: (item) => installationAmount(getEstimate(item)),
-      header: () => <div className="whitespace-nowrap text-center">Installation &amp; services</div>,
+      header: () => <div className="whitespace-nowrap text-center">{spanish ? "Instalación y servicios" : "Installation & services"}</div>,
       cell: ({ row }) => {
         const estimate = getEstimate(row.original);
         const summary = estimate.installationSummary;
@@ -55,9 +57,11 @@ export function getEstimateCostColumns<T>(getEstimate: (row: T) => EstimateCosts
         const preliminary = summary && (summary.quoteStatus !== "APPROVED" || summary.status === "DEPOSIT_PAYMENT_PENDING");
         return (
           <div className="whitespace-nowrap text-center tabular-nums">
-            <span className="font-medium">{amount == null ? (hasInstallation ? "Pending" : "Not included") : formatMoney(amount)}</span>
-            {amount != null && preliminary && <p className="text-xs text-slate-500">Preliminary</p>}
-            {summary?.permitIncluded && summary.cityFee == null && <p className="text-xs text-amber-700">City Fee pending</p>}
+            <span className="font-medium">{amount == null
+              ? (hasInstallation ? (spanish ? "Pendiente" : "Pending") : (spanish ? "No incluida" : "Not included"))
+              : formatMoney(amount)}</span>
+            {amount != null && preliminary && <p className="text-xs text-slate-500">{spanish ? "Preliminar" : "Preliminary"}</p>}
+            {summary?.permitIncluded && summary.cityFee == null && <p className="text-xs text-amber-700">{spanish ? "Tasa municipal pendiente" : "City Fee pending"}</p>}
           </div>
         );
       },
