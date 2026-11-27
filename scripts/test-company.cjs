@@ -220,6 +220,19 @@ function verifyContent(html, expected, registrationAttribution = '') {
   const images = voidElements(visible, 'img').filter(node => node.src !== flag[0].src)
     .map(node => ({ src: normalizedImage(node.src), alt: node.alt, width: node.width, height: node.height }));
   assert.deepEqual(sorted(images), sorted(expected.images), `${expected.route}: approved image source, dimensions and alternative text`);
+  if (expected.route === '/company' || expected.route === '/es/company') {
+    const hero = elements(visible, 'section').find(section => section.attributes.class?.split(/\s+/).includes('hero'));
+    assert.ok(hero, `${expected.route}: company landing hero`);
+    const videos = elements(hero.html, 'video');
+    assert.equal(videos.length, 1, 'One featured video in the hero');
+    const video = videos[0].attributes;
+    assert.equal(video.src, '/company/portada.mp4');
+    assert.equal(video.poster, '/company/portada-poster.jpg');
+    for (const attr of ['autoplay', 'muted', 'loop', 'playsinline', 'controls']) {
+      assert.ok(Object.hasOwn(video, attr), `${expected.route}: video supports ${attr}`);
+    }
+    assert.ok(video['aria-label'], 'Featured video has a localized accessible name');
+  }
   assert.ok(new RegExp(`class="[^"]*company[^\"]*"[^>]*lang="${expected.locale}"|lang="${expected.locale}"[^>]*class="[^\"]*company`).test(visible), 'Localized public wrapper');
   assert.doesNotMatch(visible, /authentic-company-preview|chatgpt\.site|Opening technician workspace|Session expired|Loading terms/i);
 }
@@ -229,6 +242,13 @@ test('Original photography and logo remain byte-for-byte unchanged', () => {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(publicRoot, 'company', asset.name))).digest('hex');
     assert.equal(actual, asset.sha256, asset.name);
   }
+});
+
+test('Featured video and poster are available as MP4 and JPEG assets', () => {
+  const video = fs.readFileSync(path.join(publicRoot, 'company', 'portada.mp4'));
+  assert.equal(video.toString('ascii', 4, 8), 'ftyp', 'MP4 file type box');
+  const poster = fs.readFileSync(path.join(publicRoot, 'company', 'portada-poster.jpg'));
+  assert.deepEqual([...poster.subarray(0, 3)], [0xff, 0xd8, 0xff], 'JPEG poster signature');
 });
 
 const { CompanyPage } = load(path.join(sourceRoot, 'components/company/company-page.tsx'));

@@ -1,5 +1,5 @@
-/* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
+import { CompanyProductGallery } from "../company-product-gallery";
 import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
@@ -37,13 +37,25 @@ export function CompanyEsContent() {
             </p>
           </div>
           <figure>
-            <img src="/company/project-pool.jpg" alt="Una fila de puertas de vidrio frente a una piscina exterior" width="1080" height="815" fetchPriority="high" />
+            <video
+              src="/company/portada.mp4"
+              poster="/company/portada-poster.jpg"
+              aria-label="Casa de dos plantas con ventanas de impacto y puertas de garaje de vidrio"
+              width={1280}
+              height={720}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
+            />
             <figcaption>
               <span>
                 {"PROYECTO DESTACADO"}
               </span>
               <span>
-                {"PUERTAS DE VIDRIO ENTRE EL INTERIOR Y EL EXTERIOR"}
+                {"VENTANAS Y PUERTAS DE GARAJE"}
               </span>
             </figcaption>
           </figure>
@@ -115,7 +127,7 @@ export function CompanyEsContent() {
           </p>
           <div className="products">
             <article>
-              <img src="/company/project-windows.jpg" alt="Ventanas de marco blanco a lo largo de una pared exterior cubierta" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="windows" locale="es" />
               <div>
                 <p className="tag">
                   {"VENTANAS"}
@@ -129,7 +141,7 @@ export function CompanyEsContent() {
               </div>
             </article>
             <article>
-              <img src="/company/project-sliding.jpg" alt="Puertas corredizas de vidrio con marco blanco durante la instalación" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="sliding" locale="es" />
               <div>
                 <p className="tag">
                   {"PUERTAS CORREDIZAS"}
@@ -143,7 +155,7 @@ export function CompanyEsContent() {
               </div>
             </article>
             <article>
-              <img src="/company/project-entry.jpg" alt="Puerta de entrada blanca con un panel de vidrio de altura completa" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="entry" locale="es" />
               <div>
                 <p className="tag">
                   {"PUERTAS ABATIBLES EXTERIORES"}

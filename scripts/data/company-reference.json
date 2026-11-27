@@ -319,28 +319,58 @@
           "height": "56"
         },
         {
-          "src": "/project-pool.jpg",
-          "alt": "A row of glass patio doors beside an outdoor swimming pool",
+          "src": "/gallery/windows-1.webp",
+          "alt": "A wide dark-framed window on a white exterior wall",
           "width": "1080",
-          "height": "815"
+          "height": "642"
         },
         {
-          "src": "/project-windows.jpg",
-          "alt": "White-framed windows along a covered exterior wall",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/windows-2.webp",
+          "alt": "Dark-framed front window above a planting bed",
+          "width": "1080",
+          "height": "642"
         },
         {
-          "src": "/project-sliding.jpg",
-          "alt": "White-framed sliding glass doors during installation",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/windows-3.webp",
+          "alt": "Three dark-framed windows across the front of a single-story home",
+          "width": "1080",
+          "height": "642"
         },
         {
-          "src": "/project-entry.jpg",
-          "alt": "White entry door with a full-height glass panel",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/sliding-1.webp",
+          "alt": "Glass patio doors facing the pool",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/sliding-2.webp",
+          "alt": "A side view of the glass doors along the patio",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/sliding-3.webp",
+          "alt": "Poolside view of the glass doors across the back of the house",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-1.webp",
+          "alt": "Front door with a geometric glass design",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-2.webp",
+          "alt": "Double glass doors opening onto a covered patio",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-3.webp",
+          "alt": "Dark-framed glass front door between two windows",
+          "width": "1080",
+          "height": "642"
         },
         {
           "src": "/authentic-brand.webp",
@@ -1129,28 +1159,58 @@
           "height": "56"
         },
         {
-          "src": "/project-pool.jpg",
-          "alt": "Una fila de puertas de vidrio frente a una piscina exterior",
+          "src": "/gallery/windows-1.webp",
+          "alt": "Ventana ancha de marco oscuro en una pared exterior blanca",
           "width": "1080",
-          "height": "815"
+          "height": "642"
         },
         {
-          "src": "/project-windows.jpg",
-          "alt": "Ventanas de marco blanco a lo largo de una pared exterior cubierta",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/windows-2.webp",
+          "alt": "Ventana de marco oscuro sobre un jardín al pie de la fachada",
+          "width": "1080",
+          "height": "642"
         },
         {
-          "src": "/project-sliding.jpg",
-          "alt": "Puertas corredizas de vidrio con marco blanco durante la instalación",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/windows-3.webp",
+          "alt": "Tres ventanas de marco oscuro en la fachada de una casa de una planta",
+          "width": "1080",
+          "height": "642"
         },
         {
-          "src": "/project-entry.jpg",
-          "alt": "Puerta de entrada blanca con un panel de vidrio de altura completa",
-          "width": "560",
-          "height": "334"
+          "src": "/gallery/sliding-1.webp",
+          "alt": "Puertas de vidrio del patio frente a la piscina",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/sliding-2.webp",
+          "alt": "Vista lateral de las puertas de vidrio a lo largo del patio",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/sliding-3.webp",
+          "alt": "Vista desde la piscina de las puertas de vidrio en la parte trasera de la casa",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-1.webp",
+          "alt": "Puerta de entrada con diseño geométrico de vidrio",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-2.webp",
+          "alt": "Puertas dobles de vidrio que dan a una terraza cubierta",
+          "width": "1080",
+          "height": "642"
+        },
+        {
+          "src": "/gallery/entry-3.webp",
+          "alt": "Puerta de entrada de vidrio con marco oscuro entre dos ventanas",
+          "width": "1080",
+          "height": "642"
         },
         {
           "src": "/authentic-brand.webp",
@@ -1632,16 +1692,48 @@
       "sha256": "dd22782c4b51d2a2cc02aed3052f29f48cdd40af913f94fc1df801e80474f609"
     },
     {
-      "name": "project-pool.jpg",
-      "sha256": "0f7ae83ed69b769b122f5d96545c8621ffb784067df67ed0b106b7f42fea98df"
-    },
-    {
       "name": "project-sliding.jpg",
       "sha256": "58d8da3bd8e8ee0972f18230b80c1af3fbf08d79e2ccfb99d2950711cbcfe046"
     },
     {
       "name": "project-windows.jpg",
       "sha256": "18d7c8a1b7c3d7f95bf9c3b5e03a228c069664a6ad79bdeb9b88a9c8aa96a20b"
+    },
+    {
+      "name": "gallery/windows-1.webp",
+      "sha256": "07275f46eefdc17b1ae79cc1ec4bbbc1decd10a777b724c1bcd334a7f6d145cf"
+    },
+    {
+      "name": "gallery/windows-2.webp",
+      "sha256": "9f03b9d7effd19286263ad29fce309b43ac55fae3075de4121846ae82cf03c0e"
+    },
+    {
+      "name": "gallery/windows-3.webp",
+      "sha256": "524778b058bafb5b2034b502873bda66275aa6326f74bee5ed9886af9d4fcf91"
+    },
+    {
+      "name": "gallery/sliding-1.webp",
+      "sha256": "8c9525988fb19412e35836e1c290b02535b4f297113ac74dc9fc50f0b531cc0c"
+    },
+    {
+      "name": "gallery/sliding-2.webp",
+      "sha256": "67dadf3a9ecf4f75e0b2698d9f3af385568fd58af53fd0b0dcf50b51dce19165"
+    },
+    {
+      "name": "gallery/sliding-3.webp",
+      "sha256": "c2ee5fc2d85e59910bba536c9e15a685005d374b54cdbbbd37c7d38d2cf2583a"
+    },
+    {
+      "name": "gallery/entry-1.webp",
+      "sha256": "f71f5550b68883ac86898facf3fdd64d48409593254ce276f6edceb64a1e691a"
+    },
+    {
+      "name": "gallery/entry-2.webp",
+      "sha256": "82037f70a35beb5460259b841c56ba1cc36d6ec6ac2d66bc475ee594ec2f23d3"
+    },
+    {
+      "name": "gallery/entry-3.webp",
+      "sha256": "c36c1e0561c328319fb7a3d90be211c1dd39e99da788e092c45677f7bb6b539f"
     }
   ],
   "llms": "# Authentic Evolution Co. — public company reference / referencia pública\n\nOfficial website / Sitio oficial: https://www.authenticevolutionco.com/\nReviewed / Revisado: 2026-11-16\n\n## English\n\nAuthentic Evolution Co. sells, distributes and installs exterior impact-resistant windows and doors for homeowners, contractors and dealers in South Florida. These products are designed for hurricane conditions and severe weather. Our professional platform connects estimates, orders and payments. We coordinate measurements, installation and permits with partner professionals when included in the project scope.\n\n### Create Your Free Account\n\n- For homeowners: Organize the openings you want to replace, compare product options, start an estimate and get help planning the next step. Account creation is free; products, installation and other services are separate.\n- For professionals and dealers: Features vary by permissions and program. Use professional tools to create, edit and organize estimates; present quotes, proposals and available documents under your own name, logo and business information; see prices and promotions that apply to your account; connect salespeople, customers or subdealers; and manage eligible orders and payments without giving up your brand or customer relationships.\n- Where available, orders can be paid by card or bank account. Authentic adds no transaction fee to eligible transactions. Card rewards, fees and interest depend on the card issuer and transaction, not on Authentic.\n\n### Product, price and support\n\nThe right product for the opening, a reliable manufacturer and a competitive quote with a clear scope. Compare products and services on equivalent terms. Authentic is the supplier and platform, not the manufacturer of every product or the contractor for every project.\n\n### What to verify for a specific project\n\nCheck the exact series, configuration, dimensions, glazing and applicable manufacturer documentation before relying on any approval or warranty. Confirm prices, inventory, lead times and included services in the current estimate. Private account pricing and client information are not public. Exterior and impact performance depend on the specific configuration and its applicable documentation; no product is represented as hurricane-proof.\n\n### Find the right page\n\n- AI reference: https://www.authenticevolutionco.com/for-ai/\n- Product, price and support: https://www.authenticevolutionco.com/company/#why-authentic\n- Explore products and services: https://www.authenticevolutionco.com/company/#products\n- Create Your Free Account: https://www.authenticevolutionco.com/company/#free-account\n- Prepare a quote: https://www.authenticevolutionco.com/resources/prepare-your-quote/\n- Compare products and documentation: https://www.authenticevolutionco.com/resources/compare-impact-products/\n- Create Your Free Account: https://www.authenticevolutionco.com/login/register\n- Portal: https://www.authenticevolutionco.com/login\n- Company on the official site: https://www.authenticevolutionco.com/company\n- General terms: https://www.authenticevolutionco.com/terms\n- SMS Privacy Policy: https://www.authenticevolutionco.com/sms/privacy\n- SMS Terms & Conditions: https://www.authenticevolutionco.com/sms/terms\n- Instagram: https://www.instagram.com/authenticevolutionco/\n- Facebook: https://www.facebook.com/449194874949950\n- Phone: +1 (786) 999-4224\n- Email: sales@authenticevolutionco.com\n\n## Español\n\nAuthentic Evolution Co. vende, distribuye e instala ventanas y puertas exteriores de impacto para propietarios, contratistas y distribuidores en el sur de Florida. Son productos diseñados para condiciones de huracán y clima severo. Nuestra plataforma profesional conecta cotizaciones, órdenes y pagos. Coordinamos mediciones, instalación y permisos con profesionales colaboradores cuando forman parte del alcance del proyecto.\n\n### Crea tu cuenta GRATIS\n\n- Para propietarios: Organiza las aberturas que quieres renovar, compara opciones, empieza una cotización y recibe orientación para el siguiente paso. Crear una cuenta es gratis; los productos, la instalación y otros servicios se cotizan aparte.\n- Para profesionales y distribuidores: Las funciones dependen de los permisos y del programa. Usa herramientas profesionales para crear, editar y organizar cotizaciones; presenta cotizaciones, propuestas y documentos disponibles con tu nombre, logo y datos comerciales; consulta los precios y las promociones de tu cuenta; conecta vendedores, clientes o subdistribuidores; y administra órdenes y pagos elegibles sin ceder tu marca ni la relación con tus clientes.\n- Donde esté disponible, paga tus órdenes con tarjeta o cuenta bancaria. Authentic no añade comisiones de transacción a las operaciones elegibles. Los puntos, intereses y cargos de la tarjeta dependen del emisor y de la operación, no de Authentic.\n\n### Producto, precio y respaldo\n\nEl producto adecuado para cada abertura, un fabricante confiable y una cotización competitiva que explique qué incluye. Compara productos y servicios en condiciones equivalentes. Authentic es el proveedor y la plataforma; no es el fabricante de todos los productos ni el contratista de todos los proyectos.\n\n### Qué verificar para tu proyecto\n\nConfirma la serie, configuración, medidas, vidrio y documentación aplicable del fabricante antes de basarte en una aprobación o garantía. Verifica precio, disponibilidad, plazo y servicios incluidos en la cotización vigente. Los precios privados y los datos de clientes no son públicos. La resistencia del producto depende de la configuración y su documentación aplicable; no se presenta como a prueba de huracanes.\n\n### Encuentra la página adecuada\n\n- Referencia para IA: https://www.authenticevolutionco.com/es/for-ai/\n- Producto, precio y respaldo: https://www.authenticevolutionco.com/es/company/#why-authentic\n- Ver productos y servicios: https://www.authenticevolutionco.com/es/company/#products\n- Crea tu cuenta GRATIS: https://www.authenticevolutionco.com/es/company/#free-account\n- Prepara una cotización: https://www.authenticevolutionco.com/es/resources/prepare-your-quote/\n- Compara productos y documentación: https://www.authenticevolutionco.com/es/resources/compare-impact-products/\n- Crea tu cuenta GRATIS: https://www.authenticevolutionco.com/login/register\n- Portal: https://www.authenticevolutionco.com/login\n- Empresa en el sitio oficial: https://www.authenticevolutionco.com/company\n- Condiciones generales: https://www.authenticevolutionco.com/terms\n- Política de privacidad de SMS: https://www.authenticevolutionco.com/sms/privacy\n- Términos y condiciones de SMS: https://www.authenticevolutionco.com/sms/terms\n- Instagram: https://www.instagram.com/authenticevolutionco/\n- Facebook: https://www.facebook.com/449194874949950\n- Teléfono: +1 (786) 999-4224\n- Email: sales@authenticevolutionco.com\n\n"

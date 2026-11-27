@@ -1,5 +1,5 @@
-/* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
 import Link from "next/link";
+import { CompanyProductGallery } from "../company-product-gallery";
 import { CompanyRegistrationLink } from "../company-registration-link";
 
 // Content and markup faithfully ported from the supplied About V7.
@@ -34,13 +34,25 @@ export function CompanyEnContent() {
             </p>
           </div>
           <figure>
-            <img src="/company/project-pool.jpg" alt="A row of glass patio doors beside an outdoor swimming pool" width="1080" height="815" fetchPriority="high" />
+            <video
+              src="/company/portada.mp4"
+              poster="/company/portada-poster.jpg"
+              aria-label="A two-story home with impact windows and glass garage doors"
+              width={1280}
+              height={720}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
+            />
             <figcaption>
               <span>
                 {"PROJECT SPOTLIGHT"}
               </span>
               <span>
-                {"INDOOR–OUTDOOR GLASS DOORS"}
+                {"WINDOWS AND GARAGE DOORS"}
               </span>
             </figcaption>
           </figure>
@@ -112,7 +124,7 @@ export function CompanyEnContent() {
           </p>
           <div className="products">
             <article>
-              <img src="/company/project-windows.jpg" alt="White-framed windows along a covered exterior wall" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="windows" locale="en" />
               <div>
                 <p className="tag">
                   {"WINDOWS"}
@@ -126,7 +138,7 @@ export function CompanyEnContent() {
               </div>
             </article>
             <article>
-              <img src="/company/project-sliding.jpg" alt="White-framed sliding glass doors during installation" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="sliding" locale="en" />
               <div>
                 <p className="tag">
                   {"SLIDING DOORS"}
@@ -140,7 +152,7 @@ export function CompanyEnContent() {
               </div>
             </article>
             <article>
-              <img src="/company/project-entry.jpg" alt="White entry door with a full-height glass panel" width="560" height="334" loading="lazy" />
+              <CompanyProductGallery category="entry" locale="en" />
               <div>
                 <p className="tag">
                   {"EXTERIOR HINGED DOORS"}
