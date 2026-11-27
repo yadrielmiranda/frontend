@@ -1,29 +1,48 @@
 "use client";
 
-import Link from "next/link";
-import { createContext, useContext, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
-import { companyRegistrationHref, type CompanyLocale } from "./company-content";
+import { createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { captureCompanyCampaign, readCompanyCampaign } from "@/lib/company-campaign";
+import { sendCompanyPageView } from "@/lib/registration-pixel";
+import { companyDealerRegistrationHref, companyRegistrationHref, type CompanyLocale, type CompanyPageName } from "./company-content";
 
-const RegistrationHref = createContext<string | null>(null);
+const RegistrationLinks = createContext<{ client: string; dealer: string } | null>(null);
 
-function subscribeToLocation(notify: () => void) {
-  window.addEventListener("popstate", notify);
-  return () => window.removeEventListener("popstate", notify);
-}
-
-export function CompanyRegistrationLinks({ locale, initialHref, children }: {
+export function CompanyRegistrationLinks({ page, locale, initialHref, initialDealerHref, children }: {
+  page: CompanyPageName;
   locale: CompanyLocale;
   initialHref?: string;
+  initialDealerHref: string;
   children: ReactNode;
 }) {
-  // Editorial pages have static HTML. Their links pick up the current query on hydration.
-  const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
-  const href = initialHref ?? companyRegistrationHref(locale, new URLSearchParams(search));
-  return <RegistrationHref.Provider value={href}>{children}</RegistrationHref.Provider>;
+  const fallback = initialHref ?? companyRegistrationHref(locale, []);
+  const [links, setLinks] = useState({ client: fallback, dealer: initialDealerHref });
+  useEffect(() => {
+    function sync() {
+      if (page === "company") {
+        captureCompanyCampaign();
+        sendCompanyPageView();
+      }
+      const query = new URLSearchParams(window.location.search);
+      const hasAttribution = [...query.keys()].some(key => key === "ref" || key === "fbclid" || key.startsWith("utm_"));
+      const campaign = hasAttribution ? query : readCompanyCampaign() ?? query;
+      setLinks({
+        client: companyRegistrationHref(locale, campaign),
+        dealer: companyDealerRegistrationHref(locale, campaign),
+      });
+    }
+    sync();
+    window.addEventListener("pageshow", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("pageshow", sync);
+      window.removeEventListener("popstate", sync);
+    };
+  }, [page, locale, initialHref]);
+  return <RegistrationLinks.Provider value={links}>{children}</RegistrationLinks.Provider>;
 }
 
-export function CompanyRegistrationLink(props: Omit<ComponentProps<typeof Link>, "href">) {
-  const href = useContext(RegistrationHref);
-  if (!href) throw new Error("CompanyRegistrationLink needs CompanyRegistrationLinks");
-  return <Link {...props} href={href} />;
+export function CompanyRegistrationLink({ dealer = false, ...props }: Omit<ComponentProps<"a">, "href"> & { dealer?: boolean }) {
+  const links = useContext(RegistrationLinks);
+  if (!links) throw new Error("CompanyRegistrationLink needs CompanyRegistrationLinks");
+  return <a {...props} href={dealer ? links.dealer : links.client} />;
 }

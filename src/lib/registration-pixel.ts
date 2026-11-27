@@ -1,31 +1,54 @@
-const host = "authenticevolutionco.com";
-const tag = /^[A-Za-z0-9_-]{1,100}$/;
-const keys = new Set(["utm_source", "utm_medium", "utm_campaign", "utm_content", "fbclid"]);
+import { parseCompanyCampaign, readCompanyCampaign } from "./company-campaign";
+import { isCompanyDealerInvitation, isCompanyPublicRoute } from "./company-public-routes";
+import { consumeDealerConversionHandoff, dealerSubmittedPath } from "./dealer-submission-receipt";
+
+const companyOrigins = new Set(["https://authenticevolutionco.com", "https://www.authenticevolutionco.com"]);
 const metaSources = new Set(["facebook", "instagram", "meta", "fb", "ig"]);
-const allowedReferrers = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "l.facebook.com", "lm.facebook.com", "instagram.com", "www.instagram.com", "l.instagram.com"]);
+const metaReferrers = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "l.facebook.com", "lm.facebook.com", "instagram.com", "www.instagram.com", "l.instagram.com"]);
+const companyLandingPages = new Set(["/company", "/es/company"]);
+
 type Pixel = ((...args: unknown[]) => void) & { callMethod?: (...args: unknown[]) => void; queue?: unknown[][]; push?: Pixel; loaded?: boolean; version?: string };
 type PixelWindow = Window & { fbq?: Pixel; _fbq?: Pixel };
 let ownedPixel: Pixel | undefined;
 let scriptReady: Promise<void> | undefined;
-let completed = false;
+let lastPageView: string | undefined;
+let clientCompleted = false;
 
-export function safeRegistrationContext(address: string, referrer: string) {
+function hasMetaCampaign(params: URLSearchParams | null): boolean {
+  if (!params?.has("utm_campaign")) return false;
+  return params.has("fbclid") || metaSources.has(params.get("utm_source")?.toLowerCase() ?? "");
+}
+
+function productionPage(address: string): URL | undefined {
   try {
     const url = new URL(address);
-    if (url.origin !== "https://" + host || url.pathname !== "/login/register" || url.hash) return false;
-    for (const [key, value] of url.searchParams) {
-      if (url.searchParams.getAll(key).length !== 1) return false;
-      if (key === "lang" && (value === "en" || value === "es")) continue;
-      if (!keys.has(key) ||
-          !(key === "fbclid" ? /^[A-Za-z0-9_-]{1,300}$/.test(value) : tag.test(value))) return false;
-    }
-    const source = url.searchParams.get("utm_source")?.toLowerCase();
-    if (!url.searchParams.has("utm_campaign") || (!url.searchParams.has("fbclid") && (!source || !metaSources.has(source)))) return false;
-    if (!referrer) return true;
+    if (companyOrigins.has(url.origin) && !url.username && !url.password && !url.hash) return url;
+  } catch { /* Only absolute public production URLs are eligible. */ }
+}
+
+// fbevents can read document.referrer itself. Keep private paths, tokens and unknown queries out.
+function safeReferrer(referrer: string, origin: string): boolean {
+  if (!referrer) return true;
+  try {
     const ref = new URL(referrer);
-    return ref.protocol === "https:" && allowedReferrers.has(ref.hostname) &&
-      !ref.username && !ref.password && !ref.port && ref.pathname === "/" && !ref.search && !ref.hash;
+    if (ref.protocol !== "https:" || ref.port || ref.username || ref.password || ref.hash) return false;
+    if (metaReferrers.has(ref.hostname)) return ref.pathname === "/" && !ref.search;
+    if (!companyOrigins.has(ref.origin)) return false;
+    // The public www site links to an apex domain invitation. Browsers can send just its origin.
+    if (ref.pathname === "/" && !ref.search) return true;
+    return ref.origin === origin && isCompanyPublicRoute(ref.pathname) && parseCompanyCampaign(ref.searchParams) !== null;
   } catch { return false; }
+}
+
+function safeCampaignPage(url: URL, referrer: string, cached: URLSearchParams | null): boolean {
+  const tags = parseCompanyCampaign(url.searchParams);
+  return tags !== null && safeReferrer(referrer, url.origin) &&
+    hasMetaCampaign(tags.size ? tags : cached && parseCompanyCampaign(cached));
+}
+
+export function safeRegistrationContext(address: string, referrer: string, cached: URLSearchParams | null = null): boolean {
+  const url = productionPage(address);
+  return Boolean(url && url.pathname === "/login/register" && safeCampaignPage(url, referrer, cached));
 }
 
 export const registrationPixelId = process.env.NEXT_PUBLIC_META_REGISTRATION_PIXEL_ID ?? "";
@@ -36,19 +59,27 @@ export function hasRegistrationPixel() {
   return Boolean(ownedPixel);
 }
 
-type RegistrationEvent = "PageView" | "CompleteRegistration";
-
-function canMeasureRegistration() {
-  return registrationPixelEnabled &&
-    (window.navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl !== true &&
-    safeRegistrationContext(location.href, document.referrer);
+function eligibleBrowser(): boolean {
+  return registrationPixelEnabled && typeof window !== "undefined" &&
+    (window.navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl !== true;
 }
 
-function registrationPixel(event: RegistrationEvent): Pixel | undefined {
-  if (!canMeasureRegistration()) return;
+function eligibleCampaignPage(matches: (pathname: string) => boolean): URL | undefined {
+  if (!eligibleBrowser()) return;
+  const url = productionPage(window.location.href);
+  if (url && matches(url.pathname) && safeCampaignPage(url, document.referrer, readCompanyCampaign())) return url;
+}
+
+export function hasEligibleDealerCampaign(): boolean {
+  // Called only after the API accepts the public dealer application. No SDK runs on the invitation.
+  return Boolean(eligibleCampaignPage(isCompanyDealerInvitation));
+}
+
+function getPixel(): Pixel | undefined {
   const target = window as PixelWindow;
   if (ownedPixel) return target.fbq === ownedPixel && target._fbq === ownedPixel ? ownedPixel : undefined;
-  if (target.fbq || target._fbq) return; // Do not mix with any other installation.
+  if (target.fbq || target._fbq) return;
+
   const pixel: Pixel = (...args) => {
     if (pixel.callMethod) pixel.callMethod(...args);
     else pixel.queue?.push(args);
@@ -60,11 +91,7 @@ function registrationPixel(event: RegistrationEvent): Pixel | undefined {
   ownedPixel = target.fbq = target._fbq = pixel;
   pixel("set", "autoConfig", false, registrationPixelId);
   pixel("init", registrationPixelId);
-  pixel("trackSingle", registrationPixelId, "PageView");
-  if (event === "CompleteRegistration") {
-    completed = true;
-    pixel("trackSingle", registrationPixelId, event);
-  }
+
   const script = document.createElement("script");
   script.src = "https://connect.facebook.net/en_US/fbevents.js";
   script.async = true;
@@ -77,22 +104,55 @@ function registrationPixel(event: RegistrationEvent): Pixel | undefined {
   return pixel;
 }
 
-export function sendRegistrationPageView() {
-  // The initialization itself sends one view per document, even if React remounts.
-  registrationPixel("PageView");
+function trackPageView(url: URL): Pixel | undefined {
+  const pixel = getPixel();
+  if (pixel && lastPageView !== url.pathname) {
+    lastPageView = url.pathname;
+    pixel("trackSingle", registrationPixelId, "PageView");
+  }
+  return pixel;
 }
 
-export async function sendCompletedRegistration(): Promise<boolean> {
-  const pixel = registrationPixel("CompleteRegistration");
-  if (!pixel) return false;
-  if (!completed) {
-    completed = true;
-    pixel("trackSingle", registrationPixelId, "CompleteRegistration");
-  }
-  // Give a slow load a bounded chance to flush before navigating away after signup.
+export function sendCompanyPageView() {
+  const url = eligibleCampaignPage(pathname => companyLandingPages.has(pathname));
+  if (url) trackPageView(url);
+}
+
+const registrationPath = (pathname: string) => pathname === "/login/register";
+
+export function sendRegistrationPageView() {
+  const url = eligibleCampaignPage(registrationPath);
+  if (url) trackPageView(url);
+}
+
+async function allowScriptToLoad() {
   await new Promise<void>(resolve => {
     const timer = window.setTimeout(resolve, 1500);
     void scriptReady?.then(() => { window.clearTimeout(timer); resolve(); });
   });
+}
+
+export async function sendCompletedRegistration(): Promise<boolean> {
+  const url = eligibleCampaignPage(registrationPath);
+  const pixel = url && trackPageView(url);
+  if (!pixel) return false;
+  if (!clientCompleted) {
+    clientCompleted = true;
+    pixel("trackSingle", registrationPixelId, "CompleteRegistration");
+  }
+  await allowScriptToLoad();
+  return true;
+}
+
+export async function sendDealerApplication(): Promise<boolean> {
+  if (!eligibleBrowser()) return false;
+  const url = productionPage(window.location.href);
+  if (!url || url.pathname !== dealerSubmittedPath || url.search || !safeReferrer(document.referrer, url.origin)) return false;
+  // Only the successful API submission creates this one-use receipt. Opening or reloading the URL is insufficient.
+  if (!consumeDealerConversionHandoff()) return false;
+  const pixel = getPixel();
+  if (!pixel) return false;
+  pixel("trackSingle", registrationPixelId, "SubmitApplication");
+  await allowScriptToLoad();
   return true;
 }

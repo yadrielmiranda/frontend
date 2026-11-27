@@ -7,6 +7,13 @@ import type { RegistrationLevel } from "@/app/api/dealer-network.api";
 import { getSmsProgram, type SmsProgram } from "@/app/api/sms.api";
 import { getCurrentPlatformTerms, type PlatformTermsVersion } from "@/app/api/platform-terms.api";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
+import { DealerSubmissionMessage } from "@/components/auth/dealer-submission-message";
+import { PortalLanguageSwitch } from "@/components/portal-language-switch";
+import { usePortalLanguage } from "@/contexts/PortalLanguageContext";
+import type { CompanyLocale } from "@/components/company/company-content";
+import { openDealerSubmissionConfirmation } from "@/lib/dealer-submission-confirmation";
+import { dealerRegistrationTitle, dealerRegistrationText, dealerRegistrationSmsText, dealerSubmissionError } from "@/lib/dealer-registration-language";
+import { registrationText } from "@/lib/registration-language";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { InternationalPhoneInput } from "@/components/international-phone-input";
 import { PlatformTermsDocument } from "@/components/platform-terms/platform-terms-document";
@@ -37,6 +44,10 @@ function Field({ label, name, required = true, ...props }: ComponentProps<"input
 }
 
 export function DealerRegistration({ token }: { token: string }) {
+  const { locale, saving, changeLanguage } = usePortalLanguage();
+  const t = (source: string) => dealerRegistrationText(locale, source);
+  const activeLocale = useRef(locale);
+  useEffect(() => { activeLocale.current = locale; }, [locale]);
   const endpoint = `/api/dealer-network/invitations/${encodeURIComponent(token)}`;
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -63,8 +74,10 @@ export function DealerRegistration({ token }: { token: string }) {
 
   return (
     <AuthPageShell
-      title={invitation ? `${invitation.level} registration` : "Dealer network registration"}
-      description="Apply for access to the Authentic Evolution dealer network."
+      title={dealerRegistrationTitle(locale, invitation?.level)}
+      description={t("Apply for access to the Authentic Evolution dealer network.")}
+      locale={locale}
+      languageSwitch={<PortalLanguageSwitch locale={locale} onChange={changeLanguage} saving={saving} />}
       contentMaxWidth="max-w-2xl"
     >
       <section className="rounded-3xl border border-red-600/70 bg-black/45 p-5 text-white shadow-xl sm:p-8">
@@ -76,29 +89,28 @@ export function DealerRegistration({ token }: { token: string }) {
                 onError={event => { event.currentTarget.hidden = true; }} />
             )}
             <p className="min-w-0">
-              <span className="block text-sm text-white/70">Invited by</span>
+              <span className="block text-sm text-white/70">{t("Invited by")}</span>
               <strong className="block break-words text-xl font-semibold">{inviter.name}</strong>
             </p>
           </div>
         )}
         {submitted ? (
-          <div role="status" className="space-y-3">
-            <h2 className="text-2xl font-semibold">Application submitted</h2>
-            <p>Your request is pending approval. Once approved, you can sign in with your email{submitted.username
-              ? <> or your username, <strong className="break-all">{submitted.username}</strong></>
-              : ""}.</p>
-            <Link href="/login" className="inline-block underline underline-offset-4">Go to sign in</Link>
-          </div>
-        ) : invitation ? <RegistrationForm endpoint={endpoint} onSubmitted={setSubmitted} />
-          : loadError ? <div className="space-y-4"><p role="alert">{loadError}</p>
-            <Button type="button" className={buttonClass} onClick={() => setReload(value => value + 1)}>Try again</Button></div>
-          : <p role="status">Loading invitation…</p>}
+          <DealerSubmissionMessage locale={locale} username={submitted.username} />
+        ) : invitation ? <RegistrationForm endpoint={endpoint} locale={locale} onSubmitted={result => {
+          if (!openDealerSubmissionConfirmation(token, invitation.level, activeLocale.current)) setSubmitted(result);
+        }} />
+          : loadError ? <div className="space-y-4"><p role="alert">{t(loadError)}</p>
+            <Button type="button" className={buttonClass} onClick={() => setReload(value => value + 1)}>{t("Try again")}</Button></div>
+          : <p role="status">{t("Loading invitation…")}</p>}
       </section>
     </AuthPageShell>
   );
 }
 
-function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmitted: (application: SubmittedApplication) => void }) {
+function RegistrationForm({ endpoint, locale, onSubmitted }: {
+  endpoint: string; locale: CompanyLocale; onSubmitted: (application: SubmittedApplication) => void;
+}) {
+  const t = (source: string) => dealerRegistrationText(locale, source);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [chooseUsername, setChooseUsername] = useState(false);
@@ -107,7 +119,7 @@ function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmi
   const suggestedUsername = firstName.trim() && lastName.trim() ? suggestedClientUsername(firstName, lastName, "Dealer") : "";
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState({ street: "", addressLine2: "", city: "", state: "", postalCode: "" });
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ message: string; code?: unknown } | null>(null);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [smsProgram, setSmsProgram] = useState<SmsProgram | null>(null);
@@ -152,11 +164,11 @@ function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmi
     const promotionsConsent = smsSupported && !!smsProgram && data.has("promotionsConsent");
     const username = chooseUsername ? value("username") : null;
     if (username !== null && !isValidUsername(username)) { setUsernameError(USERNAME_VALIDATION_MESSAGE); return; }
-    if (!normalizedPhone) { setError("Enter a valid phone number."); return; }
+    if (!normalizedPhone) { setError({ message: "Enter a valid phone number." }); return; }
     const sales = value("estimatedMonthlySales");
     inFlight.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       const application = await apiFetch<SubmittedApplication>(endpoint, {
         method: "POST",
@@ -192,7 +204,7 @@ function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmi
         setSmsProgram(null);
         setSmsReload(value => value + 1);
       }
-      setError(isApiError(cause) ? cause.message : "Could not submit your application. Please try again.");
+      setError({ message: isApiError(cause) ? cause.message : "Could not submit your application. Please try again.", code });
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -202,42 +214,43 @@ function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmi
   return (
     <form onSubmit={submit} className="space-y-6">
       <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
-        <legend className="mb-4 text-xl font-semibold">Account details</legend>
-        <Field name="firstName" label="First name" autoComplete="given-name" maxLength={100}
+        <legend className="mb-4 text-xl font-semibold">{t("Account details")}</legend>
+        <Field name="firstName" label={t("First name")} autoComplete="given-name" maxLength={100}
           value={firstName} onChange={event => setFirstName(event.target.value)} />
-        <Field name="lastName" label="Last name" autoComplete="family-name" maxLength={100}
+        <Field name="lastName" label={t("Last name")} autoComplete="family-name" maxLength={100}
           value={lastName} onChange={event => setLastName(event.target.value)} />
         <div className="space-y-1.5 text-sm sm:col-span-2">
           {chooseUsername ? <>
             <div className="flex flex-wrap items-center justify-between gap-x-4">
-              <label htmlFor="dealer-username" className="font-medium">Username</label>
+              <label htmlFor="dealer-username" className="font-medium">{t("Username")}</label>
               <button type="button" className="text-xs text-blue-300 underline underline-offset-2"
-                onClick={() => { setChooseUsername(false); setUsernameError(""); }}>Use automatic username</button>
+                onClick={() => { setChooseUsername(false); setUsernameError(""); }}>{t("Use automatic username")}</button>
             </div>
             <Input id="dealer-username" name="username" ref={usernameInput} autoFocus required autoComplete="username"
               autoCapitalize="none" autoCorrect="off" spellCheck={false} minLength={USERNAME_MIN_LENGTH} maxLength={USERNAME_MAX_LENGTH}
               defaultValue={suggestedUsername} onChange={() => setUsernameError("")} className={inputClass}
               aria-invalid={Boolean(usernameError)} aria-describedby={usernameError ? "dealer-username-error" : undefined} />
-            {usernameError && <p id="dealer-username-error" role="alert" className="text-xs text-red-300">{usernameError}</p>}
+            {usernameError && <p id="dealer-username-error" role="alert" className="text-xs text-red-300">{t(usernameError)}</p>}
           </> : <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-white/75">Suggested username{suggestedUsername
-              ? <> · <strong className="break-all text-white">{suggestedUsername}</strong></> : " based on your name"}</span>
+            <span className="text-white/75">{suggestedUsername
+              ? <>{t("Suggested username")} · <strong className="break-all text-white">{suggestedUsername}</strong></>
+              : t("Suggested username based on your name")}</span>
             <button type="button" className="min-h-9 text-blue-300 underline underline-offset-2"
-              onClick={() => setChooseUsername(true)}>Change</button>
+              onClick={() => setChooseUsername(true)}>{t("Change")}</button>
           </div>}
         </div>
-        <Field name="password" label="Password" type="password" autoComplete="new-password" minLength={8} maxLength={255} />
-        <Field name="email" label="Email" type="email" autoComplete="email" maxLength={150} />
+        <Field name="password" label={t("Password")} type="password" autoComplete="new-password" minLength={8} maxLength={255} />
+        <Field name="email" label={t("Email")} type="email" autoComplete="email" maxLength={150} />
         <div className="space-y-1 text-sm font-medium">
-          <label htmlFor="invite-phone">Phone</label>
-          <InternationalPhoneInput id="invite-phone" value={phone} onChange={setPhone} appearance="dark" className={inputClass} required disabled={busy} />
+          <label htmlFor="invite-phone">{t("Phone")}</label>
+          <InternationalPhoneInput id="invite-phone" locale={locale} value={phone} onChange={setPhone} appearance="dark" className={inputClass} required disabled={busy} />
         </div>
       </fieldset>
       <fieldset disabled={busy} className="space-y-4">
-        <legend className="text-xl font-semibold">Address</legend>
+        <legend className="text-xl font-semibold">{t("Address")}</legend>
         <div className="space-y-1 text-sm font-medium">
-          <label htmlFor="invite-street">Street address</label>
-          <AddressAutocomplete id="invite-street" name="street" className={inputClass} required maxLength={150}
+          <label htmlFor="invite-street">{t("Street address")}</label>
+          <AddressAutocomplete id="invite-street" locale={locale} name="street" className={inputClass} required maxLength={150}
             value={address.street} access="registration" disabled={busy}
             contextKey={JSON.stringify([address.city, address.state, address.postalCode])}
             onChange={event => setAddress({ ...address, street: event.target.value })}
@@ -246,84 +259,92 @@ function RegistrationForm({ endpoint, onSubmitted }: { endpoint: string; onSubmi
               city: selected.city, state: selected.state, postalCode: selected.postalCode,
             }))} />
         </div>
-        <Field name="addressLine2" label="Apartment, suite, unit, etc. (optional)" required={false} maxLength={150} autoComplete="address-line2" value={address.addressLine2} onChange={event => setAddress({ ...address, addressLine2: event.target.value })} />
+        <Field name="addressLine2" label={t("Apartment, suite, unit, etc. (optional)")} required={false} maxLength={150} autoComplete="address-line2" value={address.addressLine2} onChange={event => setAddress({ ...address, addressLine2: event.target.value })} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field name="city" label="City" maxLength={100} autoComplete="address-level2" value={address.city} onChange={event => setAddress({ ...address, city: event.target.value })} />
-          <label className="block text-sm font-medium">State
+          <Field name="city" label={t("City")} maxLength={100} autoComplete="address-level2" value={address.city} onChange={event => setAddress({ ...address, city: event.target.value })} />
+          <label className="block text-sm font-medium">{t("State")}
             <select name="state" autoComplete="address-level1" className={selectClass} required value={address.state} onChange={event => setAddress({ ...address, state: event.target.value })}>
-              <option value="" disabled>Select state</option>
+              <option value="" disabled>{t("Select state")}</option>
               {US_STATES.map(state => <option key={state.value} value={state.value}>{state.label}</option>)}
             </select>
           </label>
-          <Field name="postalCode" label="ZIP code" autoComplete="postal-code" inputMode="numeric" pattern="[0-9]{5}" maxLength={5} value={address.postalCode} onChange={event => setAddress({ ...address, postalCode: event.target.value })} />
+          <Field name="postalCode" label={t("ZIP code")} autoComplete="postal-code" inputMode="numeric" pattern="[0-9]{5}" maxLength={5} value={address.postalCode} onChange={event => setAddress({ ...address, postalCode: event.target.value })} />
         </div>
       </fieldset>
       <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
-        <legend className="mb-4 text-xl font-semibold">Business details</legend>
-        <Field name="companyName" label="Company name (optional)" required={false} autoComplete="organization" maxLength={150} />
-        <Field name="estimatedMonthlySales" label="Estimated monthly sales (USD, optional)" required={false} type="number" min={0} max="999999999999.99" step="0.01" inputMode="decimal" />
-        <Field name="yearsOfExperience" label="Years of experience" type="number" min={0} max={2147483647} step={1} inputMode="numeric" />
+        <legend className="mb-4 text-xl font-semibold">{t("Business details")}</legend>
+        <Field name="companyName" label={t("Company name (optional)")} required={false} autoComplete="organization" maxLength={150} />
+        <Field name="estimatedMonthlySales" label={t("Estimated monthly sales (USD, optional)")} required={false} type="number" min={0} max="999999999999.99" step="0.01" inputMode="decimal" />
+        <Field name="yearsOfExperience" label={t("Years of experience")} type="number" min={0} max={2147483647} step={1} inputMode="numeric" />
       </fieldset>
       <fieldset className="min-w-0 space-y-2 rounded-xl border border-white/15 px-3 pb-3">
-        <legend className="px-1 text-sm font-semibold">SMS notifications</legend>
-        {!smsSupported && <p className="text-xs text-white/70">{normalizedPhone
+        <legend className="px-1 text-sm font-semibold">{t("SMS notifications")}</legend>
+        {!smsSupported && <p className="text-xs text-white/70">{t(normalizedPhone
           ? "SMS notifications are not available for this phone number. You can still submit your application."
-          : "Enter a valid phone number to check SMS availability."}</p>}
+          : "Enter a valid phone number to check SMS availability.")}</p>}
         {smsError ? <div className="space-y-2">
-          <p role="alert" className="text-sm text-red-300">Could not load SMS options. You can still submit your application.</p>
-          <button type="button" className="text-sm text-blue-300 underline" onClick={() => setSmsReload(value => value + 1)}>Retry SMS options</button>
-        </div> : !smsProgram ? <p role="status" className="text-sm text-white/70">Loading SMS options...</p> : <>
+          <p role="alert" className="text-sm text-red-300">{t("Could not load SMS options. You can still submit your application.")}</p>
+          <button type="button" className="text-sm text-blue-300 underline" onClick={() => setSmsReload(value => value + 1)}>{t("Retry SMS options")}</button>
+        </div> : !smsProgram ? <p role="status" className="text-sm text-white/70">{t("Loading SMS options...")}</p> : <>
           <div key={normalizedPhone + smsProgram.dealerRegistration.version} className="space-y-2">
             <label className="flex min-h-8 items-center gap-2 text-sm">
               <input type="checkbox" name="serviceConsent" disabled={busy || !smsSupported}
                 aria-describedby="dealer-service-consent-text dealer-sms-disclosure" className="size-4 shrink-0 accent-emerald-500" />
-              Service notifications (optional)
+              {t("Service notifications (optional)")}
             </label>
             <label className="flex min-h-8 items-center gap-2 text-sm">
               <input type="checkbox" name="promotionsConsent" disabled={busy || !smsSupported}
                 aria-describedby="dealer-promotions-consent-text dealer-sms-disclosure" className="size-4 shrink-0 accent-emerald-500" />
-              Promotional messages (optional)
+              {t("Promotional messages (optional)")}
             </label>
           </div>
           <p id="dealer-sms-disclosure" className="text-xs leading-relaxed text-white/75">
-            Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe from all SMS or HELP for help.
+            {t("Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe from all SMS or HELP for help.")}
           </p>
           <details className="text-xs leading-relaxed text-white/75">
-            <summary className="cursor-pointer text-blue-300 underline">SMS consent details</summary>
-            <p id="dealer-service-consent-text" className="mt-1">{smsProgram.dealerRegistration.serviceConsentText}</p>
-            <p id="dealer-promotions-consent-text" className="mt-1">{smsProgram.dealerRegistration.promotionsConsentText}</p>
-            <p className="mt-1">{smsProgram.disclosure}</p>
+            <summary className="cursor-pointer text-blue-300 underline">{t("SMS consent details")}</summary>
+            <p id="dealer-service-consent-text" className="mt-1">{dealerRegistrationSmsText(locale, smsProgram.dealerRegistration.serviceConsentText, smsProgram.companyName)}</p>
+            <p id="dealer-promotions-consent-text" className="mt-1">{dealerRegistrationSmsText(locale, smsProgram.dealerRegistration.promotionsConsentText, smsProgram.companyName)}</p>
+            <p className="mt-1">{dealerRegistrationSmsText(locale, smsProgram.disclosure, smsProgram.companyName)}</p>
+            {locale === "es" && <details className="mt-1">
+              <summary className="cursor-pointer text-blue-300 underline">{t("Original SMS consent text")}</summary>
+              <div lang="en" className="mt-1 space-y-1">
+                <p>{smsProgram.dealerRegistration.serviceConsentText}</p>
+                <p>{smsProgram.dealerRegistration.promotionsConsentText}</p>
+                <p>{smsProgram.disclosure}</p>
+              </div>
+            </details>}
           </details>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-blue-300 underline">
-            <Link href="/sms/terms" target="_blank" rel="noopener noreferrer">SMS Terms of Service</Link>
-            <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer">SMS Privacy Policy</Link>
+            <Link href="/sms/terms" target="_blank" rel="noopener noreferrer">{t("SMS Terms of Service")}</Link>
+            <Link href="/sms/privacy" target="_blank" rel="noopener noreferrer">{t("SMS Privacy Policy")}</Link>
           </div>
         </>}
       </fieldset>
       <fieldset className="min-w-0 space-y-2 rounded-xl border border-white/15 px-3 pb-3">
-        <legend className="px-1 text-sm font-semibold">Terms and Conditions</legend>
+        <legend className="px-1 text-sm font-semibold">{t("Terms and Conditions")}</legend>
         {termsError ? <div className="space-y-2">
-          <p role="alert" className="text-sm text-red-300">Could not load the Terms and Conditions. Please try again.</p>
-          <button type="button" className="text-sm text-blue-300 underline" onClick={() => setTermsReload(value => value + 1)}>Retry terms</button>
-        </div> : terms === undefined ? <p role="status" className="text-sm text-white/70">Loading terms...</p>
+          <p role="alert" className="text-sm text-red-300">{t("Could not load the Terms and Conditions. Please try again.")}</p>
+          <button type="button" className="text-sm text-blue-300 underline" onClick={() => setTermsReload(value => value + 1)}>{t("Retry terms")}</button>
+        </div> : terms === undefined ? <p role="status" className="text-sm text-white/70">{t("Loading terms...")}</p>
           : terms ? <>
             <label className="flex min-h-8 items-center gap-2 text-sm">
               <input type="checkbox" name="platformTermsAccepted" required disabled={busy} className="size-4 shrink-0 accent-emerald-500"
                 checked={acceptedTermsId === terms.id} onChange={event => setAcceptedTermsId(event.target.checked ? terms.id : null)} />
-              <span>{terms.consentText}</span>
+              <span>{registrationText(locale, terms.consentText)}</span>
             </label>
             <Dialog>
-              <DialogTrigger asChild><button type="button" className="ml-6 text-xs text-blue-300 underline">Read Terms and Conditions</button></DialogTrigger>
-              <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl" aria-describedby={undefined}>
-                <DialogTitle>Terms and Conditions</DialogTitle>
-                <div className="min-h-0 overflow-y-auto"><PlatformTermsDocument version={terms} /></div>
-                <DialogClose asChild><Button type="button" variant="outline">Back to registration</Button></DialogClose>
+              <DialogTrigger asChild><button type="button" className="ml-6 text-xs text-blue-300 underline">{t("Read Terms and Conditions")}</button></DialogTrigger>
+              <DialogContent lang={locale} closeLabel={t("Close")} className="flex max-h-[85dvh] flex-col sm:max-w-2xl" aria-describedby={undefined}>
+                <DialogTitle>{t("Terms and Conditions")}</DialogTitle>
+                <div className="min-h-0 overflow-y-auto"><PlatformTermsDocument version={terms} locale={locale} /></div>
+                <DialogClose asChild><Button type="button" variant="outline">{t("Back to registration")}</Button></DialogClose>
               </DialogContent>
             </Dialog>
-          </> : <p className="text-sm text-white/70">Terms and Conditions have not been published yet.</p>}
+          </> : <p className="text-sm text-white/70">{t("Terms and Conditions have not been published yet.")}</p>}
       </fieldset>
-      {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-      <Button type="submit" disabled={busy || !termsReady} className={buttonClass}>{busy ? "Submitting…" : "Submit application"}</Button>
+      {error && <p role="alert" className="text-sm text-red-300">{dealerSubmissionError(locale, error.message, error.code)}</p>}
+      <Button type="submit" disabled={busy || !termsReady} className={buttonClass}>{t(busy ? "Submitting…" : "Submit application")}</Button>
     </form>
   );
 }

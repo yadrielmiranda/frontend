@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element -- Keep the supplied V7 image files and dimensions unchanged. */
-import Link from "next/link";
 import { CompanyRegistrationLink } from "./company-registration-link";
 import { CompanyLanguageLink } from "./company-language-link";
 import type { ReactNode } from "react";
@@ -45,12 +44,12 @@ function CompanyEnShell({ children, readBar }: ShellProps) {
             <CompanyRegistrationLink className="nav-free" data-cta="free-account" data-placement="header">
               {"Create Your Free Account"}
             </CompanyRegistrationLink>
-            <Link className="outline" href="/login">
+            <a className="outline" href="/login">
               {"Sign in "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                 <path d="M4 12L12 4m-6 0h6v6" />
               </svg>
-            </Link>
+            </a>
           </nav>
         </div>
       </header>
@@ -85,13 +84,13 @@ function CompanyEnShell({ children, readBar }: ShellProps) {
           </div>
         </div>
         <div className="wrap footer-agent">
-          <Link href="/llms.txt">
+          <a href="/llms.txt">
             {"AI agents, click here"}
-          </Link>
+          </a>
           {" · "}
-          <Link href="/for-ai">
+          <a href="/for-ai">
             {"AI reference"}
-          </Link>
+          </a>
         </div>
       </footer>
     </>
@@ -107,7 +106,7 @@ function EditorialEnShell({ children, readBar }: ShellProps) {
       {readBar}
       <header className="mast">
         <div className="wrap bar">
-          <Link className="logo" href="/company">
+          <a className="logo" href="/company">
             <img className="brand-image" src="/company/authentic-brand.webp" alt="" width="56" height="56" />
             <span>
               {"AUTHENTIC"}
@@ -116,17 +115,17 @@ function EditorialEnShell({ children, readBar }: ShellProps) {
                 {"EVOLUTION CO."}
               </small>
             </span>
-          </Link>
+          </a>
           <nav>
-            <Link href="/company">
+            <a href="/company">
               {"About Authentic Evolution"}
-            </Link>
-            <Link href="/resources">
+            </a>
+            <a href="/resources">
               {"Resources"}
-            </Link>
-            <Link href="/for-ai">
+            </a>
+            <a href="/for-ai">
               {"AI reference"}
-            </Link>
+            </a>
             <CompanyRegistrationLink className="outline">
               {"Create Your Free Account"}
             </CompanyRegistrationLink>
@@ -136,12 +135,12 @@ function EditorialEnShell({ children, readBar }: ShellProps) {
       {children}
       <footer>
         <div className="wrap foot">
-          <Link href="/company">
+          <a href="/company">
             {"About Authentic Evolution"}
-          </Link>
-          <Link href="/llms.txt">
+          </a>
+          <a href="/llms.txt">
             {"AI agents, click here"}
-          </Link>
+          </a>
           <p>
             {"Reviewed November 16, 2026"}
           </p>
@@ -189,12 +188,12 @@ function CompanyEsShell({ children, readBar }: ShellProps) {
             <CompanyRegistrationLink className="nav-free" data-cta="free-account" data-placement="header">
               {"Crea tu cuenta GRATIS"}
             </CompanyRegistrationLink>
-            <Link className="outline" href="/login">
+            <a className="outline" href="/login">
               {"Iniciar sesión "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                 <path d="M4 12L12 4m-6 0h6v6" />
               </svg>
-            </Link>
+            </a>
           </nav>
         </div>
       </header>
@@ -229,13 +228,13 @@ function CompanyEsShell({ children, readBar }: ShellProps) {
           </div>
         </div>
         <div className="wrap footer-agent">
-          <Link href="/llms.txt">
+          <a href="/llms.txt">
             {"Agentes de IA, clic aquí"}
-          </Link>
+          </a>
           {" · "}
-          <Link href="/es/for-ai">
+          <a href="/es/for-ai">
             {"Referencia para IA"}
-          </Link>
+          </a>
         </div>
       </footer>
     </>
@@ -251,7 +250,7 @@ function EditorialEsShell({ children, readBar }: ShellProps) {
       {readBar}
       <header className="mast">
         <div className="wrap bar">
-          <Link className="logo" href="/es/company">
+          <a className="logo" href="/es/company">
             <img className="brand-image" src="/company/authentic-brand.webp" alt="" width="56" height="56" />
             <span>
               {"AUTHENTIC"}
@@ -260,17 +259,17 @@ function EditorialEsShell({ children, readBar }: ShellProps) {
                 {"EVOLUTION CO."}
               </small>
             </span>
-          </Link>
+          </a>
           <nav>
-            <Link href="/es/company">
+            <a href="/es/company">
               {"Sobre Authentic Evolution"}
-            </Link>
-            <Link href="/es/resources">
+            </a>
+            <a href="/es/resources">
               {"Recursos"}
-            </Link>
-            <Link href="/es/for-ai">
+            </a>
+            <a href="/es/for-ai">
               {"Referencia para IA"}
-            </Link>
+            </a>
             <CompanyRegistrationLink className="outline">
               {"Crea tu cuenta GRATIS"}
             </CompanyRegistrationLink>
@@ -280,12 +279,12 @@ function EditorialEsShell({ children, readBar }: ShellProps) {
       {children}
       <footer>
         <div className="wrap foot">
-          <Link href="/es/company">
+          <a href="/es/company">
             {"Sobre Authentic Evolution"}
-          </Link>
-          <Link href="/llms.txt">
+          </a>
+          <a href="/llms.txt">
             {"Agentes de IA, clic aquí"}
-          </Link>
+          </a>
           <p>
             {"Revisado el 16 de noviembre de 2026"}
           </p>
@@ -300,7 +299,7 @@ export function CompanyShell({ children, page, locale }: { children: ReactNode; 
   const readBar = (
     <div className="readbar">
       <div className="wrap">
-        <Link href="/llms.txt">{locale === "es" ? "Agentes de IA, clic aquí" : "AI agents, click here"}</Link>
+        <a href="/llms.txt">{locale === "es" ? "Agentes de IA, clic aquí" : "AI agents, click here"}</a>
         <CompanyLanguageLink page={page} locale={locale} />
       </div>
     </div>

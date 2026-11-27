@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import type { CompanyLocale } from "@/components/company/company-content";
 import { listenForCompanyLanguage, persistPortalLanguage, preferredCompanyLanguage } from "@/lib/company-public-routes";
 import { documentLanguageForRoute } from "@/lib/portal-language-routes";
-import { useAuth } from "./AuthContext";
 
 type PortalLanguage = {
   locale: CompanyLocale | null;
@@ -19,8 +18,9 @@ const LanguageContext = createContext<PortalLanguage | null>(null);
 // A client-side transition through the public site can remount the portal with cached layout props.
 let lastPortalInstance: object | undefined;
 
-export function PortalLanguageProvider({ children, initialLocale }: { children: ReactNode; initialLocale?: CompanyLocale }) {
-  const { isAuthenticated } = useAuth();
+export function PortalLanguageProvider({ children, initialLocale, isAuthenticated = false }: {
+  children: ReactNode; initialLocale?: CompanyLocale; isAuthenticated?: boolean;
+}) {
   const pathname = usePathname();
   const [locale, setLocale] = useState<CompanyLocale | null>(initialLocale ?? null);
   const [saving, setSaving] = useState(false);

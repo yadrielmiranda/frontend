@@ -1,28 +1,34 @@
 import { useEffect, useRef } from "react";
 import { apiFetch } from "@/app/api/_base";
+import { parseCompanyCampaign, readCompanyCampaign } from "./company-campaign";
 
-const label = /^[A-Za-z0-9_-]{1,100}$/;
 const storageKey = "impact-registration-attribution-v1";
 const ttl = 24 * 60 * 60 * 1000;
 type Attribution = { id: string; campaign: string; ad: string; since: number };
 type Stage = "opened" | "started" | "submitted" | "invalid";
 
-export function readCampaign(search: string) {
-  const params = new URLSearchParams(search);
-  const campaign = params.get("utm_campaign");
-  const ad = params.get("utm_content") ?? "";
-  if (!campaign || !label.test(campaign) || params.getAll("utm_campaign").length !== 1 ||
-      params.getAll("utm_content").length > 1 || (ad && !label.test(ad))) return null;
-  return { campaign, ad };
+function campaignSource(tags: URLSearchParams | null) {
+  const campaign = tags?.get("utm_campaign");
+  return campaign ? { campaign, ad: tags?.get("utm_content") ?? "" } : null;
 }
 
-export function readRegistrationSource(search: string) {
-  if (!new URLSearchParams(search).has("utm_campaign")) return { campaign: "", ad: "" };
-  return readCampaign(search);
+export function readCampaign(search: string) {
+  return campaignSource(parseCompanyCampaign(new URLSearchParams(search)));
+}
+
+export function readRegistrationSource(search: string, stored: URLSearchParams | null = null) {
+  const params = new URLSearchParams(search);
+  const explicit = parseCompanyCampaign(params);
+  if (!explicit) {
+    if (params.has("ref") || params.has("utm_campaign")) return null;
+    return { campaign: "", ad: "" };
+  }
+  const source = explicit.size ? explicit : stored;
+  return campaignSource(source) ?? { campaign: "", ad: "" };
 }
 
 function attempt(): Attribution | null {
-  const tags = readRegistrationSource(window.location.search);
+  const tags = readRegistrationSource(window.location.search, readCompanyCampaign());
   if (!tags || typeof window.crypto?.randomUUID !== "function") return null;
   try {
     const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Attribution | null;

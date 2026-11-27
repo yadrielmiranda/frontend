@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { CompanyProductGallery } from "../company-product-gallery";
 import { CompanyRegistrationLink } from "../company-registration-link";
 
@@ -245,12 +244,12 @@ export function CompanyEnContent() {
             <p className="intro">
               {"Keep your own brand in front of your customers. Authentic gives dealers a workspace to build branded estimates, manage orders and track their progress. Dealers who work with salespeople or subdealers can manage that network in their account instead of passing each quote back and forth."}
             </p>
-            <a className="button" href="mailto:sales@authenticevolutionco.com?subject=Authentic%20dealer%20program">
+            <CompanyRegistrationLink dealer className="button">
               {"Ask about dealer access "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                 <path d="M4 12L12 4m-6 0h6v6" />
               </svg>
-            </a>
+            </CompanyRegistrationLink>
           </div>
           <aside>
             <p className="tag">
@@ -419,25 +418,25 @@ export function CompanyEnContent() {
           </p>
           <ul className="text-list">
             <li>
-              <Link href="/resources/prepare-your-quote">
+              <a href="/resources/prepare-your-quote">
                 {"How to prepare a quote for impact windows and doors"}
-              </Link>
+              </a>
               <p>
                 {"Start with a list of openings, approximate dimensions and photos. A clear scope helps the sales team build a more useful estimate and shows which details still need confirmation before you order."}
               </p>
             </li>
             <li>
-              <Link href="/resources/compare-impact-products">
+              <a href="/resources/compare-impact-products">
                 {"How to compare impact products and check the documentation"}
-              </Link>
+              </a>
               <p>
                 {"Compare windows and doors by manufacturer, series and configuration, not by appearance or price alone. Use the applicable documents to check that the quoted unit matches the project requirements."}
               </p>
             </li>
           </ul>
-          <Link href="/for-ai" className="link">
+          <a href="/for-ai" className="link">
             {"AI reference"}
-          </Link>
+          </a>
         </div>
       </section>
       <section className="section" id="faq">
@@ -524,12 +523,12 @@ export function CompanyEnContent() {
               {"We do not sell or share mobile information for third-party marketing. Text-message opt-in data and consent are not shared with third parties."}
             </p>
             <div className="policy-links">
-              <Link href="/sms/privacy">
+              <a href="/sms/privacy">
                 {"SMS Privacy Policy"}
-              </Link>
-              <Link href="/sms/terms">
+              </a>
+              <a href="/sms/terms">
                 {"SMS Terms & Conditions"}
-              </Link>
+              </a>
             </div>
           </div>
         </div>

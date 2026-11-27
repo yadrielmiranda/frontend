@@ -1,5 +1,5 @@
 import "./company.css";
-import { companyRegistrationHref, type CompanyLocale, type CompanyPageName, type CompanySearchParams } from "./company-content";
+import { companyDealerRegistrationHref, companyRegistrationHref, type CompanyLocale, type CompanyPageName, type CompanySearchParams } from "./company-content";
 import { CompanyShell } from "./company-shell";
 import { CompanyRegistrationLinks } from "./company-registration-link";
 import { CompanyEnContent } from "./pages/company-en";
@@ -26,8 +26,9 @@ export function CompanyPage({ page, locale = "en", searchParams }: {
 }) {
   const Content = content[page][locale];
   const initialHref = searchParams && companyRegistrationHref(locale, Object.entries(searchParams));
+  const initialDealerHref = companyDealerRegistrationHref(locale, Object.entries(searchParams ?? {}));
   return (
-    <CompanyRegistrationLinks locale={locale} initialHref={initialHref}>
+    <CompanyRegistrationLinks page={page} locale={locale} initialHref={initialHref} initialDealerHref={initialDealerHref}>
       <CompanyShell page={page} locale={locale}><Content /></CompanyShell>
     </CompanyRegistrationLinks>
   );

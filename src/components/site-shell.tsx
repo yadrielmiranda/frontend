@@ -9,6 +9,7 @@ import { LoginDialogBridge } from "@/components/auth/login-dialog-bridge";
 import { PortalInstallProvider } from "@/components/pwa/portal-install-provider";
 import { isCompanyPublicRoute } from "@/lib/company-public-routes";
 import { CompanyBrandingProvider } from "@/contexts/CompanyBrandingContext";
+import { PortalLanguageProvider } from "@/contexts/PortalLanguageContext";
 
 export function SiteShell({ children, initialLocale }: {
   children: ReactNode;
@@ -20,7 +21,9 @@ export function SiteShell({ children, initialLocale }: {
   // account redirects, portal navigation, or sign-in/terms overlays.
   if (isCompanyPublicRoute(pathname)) return children;
   if (pathname.startsWith("/login/dealer-registration/")) {
-    return <CompanyBrandingProvider>{children}</CompanyBrandingProvider>;
+    return <CompanyBrandingProvider>
+      <PortalLanguageProvider initialLocale={initialLocale}>{children}</PortalLanguageProvider>
+    </CompanyBrandingProvider>;
   }
 
   return (

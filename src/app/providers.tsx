@@ -1,11 +1,16 @@
 "use client";
 
-import { AuthProvider } from "@/contexts/AuthContext"; // Asegúrate de que esta ruta sea correcta
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoginDialogProvider } from "@/contexts/LoginDialogContext"; // Importa el nuevo proveedor de contexto
 import { CompanyBrandingProvider } from "@/contexts/CompanyBrandingContext";
 import { PortalLanguageProvider } from "@/contexts/PortalLanguageContext";
 import type { CompanyLocale } from "@/components/company/company-content";
 import React, { useEffect } from "react";
+
+function SessionLanguageProvider({ children, initialLocale }: { children: React.ReactNode; initialLocale?: CompanyLocale }) {
+  const { isAuthenticated } = useAuth();
+  return <PortalLanguageProvider initialLocale={initialLocale} isAuthenticated={isAuthenticated}>{children}</PortalLanguageProvider>;
+}
 
 export function Providers({ children, initialLocale }: { children: React.ReactNode; initialLocale?: CompanyLocale }) {
   useEffect(() => {
@@ -36,7 +41,7 @@ export function Providers({ children, initialLocale }: { children: React.ReactNo
     <CompanyBrandingProvider>
       <LoginDialogProvider>
         <AuthProvider>
-          <PortalLanguageProvider initialLocale={initialLocale}>{children}</PortalLanguageProvider>
+          <SessionLanguageProvider initialLocale={initialLocale}>{children}</SessionLanguageProvider>
         </AuthProvider>
       </LoginDialogProvider>
     </CompanyBrandingProvider>

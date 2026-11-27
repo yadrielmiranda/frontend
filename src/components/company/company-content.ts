@@ -1,18 +1,38 @@
 // Titles, descriptions and structured data from the supplied About V7.
+import { campaignKeys, parseCompanyCampaign } from "@/lib/company-campaign";
+import { dealerRegistrationUrl } from "@/lib/company-public-routes";
+
 export type CompanyLocale = "en" | "es";
 export type CompanyPageName = "company" | "for-ai" | "resources" | "prepare-your-quote" | "compare-impact-products";
 export type CompanySearchParams = Record<string, string | string[] | undefined>;
 
-const registrationParams = new Set(["ref", "utm_source", "utm_medium", "utm_campaign", "utm_content", "fbclid"]);
+export { dealerRegistrationUrl };
 
-export function companyRegistrationHref(locale: CompanyLocale, entries: Iterable<[string, string | string[] | undefined]>) {
-  const query = new URLSearchParams({ lang: locale });
+type QueryEntries = Iterable<[string, string | string[] | undefined]>;
+function registrationQuery(locale: CompanyLocale, entries: QueryEntries, includeReferral: boolean) {
+  const raw = new URLSearchParams();
   for (const [name, value] of entries) {
-    if (!registrationParams.has(name) || value === undefined) continue;
-    if (Array.isArray(value)) value.forEach(item => query.append(name, item));
-    else query.append(name, value);
+    if (typeof value === "string") raw.append(name, value);
+    else value?.forEach(item => raw.append(name, item));
   }
-  return `/login/register?${query}`;
+  const query = new URLSearchParams({ lang: locale });
+  if (includeReferral && raw.has("ref")) {
+    // Referral links retain their registration context and are excluded from the pixel.
+    for (const key of ["ref", ...campaignKeys]) raw.getAll(key).forEach(value => query.append(key, value));
+    return query;
+  }
+  parseCompanyCampaign(raw)?.forEach((value, key) => query.set(key, value));
+  return query;
+}
+
+export function companyDealerRegistrationHref(locale: CompanyLocale, entries: QueryEntries) {
+  const invitation = new URL(dealerRegistrationUrl);
+  invitation.search = registrationQuery(locale, entries, false).toString();
+  return invitation.href;
+}
+
+export function companyRegistrationHref(locale: CompanyLocale, entries: QueryEntries) {
+  return `/login/register?${registrationQuery(locale, entries, true)}`;
 }
 
 export function companyPath(page: CompanyPageName, locale: CompanyLocale): string {

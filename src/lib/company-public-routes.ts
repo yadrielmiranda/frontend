@@ -13,6 +13,13 @@ export const COMPANY_PUBLIC_ROUTES = [
 
 const companyRoutes = new Set<string>(COMPANY_PUBLIC_ROUTES);
 
+export const dealerRegistrationUrl = "https://authenticevolutionco.com/login/dealer-registration/453508cfa6b7b2055a4f70614bc6f6c5b9b27691aeb0037bd0505fcbe9418c53";
+const companyDealerPath = new URL(dealerRegistrationUrl).pathname;
+
+export function isCompanyDealerInvitation(pathname: string): boolean {
+  return pathname === companyDealerPath;
+}
+
 export const COMPANY_LANGUAGE_COOKIE = "company_language";
 
 const languageChangeKey = "company-language-change";

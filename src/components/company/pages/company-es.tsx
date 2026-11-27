@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { CompanyProductGallery } from "../company-product-gallery";
 import { CompanyRegistrationLink } from "../company-registration-link";
 
@@ -248,12 +247,12 @@ export function CompanyEsContent() {
             <p className="intro">
               {"Mantén tu marca al frente de la relación con tus clientes. Authentic ofrece a los distribuidores un espacio para preparar cotizaciones con su propia marca, gestionar órdenes y seguir su estado. Si trabajas con vendedores o subdistribuidores, puedes gestionar esa red desde tu cuenta sin tener que reenviar cada cotización."}
             </p>
-            <a className="button" href="mailto:sales@authenticevolutionco.com?subject=Authentic%20dealer%20program">
+            <CompanyRegistrationLink dealer className="button">
               {"Consulta el acceso para distribuidores "}
               <svg className="arrow" aria-hidden="true" viewBox="0 0 16 16">
                 <path d="M4 12L12 4m-6 0h6v6" />
               </svg>
-            </a>
+            </CompanyRegistrationLink>
           </div>
           <aside>
             <p className="tag">
@@ -422,25 +421,25 @@ export function CompanyEsContent() {
           </p>
           <ul className="text-list">
             <li>
-              <Link href="/es/resources/prepare-your-quote">
+              <a href="/es/resources/prepare-your-quote">
                 {"Cómo preparar una cotización de ventanas y puertas de impacto"}
-              </Link>
+              </a>
               <p>
                 {"Empieza con una lista de las aberturas, medidas aproximadas y fotos. Un alcance claro ayuda al equipo comercial a preparar una cotización más útil y a identificar qué datos quedan por confirmar antes de realizar la orden."}
               </p>
             </li>
             <li>
-              <Link href="/es/resources/compare-impact-products">
+              <a href="/es/resources/compare-impact-products">
                 {"Cómo comparar productos de impacto y revisar su documentación"}
-              </Link>
+              </a>
               <p>
                 {"Compara ventanas y puertas por fabricante, serie y configuración, no solo por apariencia o precio. Usa la documentación aplicable para comprobar que la unidad cotizada corresponda a las necesidades del proyecto."}
               </p>
             </li>
           </ul>
-          <Link href="/es/for-ai" className="link">
+          <a href="/es/for-ai" className="link">
             {"Referencia para IA"}
-          </Link>
+          </a>
         </div>
       </section>
       <section className="section" id="faq">
@@ -527,12 +526,12 @@ export function CompanyEsContent() {
               {"No vendemos ni compartimos los datos móviles con fines de marketing de terceros. Los datos de suscripción y el consentimiento para recibir mensajes de texto no se comparten con terceros."}
             </p>
             <div className="policy-links">
-              <Link href="/sms/privacy">
+              <a href="/sms/privacy">
                 {"Política de privacidad de SMS"}
-              </Link>
-              <Link href="/sms/terms">
+              </a>
+              <a href="/sms/terms">
                 {"Términos y condiciones de SMS"}
-              </Link>
+              </a>
             </div>
           </div>
         </div>

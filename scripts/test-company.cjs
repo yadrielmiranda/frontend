@@ -108,6 +108,7 @@ let pathname = '/company';
 const shellMocks = {
   'next/navigation': { usePathname: () => pathname },
   '@/app/providers': { Providers: 'Providers' },
+  '@/contexts/PortalLanguageContext': { PortalLanguageProvider: 'PortalLanguageProvider' },
   '@/components/app-shell': { AppShell: 'AppShell' },
   '@/components/auth/global-login-dialog': { GlobalLoginDialog: 'GlobalLoginDialog' },
   '@/components/auth/login-dialog-bridge': { LoginDialogBridge: 'LoginDialogBridge' },
@@ -126,6 +127,8 @@ test('Document and portal agree on the negotiated locale before hydration', asyn
   const { PORTAL_LANGUAGE_HINT_HEADER } = load(path.join(sourceRoot, 'lib/portal-language-routes.ts'));
   for (const [url, accepted, saved, expectedPortal, expectedDocument] of [
     ['/login?lang=es', 'en-US', undefined, 'es', 'es'],
+    ['/login/dealer-registration/test', 'es-US', undefined, 'es', 'es'],
+    ['/login/dealer-registration/test?lang=es', 'en-US', 'en', 'en', 'en'],
     ['/estimates/new?lang=es', 'es-US', 'en', 'en', 'en'],
     ['/login?lang=en&lang=es', 'es-US', undefined, 'es', 'es'],
     ['/es/resources', 'en-US', undefined, 'en', 'es'],
@@ -185,7 +188,7 @@ test('Portal and registration retain the existing provider and navigation stack'
   }
 });
 
-function verifyContent(html, expected, registrationAttribution = '') {
+function verifyContent(html, expected, registrationAttribution = '', dealerAttribution = '') {
   const visible = stripScripts(html);
   const headings = ['h1', 'h2', 'h3'].flatMap(tag => elements(visible, tag).map(node => ({ tag, text: node.text })));
   assert.deepEqual(sorted(headings), sorted(expected.headings), `${expected.route}: approved headings`);
@@ -199,6 +202,10 @@ function verifyContent(html, expected, registrationAttribution = '') {
     if (href === '/login/register') {
       const attribution = registrationAttribution ? `&${registrationAttribution}` : '';
       return { ...link, href: `/login/register?lang=${expected.locale}${attribution}` };
+    }
+    if (href.startsWith('/login/dealer-registration/')) {
+      const attribution = dealerAttribution ? `&${dealerAttribution}` : '';
+      return { ...link, href: `${href}?lang=${expected.locale}${attribution}` };
     }
     return { ...link, href: ['English', 'Español'].includes(link.text) ? `/company/language${href}` : href };
   });
@@ -275,13 +282,19 @@ test('Each public language menu links to its translated page and leaves the acti
   }
 });
 const referral = 'aB3_01234567890123456789';
-const registrationAttribution = `ref=${referral}&utm_source=facebook&utm_medium=paid&utm_campaign=registros_web&utm_content=eva_es&fbclid=abc-1`;
-test('Both landing pages render attributed signup links before hydration and discard unrelated query parameters', () => {
+const registrationAttribution = 'utm_source=facebook&utm_medium=paid&utm_campaign=registros_web&utm_content=eva_es&fbclid=abc-1';
+test('Both landing pages render campaign links before hydration and keep private referrals separate', () => {
   for (const locale of ['en', 'es']) {
-    const searchParams = Object.fromEntries(new URLSearchParams(registrationAttribution));
-    Object.assign(searchParams, { token: 'private', next: '/settings', lang: locale === 'es' ? 'en' : 'es' });
-    const html = renderToStaticMarkup(React.createElement(CompanyPage, { page: 'company', locale, searchParams }));
-    verifyContent(html, reference.pages.find(page => page.route === (locale === 'en' ? '/company' : '/es/company')), registrationAttribution);
+    const page = reference.pages.find(page => page.route === (locale === 'en' ? '/company' : '/es/company'));
+    for (const [extra, client, dealer] of [
+      [{}, registrationAttribution, registrationAttribution],
+      [{ email: 'private' }, '', ''],
+      [{ ref: referral, next: '/settings' }, `ref=${referral}&${registrationAttribution}`, ''],
+    ]) {
+      const searchParams = { ...Object.fromEntries(new URLSearchParams(registrationAttribution)), ...extra };
+      const html = renderToStaticMarkup(React.createElement(CompanyPage, { page: 'company', locale, searchParams }));
+      verifyContent(html, page, client, dealer);
+    }
   }
 });
 for (const page of reference.pages) {
@@ -335,7 +348,7 @@ if (baseIndex !== -1) {
     const landed = new URL(response.url);
     assert.equal(landed.pathname, '/es/company');
     assert.equal(landed.searchParams.toString(), campaign);
-    verifyContent(await response.text(), reference.pages.find(page => page.route === '/es/company'), campaign);
+    verifyContent(await response.text(), reference.pages.find(page => page.route === '/es/company'));
   });
   test('Each manual selection is remembered when reopening the company landing', async () => {
     for (const [locale, target, browser] of [['en', '/company', spanishBrowser], ['es', '/es/company', englishBrowser]]) {
@@ -376,7 +389,7 @@ if (baseIndex !== -1) {
       assert.equal(landed.pathname, target);
       assert.equal(landed.searchParams.get('lang'), saved);
       assert.deepEqual(landed.searchParams.getAll('utm_content'), ['A', 'B']);
-      verifyContent(await response.text(), reference.pages.find(page => page.route === target), target === '/company' ? campaign : '');
+      verifyContent(await response.text(), reference.pages.find(page => page.route === target));
     }
   });
   test('Language selection cannot redirect to a portal page', async () => {
